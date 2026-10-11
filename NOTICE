@@ -1,0 +1,11 @@
+ed-mcp
+Copyright (c) 2026 Seth Osher. Licensed under the MIT License (see LICENSE).
+
+src/catalog/data/engineers.json is derived from EliteDangerousCore
+(https://github.com/EDDiscovery/EliteDangerousCore), Engineers.cs,
+Copyright 2022-2024 EDDiscovery development team, licensed under the
+Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+The data was converted from C# to JSON.
+
+Elite Dangerous game data is the intellectual property of Frontier Developments plc.
+This project is not affiliated with Frontier Developments, Inara, EDSM, Spansh or EDCD.
