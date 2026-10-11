@@ -1,0 +1,4 @@
+{
+  "header": { "eventStatus": 200, "eventData": { "userID": 1, "userName": "Artie" } },
+  "events": [{ "eventCustomID": 1, "eventStatus": 204, "eventStatusText": "No results found." }]
+}

@@ -1,0 +1,81 @@
+{
+  "created_at": "2026-10-11T21:11:00",
+  "job": "426B5BEE-C5B8-11F1-B1C6-D0AC854EB3B3",
+  "parameters": {
+    "algorithm": "optimistic",
+    "base_mass": 450,
+    "cargo": 0,
+    "destination_system": "3932277478106",
+    "exclude_secondary": false,
+    "fuel_multiplier": 0.012,
+    "fuel_power": 2.45,
+    "injection_multiplier": 2,
+    "internal_tank_size": 0.5,
+    "is_supercharged": false,
+    "max_fuel_per_jump": 5,
+    "optimal_mass": 1050,
+    "range_boost": 0,
+    "refuel_every_scoopable": 1,
+    "reserve_size": 0,
+    "ship_build": null,
+    "source_system": "10477373803",
+    "supercharge_multiplier": 4,
+    "tank_size": 32,
+    "use_injections": false,
+    "use_injections_when_required": false,
+    "use_supercharge": true
+  },
+  "result": {
+    "jumps": [
+      {
+        "distance": 0,
+        "distance_to_destination": 64.43276382934,
+        "fuel_in_tank": 32,
+        "fuel_used": 0,
+        "has_neutron": false,
+        "id64": 10477373803,
+        "is_scoopable": false,
+        "must_inject": 0,
+        "must_refuel": false,
+        "name": "Sol",
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      {
+        "distance": 25.3630084991455,
+        "distance_to_destination": 39.3023387106289,
+        "fuel_in_tank": 32,
+        "fuel_used": 4.89688968658447,
+        "has_neutron": false,
+        "id64": 11666339210665,
+        "is_scoopable": true,
+        "must_inject": 0,
+        "must_refuel": true,
+        "name": "LHS 340",
+        "x": 20.46875,
+        "y": 8.25,
+        "z": 12.5
+      },
+      {
+        "distance": 22.0617923736572,
+        "distance_to_destination": 17.2678236722234,
+        "fuel_in_tank": 32,
+        "fuel_used": 3.47975277900696,
+        "has_neutron": false,
+        "id64": 2870514623921,
+        "is_scoopable": true,
+        "must_inject": 0,
+        "must_refuel": true,
+        "name": "LHS 2552",
+        "x": 40.15625,
+        "y": 13,
+        "z": 21.25
+      }
+    ],
+    "refuel_every_scoopable": true
+  },
+  "state": "completed",
+  "status": "ok",
+  "updated_at": "2026-10-11T21:11:01"
+}

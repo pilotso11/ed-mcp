@@ -1,4 +1,4 @@
-# inara-mcp design
+# ed-mcp design
 
 Date: 2026-10-11
 Status: draft, awaiting review
@@ -15,16 +15,16 @@ Paths come from `env-paths` (with `suffix: ''`) so they follow each OS:
 
 | Data | Source | macOS | Windows |
 |---|---|---|---|
-| Plans | `envPaths('inara-mcp').config` | `~/Library/Preferences/inara-mcp` | `%AppData%\inara-mcp\Config` |
-| Catalog cache | `envPaths('inara-mcp').cache` | `~/Library/Caches/inara-mcp` | `%LocalAppData%\inara-mcp\Cache` |
+| Plans | `envPaths('ed-mcp').config` | `~/Library/Preferences/ed-mcp` | `%AppData%\ed-mcp\Config` |
+| Catalog cache | `envPaths('ed-mcp').cache` | `~/Library/Caches/ed-mcp` | `%LocalAppData%\ed-mcp\Cache` |
 | CAPI refresh token | `@napi-rs/keyring` | Keychain | Credential Manager |
 
 ## Distribution
 
 | Channel | For | How |
 |---|---|---|
-| npm package `inara-mcp` | Claude Code and other MCP clients | `npx -y inara-mcp` in the client's MCP config. Needs Node 22 or later |
-| Claude Desktop extension (`inara-mcp.mcpb`) | Claude Desktop users | Built in CI and attached to each GitHub Release. Claude Desktop runs it with its bundled Node, so users install nothing else |
+| npm package `ed-mcp` | Claude Code and other MCP clients | `npx -y ed-mcp` in the client's MCP config. Needs Node 22 or later |
+| Claude Desktop extension (`ed-mcp.mcpb`) | Claude Desktop users | Built in CI and attached to each GitHub Release. Claude Desktop runs it with its bundled Node, so users install nothing else |
 
 The `.mcpb` manifest declares the config below as `user_config` fields. API
 keys are marked `sensitive`, so Claude Desktop stores them in the OS keychain
@@ -170,12 +170,12 @@ writes within the process.
 
 | Service | Method | Config |
 |---|---|---|
-| Inara | personal API key | `INARA_API_KEY` and `INARA_CMDR` (optional; Inara tools return "Inara not configured" without them), `INARA_APP_NAME` (default `inara-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
+| Inara | personal API key | `INARA_API_KEY` and `INARA_CMDR` (optional; Inara tools return "Inara not configured" without them), `INARA_APP_NAME` (default `ed-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
 | EDSM | API key | `EDSM_API_KEY` and `EDSM_CMDR` (optional; EDSM tools return "EDSM not configured" without them) |
 | Frontier CAPI | OAuth2 authorisation code with PKCE in the browser | `CAPI_CLIENT_ID` (optional; CAPI tools return "CAPI not configured" without it) |
 | Spansh | none | none |
 
-Other config: `INARA_MCP_PLANS` overrides the plan file path.
+Other config: `ED_MCP_PLANS` overrides the plan file path.
 
 CAPI login flow:
 
@@ -204,7 +204,7 @@ One-time setup steps for the user (documented in the README):
 
 All caches can be cleared with `cache_refresh`.
 
-- Shared client: 15 s timeout, `User-Agent: inara-mcp/<version>`.
+- Shared client: 15 s timeout, `User-Agent: ed-mcp/<version>`.
 - In-memory TTL cache keyed by request: Inara and EDSM commander data 60 s,
   CAPI profile 60 s, Spansh 5 min.
 - Inara: one request in flight at a time. Multiple events from one tool call

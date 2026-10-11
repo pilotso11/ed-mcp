@@ -1,0 +1,8 @@
+id,symbol,rarity,type,category,name
+128672318,Iron,1,Raw,4,Iron
+128672338,Tellurium,4,Raw,5,Tellurium
+128673882,HeatConductionWiring,1,Manufactured,Heat,Heat Conduction Wiring
+128673902,HeatExchangers,3,Manufactured,Heat,Heat Exchangers
+128681627,ShieldDensityReports,3,Encoded,Shield Data,Untypical Shield Scans 
+128681635,AdaptiveEncryptors,5,Encoded,Encryption Files,Adaptive Encryptors Capture
+128681637,DataminedWake,5,Encoded,Wake Scans,Datamined Wake Exceptions

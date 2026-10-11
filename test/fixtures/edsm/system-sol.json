@@ -1,0 +1,29 @@
+{
+  "name": "Sol",
+  "id": 27,
+  "id64": 10477373803,
+  "coords": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "coordsLocked": true,
+  "requirePermit": true,
+  "permitName": "Sol",
+  "information": {
+    "allegiance": "Federation",
+    "government": "Democracy",
+    "faction": "Mother Gaia",
+    "factionState": "None",
+    "population": 18320926115,
+    "security": "High",
+    "economy": "Refinery",
+    "secondEconomy": "Service",
+    "reserve": "Common"
+  },
+  "primaryStar": {
+    "type": "G (White-Yellow) Star",
+    "name": "Sol",
+    "isScoopable": true
+  }
+}

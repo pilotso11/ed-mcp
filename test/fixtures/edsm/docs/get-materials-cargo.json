@@ -1,0 +1,11 @@
+{
+  "msgnum": 100,
+  "msg": "OK",
+  "cargo": [
+    {
+      "type": "gold",
+      "name": "Gold",
+      "qty": 12
+    }
+  ]
+}

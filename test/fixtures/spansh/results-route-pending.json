@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-11T21:10:23",
+  "job": "2C328442-C5B8-11F1-B8B1-9C609135CEEF",
+  "parameters": {
+    "efficiency": "60",
+    "from": "Sol",
+    "range": "50",
+    "supercharge_multiplier": "4",
+    "to": "Colonia",
+    "via": []
+  },
+  "state": "started",
+  "status": "queued",
+  "updated_at": "2026-10-11T21:10:23"
+}

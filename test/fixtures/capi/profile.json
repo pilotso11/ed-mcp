@@ -1,0 +1,223 @@
+{
+  "commander": {
+    "id": 1234567,
+    "name": "Testy McTestface",
+    "credits": 1234567890,
+    "debt": 0,
+    "currentShipId": 7,
+    "alive": true,
+    "docked": true,
+    "onfoot": false,
+    "rank": {
+      "combat": 5,
+      "trade": 6,
+      "explore": 8,
+      "crime": 0,
+      "service": 0,
+      "empire": 3,
+      "federation": 4,
+      "power": 0,
+      "cqc": 0,
+      "soldier": 1,
+      "exobiologist": 2,
+      "builder": 0,
+      "learner": 0
+    },
+    "capabilities": {
+      "AllowCobraMkIV": false,
+      "Horizons": true,
+      "Odyssey": true
+    },
+    "mercCoins": 0
+  },
+  "lastSystem": {
+    "id": 3932277478106,
+    "name": "Shinrarta Dezhra",
+    "faction": "Independent"
+  },
+  "lastStarport": {
+    "id": 128666762,
+    "name": "Jameson Memorial",
+    "faction": "Independent",
+    "minorfaction": "The Pilots Federation",
+    "services": {
+      "commodities": "ok",
+      "refuel": "ok",
+      "repair": "ok",
+      "rearm": "ok",
+      "outfitting": "ok",
+      "shipyard": "ok",
+      "blackmarket": "unavailable",
+      "engineer": "ok"
+    }
+  },
+  "squadron": {
+    "name": "Example Squadron",
+    "tag": "EXSQ",
+    "rank": "Pilot",
+    "joined": "2025-01-01 12:00:00"
+  },
+  "ship": {
+    "id": 7,
+    "name": "Krait_MkII",
+    "shipName": "Long Haul",
+    "shipID": "KR-07",
+    "value": {
+      "hull": 44152080,
+      "modules": 61473322,
+      "cargo": 0,
+      "total": 105625402,
+      "unloaned": 0
+    },
+    "free": false,
+    "alive": true,
+    "station": {
+      "id": 128666762,
+      "name": "Jameson Memorial"
+    },
+    "starsystem": {
+      "id": 3932277478106,
+      "name": "Shinrarta Dezhra",
+      "systemaddress": 3932277478106
+    },
+    "health": {
+      "hull": 1000000,
+      "shield": 1000000,
+      "shieldup": true,
+      "integrity": 0,
+      "paintwork": 0
+    },
+    "cockpitBreached": false,
+    "oxygenRemaining": 450000,
+    "modules": {
+      "LargeHardpoint1": {
+        "module": {
+          "id": 128049387,
+          "name": "Hpt_PulseLaser_Gimbal_Large",
+          "locName": "Pulse Laser",
+          "locDescription": "Fires a pulsed energy beam.",
+          "value": 140600,
+          "free": false,
+          "health": 1000000,
+          "on": true,
+          "priority": 0
+        }
+      },
+      "FrameShiftDrive": {
+        "module": {
+          "id": 128064122,
+          "name": "Int_Hyperdrive_Size5_Class5",
+          "locName": "Frame Shift Drive",
+          "locDescription": "Allows hyperspace and supercruise travel.",
+          "value": 5103950,
+          "free": false,
+          "health": 1000000,
+          "on": true,
+          "priority": 0
+        },
+        "engineer": {
+          "engineerName": "Felicity Farseer",
+          "engineerId": 300100,
+          "recipeName": "FSD_LongRange",
+          "recipeLocName": "Increased FSD Range",
+          "recipeLocDescription": "Increases the optimal mass of the frame shift drive.",
+          "recipeLevel": 5
+        },
+        "WorkInProgress_modifications": {
+          "OutfittingFieldType_FSDOptimalMass": {
+            "value": 1.55,
+            "LessIsGood": false,
+            "locName": "Optimal Mass",
+            "displayValue": "+55%",
+            "dir": "+"
+          },
+          "OutfittingFieldType_Mass": {
+            "value": 1.3,
+            "LessIsGood": true,
+            "locName": "Mass",
+            "displayValue": "+30%",
+            "dir": "+"
+          }
+        },
+        "specialModifications": {
+          "special_fsd_heavy": "special_fsd_heavy"
+        }
+      },
+      "Slot01_Size6": {
+        "module": {
+          "id": 128064287,
+          "name": "Int_ShieldGenerator_Size6_Class5",
+          "locName": "Shield Generator",
+          "locDescription": "Generates a deflector shield around the ship.",
+          "value": 16179531,
+          "free": false,
+          "health": 1000000,
+          "on": true,
+          "priority": 0
+        }
+      },
+      "Slot03_Size5": {
+        "module": {
+          "id": 128666680,
+          "name": "Int_FuelScoop_Size5_Class5",
+          "locName": "Fuel Scoop",
+          "locDescription": "Collects fuel from stars in supercruise.",
+          "value": 9073694,
+          "free": false,
+          "health": 1000000,
+          "on": true,
+          "priority": 1
+        },
+        "specialModifications": []
+      }
+    }
+  },
+  "ships": {
+    "2": {
+      "id": 2,
+      "name": "Python",
+      "shipName": "Cargo Barge",
+      "shipID": "PY-02",
+      "value": {
+        "hull": 55171395,
+        "modules": 30120000,
+        "cargo": 0,
+        "total": 85291395,
+        "unloaned": 0
+      },
+      "free": false,
+      "station": {
+        "id": 3226643968,
+        "name": "Voss Dock"
+      },
+      "starsystem": {
+        "id": 2832564505283,
+        "name": "Lalande 37120",
+        "systemaddress": 2832564505283
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": "Krait_MkII",
+      "shipName": "Long Haul",
+      "shipID": "KR-07",
+      "value": {
+        "hull": 44152080,
+        "modules": 61473322,
+        "cargo": 0,
+        "total": 105625402,
+        "unloaned": 0
+      },
+      "free": false,
+      "station": {
+        "id": 128666762,
+        "name": "Jameson Memorial"
+      },
+      "starsystem": {
+        "id": 3932277478106,
+        "name": "Shinrarta Dezhra",
+        "systemaddress": 3932277478106
+      }
+    }
+  }
+}

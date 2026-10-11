@@ -1,0 +1,355 @@
+{
+  "fields": [
+    {
+      "field": "government",
+      "type": "group"
+    },
+    {
+      "field": "marketplace",
+      "multiple": true,
+      "path": "market",
+      "subfields": {
+        "buy_price": {
+          "order": 3,
+          "subtype": "integer",
+          "type": "numeric"
+        },
+        "commodity": {
+          "order": 1,
+          "primary": true,
+          "type": "group"
+        },
+        "demand": {
+          "order": 4,
+          "subtype": "integer",
+          "type": "numeric"
+        },
+        "is_home_station": {
+          "order": 6,
+          "type": "boolean"
+        },
+        "is_rare": {
+          "order": 7,
+          "type": "boolean"
+        },
+        "sell_price": {
+          "order": 5,
+          "subtype": "integer",
+          "type": "numeric"
+        },
+        "supply": {
+          "order": 2,
+          "subtype": "integer",
+          "type": "numeric"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "has_shipyard",
+      "type": "boolean"
+    },
+    {
+      "field": "has_outfitting",
+      "type": "boolean"
+    },
+    {
+      "field": "system_name",
+      "type": "string"
+    },
+    {
+      "field": "system_is_colonised",
+      "type": "boolean"
+    },
+    {
+      "field": "carrier_docking_access",
+      "type": "group"
+    },
+    {
+      "field": "updated_at",
+      "type": "timestamp"
+    },
+    {
+      "field": "is_dssa_carrier",
+      "type": "boolean"
+    },
+    {
+      "field": "allegiance",
+      "type": "group"
+    },
+    {
+      "field": "modules",
+      "multiple": true,
+      "subfields": {
+        "class": {
+          "order": 2,
+          "type": "group"
+        },
+        "name": {
+          "order": 1,
+          "primary": true,
+          "type": "group"
+        },
+        "price": {
+          "order": 3,
+          "subtype": "integer",
+          "type": "numeric"
+        },
+        "rating": {
+          "order": 4,
+          "type": "group"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "is_planetary",
+      "type": "boolean"
+    },
+    {
+      "field": "body_has_rings",
+      "type": "boolean"
+    },
+    {
+      "field": "has_large_pad",
+      "type": "boolean"
+    },
+    {
+      "field": "services",
+      "multiple": true,
+      "subfields": {
+        "name": {
+          "order": 1,
+          "type": "group"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "real_name",
+      "type": "string"
+    },
+    {
+      "field": "system_power",
+      "type": "group"
+    },
+    {
+      "field": "type",
+      "type": "group"
+    },
+    {
+      "field": "import_commodities",
+      "multiple": true,
+      "subfields": {
+        "name": {
+          "order": 1,
+          "primary": true,
+          "type": "group"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "outfitting_updated_at",
+      "type": "timestamp"
+    },
+    {
+      "field": "technology_broker",
+      "type": "group"
+    },
+    {
+      "field": "body_type",
+      "type": "group"
+    },
+    {
+      "field": "system_population",
+      "subtype": "integer",
+      "type": "numeric"
+    },
+    {
+      "field": "system_id64",
+      "type": "keyword"
+    },
+    {
+      "field": "ships",
+      "multiple": true,
+      "subfields": {
+        "name": {
+          "order": 1,
+          "primary": true,
+          "type": "group"
+        },
+        "price": {
+          "order": 2,
+          "subtype": "integer",
+          "type": "numeric"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "controlling_minor_faction_influence",
+      "subtype": "real",
+      "type": "numeric"
+    },
+    {
+      "field": "system_controlling_power",
+      "type": "group"
+    },
+    {
+      "field": "shipyard_updated_at",
+      "type": "timestamp"
+    },
+    {
+      "field": "market_id",
+      "type": "keyword"
+    },
+    {
+      "field": "material_trader",
+      "type": "group"
+    },
+    {
+      "field": "large_pads",
+      "subtype": "integer",
+      "type": "numeric"
+    },
+    {
+      "field": "small_pads",
+      "subtype": "integer",
+      "type": "numeric"
+    },
+    {
+      "field": "system_power_state",
+      "type": "group"
+    },
+    {
+      "field": "body_id64",
+      "type": "keyword"
+    },
+    {
+      "field": "controlling_minor_faction",
+      "field_values": "autocomplete_controlling_minor_faction",
+      "field_values_url": "/api/stations/field_values/autocomplete_controlling_minor_faction",
+      "type": "group"
+    },
+    {
+      "field": "market",
+      "type": "special"
+    },
+    {
+      "field": "controlling_minor_faction_state",
+      "type": "group"
+    },
+    {
+      "field": "market_updated_at",
+      "type": "timestamp"
+    },
+    {
+      "field": "body_has_atmosphere",
+      "type": "boolean"
+    },
+    {
+      "field": "export_commodities",
+      "multiple": true,
+      "subfields": {
+        "name": {
+          "order": 1,
+          "primary": true,
+          "type": "group"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "secondary_economy",
+      "type": "group"
+    },
+    {
+      "field": "body_gravity",
+      "subtype": "real",
+      "type": "numeric"
+    },
+    {
+      "field": "system_secondary_economy",
+      "type": "group"
+    },
+    {
+      "field": "state",
+      "type": "group"
+    },
+    {
+      "field": "prohibited_commodities",
+      "multiple": true,
+      "subfields": {
+        "name": {
+          "order": 1,
+          "primary": true,
+          "type": "group"
+        }
+      },
+      "type": "combined"
+    },
+    {
+      "field": "has_market",
+      "type": "boolean"
+    },
+    {
+      "field": "name",
+      "type": "string"
+    },
+    {
+      "field": "body_name",
+      "type": "string"
+    },
+    {
+      "field": "primary_economy",
+      "type": "group"
+    },
+    {
+      "field": "medium_pads",
+      "subtype": "integer",
+      "type": "numeric"
+    },
+    {
+      "field": "system_is_being_colonised",
+      "type": "boolean"
+    },
+    {
+      "field": "economies",
+      "multiple": true,
+      "subfield": {
+        "name": "name",
+        "type": "group"
+      },
+      "type": "value_struct",
+      "valuefield": {
+        "name": "share",
+        "subtype": "real",
+        "type": "numeric"
+      }
+    },
+    {
+      "field": "distance",
+      "subtype": "real",
+      "type": "numeric"
+    },
+    {
+      "field": "body_subtype",
+      "type": "group"
+    },
+    {
+      "field": "distance_to_arrival",
+      "is_logarithmic": true,
+      "subtype": "integer",
+      "type": "numeric"
+    },
+    {
+      "field": "system_primary_economy",
+      "type": "group"
+    },
+    {
+      "field": "carrier_name",
+      "type": "string"
+    }
+  ]
+}

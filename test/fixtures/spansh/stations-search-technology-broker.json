@@ -1,0 +1,545 @@
+{
+  "count": 887,
+  "from": 0,
+  "reference": {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "results": [
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Future of EZ Aquarii",
+      "controlling_minor_faction_influence": 0.557789,
+      "controlling_minor_faction_state": "Boom",
+      "distance": 11.0983265208093,
+      "distance_to_arrival": 412.721609,
+      "economies": [
+        {
+          "name": "High Tech",
+          "share": 80.0
+        },
+        {
+          "name": "Refinery",
+          "share": 20.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Resonating Separators"
+        },
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Animal Monitors"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228841728",
+      "import_commodities": [
+        {
+          "name": "Pyrophyllite"
+        },
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Conductive Fabrics"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 5,
+      "market": [
+        {
+          "buy_price": 2484,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 1,
+          "sell_price": 2398,
+          "supply": 364303
+        },
+        {
+          "buy_price": 1343,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 1,
+          "sell_price": 1274,
+          "supply": 29
+        },
+        {
+          "buy_price": 722,
+          "category": "Medicines",
+          "commodity": "Agri-Medicines",
+          "demand": 1,
+          "sell_price": 685,
+          "supply": 17819
+        }
+      ],
+      "market_id": 3228841728,
+      "market_updated_at": "2026-10-11T20:00:47Z",
+      "material_trader": "Encoded",
+      "medium_pads": 11,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Asp_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Asp Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Asp_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 2664460,
+          "rating": "I",
+          "ship": "Asp Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Asp_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 5995040,
+          "rating": "I",
+          "ship": "Asp Explorer"
+        }
+      ],
+      "name": "Magnus Gateway",
+      "outfitting_updated_at": "2026-10-11T20:00:47Z",
+      "primary_economy": "High Tech",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Technology Broker"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Asp Explorer",
+          "price": 6661150,
+          "symbol": "Asp"
+        },
+        {
+          "name": "Asp Scout",
+          "price": 3961150,
+          "symbol": "Asp_Scout"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T20:00:47Z",
+      "small_pads": 9,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Yuri Grom",
+      "system_id64": 22661186987433,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "EZ Aquarii",
+      "system_population": 9930324,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Fortified",
+      "system_primary_economy": "High Tech",
+      "system_secondary_economy": "Refinery",
+      "system_x": -4.4375,
+      "system_y": -9.3125,
+      "system_z": 4.09375,
+      "technology_broker": "Guardian",
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-11T20:00:47Z"
+    },
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Green Party of Bhritzameno",
+      "controlling_minor_faction_influence": 0.644803,
+      "controlling_minor_faction_state": "Boom",
+      "distance": 19.0910135109428,
+      "distance_to_arrival": 1388.195561,
+      "economies": [
+        {
+          "name": "High Tech",
+          "share": 80.0
+        },
+        {
+          "name": "Refinery",
+          "share": 20.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Advanced Catalysers"
+        },
+        {
+          "name": "Pesticides"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228798208",
+      "import_commodities": [
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Pyrophyllite"
+        },
+        {
+          "name": "Rutile"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 7,
+      "market": [
+        {
+          "buy_price": 2735,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 1,
+          "sell_price": 2640,
+          "supply": 399084
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 9752,
+          "sell_price": 1578,
+          "supply": 0
+        },
+        {
+          "buy_price": 2272,
+          "category": "Foods",
+          "commodity": "Aepyornis Egg",
+          "demand": 0,
+          "is_rare": true,
+          "sell_price": 2249,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228798208,
+      "market_updated_at": "2026-10-11T18:15:22Z",
+      "material_trader": "Encoded",
+      "medium_pads": 13,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "BelugaLiner_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Beluga Liner"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "BelugaLiner_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 33813120,
+          "rating": "I",
+          "ship": "Beluga Liner"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "BelugaLiner_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 76079500,
+          "rating": "I",
+          "ship": "Beluga Liner"
+        }
+      ],
+      "name": "Feynman Terminal",
+      "outfitting_updated_at": "2026-10-11T18:13:16Z",
+      "primary_economy": "High Tech",
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Technology Broker"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T18:13:16Z",
+      "small_pads": 8,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 5198797867371,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Bhritzameno",
+      "system_population": 18267363,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "High Tech",
+      "system_secondary_economy": "Refinery",
+      "system_x": -11.3125,
+      "system_y": -1.03125,
+      "system_z": 15.34375,
+      "technology_broker": "Guardian",
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-11T18:15:22Z"
+    },
+    {
+      "controlling_minor_faction": "Equestrian Naval Fleet",
+      "controlling_minor_faction_influence": 0.459,
+      "controlling_minor_faction_state": "Expansion",
+      "distance": 20.1852746451466,
+      "distance_to_arrival": 10.854902,
+      "economies": [
+        {
+          "name": "High Tech",
+          "share": 80.0
+        },
+        {
+          "name": "Refinery",
+          "share": 20.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Pesticides"
+        },
+        {
+          "name": "Advanced Catalysers"
+        }
+      ],
+      "government": "Feudal",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228848384",
+      "import_commodities": [
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Pyrophyllite"
+        },
+        {
+          "name": "Conductive Fabrics"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 3002,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 1,
+          "sell_price": 2913,
+          "supply": 99757
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 12565,
+          "sell_price": 1922,
+          "supply": 0
+        },
+        {
+          "buy_price": 1240,
+          "category": "Medicines",
+          "commodity": "Agri-Medicines",
+          "demand": 1,
+          "sell_price": 1183,
+          "supply": 5830
+        }
+      ],
+      "market_id": 3228848384,
+      "market_updated_at": "2026-10-11T16:52:08Z",
+      "material_trader": "Encoded",
+      "medium_pads": 13,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "CobraMkV_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Cobra MkV"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "CobraMkV_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 795784,
+          "rating": "I",
+          "ship": "Cobra MkV"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "CobraMkV_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 1790514,
+          "rating": "I",
+          "ship": "Cobra MkV"
+        }
+      ],
+      "name": "Merbold Ring",
+      "outfitting_updated_at": "2026-10-11T16:52:08Z",
+      "primary_economy": "High Tech",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Combat Stabilisers"
+        }
+      ],
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Technology Broker"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        },
+        {
+          "name": "Corsair",
+          "price": 79304748,
+          "symbol": "Corsair"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T16:52:08Z",
+      "small_pads": 10,
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 22660918551977,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "EQ Pegasi",
+      "system_population": 18331707,
+      "system_power": [
+        "Aisling Duval",
+        "Li Yong-Rui",
+        "Yuri Grom"
+      ],
+      "system_power_state": "Exploited",
+      "system_primary_economy": "High Tech",
+      "system_secondary_economy": "Refinery",
+      "system_x": -15.4375,
+      "system_y": -12.75,
+      "system_z": -2.5625,
+      "technology_broker": "Guardian",
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-11T16:52:08Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "technology_broker": {
+        "value": [
+          "Guardian"
+        ]
+      }
+    },
+    "page": 0,
+    "reference_system": "Sol",
+    "reference_system_details": {
+      "id64": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "096E31D6-C5B8-11F1-B0C0-D7AB6FC9AA5D",
+  "size": 3
+}

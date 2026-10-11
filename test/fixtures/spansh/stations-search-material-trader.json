@@ -1,0 +1,538 @@
+{
+  "count": 28,
+  "from": 0,
+  "reference": {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "results": [
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Elite Rebel Force",
+      "controlling_minor_faction_influence": 0.417822,
+      "controlling_minor_faction_state": "Boom",
+      "distance": 11.3687311022383,
+      "distance_to_arrival": 24.069354,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 12.0
+        },
+        {
+          "name": "Refinery",
+          "share": 88.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Synthetic Fabrics"
+        },
+        {
+          "name": "Lithium"
+        }
+      ],
+      "government": "Confederacy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228837888",
+      "import_commodities": [
+        {
+          "name": "Methane Clathrate"
+        },
+        {
+          "name": "Lepidolite"
+        },
+        {
+          "name": "Mineral Oil"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 756347,
+          "sell_price": 3212,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 49050,
+          "sell_price": 1549,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 86,
+          "sell_price": 11500,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228837888,
+      "market_updated_at": "2026-10-11T14:23:50Z",
+      "material_trader": "Raw",
+      "medium_pads": 12,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Broglie Terminal",
+      "outfitting_updated_at": "2026-10-11T14:23:50Z",
+      "primary_economy": "Refinery",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Personal Weapons"
+        },
+        {
+          "name": "Slaves"
+        }
+      ],
+      "secondary_economy": "Industrial",
+      "services": [
+        {
+          "name": "Material Trader"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Cobra MkIII",
+          "price": 349720,
+          "symbol": "CobraMkIII"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T14:23:50Z",
+      "small_pads": 10,
+      "system_controlling_power": "Yuri Grom",
+      "system_id64": 5856288576210,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "61 Cygni",
+      "system_population": 8274043,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Industrial",
+      "system_x": -11.21875,
+      "system_y": -1.1875,
+      "system_z": 1.40625,
+      "type": "Ocellus Starport",
+      "updated_at": "2026-10-11T14:23:50Z"
+    },
+    {
+      "controlling_minor_faction": "Boop Brigade",
+      "controlling_minor_faction_influence": 0.317492,
+      "distance": 19.709139892763,
+      "distance_to_arrival": 94.866851,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 12.0
+        },
+        {
+          "name": "Refinery",
+          "share": 88.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Copper"
+        },
+        {
+          "name": "Polymers"
+        }
+      ],
+      "government": "Cooperative",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228724992",
+      "import_commodities": [
+        {
+          "name": "Methane Clathrate"
+        },
+        {
+          "name": "Uraninite"
+        },
+        {
+          "name": "Mineral Oil"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 169779,
+          "sell_price": 3544,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 9806,
+          "sell_price": 1754,
+          "supply": 0
+        },
+        {
+          "buy_price": 2127,
+          "category": "Foods",
+          "commodity": "Aepyornis Egg",
+          "demand": 0,
+          "is_rare": true,
+          "sell_price": 2124,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228724992,
+      "market_updated_at": "2026-10-11T17:50:37Z",
+      "material_trader": "Raw",
+      "medium_pads": 14,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Bresnik Port",
+      "outfitting_updated_at": "2026-10-11T17:04:17Z",
+      "primary_economy": "Refinery",
+      "secondary_economy": "Industrial",
+      "services": [
+        {
+          "name": "Material Trader"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Cobra MkIII",
+          "price": 349720,
+          "symbol": "CobraMkIII"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T17:04:17Z",
+      "small_pads": 10,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Yuri Grom",
+      "system_id64": 79196850539,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "82 Eridani",
+      "system_population": 3608745,
+      "system_power": [
+        "Aisling Duval",
+        "Denton Patreus",
+        "Edmund Mahon"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Industrial",
+      "system_x": 10.40625,
+      "system_y": -16.3125,
+      "system_z": -3.75,
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-11T19:09:55Z"
+    },
+    {
+      "controlling_minor_faction": "EG Union",
+      "controlling_minor_faction_influence": 0.453453,
+      "controlling_minor_faction_state": "Expansion",
+      "distance": 19.9266722165293,
+      "distance_to_arrival": 195.473357,
+      "economies": [
+        {
+          "name": "Extraction",
+          "share": 24.0
+        },
+        {
+          "name": "Refinery",
+          "share": 76.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Lithium"
+        },
+        {
+          "name": "Copper"
+        },
+        {
+          "name": "Polymers"
+        }
+      ],
+      "government": "Dictatorship",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128117240",
+      "import_commodities": [
+        {
+          "name": "Mineral Oil"
+        },
+        {
+          "name": "Methane Clathrate"
+        },
+        {
+          "name": "Lepidolite"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 9,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 265007,
+          "sell_price": 3597,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 18002,
+          "sell_price": 1800,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 12,
+          "sell_price": 5713,
+          "supply": 0
+        }
+      ],
+      "market_id": 128117240,
+      "market_updated_at": "2026-10-11T16:45:11Z",
+      "material_trader": "Raw",
+      "medium_pads": 18,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Hooper Relay",
+      "outfitting_updated_at": "2026-10-11T16:45:42Z",
+      "primary_economy": "Refinery",
+      "prohibited_commodities": [
+        {
+          "name": "Slaves"
+        }
+      ],
+      "secondary_economy": "Extraction",
+      "services": [
+        {
+          "name": "Material Trader"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Anaconda",
+          "price": 146969450,
+          "symbol": "Anaconda"
+        },
+        {
+          "name": "Cobra MkIII",
+          "price": 349720,
+          "symbol": "CobraMkIII"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T16:45:11Z",
+      "small_pads": 17,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Yuri Grom",
+      "system_id64": 633608344274,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Delta Pavonis",
+      "system_population": 5035423,
+      "system_power": [
+        "A. Lavigny-Duval",
+        "Aisling Duval",
+        "Denton Patreus"
+      ],
+      "system_power_state": "Fortified",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Extraction",
+      "system_x": 8.375,
+      "system_y": -10.84375,
+      "system_z": 14.46875,
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-11T16:45:42Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "distance": {
+        "max": 50,
+        "min": 0
+      },
+      "material_trader": {
+        "value": [
+          "Raw"
+        ]
+      }
+    },
+    "page": 0,
+    "reference_system": "Sol",
+    "reference_system_details": {
+      "id64": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "01EF4E5E-C5B8-11F1-9F4B-AAD025B355AB",
+  "size": 3
+}

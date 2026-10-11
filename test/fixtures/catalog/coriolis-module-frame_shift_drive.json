@@ -1,0 +1,71 @@
+{
+  "fsd": [
+    {
+      "class": 5,
+      "cost": 63012,
+      "edID": 128064118,
+      "eddbID": 976,
+      "fuelmul": 0.011,
+      "fuelpower": 2.45,
+      "grp": "fsd",
+      "id": "Fj",
+      "integrity": 86,
+      "mass": 20,
+      "maxfuel": 3.3,
+      "optmass": 560,
+      "power": 0.32,
+      "rating": "E",
+      "symbol": "Int_Hyperdrive_Size5_Class1",
+      "ukName": "FSD",
+      "ukDiscript": "Device that allows supercruise travel and hyperspace jumps between star systems."
+    },
+    {
+      "class": 5,
+      "cost": 5103953,
+      "edID": 128064122,
+      "eddbID": 980,
+      "fuelmul": 0.012,
+      "fuelpower": 2.45,
+      "grp": "fsd",
+      "id": "Ff",
+      "integrity": 120,
+      "mass": 20,
+      "maxfuel": 5,
+      "optmass": 1050,
+      "power": 0.6,
+      "rating": "A",
+      "symbol": "Int_Hyperdrive_Size5_Class5",
+      "ukName": "FSD",
+      "ukDiscript": "Device that allows supercruise travel and hyperspace jumps between star systems."
+    },
+    {
+      "class": 5,
+      "cost": 0,
+      "fuelmul": 0.012,
+      "fuelpower": 2.45,
+      "grp": "fsd",
+      "id": "5O",
+      "integrity": 120,
+      "mass": 20,
+      "maxfuel": 5,
+      "optmass": 1050,
+      "power": 0.6,
+      "rating": "A",
+      "symbol": "Int_Hyperdrive_Size5_Class5",
+      "ukName": "V1 Frame Shift Drive",
+      "name": "FSD PreEng (V1)",
+      "ukDiscript": "A pre-engineered Frame Shift Drive that combines increased range with a faster boot sequence. This module cannot be further engineered, but an experimental effect can be applied.",
+      "preEngineered": {
+        "reengineerable": false,
+        "gradeChangeable": false,
+        "blueprints": [
+          "FSD_LongRange",
+          "FSD_FastBoot"
+        ],
+        "grade": 5,
+        "canApplyExperimental": true,
+        "description": "This module has been pre-engineered with Grade 5 Increased Range and Faster Boot Sequence modifications."
+      }
+    }
+  ]
+}

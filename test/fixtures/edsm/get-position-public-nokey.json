@@ -1,0 +1,20 @@
+{
+  "msgnum": 100,
+  "msg": "OK",
+  "system": "Stuemeae FG-Y d7561",
+  "firstDiscover": false,
+  "date": null,
+  "coordinates": {
+    "x": 28.6875,
+    "y": -19.78125,
+    "z": 25899.6875
+  },
+  "isDocked": true,
+  "station": "Explorer's Anchorage",
+  "dateDocked": null,
+  "shipId": 0,
+  "shipType": "Asp Explorer",
+  "shipFuel": null,
+  "dateLastActivity": null,
+  "url": "https://www.edsm.net/en/user/profile/id/952/cmdr/Anthor"
+}

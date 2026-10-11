@@ -1,0 +1,524 @@
+{
+  "count": 10000,
+  "from": 0,
+  "reference": {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "results": [
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Mother Gaia",
+      "controlling_minor_faction_influence": 0.315015,
+      "distance": 0.0,
+      "distance_to_arrival": 2614.741906,
+      "economies": [
+        {
+          "name": "Refinery",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Lithium"
+        },
+        {
+          "name": "Synthetic Fabrics"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128017920",
+      "import_commodities": [
+        {
+          "name": "Grain"
+        },
+        {
+          "name": "Beer"
+        },
+        {
+          "name": "Wine"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 110870,
+          "sell_price": 3501,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 565984,
+          "sell_price": 1727,
+          "supply": 0
+        },
+        {
+          "buy_price": 2146,
+          "category": "Foods",
+          "commodity": "Aepyornis Egg",
+          "demand": 0,
+          "is_rare": true,
+          "sell_price": 2124,
+          "supply": 0
+        }
+      ],
+      "market_id": 128017920,
+      "market_updated_at": "2026-10-11T19:19:46Z",
+      "medium_pads": 12,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 5,
+          "ed_symbol": "Int_Hyperdrive_Size5_Class5",
+          "name": "Frame Shift Drive",
+          "price": 5103950,
+          "rating": "A"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Columbus",
+      "outfitting_updated_at": "2026-10-11T19:21:14Z",
+      "primary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T16:45:08Z",
+      "small_pads": 7,
+      "state": "UnderRepairs",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 10477373803,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Sol",
+      "system_population": 18320926115,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Service",
+      "system_x": 0.0,
+      "system_y": 0.0,
+      "system_z": 0.0,
+      "type": "Ocellus Starport",
+      "updated_at": "2026-10-11T19:59:47Z"
+    },
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Mother Gaia",
+      "controlling_minor_faction_influence": 0.315015,
+      "distance": 0.0,
+      "distance_to_arrival": 504.530115,
+      "economies": [
+        {
+          "name": "Service",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Biowaste"
+        },
+        {
+          "name": "Agronomic Treatment"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128016896",
+      "import_commodities": [
+        {
+          "name": "Silver"
+        },
+        {
+          "name": "Grain"
+        },
+        {
+          "name": "Clothing"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 5,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 197051,
+          "sell_price": 1727,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 1842,
+          "sell_price": 3702,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Foods",
+          "commodity": "Animal Meat",
+          "demand": 169704,
+          "sell_price": 1891,
+          "supply": 0
+        }
+      ],
+      "market_id": 128016896,
+      "market_updated_at": "2026-10-11T20:15:29Z",
+      "medium_pads": 9,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 5,
+          "ed_symbol": "Int_Hyperdrive_Size5_Class5",
+          "name": "Frame Shift Drive",
+          "price": 5103950,
+          "rating": "A"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 757900,
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        }
+      ],
+      "name": "Abraham Lincoln",
+      "outfitting_updated_at": "2026-10-11T20:21:13Z",
+      "primary_economy": "Service",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T20:15:29Z",
+      "small_pads": 8,
+      "state": "UnderRepairs",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 10477373803,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Sol",
+      "system_population": 18320926115,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Service",
+      "system_x": 0.0,
+      "system_y": 0.0,
+      "system_z": 0.0,
+      "type": "Orbis Starport",
+      "updated_at": "2026-10-11T20:21:13Z"
+    },
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Mother Gaia",
+      "controlling_minor_faction_influence": 0.315015,
+      "distance": 0.0,
+      "distance_to_arrival": 4720.470112,
+      "economies": [
+        {
+          "name": "Refinery",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Copper"
+        },
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Synthetic Fabrics"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128018176",
+      "import_commodities": [
+        {
+          "name": "Grain"
+        },
+        {
+          "name": "Beer"
+        },
+        {
+          "name": "Wine"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 5,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 79576,
+          "sell_price": 3501,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 406230,
+          "sell_price": 1727,
+          "supply": 0
+        },
+        {
+          "buy_price": 2146,
+          "category": "Foods",
+          "commodity": "Aepyornis Egg",
+          "demand": 0,
+          "is_rare": true,
+          "sell_price": 2124,
+          "supply": 0
+        }
+      ],
+      "market_id": 128018176,
+      "market_updated_at": "2026-10-11T19:54:08Z",
+      "medium_pads": 13,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 5,
+          "ed_symbol": "Int_Hyperdrive_Size5_Class5",
+          "name": "Frame Shift Drive",
+          "price": 5103950,
+          "rating": "A"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Titan City",
+      "outfitting_updated_at": "2026-10-11T19:55:26Z",
+      "primary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T19:53:48Z",
+      "small_pads": 7,
+      "state": "UnderRepairs",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 10477373803,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Sol",
+      "system_population": 18320926115,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Service",
+      "system_x": 0.0,
+      "system_y": 0.0,
+      "system_z": 0.0,
+      "type": "Orbis Starport",
+      "updated_at": "2026-10-11T19:55:26Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "modules": [
+        {
+          "class": {
+            "value": [
+              "5"
+            ]
+          },
+          "name": {
+            "value": [
+              "Frame Shift Drive"
+            ]
+          },
+          "rating": {
+            "value": [
+              "A"
+            ]
+          }
+        }
+      ]
+    },
+    "page": 0,
+    "reference_system": "Sol",
+    "reference_system_details": {
+      "id64": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "E9A42B26-C5B7-11F1-B2B8-83B8FECE379D",
+  "size": 3
+}

@@ -1,0 +1,6 @@
+id,symbol,category,name,mount,guidance,ship,class,rating,entitlement
+128049381,Hpt_PulseLaser_Fixed_Small,hardpoint,Pulse Laser,Fixed,,,1,F,
+128064087,Int_Engine_Size5_Class5,standard,Thrusters,,,,5,A,
+128064118,Int_Hyperdrive_Size5_Class1,standard,Frame Shift Drive,,,,5,E,
+128064122,Int_Hyperdrive_Size5_Class5,standard,Frame Shift Drive,,,,5,A,
+128682013,Int_Engine_Size3_Class5_Fast,standard,Enhanced Performance Thrusters,,,,3,A,

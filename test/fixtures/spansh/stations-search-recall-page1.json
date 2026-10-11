@@ -1,0 +1,548 @@
+{
+  "count": 28,
+  "from": 3,
+  "reference": {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "results": [
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Earth Defense Fleet",
+      "controlling_minor_faction_influence": 0.507937,
+      "controlling_minor_faction_state": "Boom",
+      "distance": 20.134775382097,
+      "distance_to_arrival": 43582.309776,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 12.0
+        },
+        {
+          "name": "Refinery",
+          "share": 88.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Copper"
+        },
+        {
+          "name": "Polymers"
+        }
+      ],
+      "government": "Corporate",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228864768",
+      "import_commodities": [
+        {
+          "name": "Methane Clathrate"
+        },
+        {
+          "name": "Uraninite"
+        },
+        {
+          "name": "Mineral Oil"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 354049,
+          "sell_price": 3476,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 20662,
+          "sell_price": 1705,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 141,
+          "sell_price": 6394,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228864768,
+      "market_updated_at": "2026-10-11T05:24:25Z",
+      "material_trader": "Raw",
+      "medium_pads": 14,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Apt Station",
+      "outfitting_updated_at": "2026-10-11T05:24:25Z",
+      "primary_economy": "Refinery",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "secondary_economy": "Industrial",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        },
+        {
+          "name": "Corsair",
+          "price": 79304748,
+          "symbol": "Corsair"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T05:24:25Z",
+      "small_pads": 8,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 18262872106401,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Struve 1321",
+      "system_population": 7802877,
+      "system_power": [
+        "Aisling Duval",
+        "Li Yong-Rui",
+        "Yuri Grom"
+      ],
+      "system_power_state": "Exploited",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Industrial",
+      "system_x": -14.46875,
+      "system_y": -3.09375,
+      "system_z": -13.65625,
+      "type": "Ocellus Starport",
+      "updated_at": "2026-10-11T05:24:25Z"
+    },
+    {
+      "controlling_minor_faction": "Star Pilots",
+      "controlling_minor_faction_influence": 0.616162,
+      "distance": 20.2425236970344,
+      "distance_to_arrival": 391.719754,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 12.0
+        },
+        {
+          "name": "Refinery",
+          "share": 88.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Synthetic Fabrics"
+        },
+        {
+          "name": "Copper"
+        }
+      ],
+      "government": "Corporate",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228515840",
+      "import_commodities": [
+        {
+          "name": "Mineral Oil"
+        },
+        {
+          "name": "Hydrogen Peroxide"
+        },
+        {
+          "name": "Coltan"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 7,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 417572,
+          "sell_price": 3532,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 24274,
+          "sell_price": 1749,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 58,
+          "sell_price": 3161,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228515840,
+      "market_updated_at": "2026-10-11T09:27:11Z",
+      "material_trader": "Raw",
+      "medium_pads": 12,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Horowitz Hub",
+      "outfitting_updated_at": "2026-10-11T09:27:41Z",
+      "primary_economy": "Refinery",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Combat Stabilisers"
+        }
+      ],
+      "secondary_economy": "Industrial",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Anaconda",
+          "price": 146969450,
+          "symbol": "Anaconda"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T09:27:11Z",
+      "small_pads": 9,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Zemina Torval",
+      "system_id64": 22661455488425,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "LTT 3572",
+      "system_population": 6030546,
+      "system_power": [
+        "Aisling Duval",
+        "Denton Patreus",
+        "Edmund Mahon"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Industrial",
+      "system_x": 18.90625,
+      "system_y": -4.21875,
+      "system_z": 5.875,
+      "type": "Ocellus Starport",
+      "updated_at": "2026-10-11T09:27:41Z"
+    },
+    {
+      "controlling_minor_faction": "Gilgamesh Corps Orbital Protection",
+      "controlling_minor_faction_influence": 0.350649,
+      "controlling_minor_faction_state": "Expansion",
+      "distance": 22.1791797780035,
+      "distance_to_arrival": 289.182264,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 12.0
+        },
+        {
+          "name": "Refinery",
+          "share": 88.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Aluminium"
+        },
+        {
+          "name": "Copper"
+        }
+      ],
+      "government": "Dictatorship",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228953088",
+      "import_commodities": [
+        {
+          "name": "Mineral Oil"
+        },
+        {
+          "name": "Hydrogen Peroxide"
+        },
+        {
+          "name": "Lepidolite"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 101175,
+          "sell_price": 3546,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 38986,
+          "sell_price": 1761,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 157,
+          "sell_price": 3552,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228953088,
+      "market_updated_at": "2026-10-08T17:26:15Z",
+      "material_trader": "Raw",
+      "medium_pads": 12,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Gell-Mann Station",
+      "outfitting_updated_at": "2026-10-08T17:14:50Z",
+      "primary_economy": "Refinery",
+      "prohibited_commodities": [
+        {
+          "name": "Slaves"
+        }
+      ],
+      "secondary_economy": "Industrial",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Anaconda",
+          "price": 146969450,
+          "symbol": "Anaconda"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-08T17:14:50Z",
+      "small_pads": 11,
+      "system_controlling_power": "Yuri Grom",
+      "system_id64": 16064117220777,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "LHS 3836",
+      "system_population": 9211277,
+      "system_power": [
+        "A. Lavigny-Duval",
+        "Aisling Duval",
+        "Denton Patreus"
+      ],
+      "system_power_state": "Fortified",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Industrial",
+      "system_x": 9.46875,
+      "system_y": -16.0,
+      "system_z": 12.09375,
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-08T17:26:15Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "distance": {
+        "max": 50,
+        "min": 0
+      },
+      "material_trader": {
+        "value": [
+          "Raw"
+        ]
+      }
+    },
+    "page": 1,
+    "reference_system": "Sol",
+    "reference_system_details": {
+      "id64": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "01EF4E5E-C5B8-11F1-9F4B-AAD025B355AB",
+  "size": 3
+}

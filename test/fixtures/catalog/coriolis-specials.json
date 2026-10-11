@@ -1,0 +1,33 @@
+{
+  "special_fsd_heavy": {
+    "name": "Mass Manager",
+    "description": "Complex software upgrade and internal sensor suite able to optimise frame shift operation by analysing and accounting for ship loadout. Increases optimised mass at the cost of module health.",
+    "id": 120,
+    "edname": "special_fsd_heavy",
+    "uuid": "4d7d30c3-970b-4c6e-a507-89ac7e6441bd",
+    "components": {
+      "Atypical Disrupted Wake Echoes": 5,
+      "Galvanising Alloys": 3,
+      "Eccentric Hyperspace Trajectories": 1
+    }
+  },
+  "special_auto_loader": {
+    "id": 0,
+    "edname": "special_auto_loader",
+    "name": "Auto loader",
+    "description": "An experimental upgrade that automatically reloads the weapon, even when firing.",
+    "uuid": "640d6dde-f497-42cd-8bc9-73ab3fa1b43a",
+    "components": {
+      "Mechanical Equipment": 4,
+      "Mechanical Components": 3,
+      "High Density Composites": 3
+    }
+  },
+  "special_plasma_slug": {
+    "id": 18,
+    "edname": "special_plasma_slug",
+    "name": "Plasma slug (Legacy)",
+    "description": "Experimental upgrade allowing plasma slug ammo to be generated directly from ship fuel, at the cost of reduced damage.",
+    "uuid": "8794e18a-ecd5-4ebc-afd7-0b7d0d0cdd91"
+  }
+}

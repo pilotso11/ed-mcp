@@ -1,0 +1,143 @@
+[
+  {
+    "Type": "Frame Shift Drive",
+    "Name": "Increased FSD Range",
+    "Engineers": [
+      "Mel Brandon",
+      "Felicity Farseer",
+      "Elvira Martuuk",
+      "Professor Palin",
+      "Colonel Bris Dekker",
+      "Chloe Sedesi"
+    ],
+    "Ingredients": [
+      {
+        "Name": "Atypical Disrupted Wake Echoes",
+        "Size": 1
+      }
+    ],
+    "Effects": [
+      {
+        "Effect": "+3%",
+        "Property": "Power Draw",
+        "IsGood": false
+      },
+      {
+        "Effect": "+15%",
+        "Property": "Optimal Mass",
+        "IsGood": true
+      },
+      {
+        "Effect": "-3%",
+        "Property": "Integrity",
+        "IsGood": false
+      },
+      {
+        "Effect": "+10%",
+        "Property": "Mass",
+        "IsGood": false
+      }
+    ],
+    "Grade": 1,
+    "CoriolisGuid": "bb67b1a2-7a5b-47bc-8ed8-e949b5e3fb16"
+  },
+  {
+    "Type": "Frame Shift Drive",
+    "Name": "Increased FSD Range",
+    "Engineers": [
+      "Mel Brandon",
+      "Felicity Farseer",
+      "Elvira Martuuk"
+    ],
+    "Ingredients": [
+      {
+        "Name": "Arsenic",
+        "Size": 1
+      },
+      {
+        "Name": "Chemical Manipulators",
+        "Size": 1
+      },
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 1
+      }
+    ],
+    "Effects": [
+      {
+        "Effect": "+15%",
+        "Property": "Power Draw",
+        "IsGood": false
+      },
+      {
+        "Effect": "+55%",
+        "Property": "Optimal Mass",
+        "IsGood": true
+      },
+      {
+        "Effect": "-15%",
+        "Property": "Integrity",
+        "IsGood": false
+      },
+      {
+        "Effect": "+30%",
+        "Property": "Mass",
+        "IsGood": false
+      }
+    ],
+    "Grade": 5,
+    "CoriolisGuid": "dddd4fd3-bc9a-4c5b-8606-853c63d0f554"
+  },
+  {
+    "Type": "Frame Shift Drive",
+    "Name": "Mass Manager",
+    "Engineers": [
+      "Mel Brandon",
+      "Felicity Farseer",
+      "Elvira Martuuk",
+      "Chloe Sedesi",
+      "Professor Palin",
+      "Colonel Bris Dekker"
+    ],
+    "Ingredients": [
+      {
+        "Name": "Atypical Disrupted Wake Echoes",
+        "Size": 5
+      },
+      {
+        "Name": "Galvanising Alloys",
+        "Size": 3
+      },
+      {
+        "Name": "Eccentric Hyperspace Trajectories",
+        "Size": 1
+      }
+    ],
+    "Effects": [
+      {
+        "Effect": "-8%",
+        "Property": "Integrity",
+        "IsGood": false
+      },
+      {
+        "Effect": "+4%",
+        "Property": "Optimal Mass",
+        "IsGood": true
+      }
+    ],
+    "CoriolisGuid": "4d7d30c3-970b-4c6e-a507-89ac7e6441bd"
+  },
+  {
+    "Type": "Unlock",
+    "Name": "Felicity Farseer",
+    "Engineers": [
+      "Felicity Farseer"
+    ],
+    "Ingredients": [
+      {
+        "Name": "Meta-alloys",
+        "Size": 1
+      }
+    ]
+  }
+]
