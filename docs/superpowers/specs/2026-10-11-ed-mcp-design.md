@@ -186,13 +186,17 @@ CAPI login flow:
    challenge, `audience=frontier,steam,epic` and `scope=auth capi`.
 2. `capi_login` returns at once with the login URL. MCP clients time out long
    tool calls, so the callback completes in the background. Calling
-   `capi_login` again reports the state.
+   `capi_login` again reports the state (logged in, or the last failure once).
+   Pass `force: true` to log in again.
 3. The callback receives the code. The server checks `state` and exchanges the
    code at `https://auth.frontierstore.net/token` with the PKCE verifier. No
    client secret is stored.
 4. Tokens are stored in `capi-token.json` in the config directory, mode 0600.
    The bundle has no native keychain module. Access tokens last 4 hours.
    Refresh tokens rotate, so the server saves the new one on every refresh.
+   Tokens are cleared only when Frontier rejects a refresh with HTTP 4xx. A 5xx
+   or network error keeps them. If another process rotated the token first, the
+   server uses the newer stored one.
 5. Logins expire 25 days after approval. After that, `capi_login` is needed
    again. `capi_logout` deletes the stored tokens.
 6. The listeners close after one callback or 5 minutes.

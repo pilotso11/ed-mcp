@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import type { CapiAuth } from "../capi/auth.js";
 import type { CapiClient } from "../capi/client.js";
 import { wrap } from "./result.js";
@@ -12,10 +13,11 @@ export function registerCapiTools(
     {
       description:
         "Log in to Frontier's Companion API in the browser. Returns immediately with the login URL; " +
-        "the user finishes in the browser. Call again to check the state. Logins last 25 days.",
+        "the user finishes in the browser. Call again to check the state; pass force: true to log in again. Logins last 25 days.",
+      inputSchema: { force: z.boolean().optional() },
     },
-    wrap(async () => {
-      const s = await deps.capiAuth.startLogin();
+    wrap(async ({ force }: { force?: boolean }) => {
+      const s = await deps.capiAuth.startLogin({ force });
       if (s.state !== "waiting") return s;
       return {
         ...s,

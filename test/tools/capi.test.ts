@@ -8,8 +8,9 @@ import { callTool, connectTestClient } from "../helpers/client.js";
 describe("capi tools", () => {
   it("starts login and returns the URL", async () => {
     const waiting: LoginState = { state: "waiting", url: "https://auth.test/x", expires_at: "t" };
+    const calls: unknown[] = [];
     const capiAuth = {
-      startLogin: async () => waiting,
+      startLogin: async (o: unknown) => (calls.push(o), waiting),
       logout: async () => undefined,
     } as unknown as CapiAuth;
     const capi = { profile: async () => ({ system: "Sol" }) } as unknown as CapiClient;
@@ -21,6 +22,8 @@ describe("capi tools", () => {
       url: "https://auth.test/x",
       next: expect.stringMatching(/browser/),
     });
+    await callTool(c, "capi_login", { force: true });
+    expect(calls[1]).toEqual({ force: true });
     expect((await callTool(c, "capi_profile")).json).toEqual({ system: "Sol" });
     expect((await callTool(c, "capi_logout")).json).toEqual({ state: "logged_out" });
   });

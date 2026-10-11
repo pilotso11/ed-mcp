@@ -88,15 +88,62 @@ describe("CapiAuth login", () => {
     expect((await auth.state()).state).toBe("logged_in");
   });
 
-  it("rejects a callback with the wrong state", async () => {
+  it("answers a wrong-state callback with 400 and keeps waiting", async () => {
     const opened: string[] = [];
     const { auth } = make([], opened);
     await auth.startLogin();
     const redirect = new URL(new URL(opened[0]!).searchParams.get("redirect_uri")!);
     const cb = await fetch(`http://127.0.0.1:${redirect.port}/auth?code=C1&state=wrong`);
     expect(cb.status).toBe(400);
+    expect((await auth.state()).state).toBe("waiting");
+  });
+
+  it("fails the login when the user denies access", async () => {
+    const opened: string[] = [];
+    const { auth } = make([], opened);
+    await auth.startLogin();
+    const q = new URL(opened[0]!).searchParams;
+    const redirect = new URL(q.get("redirect_uri")!);
+    const cb = await fetch(
+      `http://127.0.0.1:${redirect.port}/auth?error=access_denied&state=${q.get("state")}`,
+    );
+    expect(cb.status).toBe(400);
     await auth.waitForLogin();
-    expect(await auth.state()).toEqual({ state: "failed", error: "Login failed: state mismatch" });
+    expect(await auth.state()).toEqual({ state: "failed", error: "Login failed: access_denied" });
+  });
+
+  it("reports logged_in on a second call without opening a browser", async () => {
+    await tokens.save({
+      refresh_token: "R",
+      access_token: "A",
+      expires_at: t + 1,
+      authorized_at: t,
+    });
+    const opened: string[] = [];
+    const { auth } = make([], opened);
+    expect((await auth.startLogin()).state).toBe("logged_in");
+    expect(opened).toHaveLength(0);
+    expect((await auth.startLogin({ force: true })).state).toBe("waiting");
+    expect(opened).toHaveLength(1);
+  });
+
+  it("reports a failure once, then starts a new flow", async () => {
+    const opened: string[] = [];
+    const { auth } = make([], opened);
+    await auth.startLogin();
+    const q = new URL(opened[0]!).searchParams;
+    const redirect = new URL(q.get("redirect_uri")!);
+    await fetch(
+      `http://127.0.0.1:${redirect.port}/auth?error=access_denied&state=${q.get("state")}`,
+    );
+    await auth.waitForLogin();
+    expect(await auth.startLogin()).toEqual({
+      state: "failed",
+      error: "Login failed: access_denied",
+    });
+    expect(opened).toHaveLength(1);
+    expect((await auth.startLogin()).state).toBe("waiting");
+    expect(opened).toHaveLength(2);
   });
 
   it("requires config", async () => {
@@ -165,5 +212,61 @@ describe("CapiAuth tokens", () => {
     await expect(auth.accessToken()).rejects.toThrow(
       "Not logged in to Frontier. Call capi_login first.",
     );
+  });
+
+  it("keeps tokens when the refresh fails with a server error", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    const { auth } = make([
+      { match: () => true, respond: () => new Response("", { status: 503 }) },
+    ]);
+    await expect(auth.accessToken()).rejects.toThrow(/Could not reach Frontier/);
+    expect(await tokens.load()).toMatchObject({ refresh_token: "R" });
+  });
+
+  it("uses tokens rotated by another process instead of clearing", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    const { auth, f } = make([
+      {
+        match: () => true,
+        respond: async (_u, init) => {
+          const rt = new URLSearchParams(String(init!.body)).get("refresh_token");
+          if (rt === "R") {
+            // Another process rotated the token while this request was in flight.
+            await tokens.save({
+              refresh_token: "R9",
+              access_token: null,
+              expires_at: 0,
+              authorized_at: t,
+            });
+            return new Response("", { status: 400 });
+          }
+          return jsonResponse({ access_token: "A9", refresh_token: "R10", expires_in: 14400 });
+        },
+      },
+    ]);
+    expect(await auth.accessToken()).toBe("A9");
+    expect(f.calls).toHaveLength(2);
+    expect(await tokens.load()).toMatchObject({ refresh_token: "R10" });
+  });
+
+  it("does not restore the old refresh token when invalidate runs during a refresh", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { auth, f } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await gate;
+          return jsonResponse({ access_token: "A2", refresh_token: "R2", expires_in: 14400 });
+        },
+      },
+    ]);
+    const access = auth.accessToken();
+    while (f.calls.length === 0) await new Promise((r) => setTimeout(r, 1));
+    const inval = auth.invalidate();
+    release();
+    await Promise.all([access, inval]);
+    expect(await tokens.load()).toMatchObject({ refresh_token: "R2", access_token: "A2" });
   });
 });

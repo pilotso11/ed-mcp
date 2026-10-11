@@ -16,6 +16,8 @@ export class TokenStore {
       return JSON.parse(await readFile(this.file, "utf8")) as StoredTokens;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+      // A corrupt file means logged out; the next login overwrites it.
+      if (err instanceof SyntaxError) return null;
       throw err;
     }
   }
@@ -26,7 +28,12 @@ export class TokenStore {
     const tmp = `${this.file}.${process.pid}.tmp`;
     await writeFile(tmp, JSON.stringify(t), { mode: 0o600 });
     await chmod(tmp, 0o600);
-    await rename(tmp, this.file);
+    try {
+      await rename(tmp, this.file);
+    } catch (err) {
+      await rm(tmp, { force: true });
+      throw err;
+    }
   }
 
   async clear(): Promise<void> {

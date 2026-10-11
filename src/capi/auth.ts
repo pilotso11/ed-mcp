@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import type { CapiConfig } from "../config.js";
 import { NotConfiguredError, UserError } from "../errors.js";
-import type { HttpClient } from "../http/client.js";
+import { HttpError, type HttpClient } from "../http/client.js";
 import { openInBrowser } from "./browser.js";
 import { createPkce, randomState } from "./pkce.js";
 import type { StoredTokens, TokenStore } from "./tokens.js";
@@ -70,9 +70,18 @@ export class CapiAuth {
     };
   }
 
-  async startLogin(): Promise<LoginState> {
+  async startLogin(opts: { force?: boolean } = {}): Promise<LoginState> {
     const cfg = this.requireConfig();
     if (this.pending) return this.state();
+    if (!opts.force) {
+      if (this.failure) {
+        const error = this.failure;
+        this.failure = null;
+        return { state: "failed", error };
+      }
+      const current = await this.state();
+      if (current.state === "logged_in") return current;
+    }
     this.failure = null;
     const { verifier, challenge } = createPkce();
     const state = randomState();
@@ -80,24 +89,45 @@ export class CapiAuth {
     let settle!: () => void;
     const done = new Promise<void>((r) => (settle = r));
     const servers: Server[] = [];
+    let settled = false;
+    let redirectUri = "";
+    let pending: Pending | null = null;
+    // Only the first call settles this attempt, so a late exchange cannot end a newer login.
     const finish = (error: string | null) => {
+      if (settled) return;
+      settled = true;
       for (const s of servers) s.close();
       clearTimeout(timer);
-      this.pending = null;
-      this.failure = error;
+      if (this.pending === pending) {
+        this.pending = null;
+        this.failure = error;
+      }
       settle();
     };
+    const timer = setTimeout(
+      () => finish("Login timed out. Call capi_login to try again."),
+      this.loginTimeoutMs,
+    );
+    timer.unref();
 
-    const handler = createHandler(async (code, gotState) => {
+    const handler = createHandler(async ({ code, state: gotState, error }) => {
+      if (settled) return { status: 400, body: PAGE("This login attempt has already ended.") };
+      // A stray request must not end the real login, so keep waiting.
       if (gotState !== state) {
-        finish("Login failed: state mismatch");
         return {
           status: 400,
-          body: PAGE("Login failed: state mismatch. Start again from Claude."),
+          body: PAGE("Login failed: state mismatch. Use the link from Claude."),
+        };
+      }
+      if (error) {
+        finish(`Login failed: ${error}`);
+        return {
+          status: 400,
+          body: PAGE(`Login was not completed (${escapeHtml(error)}). Start again from Claude.`),
         };
       }
       try {
-        await this.exchange(cfg, code, verifier, redirectUri);
+        await this.exchange(cfg, code!, verifier, redirectUri);
         finish(null);
         return { status: 200, body: PAGE("Logged in to Frontier. You can close this tab.") };
       } catch (err) {
@@ -106,24 +136,31 @@ export class CapiAuth {
       }
     });
 
-    // The redirect uses the name "localhost", which may resolve to IPv4 or IPv6.
-    const v4 = createServer(handler);
-    await new Promise<void>((resolve, reject) => {
-      v4.once("error", reject);
-      v4.listen(0, "127.0.0.1", resolve);
-    });
-    servers.push(v4);
-    const port = (v4.address() as AddressInfo).port;
-    const v6 = createServer(handler);
-    await new Promise<void>((resolve) => {
-      v6.once("error", () => resolve()); // no IPv6 loopback: IPv4 is enough
-      v6.listen(port, "::1", () => {
-        servers.push(v6);
-        resolve();
+    try {
+      // The redirect uses the name "localhost", which may resolve to IPv4 or IPv6.
+      const v4 = createServer(handler);
+      v4.unref();
+      await new Promise<void>((resolve, reject) => {
+        v4.once("error", reject);
+        v4.listen(0, "127.0.0.1", resolve);
       });
-    });
+      servers.push(v4);
+      const port = (v4.address() as AddressInfo).port;
+      const v6 = createServer(handler);
+      v6.unref();
+      await new Promise<void>((resolve) => {
+        v6.once("error", () => resolve()); // no IPv6 loopback: IPv4 is enough
+        v6.listen(port, "::1", () => {
+          servers.push(v6);
+          resolve();
+        });
+      });
+      redirectUri = `http://localhost:${port}/auth`;
+    } catch (err) {
+      finish(null);
+      throw err;
+    }
 
-    const redirectUri = `http://localhost:${port}/auth`;
     const url = new URL(`${this.authBase}/auth`);
     url.search = new URLSearchParams({
       response_type: "code",
@@ -136,12 +173,8 @@ export class CapiAuth {
       redirect_uri: redirectUri,
     }).toString();
 
-    const timer = setTimeout(
-      () => finish("Login timed out. Call capi_login to try again."),
-      this.loginTimeoutMs,
-    );
-    timer.unref();
-    this.pending = { url: url.href, expiresAt: this.now() + this.loginTimeoutMs, servers, done };
+    pending = { url: url.href, expiresAt: this.now() + this.loginTimeoutMs, servers, done };
+    this.pending = pending;
     await this.openUrl(url.href).catch(() => undefined); // the URL is returned for manual opening
     return this.state();
   }
@@ -169,8 +202,12 @@ export class CapiAuth {
 
   /** Forces the next accessToken() call to refresh (after a 401 from CAPI). */
   async invalidate(): Promise<void> {
+    const before = await this.tokens.load();
+    // A refresh in flight already yields a fresh token; do not write the old one back.
+    await this.refreshing?.catch(() => undefined);
     const t = await this.tokens.load();
-    if (t) await this.tokens.save({ ...t, access_token: null, expires_at: 0 });
+    if (!t || t.refresh_token !== before?.refresh_token) return;
+    await this.tokens.save({ ...t, access_token: null, expires_at: 0 });
   }
 
   async logout(): Promise<void> {
@@ -199,7 +236,7 @@ export class CapiAuth {
     });
   }
 
-  private async refresh(cfg: CapiConfig, t: StoredTokens): Promise<string> {
+  private async refresh(cfg: CapiConfig, t: StoredTokens, retried = false): Promise<string> {
     let res: { access_token: string; refresh_token: string; expires_in: number };
     try {
       res = await this.token({
@@ -208,6 +245,21 @@ export class CapiAuth {
         refresh_token: t.refresh_token,
       });
     } catch (err) {
+      const rejected =
+        err instanceof HttpError &&
+        err.status !== undefined &&
+        err.status >= 400 &&
+        err.status < 500;
+      if (!rejected) {
+        throw new UserError("Could not reach Frontier to refresh the login; try again shortly.");
+      }
+      // Another process may have rotated the refresh token, which invalidates the one we sent.
+      const latest = await this.tokens.load();
+      if (!retried && latest && latest.refresh_token !== t.refresh_token) {
+        if (latest.access_token && latest.expires_at - 60_000 > this.now())
+          return latest.access_token;
+        return this.refresh(cfg, latest, true);
+      }
       await this.tokens.clear();
       throw new UserError(
         `Frontier refused to refresh the login (${(err as Error).message}). Call capi_login to log in again.`,
@@ -234,18 +286,30 @@ export class CapiAuth {
   }
 }
 
-function createHandler(
-  onCallback: (code: string, state: string | null) => Promise<{ status: number; body: string }>,
-) {
+const escapeHtml = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+interface Callback {
+  code: string | null;
+  state: string | null;
+  error: string | null;
+}
+
+function createHandler(onCallback: (cb: Callback) => Promise<{ status: number; body: string }>) {
   return (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? "/", "http://localhost");
-    const code = url.searchParams.get("code");
-    if (url.pathname !== "/auth" || !code) {
+    const q = url.searchParams;
+    if (url.pathname !== "/auth" || !(q.get("code") || q.get("error"))) {
       res.writeHead(404).end();
       return;
     }
-    void onCallback(code, url.searchParams.get("state")).then(({ status, body }) => {
-      res.writeHead(status, { "content-type": "text/html; charset=utf-8" }).end(body);
-    });
+    onCallback({ code: q.get("code"), state: q.get("state"), error: q.get("error") })
+      .then(({ status, body }) => {
+        res.writeHead(status, { "content-type": "text/html; charset=utf-8" }).end(body);
+      })
+      .catch(() => {
+        res
+          .writeHead(500, { "content-type": "text/html; charset=utf-8" })
+          .end(PAGE("Login failed."));
+      });
   };
 }
