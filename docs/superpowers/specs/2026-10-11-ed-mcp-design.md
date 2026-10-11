@@ -229,24 +229,21 @@ All caches can be cleared with `cache_refresh`.
 ## Static catalog
 
 Game data (modules, blueprints, engineers, materials) changes only with game
-releases. The catalog is fetched from upstream open-data files and cached on
-disk, with a bundled copy as a fallback.
+releases. coriolis-data and FDevIDs grant no open licence for their data, so
+it is never committed or bundled. The server downloads five upstream files to
+the user's cache on first catalog use and refreshes them with ETags.
+Engineer locations and requirements (from EliteDangerousCore, Apache-2.0) and
+module group names are small committed tables. See
+`src/catalog/data/SOURCES.md`.
 
-Sources: candidates are coriolis-data (modules, blueprints) and EDEngineer data
-(engineers, recipes). Only sources whose licence allows redistribution are
-used, because a snapshot is bundled in the package.
-`src/catalog/data/SOURCES.md` records each file's URL, version and licence.
-
-Load order at startup:
-
-1. Disk cache, if present and valid.
-2. Otherwise the bundled snapshot.
+Load order: disk cache if present and valid, otherwise download. With no
+network on first use, catalog tools return an error explaining how to retry.
 
 Refresh:
 
 - At most once every 7 days, on first catalog use after the interval, the
-  server checks each upstream file with a conditional GET (`If-None-Match` /
-  `If-Modified-Since`). An unchanged file costs one 304 response.
+  server checks each upstream file with a conditional GET (`If-None-Match`;
+  GitHub raw does not send Last-Modified). An unchanged file costs one 304 response.
 - `cache_refresh` with `source: catalog` forces the check immediately.
 - A changed file is downloaded, parsed and validated (same checks as the
   catalog tests) before it replaces the disk cache. If validation fails, the
@@ -255,8 +252,6 @@ Refresh:
   for a forced refresh.
 - Offline or upstream errors keep the current catalog and are reported in
   `cache_status`.
-
-`npm run catalog:update` updates the bundled snapshot before a release.
 
 ## Testing
 
@@ -269,7 +264,7 @@ All tests use vitest.
 - SLEF: real EDSY and Inara exports as fixtures.
 - Catalog: lookups, fuzzy matching, and a check that every engineer blueprint
   refers to a known blueprint. Refresh: 304 path, changed-file path, invalid
-  upstream data keeps the old catalog, offline fallback to bundled data.
+  upstream data keeps the old catalog, first-use download failure gives a retry message.
 - Cache: `cache_refresh` per source and `all`.
 - Paths: tests inject base directories. CI runs the full suite on
   `macos-latest` and `windows-latest`.
