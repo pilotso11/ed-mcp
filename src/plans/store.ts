@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
@@ -155,8 +155,7 @@ export class PlanStore {
       }
       try {
         if (Date.now() - (await stat(lock)).mtimeMs > LOCK_STALE_MS) {
-          await unlink(lock).catch(() => undefined);
-          continue;
+          if (await this.breakStaleLock(lock)) continue;
         }
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
@@ -167,5 +166,27 @@ export class PlanStore {
       }
       await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
     }
+  }
+
+  // Renaming the lock aside is atomic, so only one process wins the break. A plain unlink
+  // could delete the fresh lock another process just created after breaking the same one.
+  // The lock may have been replaced between our stat and rename; if the file we moved is
+  // fresh, put it back and wait for its owner instead.
+  private async breakStaleLock(lock: string): Promise<boolean> {
+    const aside = `${lock}.${process.pid}.${Date.now()}.stale`;
+    try {
+      await rename(lock, aside);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return true;
+      throw err;
+    }
+    const moved = await stat(aside).catch(() => undefined);
+    if (moved && Date.now() - moved.mtimeMs <= LOCK_STALE_MS) {
+      await link(aside, lock).catch(() => undefined);
+      await unlink(aside).catch(() => undefined);
+      return false;
+    }
+    await unlink(aside).catch(() => undefined);
+    return true;
   }
 }
