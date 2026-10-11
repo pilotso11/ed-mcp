@@ -26,6 +26,30 @@ describe("HttpClient", () => {
     expect(f.calls).toHaveLength(2);
   });
 
+  it("cancels the body of a discarded 5xx response before retrying", async () => {
+    let n = 0;
+    let cancelled = false;
+    const f = fakeFetch([
+      {
+        match: any,
+        respond: () =>
+          n++ === 0
+            ? new Response(
+                new ReadableStream({
+                  cancel() {
+                    cancelled = true;
+                  },
+                }),
+                { status: 502 },
+              )
+            : jsonResponse(1),
+      },
+    ]);
+    const http = new HttpClient({ userAgent: UA, fetchFn: f, retryDelayMs: 0 });
+    expect(await http.json("https://x.test/a")).toBe(1);
+    expect(cancelled).toBe(true);
+  });
+
   it("retries once on a network error, then gives up", async () => {
     const f = fakeFetch([
       {

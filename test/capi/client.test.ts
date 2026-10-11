@@ -74,4 +74,34 @@ describe("CapiClient", () => {
     expect(invalidations()).toBe(1);
     expect(new Headers(f.calls[1]!.init!.headers).get("authorization")).toBe("Bearer NEW");
   });
+
+  it("cancels the body of the 401 response before retrying", async () => {
+    const body = await fixture("capi/profile.json");
+    let n = 0;
+    let cancelled = false;
+    const f = fakeFetch([
+      {
+        match: () => true,
+        respond: () =>
+          n++ === 0
+            ? new Response(
+                new ReadableStream({
+                  cancel() {
+                    cancelled = true;
+                  },
+                }),
+                { status: 401 },
+              )
+            : jsonResponse(body),
+      },
+    ]);
+    const { auth } = fakeAuth(["OLD", "NEW"]);
+    const c = new CapiClient(
+      new HttpClient({ userAgent: "x", fetchFn: f }),
+      auth,
+      new TtlCache("capi", 60_000),
+    );
+    await c.profile();
+    expect(cancelled).toBe(true);
+  });
 });

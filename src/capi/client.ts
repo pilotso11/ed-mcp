@@ -104,6 +104,7 @@ export class CapiClient {
         headers: { authorization: `Bearer ${token}` },
       });
       if (res.status === 401 && attempt === 0) {
+        await res.body?.cancel().catch(() => undefined);
         await this.auth.invalidate();
         continue;
       }

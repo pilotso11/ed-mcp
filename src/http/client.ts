@@ -46,6 +46,7 @@ export class HttpClient {
     try {
       const res = await this.once(url, init);
       if (res.status < 500) return res;
+      await res.body?.cancel().catch(() => undefined);
     } catch {
       // fall through to the single retry
     }
