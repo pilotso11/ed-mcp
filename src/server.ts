@@ -1,11 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CacheRegistry } from "./http/cache.js";
+import type { PlanStore } from "./plans/store.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
+import { registerPlanTools } from "./tools/plans.js";
 import { VERSION } from "./version.js";
 
 export interface ServerDeps {
   caches?: CacheRegistry;
   refreshables?: Refreshable[];
+  plans?: PlanStore;
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -13,5 +16,6 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.caches) {
     registerCacheTools(server, { caches: deps.caches, refreshables: deps.refreshables });
   }
+  if (deps.plans) registerPlanTools(server, { plans: deps.plans });
   return server;
 }
