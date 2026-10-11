@@ -59,7 +59,7 @@ Inara allows only whitelisted app names. Email Inara with the app name `ed-mcp`,
 
 At runtime the server uses `http://localhost:<random port>/auth` as the redirect. EDMC uses the same localhost pattern. The Redirect URL advice follows community reports, not Frontier documentation. See `docs/research/capi.md`, section 2.
 
-Then ask Claude to log in. `capi_login` returns at once with a login URL. Open it in your browser and sign in to Frontier. Call `capi_login` again to check the state. It reports `logged_in` or `failed`. Pass `force: true` to log in again.
+Then ask Claude to log in. `capi_login` returns at once with a login URL. Open it in your browser and sign in to Frontier. Call `capi_login` again to check the state. It reports one of `waiting`, `logged_in`, `failed` or `logged_out`. Pass `force: true` to log in again.
 
 Frontier logins last 25 days. If you log in elsewhere with the same client ID, that login ends this one. A refusal (HTTP 4xx) from Frontier clears the saved login. A network error or a Frontier server error does not.
 

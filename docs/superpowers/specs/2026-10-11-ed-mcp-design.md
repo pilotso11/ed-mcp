@@ -97,7 +97,7 @@ src/inara/            inAPI v1 client
 src/edsm/             EDSM client
 src/capi/             Frontier CAPI client and OAuth login
 src/spansh/           Spansh client
-src/catalog/          bundled data, disk cache, refresh, lookups
+src/catalog/          committed engineer and group tables, disk cache, refresh, lookups
 src/slef/             SLEF parser
 src/plans/            local plan store
 src/tools/            MCP tool handlers, one file per group
@@ -123,6 +123,7 @@ tool.
 | Catalog | `catalog_blueprint` | catalog | materials per grade for a blueprint on a module type |
 | | `catalog_engineers` | catalog | engineers for a blueprint with max grade, system, unlock requirements |
 | | `catalog_material` | catalog | grade, category, trade group, typical sources |
+| | `catalog_module` | catalog | outfitting module by symbol or name: class, rating, mount and engineering group. Returns the total and at most 20 matches |
 | Market | `spansh_find_stations` | Spansh | stations near a reference system that sell a module or ship, or have a service (material trader by type, tech broker, interstellar factors) |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
@@ -286,13 +287,13 @@ All tests use vitest.
   transport, list tools, call one tool per group.
 - Packaging: CI builds the `.mcpb` and checks the manifest with the `mcpb`
   CLI.
-- `npm run smoke`: opt-in live check of Inara, EDSM, CAPI and Spansh response
-  shapes with real keys.
+- Live check: before a release, someone checks the Inara, EDSM, CAPI and
+  Spansh response shapes by hand with real keys. There is no automated live test.
 
 ## Build stages
 
 1. Skeleton, config, `http` wrapper and cache tools, plans, SLEF, catalog
-   with bundled data. CI on macOS and Windows. npm package and `.mcpb` build.
+   with downloaded game data. CI on macOS and Windows. npm package and `.mcpb` build.
 2. Catalog upstream refresh.
 3. Inara and EDSM clients and tools.
 4. Spansh client and tools.

@@ -21,7 +21,8 @@
         "INARA_CMDR": "${user_config.inara_cmdr}",
         "EDSM_API_KEY": "${user_config.edsm_api_key}",
         "EDSM_CMDR": "${user_config.edsm_cmdr}",
-        "CAPI_CLIENT_ID": "${user_config.capi_client_id}"
+        "CAPI_CLIENT_ID": "${user_config.capi_client_id}",
+        "INARA_DEV_MODE": "${user_config.inara_dev_mode}"
       }
     }
   },
@@ -81,6 +82,13 @@
       "description": "Your in-game commander name.",
       "required": false,
       "default": ""
+    },
+    "inara_dev_mode": {
+      "type": "boolean",
+      "title": "Inara development mode",
+      "description": "Keep on until Inara has whitelisted the app name ed-mcp.",
+      "required": false,
+      "default": true
     },
     "edsm_api_key": {
       "type": "string",

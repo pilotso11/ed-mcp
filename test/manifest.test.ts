@@ -19,10 +19,16 @@ describe("manifest.json", () => {
     expect(manifest.tools.map((t) => t.name).sort()).toEqual(served);
   });
 
-  it("gives every optional field an empty default", () => {
+  it("gives every optional string field an empty default", () => {
     for (const [key, field] of Object.entries(manifest.user_config)) {
-      expect(field, key).toMatchObject({ required: false, default: "" });
+      expect(field.required, key).toBe(false);
+      if (field.type === "string") expect(field.default, key).toBe("");
     }
+  });
+
+  it("maps Inara development mode to INARA_DEV_MODE, on by default", () => {
+    expect(manifest.user_config.inara_dev_mode).toMatchObject({ type: "boolean", default: true });
+    expect(manifest.server.mcp_config.env.INARA_DEV_MODE).toBe("${user_config.inara_dev_mode}");
   });
 });
 
