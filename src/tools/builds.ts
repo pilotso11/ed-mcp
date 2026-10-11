@@ -42,7 +42,7 @@ export function registerBuildTools(server: McpServer, deps: { catalog?: CatalogS
 function lookup(catalog: Catalog | null, item: string) {
   if (!catalog) return null;
   try {
-    const [hit] = catalog.module(item);
+    const [hit] = catalog.module(item).items;
     return hit ? { name: hit.name, class: hit.class, rating: hit.rating, group: hit.group } : null;
   } catch {
     return null; // armour, cosmetics and some PowerPlay items are not in outfitting.csv

@@ -67,8 +67,9 @@ describe("catalog tools", () => {
     expect((await callTool(c, "catalog_material", { name: "Iron" })).json).toMatchObject({
       grade: 1,
     });
-    expect((await callTool(c, "catalog_module", { query: "Thrusters" })).json).toMatchObject([
-      { symbol: "Int_Engine_Size5_Class5", group: "t" },
-    ]);
+    expect((await callTool(c, "catalog_module", { query: "Thrusters" })).json).toMatchObject({
+      total: 1,
+      items: [{ symbol: "Int_Engine_Size5_Class5", group: "t" }],
+    });
   });
 });

@@ -127,18 +127,36 @@ describe("Catalog.material", () => {
 
 describe("Catalog.module", () => {
   it("finds by symbol and by name with the group", () => {
-    expect(cat.module("int_hyperdrive_size5_class5")).toEqual([
-      {
-        symbol: "Int_Hyperdrive_Size5_Class5",
-        name: "Frame Shift Drive",
-        category: "standard",
-        class: 5,
-        rating: "A",
-        mount: null,
-        ship: null,
-        group: "fsd",
-      },
-    ]);
-    expect(cat.module("Frame Shift Drive")).toHaveLength(2);
+    expect(cat.module("int_hyperdrive_size5_class5")).toEqual({
+      total: 1,
+      items: [
+        {
+          symbol: "Int_Hyperdrive_Size5_Class5",
+          name: "Frame Shift Drive",
+          category: "standard",
+          class: 5,
+          rating: "A",
+          mount: null,
+          ship: null,
+          group: "fsd",
+        },
+      ],
+    });
+    const byName = cat.module("Frame Shift Drive");
+    expect(byName.total).toBe(2);
+    expect(byName.items).toHaveLength(2);
+  });
+
+  it("reports the full total when it caps items at 20", async () => {
+    const raw = await rawFixture();
+    const rows = Array.from(
+      { length: 25 },
+      (_, i) => `${900000 + i},Int_Test_Size${i},standard,Test Module,,,,1,A,`,
+    );
+    const outfitting = `${raw.outfitting.trimEnd()}\n${rows.join("\n")}\n`;
+    const big = buildCatalog({ ...raw, outfitting }, staticsFixture, SMALL).catalog;
+    const r = big.module("Test Module");
+    expect(r.total).toBe(25);
+    expect(r.items).toHaveLength(20);
   });
 });

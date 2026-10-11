@@ -59,7 +59,7 @@ export function registerCatalogTools(server: McpServer, deps: { catalog: Catalog
     {
       description:
         "Outfitting module by journal symbol (e.g. Int_Hyperdrive_Size5_Class5) or name: " +
-        "class, rating, mount and engineering group.",
+        "class, rating, mount and engineering group. Returns total matches and at most 20 items.",
       inputSchema: { query: z.string() },
     },
     wrap(async (a: { query: string }) => (await get()).module(a.query)),

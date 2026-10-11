@@ -197,7 +197,10 @@ export class Catalog {
     return { ...m, same_group: same, trade_rules: TRADE_RULES };
   }
 
-  module(query: string): Array<OutfittingItem & { group: string | null }> {
+  module(query: string): {
+    total: number;
+    items: Array<OutfittingItem & { group: string | null }>;
+  } {
     const q = query.toLowerCase();
     const bySymbol = this.d.outfitting.filter((o) => o.symbol.toLowerCase() === q);
     const hits = bySymbol.length
@@ -211,10 +214,13 @@ export class Catalog {
         ).join(", ")}`,
       );
     }
-    return hits.slice(0, 20).map((o) => ({
-      ...o,
-      group: this.d.groups.find((g) => g.names.includes(o.name))?.id ?? null,
-    }));
+    return {
+      total: hits.length,
+      items: hits.slice(0, 20).map((o) => ({
+        ...o,
+        group: this.d.groups.find((g) => g.names.includes(o.name))?.id ?? null,
+      })),
+    };
   }
 
   private groupsFor(blueprintId: string, module?: string): ModuleGroup[] {
