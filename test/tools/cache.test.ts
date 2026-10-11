@@ -4,7 +4,7 @@ import { CacheRegistry, TtlCache } from "../../src/http/cache.js";
 import { registerCacheTools, type Refreshable } from "../../src/tools/cache.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
-async function setup() {
+async function setup(refresh?: () => Promise<unknown>) {
   const caches = new CacheRegistry();
   const inara = new TtlCache<number>("inara", 60_000);
   const edsm = new TtlCache<number>("edsm", 60_000);
@@ -15,7 +15,7 @@ async function setup() {
   let refreshed = 0;
   const catalog: Refreshable = {
     name: "catalog",
-    refresh: async () => ({ changed: ++refreshed > 0 }),
+    refresh: refresh ?? (async () => ({ changed: ++refreshed > 0 })),
     status: () => ({ version: "v1" }),
   };
   const server = new McpServer({ name: "t", version: "0" });
@@ -45,6 +45,18 @@ describe("cache tools", () => {
       cleared: { inara: 1, edsm: 1 },
       refreshed: { catalog: { changed: true } },
     });
+  });
+
+  it("says the caches were cleared when the refresh after them fails", async () => {
+    const { client, inara } = await setup(async () => {
+      throw new Error("github.com: timed out after 15000 ms");
+    });
+    const r = await callTool(client, "cache_refresh");
+    expect(r).toMatchObject({
+      isError: true,
+      text: "Cleared caches (inara: 1, edsm: 1). Catalog refresh failed: github.com: timed out after 15000 ms",
+    });
+    expect(inara.get("a")).toBeUndefined();
   });
 
   it("rejects an unknown source", async () => {

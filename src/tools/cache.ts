@@ -34,7 +34,20 @@ export function registerCacheTools(
         out.cleared = deps.caches.clearAll();
         if (refreshables.length) {
           out.refreshed = {};
-          for (const r of refreshables) out.refreshed[r.name] = await r.refresh();
+          for (const r of refreshables) {
+            try {
+              out.refreshed[r.name] = await r.refresh();
+            } catch (err) {
+              // The caches are already gone, so the error must say so rather than look like a no-op.
+              const cleared = Object.entries(out.cleared)
+                .map(([n, c]) => `${n}: ${c}`)
+                .join(", ");
+              const label = r.name.charAt(0).toUpperCase() + r.name.slice(1);
+              throw new UserError(
+                `Cleared caches (${cleared}). ${label} refresh failed: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          }
         }
         return out;
       }
