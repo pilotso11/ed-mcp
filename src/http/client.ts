@@ -19,6 +19,11 @@ export interface HttpClientOptions {
   retryDelayMs?: number;
 }
 
+export interface RequestOptions {
+  /** Set false for requests that must not be sent twice, such as token rotation. */
+  retry?: boolean;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class HttpClient {
@@ -32,7 +37,12 @@ export class HttpClient {
     this.retryDelayMs = opts.retryDelayMs ?? 2_000;
   }
 
-  async request(url: string, init: RequestInit = {}): Promise<Response> {
+  async request(url: string, init: RequestInit = {}, opts: RequestOptions = {}): Promise<Response> {
+    if (opts.retry === false) {
+      return this.once(url, init).catch((err: unknown) => {
+        throw this.wrap(url, err);
+      });
+    }
     try {
       const res = await this.once(url, init);
       if (res.status < 500) return res;
@@ -45,9 +55,9 @@ export class HttpClient {
     });
   }
 
-  async json<T>(url: string, init: RequestInit = {}): Promise<T> {
+  async json<T>(url: string, init: RequestInit = {}, opts: RequestOptions = {}): Promise<T> {
     const host = new URL(url).host;
-    const res = await this.request(url, init);
+    const res = await this.request(url, init, opts);
     if (!res.ok) throw new HttpError(`${host} returned HTTP ${res.status}`, res.status);
     try {
       return (await res.json()) as T;

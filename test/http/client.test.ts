@@ -40,6 +40,23 @@ describe("HttpClient", () => {
     expect(f.calls).toHaveLength(2);
   });
 
+  it("does not retry when the caller opts out", async () => {
+    const f = fakeFetch([{ match: any, respond: () => new Response("", { status: 503 }) }]);
+    const http = new HttpClient({ userAgent: UA, fetchFn: f, retryDelayMs: 0 });
+    const err = await http.json("https://x.test/a", {}, { retry: false }).catch((e: unknown) => e);
+    expect((err as HttpError).status).toBe(503);
+    expect(f.calls).toHaveLength(1);
+
+    const down = fakeFetch([
+      { match: any, respond: () => Promise.reject(new Error("ECONNRESET")) },
+    ]);
+    const http2 = new HttpClient({ userAgent: UA, fetchFn: down, retryDelayMs: 0 });
+    await expect(http2.request("https://x.test/a", {}, { retry: false })).rejects.toThrow(
+      "x.test: ECONNRESET",
+    );
+    expect(down.calls).toHaveLength(1);
+  });
+
   it("does not retry 4xx and reports the status", async () => {
     const f = fakeFetch([{ match: any, respond: () => new Response("", { status: 404 }) }]);
     const http = new HttpClient({ userAgent: UA, fetchFn: f, retryDelayMs: 0 });

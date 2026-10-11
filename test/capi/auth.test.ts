@@ -88,6 +88,21 @@ describe("CapiAuth login", () => {
     expect((await auth.state()).state).toBe("logged_in");
   });
 
+  it("does not retry the code exchange on a server error", async () => {
+    const opened: string[] = [];
+    const { auth, f } = make(
+      [{ match: () => true, respond: () => new Response("", { status: 502 }) }],
+      opened,
+    );
+    await auth.startLogin();
+    const q = new URL(opened[0]!).searchParams;
+    const redirect = new URL(q.get("redirect_uri")!);
+    await fetch(`http://127.0.0.1:${redirect.port}/auth?code=C1&state=${q.get("state")}`);
+    await auth.waitForLogin();
+    expect(f.calls).toHaveLength(1);
+    expect(await auth.state()).toMatchObject({ state: "failed" });
+  });
+
   it("answers a wrong-state callback with 400 and keeps waiting", async () => {
     const opened: string[] = [];
     const { auth } = make([], opened);
@@ -214,13 +229,15 @@ describe("CapiAuth tokens", () => {
     );
   });
 
-  it("keeps tokens when the refresh fails with a server error", async () => {
+  it("keeps tokens when the refresh fails with a server error, without retrying", async () => {
     await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
-    const { auth } = make([
+    const { auth, f } = make([
       { match: () => true, respond: () => new Response("", { status: 503 }) },
     ]);
     await expect(auth.accessToken()).rejects.toThrow(/Could not reach Frontier/);
     expect(await tokens.load()).toMatchObject({ refresh_token: "R" });
+    // A retry could resend a refresh token that Frontier already rotated.
+    expect(f.calls).toHaveLength(1);
   });
 
   it("uses tokens rotated by another process instead of clearing", async () => {

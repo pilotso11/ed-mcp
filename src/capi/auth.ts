@@ -282,6 +282,8 @@ export class CapiAuth {
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(form).toString(),
       },
+      // A lost response after rotation would make a retry send a spent token.
+      { retry: false },
     );
   }
 }
