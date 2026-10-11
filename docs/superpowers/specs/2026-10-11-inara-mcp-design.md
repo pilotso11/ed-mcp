@@ -23,7 +23,7 @@ Paths come from `env-paths` (with `suffix: ''`) so they follow each OS:
 
 | Channel | For | How |
 |---|---|---|
-| npm package `inara-mcp` | Claude Code and other MCP clients | `npx -y inara-mcp` in the client's MCP config. Needs Node 20 or later |
+| npm package `inara-mcp` | Claude Code and other MCP clients | `npx -y inara-mcp` in the client's MCP config. Needs Node 22 or later |
 | Claude Desktop extension (`inara-mcp.mcpb`) | Claude Desktop users | Built in CI and attached to each GitHub Release. Claude Desktop runs it with its bundled Node, so users install nothing else |
 
 The `.mcpb` manifest declares the config below as `user_config` fields. API
@@ -85,7 +85,7 @@ Out of scope:
 
 ## Architecture
 
-Stack: TypeScript (strict), ESM, Node 20 or later,
+Stack: TypeScript (strict), ESM, Node 22 or later (Node 20 reached end of life in April 2026),
 `@modelcontextprotocol/sdk` with stdio transport, `zod` for tool input
 schemas, built-in `fetch` for HTTP, `vitest` for tests, `tsup` to bundle.
 
@@ -170,7 +170,7 @@ writes within the process.
 
 | Service | Method | Config |
 |---|---|---|
-| Inara | personal API key | `INARA_API_KEY` (required), `INARA_CMDR` (required), `INARA_APP_NAME` (default `inara-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
+| Inara | personal API key | `INARA_API_KEY` and `INARA_CMDR` (optional; Inara tools return "Inara not configured" without them), `INARA_APP_NAME` (default `inara-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
 | EDSM | API key | `EDSM_API_KEY` and `EDSM_CMDR` (optional; EDSM tools return "EDSM not configured" without them) |
 | Frontier CAPI | OAuth2 authorisation code with PKCE in the browser | `CAPI_CLIENT_ID` (optional; CAPI tools return "CAPI not configured" without it) |
 | Spansh | none | none |
@@ -218,8 +218,10 @@ All caches can be cleared with `cache_refresh`.
 
 - Inara returns a status for the whole request and for each event. Both are
   checked. A failure becomes a tool error that includes Inara's status text.
-- Missing optional config produces a tool error naming the missing variable.
-  Missing required config stops the server at startup with a message.
+- All service config is optional, so plans, catalog and Spansh work with no
+  keys. A tool whose service is not configured returns an error naming the
+  missing variables. Invalid values (for example a non-boolean
+  `INARA_DEV_MODE`) stop the server at startup with a message.
 - Unknown blueprint, material, module or engineer names produce a tool error
   that lists up to 5 closest catalog matches.
 - Errors are never swallowed. A partial result is never returned as success.
@@ -260,8 +262,8 @@ Refresh:
 
 All tests use vitest.
 
-- Source clients: table-driven tests with HTTP mocked by undici `MockAgent`
-  and recorded JSON fixtures. No live calls in `npm test`.
+- Source clients: table-driven tests. Each client takes an injected `fetch`
+  function; tests pass a fake that serves recorded JSON fixtures. No live calls in `npm test`.
 - CAPI OAuth: test the PKCE exchange and token refresh against a fake token
   server. The keyring is behind an interface with an in-memory test double.
 - SLEF: real EDSY and Inara exports as fixtures.
