@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CatalogService } from "./catalog/service.js";
 import type { CacheRegistry } from "./http/cache.js";
 import type { PlanStore } from "./plans/store.js";
+import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
 import { registerCatalogTools } from "./tools/catalog.js";
 import { registerPlanTools } from "./tools/plans.js";
@@ -21,5 +22,6 @@ export function createServer(deps: ServerDeps): McpServer {
   }
   if (deps.plans) registerPlanTools(server, { plans: deps.plans });
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
+  registerBuildTools(server, { catalog: deps.catalog });
   return server;
 }
