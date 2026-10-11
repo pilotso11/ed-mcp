@@ -12,8 +12,8 @@ export function registerCatalogTools(server: McpServer, deps: { catalog: Catalog
     {
       description:
         "Engineering blueprint by journal id (e.g. FSD_LongRange) or name (e.g. 'Increased range'): " +
-        "materials per grade 1-5 with material grade and trade group, and the experimental effects " +
-        "available for the module. Give module when the name is shared by several modules.",
+        "materials per grade 1-5 with material symbol, grade and trade group, and the experimental " +
+        "effects available for the module. Give module when the name is shared by several modules.",
       inputSchema: { name: z.string(), module: z.string().optional() },
     },
     wrap(async (a: { name: string; module?: string }) => (await get()).blueprint(a.name, a.module)),

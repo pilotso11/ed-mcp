@@ -17,7 +17,14 @@ export interface BlueprintInfo {
   modules: string[];
   grades: Record<
     string,
-    Array<MaterialCount & { grade: number | null; kind: string | null; trade_group: string | null }>
+    Array<
+      MaterialCount & {
+        symbol: string | null;
+        grade: number | null;
+        kind: string | null;
+        trade_group: string | null;
+      }
+    >
   >;
   experimentals: Experimental[];
 }
@@ -230,6 +237,7 @@ export class Catalog {
     const hit = this.materialByKey.get(normKey(m.name));
     return {
       name: hit?.name ?? m.name,
+      symbol: hit?.symbol ?? null,
       count: m.count,
       grade: hit?.grade ?? null,
       kind: hit?.kind ?? null,

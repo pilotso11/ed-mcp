@@ -15,6 +15,7 @@ describe("Catalog.blueprint", () => {
     expect(byName.id).toBe("FSD_LongRange");
     expect(byId.grades["5"]).toContainEqual({
       name: "Datamined Wake Exceptions",
+      symbol: "DataminedWake",
       count: 1,
       grade: 5,
       kind: "Encoded",
@@ -22,6 +23,7 @@ describe("Catalog.blueprint", () => {
     });
     expect(byId.grades["3"]).toContainEqual({
       name: "Phosphorus",
+      symbol: null,
       count: 1,
       grade: null,
       kind: null,
