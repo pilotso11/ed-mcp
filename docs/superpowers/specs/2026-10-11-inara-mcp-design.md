@@ -5,17 +5,34 @@ Status: draft, awaiting review
 
 ## Platform
 
-Runs locally on the user's machine. No hosted server. Supported targets:
-macOS (arm64, amd64) and Windows (amd64). One static Go binary per target,
-built with `CGO_ENABLED=0` by `make release` from any host.
+Runs locally on the user's machine as a stdio MCP server. No hosted server.
+Supported platforms: macOS and Windows. Linux works but is not tested.
 
-Paths come from the Go standard library so they follow each OS:
+Written in TypeScript and shipped as JavaScript, so nothing needs code signing.
+Node runs the code; Node itself is already signed.
 
-| Data | Function | macOS | Windows |
+Paths come from `env-paths` (with `suffix: ''`) so they follow each OS:
+
+| Data | Source | macOS | Windows |
 |---|---|---|---|
-| Plans | `os.UserConfigDir()/inara-mcp` | `~/Library/Application Support/inara-mcp` | `%AppData%\inara-mcp` |
-| Catalog cache | `os.UserCacheDir()/inara-mcp` | `~/Library/Caches/inara-mcp` | `%LocalAppData%\inara-mcp` |
-| CAPI refresh token | `go-keyring` | Keychain | Credential Manager |
+| Plans | `envPaths('inara-mcp').config` | `~/Library/Preferences/inara-mcp` | `%AppData%\inara-mcp\Config` |
+| Catalog cache | `envPaths('inara-mcp').cache` | `~/Library/Caches/inara-mcp` | `%LocalAppData%\inara-mcp\Cache` |
+| CAPI refresh token | `@napi-rs/keyring` | Keychain | Credential Manager |
+
+## Distribution
+
+| Channel | For | How |
+|---|---|---|
+| npm package `inara-mcp` | Claude Code and other MCP clients | `npx -y inara-mcp` in the client's MCP config. Needs Node 20 or later |
+| Claude Desktop extension (`inara-mcp.mcpb`) | Claude Desktop users | Built in CI and attached to each GitHub Release. Claude Desktop runs it with its bundled Node, so users install nothing else |
+
+The `.mcpb` manifest declares the config below as `user_config` fields. API
+keys are marked `sensitive`, so Claude Desktop stores them in the OS keychain
+and passes them to the server as environment variables. npm users set the same
+environment variables in their MCP config.
+
+A Homebrew formula (depending on `node`) can be added later if Mac users ask
+for it.
 
 ## Purpose
 
@@ -36,8 +53,8 @@ result with `plan_upsert`.
 In scope:
 
 - Read commander state from Inara, EDSM and Frontier CAPI.
-- Read static game data (blueprints, engineers, materials, modules) from an
-  embedded catalog.
+- Read static game data (blueprints, engineers, materials, modules) from a
+  catalog that refreshes from upstream sources.
 - Search stations, systems and routes through Spansh.
 - Parse SLEF ship builds.
 - Store, update and export plans locally.
@@ -68,26 +85,28 @@ Out of scope:
 
 ## Architecture
 
-One Go binary, stdio transport, built on `github.com/modelcontextprotocol/go-sdk`.
-Layout and conventions follow `pm-mcp` (Go 1.24, testify, Makefile).
+Stack: TypeScript (strict), ESM, Node 20 or later,
+`@modelcontextprotocol/sdk` with stdio transport, `zod` for tool input
+schemas, built-in `fetch` for HTTP, `vitest` for tests, `tsup` to bundle.
 
 ```
-cmd/inara-mcp/main.go     config, tool registration, stdio transport
-internal/config/          env var loading and validation
-internal/httpx/           shared HTTP client: timeout, User-Agent, TTL cache
-internal/inara/           inAPI v1 client
-internal/edsm/            EDSM client
-internal/capi/            Frontier CAPI client and OAuth login
-internal/spansh/          Spansh client
-internal/catalog/         embedded static data and lookups
-internal/slef/            SLEF parser
-internal/plans/           local plan store
-internal/tools/           MCP tool handlers, one file per group
+src/index.ts          entry point: load config, register tools, start stdio
+src/config.ts         env var loading and validation (zod)
+src/http/             shared fetch wrapper: timeout, User-Agent, retry, TTL cache
+src/inara/            inAPI v1 client
+src/edsm/             EDSM client
+src/capi/             Frontier CAPI client and OAuth login
+src/spansh/           Spansh client
+src/catalog/          bundled data, disk cache, refresh, lookups
+src/slef/             SLEF parser
+src/plans/            local plan store
+src/tools/            MCP tool handlers, one file per group
+manifest.json         .mcpb manifest
 ```
 
-Each `internal/<source>` package exposes a typed client with no MCP
-dependency. `internal/tools` is the only package that knows about MCP. No tool
-calls another tool.
+Each source folder exports a typed client with no MCP dependency.
+`src/tools` is the only code that imports the MCP SDK. No tool calls another
+tool.
 
 ## Tools
 
@@ -100,9 +119,9 @@ calls another tool.
 | | `capi_login` | CAPI | starts the browser login and reports success |
 | | `capi_profile` | CAPI | current system and station, current ship with modules and engineering, ship list |
 | Builds | `build_parse_slef` | local | SLEF JSON → ship type and slots, each with module, blueprint, grade and experimental |
-| Catalog | `catalog_blueprint` | embedded | materials per grade for a blueprint on a module type |
-| | `catalog_engineers` | embedded | engineers for a blueprint with max grade, system, unlock requirements |
-| | `catalog_material` | embedded | grade, category, trade group, typical sources |
+| Catalog | `catalog_blueprint` | catalog | materials per grade for a blueprint on a module type |
+| | `catalog_engineers` | catalog | engineers for a blueprint with max grade, system, unlock requirements |
+| | `catalog_material` | catalog | grade, category, trade group, typical sources |
 | Market | `spansh_find_stations` | Spansh | stations near a reference system that sell a module or ship, or have a service (material trader by type, tech broker, interstellar factors) |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
@@ -144,8 +163,8 @@ argument up to 50).
 ```
 
 Plans live in one JSON file, `plans.json` in the plans directory (see Platform). Writes
-go to a temp file followed by an atomic rename. A mutex serialises writes
-within the process.
+go to a temp file followed by an atomic rename. A promise queue serialises
+writes within the process.
 
 ## Authentication and configuration
 
@@ -166,9 +185,9 @@ CAPI login flow:
 3. The callback receives the code. The server exchanges it at
    `https://auth.frontierstore.net/token` with the PKCE verifier. No client
    secret is stored.
-4. The refresh token is stored through `github.com/zalando/go-keyring`
-   (macOS Keychain, Windows Credential Manager). Access tokens stay in memory and refresh
-   automatically.
+4. The refresh token is stored through `@napi-rs/keyring` (macOS Keychain,
+   Windows Credential Manager). It ships prebuilt binaries, so users need no
+   compiler. Access tokens stay in memory and refresh automatically.
 5. The listener closes after one callback or 5 minutes.
 
 `capi_profile` calls `https://companion.orerve.net/profile`. When no token is
@@ -209,18 +228,17 @@ All caches can be cleared with `cache_refresh`.
 
 Game data (modules, blueprints, engineers, materials) changes only with game
 releases. The catalog is fetched from upstream open-data files and cached on
-disk, with an embedded copy as a fallback.
+disk, with a bundled copy as a fallback.
 
 Sources: candidates are coriolis-data (modules, blueprints) and EDEngineer data
 (engineers, recipes). Only sources whose licence allows redistribution are
-used, because a snapshot is embedded in the binary.
-`internal/catalog/data/SOURCES.md` records each file's URL, version and
-licence.
+used, because a snapshot is bundled in the package.
+`src/catalog/data/SOURCES.md` records each file's URL, version and licence.
 
 Load order at startup:
 
 1. Disk cache, if present and valid.
-2. Otherwise the embedded snapshot.
+2. Otherwise the bundled snapshot.
 
 Refresh:
 
@@ -236,31 +254,35 @@ Refresh:
 - Offline or upstream errors keep the current catalog and are reported in
   `cache_status`.
 
-`make catalog` updates the embedded snapshot before a release.
+`npm run catalog:update` updates the bundled snapshot before a release.
 
 ## Testing
 
-- Source clients: table tests against `httptest.Server` with recorded JSON
-  fixtures. No live calls in `make test`.
+All tests use vitest.
+
+- Source clients: table-driven tests with HTTP mocked by undici `MockAgent`
+  and recorded JSON fixtures. No live calls in `npm test`.
 - CAPI OAuth: test the PKCE exchange and token refresh against a fake token
   server. The keyring is behind an interface with an in-memory test double.
 - SLEF: real EDSY and Inara exports as fixtures.
 - Catalog: lookups, fuzzy matching, and a check that every engineer blueprint
   refers to a known blueprint. Refresh: 304 path, changed-file path, invalid
-  upstream data keeps the old catalog, offline fallback to embedded data.
+  upstream data keeps the old catalog, offline fallback to bundled data.
 - Cache: `cache_refresh` per source and `all`.
-- Paths: plan and cache directories resolve correctly on macOS and Windows
-  (tests use injected base dirs; CI builds both targets).
+- Paths: tests inject base directories. CI runs the full suite on
+  `macos-latest` and `windows-latest`.
 - Plans: CRUD, atomic write, concurrent updates, Markdown export golden file.
-- Integration: start the server in-process, list tools, call one tool per
-  group. This follows `pm-mcp/mcp_integration_test.go`.
-- `make smoke`: opt-in live check of Inara, EDSM, CAPI and Spansh response
+- Integration: connect an SDK `Client` to the server over an in-memory
+  transport, list tools, call one tool per group.
+- Packaging: CI builds the `.mcpb` and checks the manifest with the `mcpb`
+  CLI.
+- `npm run smoke`: opt-in live check of Inara, EDSM, CAPI and Spansh response
   shapes with real keys.
 
 ## Build stages
 
-1. Skeleton, config, `httpx` and cache tools, plans, SLEF, catalog with
-   embedded data. `make release` for macOS and Windows.
+1. Skeleton, config, `http` wrapper and cache tools, plans, SLEF, catalog
+   with bundled data. CI on macOS and Windows. npm package and `.mcpb` build.
 2. Catalog upstream refresh.
 3. Inara and EDSM clients and tools.
 4. Spansh client and tools.
