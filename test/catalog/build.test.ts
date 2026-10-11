@@ -20,6 +20,24 @@ describe("buildCatalog", () => {
     expect(warnings).toContain("Unknown engineer in modules.json: Elvira Martuuk");
   });
 
+  it("warns about modules.json blueprints missing from blueprints.json", async () => {
+    const raw = await rawFixture();
+    const before = buildCatalog(raw, staticsFixture, SMALL).warnings;
+    expect(before.some((w) => w.startsWith("Unknown blueprint"))).toBe(false);
+
+    const mods = JSON.parse(raw.modifications) as Record<
+      string,
+      { blueprints: Record<string, unknown> }
+    >;
+    mods.fsd!.blueprints.FSD_Imaginary = { grades: { "1": { engineers: ["Felicity Farseer"] } } };
+    const { warnings } = buildCatalog(
+      { ...raw, modifications: JSON.stringify(mods) },
+      staticsFixture,
+      SMALL,
+    );
+    expect(warnings).toContain("Unknown blueprint in modules.json: FSD_Imaginary");
+  });
+
   it("rejects too little data", () => {
     expect(() => buildCatalog(tooLittleRaw(), staticsFixture)).toThrow(CatalogError);
   });

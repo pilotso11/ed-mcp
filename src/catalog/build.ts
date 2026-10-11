@@ -154,6 +154,11 @@ export function buildCatalog(
     }
   }
   for (const n of [...unknownEng].sort()) warnings.push(`Unknown engineer in modules.json: ${n}`);
+  const blueprintIds = new Set(blueprints.map((b) => b.id));
+  const unknownBp = new Set(
+    groups.flatMap((g) => Object.keys(g.blueprints)).filter((id) => !blueprintIds.has(id)),
+  );
+  for (const id of [...unknownBp].sort()) warnings.push(`Unknown blueprint in modules.json: ${id}`);
   return { catalog, warnings };
 }
 
