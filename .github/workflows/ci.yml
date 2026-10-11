@@ -27,11 +27,26 @@ jobs:
       - run: npm run check
       - run: npm run build
 
+  mcpb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run pack:mcpb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ed-mcp-mcpb
+          path: "*.mcpb"
+
   ci-ok:
     # Single stable check name for branch protection.
     name: ci-ok
-    needs: check
+    needs: [check, mcpb]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - run: test "${{ needs.check.result }}" = "success"
+      - run: test "${{ needs.check.result }}" = "success" && test "${{ needs.mcpb.result }}" = "success"

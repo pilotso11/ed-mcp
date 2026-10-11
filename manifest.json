@@ -1,0 +1,113 @@
+{
+  "manifest_version": "0.3",
+  "name": "ed-mcp",
+  "display_name": "Elite Dangerous build planner",
+  "version": "0.1.0",
+  "description": "Elite Dangerous tools for Claude: Inara, EDSM, Frontier CAPI, Spansh, game data, SLEF builds and engineering plans.",
+  "author": { "name": "Seth Osher", "url": "https://github.com/pilotso11" },
+  "repository": { "type": "git", "url": "https://github.com/pilotso11/ed-mcp.git" },
+  "homepage": "https://github.com/pilotso11/ed-mcp",
+  "support": "https://github.com/pilotso11/ed-mcp/issues",
+  "license": "MIT",
+  "keywords": ["elite dangerous", "inara", "edsm", "spansh", "engineering"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "INARA_API_KEY": "${user_config.inara_api_key}",
+        "INARA_CMDR": "${user_config.inara_cmdr}",
+        "EDSM_API_KEY": "${user_config.edsm_api_key}",
+        "EDSM_CMDR": "${user_config.edsm_cmdr}",
+        "CAPI_CLIENT_ID": "${user_config.capi_client_id}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "inara_commander_profile",
+      "description": "Ranks, squadron, main ship and Inara URL"
+    },
+    { "name": "inara_community_goals", "description": "Recent and active community goals" },
+    { "name": "edsm_commander_location", "description": "Last known system and docked station" },
+    { "name": "edsm_commander_materials", "description": "Materials, encoded data and cargo" },
+    { "name": "capi_login", "description": "Log in to Frontier in the browser" },
+    { "name": "capi_profile", "description": "Current ship with engineering, location and fleet" },
+    { "name": "capi_logout", "description": "Forget the Frontier login" },
+    {
+      "name": "build_parse_slef",
+      "description": "Parse a SLEF build from EDSY, Coriolis or Inara"
+    },
+    {
+      "name": "catalog_blueprint",
+      "description": "Blueprint materials per grade and experimentals"
+    },
+    {
+      "name": "catalog_engineers",
+      "description": "Engineers for a blueprint, or one engineer's offers"
+    },
+    { "name": "catalog_material", "description": "Material grade, trade group and trade rules" },
+    { "name": "catalog_module", "description": "Outfitting module by symbol or name" },
+    {
+      "name": "spansh_find_stations",
+      "description": "Nearest stations selling a module or ship, or with a service"
+    },
+    { "name": "spansh_system", "description": "System coordinates and stations" },
+    { "name": "spansh_route", "description": "Neutron route between systems" },
+    { "name": "cache_refresh", "description": "Clear cached data or refresh game data" },
+    { "name": "cache_status", "description": "Cache and game data status" },
+    { "name": "plan_list", "description": "List saved plans" },
+    { "name": "plan_get", "description": "Get a plan" },
+    { "name": "plan_upsert", "description": "Create or replace a plan" },
+    { "name": "plan_update_item", "description": "Update one plan item" },
+    { "name": "plan_delete", "description": "Delete a plan" },
+    { "name": "plan_export", "description": "Export a plan as Markdown" }
+  ],
+  "tools_generated": false,
+  "user_config": {
+    "inara_api_key": {
+      "type": "string",
+      "title": "Inara API key",
+      "description": "Personal API key from inara.cz > Settings > Inara API. Leave empty to disable Inara tools.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "inara_cmdr": {
+      "type": "string",
+      "title": "Inara commander name",
+      "description": "Your in-game commander name.",
+      "required": false,
+      "default": ""
+    },
+    "edsm_api_key": {
+      "type": "string",
+      "title": "EDSM API key",
+      "description": "API key from edsm.net > Settings > API Key. Leave empty to disable EDSM tools.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "edsm_cmdr": {
+      "type": "string",
+      "title": "EDSM commander name",
+      "description": "Your commander name on EDSM.",
+      "required": false,
+      "default": ""
+    },
+    "capi_client_id": {
+      "type": "string",
+      "title": "Frontier CAPI client ID",
+      "description": "Client ID from user.frontierstore.net/developer. Leave empty to disable Frontier login.",
+      "required": false,
+      "default": ""
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32"],
+    "runtimes": { "node": ">=22.0.0" }
+  }
+}
