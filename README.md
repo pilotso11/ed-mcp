@@ -77,7 +77,7 @@ The server keeps these files on your machine.
 
 The config and cache directories come from `env-paths` for the name `ed-mcp`. On macOS the config directory is `~/Library/Preferences/ed-mcp`. On Windows it is under `%APPDATA%`. On Linux it is `~/.config/ed-mcp`.
 
-Nothing is bundled with the game data catalog. On first catalog use, the server downloads coriolis-data and FDevIDs files from GitHub into the cache directory. It checks for new versions weekly with ETags. `cache_refresh` with source `catalog` forces a check. Engineer data comes from EliteDangerousCore (Apache-2.0). See `NOTICE`.
+The coriolis-data and FDevIDs files are not bundled. On first catalog use, the server downloads them from GitHub into the cache directory. It checks for new versions weekly with ETags. `cache_refresh` with source `catalog` forces a check. Two small data sets ship inside the server: engineer locations and requirements, from EliteDangerousCore (Apache-2.0, see `NOTICE`), and module group names.
 
 Material trader rules follow the Alioth wiki.
 
