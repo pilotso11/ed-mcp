@@ -34,9 +34,10 @@ export interface EngineerOffer {
 }
 
 const TRADE_RULES =
-  "Trade at a material trader of the same kind (raw, manufactured or encoded). " +
-  "Within a trade group: 6 of one grade buy 1 of the next grade up; 1 of a grade buys 3 of the grade below. " +
-  "Across trade groups of the same kind, trades cost 6 times more at the same grade. " +
+  "Material traders only exchange materials of the same kind (raw, manufactured or encoded). " +
+  "Within one trade group, each grade step up costs 6 of the lower grade for 1 of the higher (two steps: 36 for 1), " +
+  "and each step down gives 3 of the lower grade for 1 (two steps: 9 for 1). " +
+  "Trading into a different trade group of the same kind applies the same grade-step rates plus a fixed 6 for 1 cross-group factor at every grade. " +
   "Guardian and Thargoid materials (no trade group) cannot be traded.";
 
 function nearest(query: string, options: string[], n = 5): string[] {
@@ -213,10 +214,16 @@ export class Catalog {
     const groups = this.d.groups.filter((g) => blueprintId in g.blueprints);
     if (!module) return groups;
     const mk = normKey(module);
-    const filtered = groups.filter(
+    const matched = groups.filter(
       (g) => g.names.some((n) => normKey(n) === mk) || normKey(g.id) === mk,
     );
-    return filtered.length ? filtered : groups;
+    if (matched.length) return matched;
+    const bp = this.d.blueprints.find((b) => b.id === blueprintId);
+    if (bp?.modules.some((m) => normKey(m) === mk)) return groups;
+    const applies = [...new Set(groups.map((g) => g.names[0] ?? g.id))].join(", ");
+    throw new UserError(
+      `Module "${module}" does not match blueprint ${blueprintId}. It applies to: ${applies}`,
+    );
   }
 
   private enrich(m: MaterialCount) {

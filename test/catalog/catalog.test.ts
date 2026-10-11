@@ -63,6 +63,25 @@ describe("Catalog.engineersFor", () => {
     });
   });
 
+  it("accepts Coriolis module aliases and group names", () => {
+    expect(cat.engineersFor("FSD_LongRange", "FSD").length).toBeGreaterThan(0);
+    expect(cat.engineersFor("FSD_LongRange", "Frame Shift Drive").length).toBeGreaterThan(0);
+    expect(cat.blueprint("FSD_LongRange", "FSD").experimentals.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to the blueprint's own module aliases", () => {
+    expect(cat.engineersFor("Engine_Dirty", "Engines").length).toBeGreaterThan(0);
+  });
+
+  it("rejects a module that does not match the blueprint", () => {
+    expect(() => cat.engineersFor("FSD_LongRange", "Thrusters")).toThrow(
+      /does not match blueprint FSD_LongRange\. It applies to: Frame Shift Drive/,
+    );
+    expect(() => cat.blueprint("FSD_LongRange", "Thrusters")).toThrow(
+      /It applies to: Frame Shift Drive/,
+    );
+  });
+
   it("resolves the Felicty typo to Felicity", () => {
     const offers = cat.engineersFor("Engine_Dirty");
     expect(offers.find((o) => o.engineer === "Felicity Farseer")?.max_grade).toBe(3);
@@ -93,7 +112,8 @@ describe("Catalog.material", () => {
       trade_group: "Heat",
     });
     expect(m.same_group.map((x) => x.name)).toEqual(["Heat Conduction Wiring", "Heat Exchangers"]);
-    expect(m.trade_rules).toMatch(/material trader/);
+    expect(m.trade_rules).toMatch(/material trader/i);
+    expect(m.trade_rules).toContain("36 for 1");
   });
 
   it("trims names and resolves the Adaptive Encryptors typo", () => {

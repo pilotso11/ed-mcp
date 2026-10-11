@@ -21,7 +21,7 @@ describe("buildCatalog", () => {
   });
 
   it("rejects too little data", () => {
-    expect(() => buildCatalog(awaitRaw(), staticsFixture)).toThrow(CatalogError);
+    expect(() => buildCatalog(tooLittleRaw(), staticsFixture)).toThrow(CatalogError);
   });
 
   it("rejects malformed JSON", async () => {
@@ -32,8 +32,7 @@ describe("buildCatalog", () => {
   });
 });
 
-// Synchronous stand-in so the "too little data" case uses default minimums.
-function awaitRaw() {
+function tooLittleRaw() {
   return {
     blueprints: "{}",
     specials: "{}",
