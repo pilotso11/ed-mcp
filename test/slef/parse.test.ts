@@ -55,12 +55,21 @@ describe("parseSlef", () => {
     if (utility) expect(utility).toMatchObject({ kind: "utility", slot_size: 0 });
   });
 
+  it("classifies a tiny hardpoint as a utility slot", () => {
+    const [b] = parseSlef({
+      Ship: "Sidewinder",
+      Modules: [{ Slot: "TinyHardpoint1", Item: "hpt_heatsinklauncher_turret_tiny" }],
+    });
+    expect(b!.modules[0]).toMatchObject({ kind: "utility", slot_size: 0 });
+  });
+
   it("accepts a bare journal Loadout", async () => {
     const wrapped = JSON.parse(await raw("journal-loadout-typex.json"));
     const loadout = Array.isArray(wrapped) ? wrapped[0].data : wrapped.data;
     const [b] = parseSlef(JSON.stringify(loadout));
     expect(b!.ship).toBe(loadout.Ship.toLowerCase());
     expect(b!.source.app).toBeNull();
+    expect(b!.modules.map((m) => m.slot.toLowerCase())).not.toContain("shipcockpit");
   });
 
   it("drops cosmetic slots", () => {
@@ -70,6 +79,8 @@ describe("parseSlef", () => {
         Ship: "Sidewinder",
         Modules: [
           { Slot: "PaintJob", Item: "paintjob_sidewinder_default_01" },
+          { Slot: "ShipCockpit", Item: "sidewinder_cockpit" },
+          null,
           { Slot: "Decal1", Item: "decal_explorer_elite" },
           { Slot: "PowerPlant", Item: "Int_Powerplant_Size2_Class1" },
         ],

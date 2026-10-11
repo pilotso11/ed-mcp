@@ -40,7 +40,7 @@ const CORE = new Set([
 ]);
 const HARDPOINT_SIZE: Record<string, number> = { small: 1, medium: 2, large: 3, huge: 4 };
 const COSMETIC =
-  /^(paintjob|decal\d*|shipname\d*|shipid\d*|shipkit|bobble\d*|weaponcolour|enginecolour|vesselvoice|stringlights|cockpit)/;
+  /^(paintjob|decal\d*|shipname\d*|shipid\d*|shipkit|bobble\d*|weaponcolour|enginecolour|vesselvoice|stringlights|(ship)?cockpit)/;
 
 interface RawModule {
   Slot?: unknown;
@@ -74,6 +74,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : n
 const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
 
 function parseModule(m: RawModule): SlefModule | null {
+  if (typeof m !== "object" || m === null) return null;
   const slot = str(m.Slot);
   const item = str(m.Item)?.toLowerCase();
   if (!slot || !item || COSMETIC.test(slot.toLowerCase())) return null;
