@@ -48,6 +48,15 @@ describe("plan tools", () => {
     expect((await callTool(client, "plan_list")).json).toEqual([]);
   });
 
+  it("rejects an item update with neither status nor notes", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const before = (await callTool(client, "plan_get", { id: "cutter" })).json;
+    const r = await callTool(client, "plan_update_item", { plan_id: "cutter", item_id: "a" });
+    expect(r).toMatchObject({ isError: true, text: "Give status or notes to update" });
+    expect((await callTool(client, "plan_get", { id: "cutter" })).json).toEqual(before);
+  });
+
   it("returns errors as tool errors", async () => {
     const { client } = await setup();
     const r = await callTool(client, "plan_get", { id: "missing" });

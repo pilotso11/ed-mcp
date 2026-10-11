@@ -52,7 +52,12 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         item_id: string;
         status?: z.infer<typeof ItemStatus>;
         notes?: string;
-      }) => plans.updateItem(a.plan_id, a.item_id, { status: a.status, notes: a.notes }),
+      }) => {
+        if (a.status === undefined && a.notes === undefined) {
+          throw new UserError("Give status or notes to update");
+        }
+        return plans.updateItem(a.plan_id, a.item_id, { status: a.status, notes: a.notes });
+      },
     ),
   );
 
