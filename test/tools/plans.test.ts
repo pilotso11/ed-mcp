@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -22,6 +22,8 @@ const plan = {
 };
 
 describe("plan tools", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("round-trips a plan", async () => {
     const { client } = await setup();
     const up = await callTool(client, "plan_upsert", { plan });
@@ -62,6 +64,26 @@ describe("plan tools", () => {
     const written = await callTool(client, "plan_export", { id: "cutter", path: target });
     expect(written.json).toMatchObject({ path: target });
     expect(await readFile(target, "utf8")).toMatch(/^# Cutter trade/);
+  });
+
+  it("expands ~ in the export path", async () => {
+    const { client, dir } = await setup();
+    vi.spyOn(os, "homedir").mockReturnValue(dir);
+    await callTool(client, "plan_upsert", { plan });
+    const r = await callTool(client, "plan_export", { id: "cutter", path: "~/out/c.md" });
+    const target = path.join(dir, "out", "c.md");
+    expect(r.json).toMatchObject({ path: target });
+    expect(await readFile(target, "utf8")).toMatch(/^# Cutter trade/);
+  });
+
+  it("rejects a relative export path", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const r = await callTool(client, "plan_export", { id: "cutter", path: "cutter.md" });
+    expect(r).toMatchObject({
+      isError: true,
+      text: "Use an absolute path or one starting with ~: cutter.md",
+    });
   });
 
   it("refuses to export over the store file, even with overwrite", async () => {

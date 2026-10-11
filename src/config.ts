@@ -1,5 +1,6 @@
 import path from "node:path";
 import envPaths from "env-paths";
+import { resolveUserPath } from "./paths.js";
 import { VERSION } from "./version.js";
 
 export class ConfigError extends Error {
@@ -52,6 +53,16 @@ function bool(env: Env, key: string, fallback: boolean): boolean {
   throw new ConfigError(`${key} must be true or false, got "${env[key]}"`);
 }
 
+function userPath(env: Env, key: string): string | undefined {
+  const v = get(env, key);
+  if (v === undefined) return undefined;
+  try {
+    return resolveUserPath(v);
+  } catch (err) {
+    throw new ConfigError(`${key}: ${(err as Error).message}`);
+  }
+}
+
 export function loadConfig(env: Env, dirs: { config: string; cache: string }): Config {
   const devMode = bool(env, "INARA_DEV_MODE", true);
   const inaraKey = get(env, "INARA_API_KEY");
@@ -72,7 +83,7 @@ export function loadConfig(env: Env, dirs: { config: string; cache: string }): C
         : undefined,
     edsm: edsmKey && edsmCmdr ? { apiKey: edsmKey, cmdr: edsmCmdr } : undefined,
     capi: capiClientId ? { clientId: capiClientId } : undefined,
-    plansFile: get(env, "ED_MCP_PLANS") ?? path.join(dirs.config, "plans.json"),
+    plansFile: userPath(env, "ED_MCP_PLANS") ?? path.join(dirs.config, "plans.json"),
     cacheDir: dirs.cache,
     configDir: dirs.config,
     userAgent: `ed-mcp/${VERSION} (+https://github.com/pilotso11/ed-mcp)`,

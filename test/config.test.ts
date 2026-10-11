@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import os from "node:os";
 import path from "node:path";
 import { ConfigError, loadConfig } from "../src/config.js";
 import { NotConfiguredError } from "../src/errors.js";
@@ -58,7 +59,24 @@ describe("loadConfig", () => {
     );
     expect(c.edsm).toEqual({ apiKey: "e", cmdr: "J" });
     expect(c.capi).toEqual({ clientId: "cid" });
-    expect(c.plansFile).toBe("/p.json");
+    expect(c.plansFile).toBe(path.resolve("/p.json"));
+  });
+
+  describe("ED_MCP_PLANS paths", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("expands ~", () => {
+      vi.spyOn(os, "homedir").mockReturnValue(path.resolve("/home/j"));
+      const c = loadConfig({ ED_MCP_PLANS: "~/ed/plans.json" }, dirs);
+      expect(c.plansFile).toBe(path.join(path.resolve("/home/j"), "ed", "plans.json"));
+    });
+
+    it("rejects a relative path", () => {
+      expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(ConfigError);
+      expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(
+        "ED_MCP_PLANS: Use an absolute path or one starting with ~: plans.json",
+      );
+    });
   });
 });
 

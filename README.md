@@ -39,7 +39,7 @@ All settings are optional. A tool for a service you did not configure returns a 
 | `EDSM_API_KEY`   | edsm.net, Settings, API Key                                | EDSM tools are off                                        |
 | `EDSM_CMDR`      | Your commander name on EDSM                                | EDSM tools are off                                        |
 | `CAPI_CLIENT_ID` | Frontier developer portal (user.frontierstore.net/developer) | Frontier login tools are off                            |
-| `ED_MCP_PLANS`   | A file path of your choice                                 | Plans go to `plans.json` in the config directory          |
+| `ED_MCP_PLANS`   | An absolute file path, or one starting with `~`            | Plans go to `plans.json` in the config directory          |
 
 Inara needs both `INARA_API_KEY` and `INARA_CMDR`. EDSM needs both `EDSM_API_KEY` and `EDSM_CMDR`. An invalid `INARA_DEV_MODE` value stops the server at startup.
 

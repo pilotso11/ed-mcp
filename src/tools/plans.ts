@@ -6,6 +6,7 @@ import { planToMarkdown } from "../plans/markdown.js";
 import { ItemStatus, PlanInputSchema, type PlanInput } from "../plans/schema.js";
 import type { PlanStore } from "../plans/store.js";
 import { UserError } from "../errors.js";
+import { resolveUserPath } from "../paths.js";
 import { wrap } from "./result.js";
 
 export function registerPlanTools(server: McpServer, deps: { plans: PlanStore }): void {
@@ -68,7 +69,8 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
     "plan_export",
     {
       description:
-        "Export a plan as Markdown. Without path, returns the Markdown. With path, writes the file.",
+        "Export a plan as Markdown. Without path, returns the Markdown. With path (absolute or ~/...), " +
+        "writes the file.",
       inputSchema: {
         id: z.string(),
         path: z.string().optional(),
@@ -78,7 +80,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
     wrap(async (a: { id: string; path?: string; overwrite?: boolean }) => {
       const markdown = planToMarkdown(await plans.get(a.id));
       if (!a.path) return { markdown };
-      const target = path.resolve(a.path);
+      const target = resolveUserPath(a.path);
       if (target === path.resolve(plans.file)) {
         throw new UserError(`${target} is the plan store file; choose another path`);
       }
