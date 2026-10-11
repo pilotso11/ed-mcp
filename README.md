@@ -53,8 +53,11 @@ Inara allows only whitelisted app names. Email Inara with the app name `ed-mcp`,
 
 1. Request developer access on the Frontier developer portal. Frontier approves access by hand.
 2. After approval, choose "Create Client".
-3. Copy only the Client ID. Never copy the Shared Key.
-4. Set `CAPI_CLIENT_ID`.
+3. In the Redirect URL field, enter `https://localhost/auth`. The portal may reject `http://` values.
+4. Copy only the Client ID. Never copy the Shared Key.
+5. Set `CAPI_CLIENT_ID`.
+
+At runtime the server uses `http://localhost:<random port>/auth` as the redirect. EDMC uses the same localhost pattern. The Redirect URL advice follows community reports, not Frontier documentation. See `docs/research/capi.md`, section 2.
 
 Then ask Claude to log in. `capi_login` returns at once with a login URL. Open it in your browser and sign in to Frontier. Call `capi_login` again to check the state. It reports `logged_in` or `failed`. Pass `force: true` to log in again.
 
