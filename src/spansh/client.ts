@@ -137,6 +137,9 @@ export class SpanshClient {
   private readonly minIntervalMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly routeTimeoutMs: number;
+  private readonly now: () => number;
+  // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
+  private readonly routeJobs = new Map<string, string>();
   private gate: Promise<void> = Promise.resolve();
   private lastStart = 0;
 
@@ -148,12 +151,15 @@ export class SpanshClient {
       minIntervalMs?: number;
       sleep?: (ms: number) => Promise<void>;
       routeTimeoutMs?: number;
+      now?: () => number;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
     this.minIntervalMs = opts.minIntervalMs ?? 1000;
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
-    this.routeTimeoutMs = opts.routeTimeoutMs ?? 120_000;
+    // MCP clients often give up on a tool call near 60 s.
+    this.routeTimeoutMs = opts.routeTimeoutMs ?? 50_000;
+    this.now = opts.now ?? Date.now;
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -271,24 +277,39 @@ export class SpanshClient {
       efficiency: String(q.efficiency ?? 60),
       supercharge_multiplier: q.supercharge === "overcharge" ? "6" : "4",
     });
-    return (await this.cached(`route:${form}`, async () => {
-      const submitted = (await this.post(
-        "/route",
-        form.toString(),
-        "application/x-www-form-urlencoded",
-      )) as { job: string };
-      let waited = 0;
+    const key = form.toString();
+    return (await this.cached(`route:${key}`, async () => {
+      const deadline = this.now() + this.routeTimeoutMs;
+      let job = this.routeJobs.get(key);
+      if (!job) {
+        const submitted = (await this.post("/route", key, "application/x-www-form-urlencoded")) as {
+          job: string;
+        };
+        job = submitted.job;
+        this.routeJobs.set(key, job);
+      }
       let delay = 1000;
       for (;;) {
-        if (waited >= this.routeTimeoutMs) throw new UserError("Spansh route timed out");
-        await this.sleep(delay);
-        waited += delay;
+        const left = deadline - this.now();
+        if (left <= 0) {
+          throw new UserError(
+            "Spansh is still plotting this route; call spansh_route again in a minute to collect it.",
+          );
+        }
+        await this.sleep(Math.min(delay, left));
         delay = Math.min(delay * 2, 16_000);
-        const { status, body } = await this.raw(`/results/${submitted.job}`);
-        if (status === 202) continue;
-        const b = body as { status?: string; error?: string; result?: RawRoute };
-        if (status === 200 && b.status === "ok" && b.result) return mapRoute(b.result);
-        throw new UserError(`Spansh: ${b.error ?? `route failed (HTTP ${status})`}`);
+        let res: { status: number; body: unknown };
+        try {
+          res = await this.raw(`/results/${job}`);
+        } catch (err) {
+          this.routeJobs.delete(key);
+          throw err;
+        }
+        if (res.status === 202) continue;
+        this.routeJobs.delete(key);
+        const b = res.body as { status?: string; error?: string; result?: RawRoute };
+        if (res.status === 200 && b.status === "ok" && b.result) return mapRoute(b.result);
+        throw new UserError(`Spansh: ${b.error ?? `route failed (HTTP ${res.status})`}`);
       }
     })) as RouteResult;
   }

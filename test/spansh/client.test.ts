@@ -20,7 +20,6 @@ function make(routes: FakeRoute[], sleeps: number[] = []) {
       sleep: async (ms) => {
         sleeps.push(ms);
       },
-      routeTimeoutMs: 120_000,
     },
   );
   return { client, f };
@@ -231,22 +230,81 @@ describe("SpanshClient.route", () => {
     );
   });
 
-  it("times out", async () => {
-    const submit = await raw("route-submit.json");
-    const pending = await raw("results-route-pending.json");
+  // The clock advances only when the client sleeps, so deadlines are deterministic.
+  function makeTimed(routes: FakeRoute[], routeTimeoutMs?: number) {
+    const f = fakeFetch(routes);
     const sleeps: number[] = [];
-    const f = fakeFetch([
-      { match: (u) => u.endsWith("/api/route"), respond: () => text(submit, 202) },
-      { match: () => true, respond: () => text(pending, 202) },
-    ]);
+    let clock = 0;
     const client = new SpanshClient(
       new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
-      new TtlCache("spansh", 300_000),
-      { minIntervalMs: 0, sleep: async (ms) => void sleeps.push(ms), routeTimeoutMs: 20_000 },
+      new TtlCache("spansh", 300_000, () => clock),
+      {
+        minIntervalMs: 0,
+        now: () => clock,
+        sleep: async (ms) => {
+          sleeps.push(ms);
+          clock += ms;
+        },
+        routeTimeoutMs,
+      },
     );
+    return { client, f, sleeps };
+  }
+
+  const isSubmit = (u: string, i?: RequestInit) => u.endsWith("/api/route") && i?.method === "POST";
+  const STILL_PLOTTING =
+    "Spansh is still plotting this route; call spansh_route again in a minute to collect it.";
+
+  it("stops polling at the default 50 s deadline and clamps the last sleep", async () => {
+    const submit = await raw("route-submit.json");
+    const pending = await raw("results-route-pending.json");
+    const { client, sleeps } = makeTimed([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => text(pending, 202) },
+    ]);
     await expect(client.route({ from: "Sol", to: "Colonia", rangeLy: 50 })).rejects.toThrow(
-      "Spansh route timed out",
+      STILL_PLOTTING,
     );
-    expect(sleeps.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(20_000);
+    expect(sleeps).toEqual([1000, 2000, 4000, 8000, 16000, 16000, 3000]);
+  });
+
+  it("resumes the same job on a repeat call instead of submitting again", async () => {
+    const submit = await raw("route-submit.json");
+    const pending = await raw("results-route-pending.json");
+    const done = await raw("results-route-ok.json");
+    let ready = false;
+    const { client, f } = makeTimed(
+      [
+        { match: isSubmit, respond: () => text(submit, 202) },
+        { match: () => true, respond: () => (ready ? text(done) : text(pending, 202)) },
+      ],
+      5_000,
+    );
+    const q = { from: "Sol", to: "Colonia", rangeLy: 50 };
+    await expect(client.route(q)).rejects.toThrow(STILL_PLOTTING);
+    ready = true;
+    expect(await client.route(q)).toMatchObject({ total_jumps: 128 });
+    const submits = f.calls.filter((c) => isSubmit(c.url, c.init));
+    expect(submits).toHaveLength(1);
+    const job = (JSON.parse(submit) as { job: string }).job;
+    expect(f.calls.at(-1)!.url).toMatch(new RegExp(`/results/${job}$`));
+  });
+
+  it("forgets the job after a 404 and submits again next time", async () => {
+    const submit = await raw("route-submit.json");
+    const done = await raw("results-route-ok.json");
+    let gone = true;
+    const { client, f } = makeTimed([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      {
+        match: () => true,
+        respond: () => (gone ? text('{"error":"Job not found"}', 404) : text(done)),
+      },
+    ]);
+    const q = { from: "Sol", to: "Colonia", rangeLy: 50 };
+    await expect(client.route(q)).rejects.toThrow("Spansh: Job not found");
+    gone = false;
+    expect(await client.route(q)).toMatchObject({ total_jumps: 128 });
+    expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(2);
   });
 });

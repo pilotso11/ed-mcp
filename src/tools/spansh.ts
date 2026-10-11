@@ -78,7 +78,8 @@ export function registerSpanshTools(server: McpServer, deps: { spansh: SpanshCli
     {
       description:
         "Plot a neutron-boosted route between two systems for a laden jump range in LY. " +
-        "Returns waypoints with jumps needed to reach each. May take up to 2 minutes. Cached 5 min.",
+        "Returns waypoints with jumps needed to reach each. May take a while; if it says still " +
+        "plotting, call again with the same arguments. Cached 5 min.",
       inputSchema: {
         from: z.string(),
         to: z.string(),
