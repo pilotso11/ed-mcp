@@ -3,6 +3,20 @@
 Date: 2026-10-11
 Status: draft, awaiting review
 
+## Platform
+
+Runs locally on the user's machine. No hosted server. Supported targets:
+macOS (arm64, amd64) and Windows (amd64). One static Go binary per target,
+built with `CGO_ENABLED=0` by `make release` from any host.
+
+Paths come from the Go standard library so they follow each OS:
+
+| Data | Function | macOS | Windows |
+|---|---|---|---|
+| Plans | `os.UserConfigDir()/inara-mcp` | `~/Library/Application Support/inara-mcp` | `%AppData%\inara-mcp` |
+| Catalog cache | `os.UserCacheDir()/inara-mcp` | `~/Library/Caches/inara-mcp` | `%LocalAppData%\inara-mcp` |
+| CAPI refresh token | `go-keyring` | Keychain | Credential Manager |
+
 ## Purpose
 
 An MCP server that gives Claude small, single-purpose tools for Elite Dangerous
@@ -92,6 +106,8 @@ calls another tool.
 | Market | `spansh_find_stations` | Spansh | stations near a reference system that sell a module or ship, or have a service (material trader by type, tech broker, interstellar factors) |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
+| Cache | `cache_refresh` | all | clears cached data. Optional `source`: `inara`, `edsm`, `capi`, `spansh`, `catalog` or `all` (default). For `catalog` it forces an upstream check |
+| | `cache_status` | all | per source: entries cached, age, catalog version and last check time |
 | Plans | `plan_list` | local | plan IDs, names, progress |
 | | `plan_get` | local | full plan |
 | | `plan_upsert` | local | creates or replaces a plan |
@@ -127,7 +143,7 @@ argument up to 50).
 }
 ```
 
-Plans live in one JSON file, default `~/.config/inara-mcp/plans.json`. Writes
+Plans live in one JSON file, `plans.json` in the plans directory (see Platform). Writes
 go to a temp file followed by an atomic rename. A mutex serialises writes
 within the process.
 
@@ -150,8 +166,8 @@ CAPI login flow:
 3. The callback receives the code. The server exchanges it at
    `https://auth.frontierstore.net/token` with the PKCE verifier. No client
    secret is stored.
-4. The refresh token is stored in the macOS Keychain through
-   `github.com/zalando/go-keyring`. Access tokens stay in memory and refresh
+4. The refresh token is stored through `github.com/zalando/go-keyring`
+   (macOS Keychain, Windows Credential Manager). Access tokens stay in memory and refresh
    automatically.
 5. The listener closes after one callback or 5 minutes.
 
@@ -166,6 +182,8 @@ One-time setup steps for the user (documented in the README):
 - Copy the Inara and EDSM API keys from each site's settings page.
 
 ## Network behaviour
+
+All caches can be cleared with `cache_refresh`.
 
 - Shared client: 15 s timeout, `User-Agent: inara-mcp/<version>`.
 - In-memory TTL cache keyed by request: Inara and EDSM commander data 60 s,
@@ -189,11 +207,36 @@ One-time setup steps for the user (documented in the README):
 
 ## Static catalog
 
-Embedded with `go:embed` from open data. Candidates: coriolis-data for
-modules and blueprints, EDEngineer data for engineers and recipes. Only
-sources whose licence allows redistribution are used. `internal/catalog/data/SOURCES.md`
-records each file's origin, version and licence. A `make catalog` target
-refreshes the files.
+Game data (modules, blueprints, engineers, materials) changes only with game
+releases. The catalog is fetched from upstream open-data files and cached on
+disk, with an embedded copy as a fallback.
+
+Sources: candidates are coriolis-data (modules, blueprints) and EDEngineer data
+(engineers, recipes). Only sources whose licence allows redistribution are
+used, because a snapshot is embedded in the binary.
+`internal/catalog/data/SOURCES.md` records each file's URL, version and
+licence.
+
+Load order at startup:
+
+1. Disk cache, if present and valid.
+2. Otherwise the embedded snapshot.
+
+Refresh:
+
+- At most once every 7 days, on first catalog use after the interval, the
+  server checks each upstream file with a conditional GET (`If-None-Match` /
+  `If-Modified-Since`). An unchanged file costs one 304 response.
+- `cache_refresh` with `source: catalog` forces the check immediately.
+- A changed file is downloaded, parsed and validated (same checks as the
+  catalog tests) before it replaces the disk cache. If validation fails, the
+  previous catalog stays active and the tool reports the error.
+- The check runs in the background so a tool call never waits on it, except
+  for a forced refresh.
+- Offline or upstream errors keep the current catalog and are reported in
+  `cache_status`.
+
+`make catalog` updates the embedded snapshot before a release.
 
 ## Testing
 
@@ -203,7 +246,11 @@ refreshes the files.
   server. The keyring is behind an interface with an in-memory test double.
 - SLEF: real EDSY and Inara exports as fixtures.
 - Catalog: lookups, fuzzy matching, and a check that every engineer blueprint
-  refers to a known blueprint.
+  refers to a known blueprint. Refresh: 304 path, changed-file path, invalid
+  upstream data keeps the old catalog, offline fallback to embedded data.
+- Cache: `cache_refresh` per source and `all`.
+- Paths: plan and cache directories resolve correctly on macOS and Windows
+  (tests use injected base dirs; CI builds both targets).
 - Plans: CRUD, atomic write, concurrent updates, Markdown export golden file.
 - Integration: start the server in-process, list tools, call one tool per
   group. This follows `pm-mcp/mcp_integration_test.go`.
@@ -212,10 +259,12 @@ refreshes the files.
 
 ## Build stages
 
-1. Skeleton, config, `httpx`, plans, SLEF, catalog.
-2. Inara and EDSM clients and tools.
-3. Spansh client and tools.
-4. CAPI OAuth and `capi_profile`.
+1. Skeleton, config, `httpx` and cache tools, plans, SLEF, catalog with
+   embedded data. `make release` for macOS and Windows.
+2. Catalog upstream refresh.
+3. Inara and EDSM clients and tools.
+4. Spansh client and tools.
+5. CAPI OAuth and `capi_profile`.
 
 Each stage ends with passing tests and a working server.
 
