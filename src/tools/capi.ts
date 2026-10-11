@@ -1,0 +1,46 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CapiAuth } from "../capi/auth.js";
+import type { CapiClient } from "../capi/client.js";
+import { wrap } from "./result.js";
+
+export function registerCapiTools(
+  server: McpServer,
+  deps: { capiAuth: CapiAuth; capi: CapiClient },
+): void {
+  server.registerTool(
+    "capi_login",
+    {
+      description:
+        "Log in to Frontier's Companion API in the browser. Returns immediately with the login URL; " +
+        "the user finishes in the browser. Call again to check the state. Logins last 25 days.",
+    },
+    wrap(async () => {
+      const s = await deps.capiAuth.startLogin();
+      if (s.state !== "waiting") return s;
+      return {
+        ...s,
+        next: "Ask the user to finish logging in in the browser (open the url if no tab appeared), then call capi_profile.",
+      };
+    }),
+  );
+
+  server.registerTool(
+    "capi_profile",
+    {
+      description:
+        "Live commander data from Frontier: current system and docked station, current ship with " +
+        "every module and its engineering (blueprint, grade, engineer, experimental), and all owned " +
+        "ships with locations. Does not include materials (use edsm_commander_materials). Cached 60 s.",
+    },
+    wrap(async () => deps.capi.profile()),
+  );
+
+  server.registerTool(
+    "capi_logout",
+    { description: "Forget the stored Frontier login on this machine." },
+    wrap(async () => {
+      await deps.capiAuth.logout();
+      return { state: "logged_out" };
+    }),
+  );
+}

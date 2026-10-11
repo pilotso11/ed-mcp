@@ -17,7 +17,7 @@ Paths come from `env-paths` (with `suffix: ''`) so they follow each OS:
 |---|---|---|---|
 | Plans | `envPaths('ed-mcp').config` | `~/Library/Preferences/ed-mcp` | `%AppData%\ed-mcp\Config` |
 | Catalog cache | `envPaths('ed-mcp').cache` | `~/Library/Caches/ed-mcp` | `%LocalAppData%\ed-mcp\Cache` |
-| CAPI refresh token | `@napi-rs/keyring` | Keychain | Credential Manager |
+| CAPI refresh token | `capi-token.json` in `envPaths('ed-mcp').config`, mode 0600 | `~/Library/Preferences/ed-mcp` | `%AppData%\ed-mcp\Config` |
 
 ## Distribution
 
@@ -116,8 +116,9 @@ tool.
 | | `inara_community_goals` | Inara | active community goals |
 | | `edsm_commander_location` | EDSM | current system, coordinates, last seen time |
 | | `edsm_commander_materials` | EDSM | raw, manufactured and encoded materials, and cargo, with counts |
-| | `capi_login` | CAPI | starts the browser login and reports success |
+| | `capi_login` | CAPI | starts the browser login, returns the login URL at once and reports the state when called again |
 | | `capi_profile` | CAPI | current system and station, current ship with modules and engineering, ship list |
+| | `capi_logout` | CAPI | deletes the stored Frontier login |
 | Builds | `build_parse_slef` | local | SLEF JSON → ship type and slots, each with module, blueprint, grade and experimental |
 | Catalog | `catalog_blueprint` | catalog | materials per grade for a blueprint on a module type |
 | | `catalog_engineers` | catalog | engineers for a blueprint with max grade, system, unlock requirements |
@@ -179,16 +180,24 @@ Other config: `ED_MCP_PLANS` overrides the plan file path.
 
 CAPI login flow:
 
-1. `capi_login` starts a listener on `127.0.0.1` with a random port.
-2. It opens `https://auth.frontierstore.net/auth` in the default browser with
-   the PKCE challenge and `scope=auth capi`.
-3. The callback receives the code. The server exchanges it at
-   `https://auth.frontierstore.net/token` with the PKCE verifier. No client
-   secret is stored.
-4. The refresh token is stored through `@napi-rs/keyring` (macOS Keychain,
-   Windows Credential Manager). It ships prebuilt binaries, so users need no
-   compiler. Access tokens stay in memory and refresh automatically.
-5. The listener closes after one callback or 5 minutes.
+1. `capi_login` starts listeners on `127.0.0.1` and `::1` on a random port.
+   The redirect URI is `http://localhost:<port>/auth`. It opens
+   `https://auth.frontierstore.net/auth` in the default browser with the PKCE
+   challenge, `audience=frontier,steam,epic` and `scope=auth capi`.
+2. `capi_login` returns at once with the login URL. MCP clients time out long
+   tool calls, so the callback completes in the background. Calling
+   `capi_login` again reports the state.
+3. The callback receives the code. The server checks `state` and exchanges the
+   code at `https://auth.frontierstore.net/token` with the PKCE verifier. No
+   client secret is stored.
+4. Tokens are stored in `capi-token.json` in the config directory, mode 0600.
+   The bundle has no native keychain module. Access tokens last 4 hours.
+   Refresh tokens rotate, so the server saves the new one on every refresh.
+5. Logins expire 25 days after approval. After that, `capi_login` is needed
+   again. `capi_logout` deletes the stored tokens.
+6. The listeners close after one callback or 5 minutes.
+
+CAPI requests use `User-Agent: EDCD-EdMcp-<version>`.
 
 `capi_profile` calls `https://companion.orerve.net/profile`. When no token is
 stored, it returns an error telling Claude to call `capi_login`.

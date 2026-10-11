@@ -3,10 +3,13 @@ import type { CatalogService } from "./catalog/service.js";
 import type { CacheRegistry } from "./http/cache.js";
 import type { InaraClient } from "./inara/client.js";
 import type { EdsmClient } from "./edsm/client.js";
+import type { CapiAuth } from "./capi/auth.js";
+import type { CapiClient } from "./capi/client.js";
 import type { SpanshClient } from "./spansh/client.js";
 import type { PlanStore } from "./plans/store.js";
 import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
+import { registerCapiTools } from "./tools/capi.js";
 import { registerCatalogTools } from "./tools/catalog.js";
 import { registerInaraTools } from "./tools/inara.js";
 import { registerEdsmTools } from "./tools/edsm.js";
@@ -22,6 +25,8 @@ export interface ServerDeps {
   inara?: InaraClient;
   edsm?: EdsmClient;
   spansh?: SpanshClient;
+  capiAuth?: CapiAuth;
+  capi?: CapiClient;
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -34,6 +39,9 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.inara) registerInaraTools(server, { inara: deps.inara });
   if (deps.edsm) registerEdsmTools(server, { edsm: deps.edsm });
   if (deps.spansh) registerSpanshTools(server, { spansh: deps.spansh });
+  if (deps.capiAuth && deps.capi) {
+    registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
+  }
   registerBuildTools(server, { catalog: deps.catalog });
   return server;
 }

@@ -1,3 +1,7 @@
+import path from "node:path";
+import { CapiAuth } from "./capi/auth.js";
+import { CapiClient } from "./capi/client.js";
+import { TokenStore } from "./capi/tokens.js";
 import { CatalogService } from "./catalog/service.js";
 import type { Config } from "./config.js";
 import { CacheRegistry, TtlCache } from "./http/cache.js";
@@ -7,6 +11,7 @@ import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
 import { PlanStore } from "./plans/store.js";
 import type { ServerDeps } from "./server.js";
+import { VERSION } from "./version.js";
 
 export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): ServerDeps {
   const caches = new CacheRegistry();
@@ -21,6 +26,15 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
   const spanshCache = new TtlCache<unknown>("spansh", 300_000);
   caches.register(spanshCache);
   const spansh = new SpanshClient(http, spanshCache);
+  const capiHttp = new HttpClient({ userAgent: `EDCD-EdMcp-${VERSION}`, fetchFn: opts.fetchFn });
+  const capiCache = new TtlCache<unknown>("capi", 60_000);
+  caches.register(capiCache);
+  const capiAuth = new CapiAuth(
+    capiHttp,
+    config.capi,
+    new TokenStore(path.join(config.configDir, "capi-token.json")),
+  );
+  const capi = new CapiClient(capiHttp, capiAuth, capiCache);
   return {
     caches,
     refreshables: [catalog],
@@ -28,6 +42,8 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     inara,
     edsm,
     spansh,
+    capiAuth,
+    capi,
     plans: new PlanStore(config.plansFile),
   };
 }

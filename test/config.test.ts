@@ -13,6 +13,7 @@ describe("loadConfig", () => {
     expect(c.capi).toBeUndefined();
     expect(c.plansFile).toBe(path.join("/cfg", "plans.json"));
     expect(c.cacheDir).toBe("/cache");
+    expect(c.configDir).toBe("/cfg");
     expect(c.userAgent).toMatch(
       /^ed-mcp\/\d+\.\d+\.\d+ \(\+https:\/\/github\.com\/pilotso11\/ed-mcp\)$/,
     );

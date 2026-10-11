@@ -25,6 +25,7 @@ export interface Config {
   capi?: CapiConfig;
   plansFile: string;
   cacheDir: string;
+  configDir: string;
   userAgent: string;
 }
 
@@ -73,6 +74,7 @@ export function loadConfig(env: Env, dirs: { config: string; cache: string }): C
     capi: capiClientId ? { clientId: capiClientId } : undefined,
     plansFile: get(env, "ED_MCP_PLANS") ?? path.join(dirs.config, "plans.json"),
     cacheDir: dirs.cache,
+    configDir: dirs.config,
     userAgent: `ed-mcp/${VERSION} (+https://github.com/pilotso11/ed-mcp)`,
   };
 }
