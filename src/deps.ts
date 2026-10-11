@@ -33,6 +33,7 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     capiHttp,
     config.capi,
     new TokenStore(path.join(config.configDir, "capi-token.json")),
+    { onSessionChange: () => void capiCache.clear() },
   );
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);
   return {

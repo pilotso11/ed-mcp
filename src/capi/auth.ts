@@ -34,6 +34,7 @@ export class CapiAuth {
   private readonly openUrl: (url: string) => Promise<void>;
   private readonly now: () => number;
   private readonly loginTimeoutMs: number;
+  private readonly onSessionChange: () => void;
 
   constructor(
     private readonly http: HttpClient,
@@ -44,12 +45,15 @@ export class CapiAuth {
       openUrl?: (url: string) => Promise<void>;
       now?: () => number;
       loginTimeoutMs?: number;
+      /** Called after login and logout, so cached commander data from the old session is dropped. */
+      onSessionChange?: () => void;
     } = {},
   ) {
     this.authBase = opts.authBase ?? "https://auth.frontierstore.net";
     this.openUrl = opts.openUrl ?? openInBrowser;
     this.now = opts.now ?? Date.now;
     this.loginTimeoutMs = opts.loginTimeoutMs ?? 5 * 60_000;
+    this.onSessionChange = opts.onSessionChange ?? (() => undefined);
   }
 
   async state(): Promise<LoginState> {
@@ -213,6 +217,7 @@ export class CapiAuth {
   async logout(): Promise<void> {
     await this.tokens.clear();
     this.failure = null;
+    this.onSessionChange();
   }
 
   private requireConfig(): CapiConfig {
@@ -234,6 +239,7 @@ export class CapiAuth {
       expires_at: this.now() + res.expires_in * 1000,
       authorized_at: this.now(),
     });
+    this.onSessionChange();
   }
 
   private async refresh(cfg: CapiConfig, t: StoredTokens, retried = false): Promise<string> {

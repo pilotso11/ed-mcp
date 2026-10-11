@@ -11,7 +11,9 @@ import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
 const DAY = 86_400_000;
 let tokens: TokenStore;
 let t: number;
+let sessionChanges: number;
 beforeEach(async () => {
+  sessionChanges = 0;
   tokens = new TokenStore(path.join(await mkdtemp(path.join(os.tmpdir(), "auth-")), "t.json"));
   t = Date.parse("2026-10-11T00:00:00Z");
 });
@@ -27,6 +29,7 @@ function make(routes: Parameters<typeof fakeFetch>[0], opened: string[] = []) {
       openUrl: async (u) => void opened.push(u),
       now: () => t,
       loginTimeoutMs: 2_000,
+      onSessionChange: () => void sessionChanges++,
     },
   );
   return { auth, f };
@@ -86,6 +89,20 @@ describe("CapiAuth login", () => {
       authorized_at: t,
     });
     expect((await auth.state()).state).toBe("logged_in");
+    expect(sessionChanges).toBe(1);
+  });
+
+  it("signals a session change on logout", async () => {
+    await tokens.save({
+      refresh_token: "R",
+      access_token: "A",
+      expires_at: t + 1,
+      authorized_at: t,
+    });
+    const { auth } = make([]);
+    await auth.logout();
+    expect(sessionChanges).toBe(1);
+    expect(await tokens.load()).toBeNull();
   });
 
   it("does not retry the code exchange on a server error", async () => {
@@ -101,6 +118,7 @@ describe("CapiAuth login", () => {
     await auth.waitForLogin();
     expect(f.calls).toHaveLength(1);
     expect(await auth.state()).toMatchObject({ state: "failed" });
+    expect(sessionChanges).toBe(0);
   });
 
   it("answers a wrong-state callback with 400 and keeps waiting", async () => {
