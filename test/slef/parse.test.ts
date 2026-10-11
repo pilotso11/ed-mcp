@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
+import { UserError } from "../../src/errors.js";
 import { parseSlef } from "../../src/slef/parse.js";
 
 const raw = (n: string) => readFile(new URL(`../fixtures/slef/${n}`, import.meta.url), "utf8");
@@ -93,5 +94,10 @@ describe("parseSlef", () => {
   it("rejects input that is not SLEF", () => {
     expect(() => parseSlef("not json")).toThrow("SLEF is not valid JSON");
     expect(() => parseSlef({ foo: 1 })).toThrow(/Not a SLEF build/);
+  });
+
+  it.each(["null", "[null]", "[5]"])("rejects %s with a UserError", (input) => {
+    expect(() => parseSlef(input)).toThrow(UserError);
+    expect(() => parseSlef(input)).toThrow(/Not a SLEF build/);
   });
 });
