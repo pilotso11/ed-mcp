@@ -1,10 +1,11 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { planToMarkdown } from "../plans/markdown.js";
 import { ItemStatus, PlanInputSchema, type PlanInput } from "../plans/schema.js";
 import type { PlanStore } from "../plans/store.js";
+import { UserError } from "../errors.js";
 import { wrap } from "./result.js";
 
 export function registerPlanTools(server: McpServer, deps: { plans: PlanStore }): void {
@@ -68,15 +69,42 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
     {
       description:
         "Export a plan as Markdown. Without path, returns the Markdown. With path, writes the file.",
-      inputSchema: { id: z.string(), path: z.string().optional() },
+      inputSchema: {
+        id: z.string(),
+        path: z.string().optional(),
+        overwrite: z.boolean().optional(),
+      },
     },
-    wrap(async (a: { id: string; path?: string }) => {
+    wrap(async (a: { id: string; path?: string; overwrite?: boolean }) => {
       const markdown = planToMarkdown(await plans.get(a.id));
       if (!a.path) return { markdown };
       const target = path.resolve(a.path);
+      if (target === path.resolve(plans.file)) {
+        throw new UserError(`${target} is the plan store file; choose another path`);
+      }
+      if (!a.overwrite && (await exists(target))) {
+        throw new UserError(`${target} exists; pass overwrite: true to replace it`);
+      }
       await mkdir(path.dirname(target), { recursive: true });
-      await writeFile(target, markdown);
+      const tmp = `${target}.${process.pid}.tmp`;
+      try {
+        await writeFile(tmp, markdown);
+        await rename(tmp, target);
+      } catch (err) {
+        await unlink(tmp).catch(() => undefined);
+        throw err;
+      }
       return { path: target, bytes: Buffer.byteLength(markdown) };
     }),
   );
+}
+
+async function exists(p: string): Promise<boolean> {
+  try {
+    await stat(p);
+    return true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw err;
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -61,6 +61,34 @@ describe("plan tools", () => {
     const target = path.join(dir, "out", "cutter.md");
     const written = await callTool(client, "plan_export", { id: "cutter", path: target });
     expect(written.json).toMatchObject({ path: target });
+    expect(await readFile(target, "utf8")).toMatch(/^# Cutter trade/);
+  });
+
+  it("refuses to export over the store file, even with overwrite", async () => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const store = path.join(dir, "plans.json");
+    const before = await readFile(store, "utf8");
+    const r = await callTool(client, "plan_export", { id: "cutter", path: store, overwrite: true });
+    expect(r.isError).toBe(true);
+    expect(await readFile(store, "utf8")).toBe(before);
+  });
+
+  it("refuses to replace an existing file unless overwrite is true", async () => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const target = path.join(dir, "cutter.md");
+    await writeFile(target, "old");
+    const refused = await callTool(client, "plan_export", { id: "cutter", path: target });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain("exists; pass overwrite: true to replace it");
+    expect(await readFile(target, "utf8")).toBe("old");
+    const ok = await callTool(client, "plan_export", {
+      id: "cutter",
+      path: target,
+      overwrite: true,
+    });
+    expect(ok.isError).toBe(false);
     expect(await readFile(target, "utf8")).toMatch(/^# Cutter trade/);
   });
 });

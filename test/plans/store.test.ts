@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PlanStore } from "../../src/plans/store.js";
@@ -99,5 +99,33 @@ describe("PlanStore", () => {
     expect(await readFile(path.join(dir, "bad.json"), "utf8")).toBe(
       '{"version":1,"plans":[{"id":1}]}',
     );
+  });
+
+  describe("cross-process lock", () => {
+    const lockOf = () => `${file}.lock`;
+    beforeEach(() => mkdir(path.dirname(file), { recursive: true }));
+
+    it("takes over a stale lock", async () => {
+      await writeFile(lockOf(), "");
+      const old = new Date(Date.now() - 60_000);
+      await utimes(lockOf(), old, old);
+      await new PlanStore(file, now).upsert(input());
+      await expect(readFile(lockOf())).rejects.toThrow(/ENOENT/);
+    });
+
+    it("waits for a fresh lock to be released", async () => {
+      await writeFile(lockOf(), "");
+      const s = new PlanStore(file, now);
+      const pending = s.upsert(input());
+      await new Promise((r) => setTimeout(r, 150));
+      await rm(lockOf());
+      expect((await pending).id).toBe("python-mk2");
+    });
+
+    it("times out when the lock is never released", async () => {
+      await writeFile(lockOf(), "");
+      const s = new PlanStore(file, now, { lockTimeoutMs: 120 });
+      await expect(s.upsert(input())).rejects.toThrow(/locked by another process/);
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
@@ -19,13 +19,22 @@ export interface PlanSummary {
   updated_at: string;
 }
 
+const LOCK_TIMEOUT_MS = 5000;
+const LOCK_RETRY_MS = 50;
+const LOCK_STALE_MS = 30_000;
+
 export class PlanStore {
   private queue: Promise<unknown> = Promise.resolve();
 
+  private readonly lockTimeoutMs: number;
+
   constructor(
-    private readonly file: string,
+    readonly file: string,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+    opts: { lockTimeoutMs?: number } = {},
+  ) {
+    this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
+  }
 
   async list(): Promise<PlanSummary[]> {
     const { plans } = await this.read();
@@ -108,17 +117,55 @@ export class PlanStore {
   }
 
   // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
+  // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
   private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
     const run = this.queue.then(async () => {
-      const data = await this.read();
-      const result = fn(data);
       await mkdir(path.dirname(this.file), { recursive: true });
-      const tmp = `${this.file}.${process.pid}.tmp`;
-      await writeFile(tmp, JSON.stringify(data, null, 2));
-      await rename(tmp, this.file);
-      return result;
+      const release = await this.acquireLock();
+      try {
+        const data = await this.read();
+        const result = fn(data);
+        const tmp = `${this.file}.${process.pid}.tmp`;
+        try {
+          await writeFile(tmp, JSON.stringify(data, null, 2));
+          await rename(tmp, this.file);
+        } catch (err) {
+          await unlink(tmp).catch(() => undefined);
+          throw err;
+        }
+        return result;
+      } finally {
+        await release();
+      }
     });
     this.queue = run.catch(() => undefined);
     return run;
+  }
+
+  private async acquireLock(): Promise<() => Promise<void>> {
+    const lock = `${this.file}.lock`;
+    const deadline = Date.now() + this.lockTimeoutMs;
+    for (;;) {
+      try {
+        const handle = await open(lock, "wx");
+        await handle.close();
+        return () => unlink(lock).catch(() => undefined);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      }
+      try {
+        if (Date.now() - (await stat(lock)).mtimeMs > LOCK_STALE_MS) {
+          await unlink(lock).catch(() => undefined);
+          continue;
+        }
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw err;
+      }
+      if (Date.now() >= deadline) {
+        throw new UserError("Plan file is locked by another process; try again");
+      }
+      await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+    }
   }
 }
