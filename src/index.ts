@@ -1,8 +1,11 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { defaultDirs, loadConfig } from "./config.js";
+import { buildDeps } from "./deps.js";
 import { createServer } from "./server.js";
 
 async function main(): Promise<void> {
-  const server = createServer({});
+  const config = loadConfig(process.env, defaultDirs());
+  const server = createServer(buildDeps(config));
   await server.connect(new StdioServerTransport());
 }
 
