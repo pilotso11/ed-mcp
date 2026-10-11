@@ -37,7 +37,7 @@ const TRADE_RULES =
   "Material traders only exchange materials of the same kind (raw, manufactured or encoded). " +
   "Within one trade group, each grade step up costs 6 of the lower grade for 1 of the higher (two steps: 36 for 1), " +
   "and each step down gives 3 of the lower grade for 1 (two steps: 9 for 1). " +
-  "Trading into a different trade group of the same kind applies the same grade-step rates plus a fixed 6 for 1 cross-group factor at every grade. " +
+  "Trading into a different trade group of the same kind applies a fixed 6 for 1 factor at every grade (however many groups apart), combined with the grade-step rates: for example a grade 3 material into a grade 5 material of another group costs 6 x 6 x 6 = 216 for 1, and a grade 3 into a grade 2 of another group gives 1 for 2. " +
   "Guardian and Thargoid materials (no trade group) cannot be traded.";
 
 function nearest(query: string, options: string[], n = 5): string[] {

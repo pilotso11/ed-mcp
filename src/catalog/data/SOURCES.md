@@ -20,3 +20,8 @@ Downloaded at runtime to the user's cache, never committed or bundled:
 These repositories do not grant an open licence for their data, which is
 Frontier Developments' intellectual property. Downloading them to the user's
 machine mirrors how the Coriolis and EDSY web apps use them.
+
+## Material trader rates
+
+The `trade_rules` text in `src/catalog/catalog.ts` follows
+https://wiki.alioth.net/index.php/Elite:_Dangerous/Material_Trader (checked 2026-10-11).

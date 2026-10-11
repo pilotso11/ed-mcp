@@ -114,6 +114,7 @@ describe("Catalog.material", () => {
     expect(m.same_group.map((x) => x.name)).toEqual(["Heat Conduction Wiring", "Heat Exchangers"]);
     expect(m.trade_rules).toMatch(/material trader/i);
     expect(m.trade_rules).toContain("36 for 1");
+    expect(m.trade_rules).toContain("216 for 1");
   });
 
   it("trims names and resolves the Adaptive Encryptors typo", () => {
