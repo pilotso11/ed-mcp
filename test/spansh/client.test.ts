@@ -138,12 +138,21 @@ describe("SpanshClient.findStations", () => {
     expect(r).toEqual({ near: "Sol", total: 0, total_capped: false, stations: [] });
   });
 
-  it("explains a 400 as a bad system name", async () => {
+  it("explains a 400 with Spansh's own error text", async () => {
     const body = await raw("stations-search-error.json");
     const { client } = make([{ match: () => true, respond: () => text(body, 400) }]);
     await expect(
       client.findStations({ near: "Nowhere", service: "tech_broker_human", limit: 3 }),
-    ).rejects.toThrow(/Spansh rejected the search.*"Nowhere".*spansh_system/);
+    ).rejects.toThrow(/Spansh rejected the search \(Invalid request\).*"Nowhere".*spansh_system/);
+  });
+
+  it("surfaces what Spansh disliked about the filters", async () => {
+    const { client } = make([
+      { match: () => true, respond: () => text('{"error":"Unknown module"}', 400) },
+    ]);
+    await expect(
+      client.findStations({ near: "Sol", service: "tech_broker_human", limit: 3 }),
+    ).rejects.toThrow(/Unknown module.*module, ship or service filter/);
   });
 });
 

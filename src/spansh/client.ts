@@ -208,7 +208,7 @@ export class SpanshClient {
       } catch (err) {
         if (err instanceof SpanshError && err.status === 400) {
           throw new UserError(
-            `Spansh rejected the search. Check that "${q.near}" is an exact system name (look it up with spansh_system).`,
+            `Spansh rejected the search (${err.detail}). Check that "${q.near}" is an exact system name (spansh_system) and that the module, ship or service filter is valid.`,
           );
         }
         throw err;
@@ -387,12 +387,16 @@ export class SpanshClient {
 }
 
 class SpanshError extends UserError {
+  readonly detail: string;
+
   constructor(
     readonly status: number,
     body: unknown,
   ) {
     const msg = (body as { error?: string } | undefined)?.error;
-    super(`Spansh: ${msg ?? `HTTP ${status}`}`);
+    const detail = msg ?? `HTTP ${status}`;
+    super(`Spansh: ${detail}`);
+    this.detail = detail;
   }
 }
 
