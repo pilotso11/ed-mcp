@@ -100,7 +100,7 @@ describe("spansh tools", () => {
   it("still searches when the current ship lookup rejects", async () => {
     const { client } = await setup({
       currentShip: async () => {
-        throw new Error("not logged in");
+        throw new Error("Not logged in to Frontier. Call capi_login first.");
       },
     });
     const r = await callTool(client, "spansh_find_stations", {
@@ -109,7 +109,10 @@ describe("spansh tools", () => {
     });
     expect(r.isError).toBe(false);
     expect(r.json).toMatchObject({
-      applied_preferences: { min_pad: "none (auto: current ship unavailable)" },
+      applied_preferences: {
+        min_pad:
+          "none (auto: current ship unavailable (Not logged in to Frontier. Call capi_login first.))",
+      },
     });
   });
 

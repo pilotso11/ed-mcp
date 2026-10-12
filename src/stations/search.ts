@@ -22,8 +22,42 @@ export interface StationSearchResult {
   applied_preferences: Record<string, unknown>;
 }
 
-export async function autoPad(currentShip: () => Promise<string | null>): Promise<PadResolution> {
-  const ship = await currentShip().catch(() => null);
+const SHIP_LOOKUP_TIMEOUT_MS = 3_000;
+const SHIP_FAILURE_TTL_MS = 60_000;
+// Keyed by lookup function so a CAPI outage costs one wait per minute, not one per search.
+const recentFailures = new WeakMap<object, { at: number; message: string }>();
+
+export async function autoPad(
+  currentShip: () => Promise<string | null>,
+  opts: { timeoutMs?: number; now?: () => number } = {},
+): Promise<PadResolution> {
+  const now = opts.now ?? Date.now;
+  const unavailable = (message: string): PadResolution => ({
+    size: null,
+    source: `auto: current ship unavailable (${message})`,
+  });
+  const failed = recentFailures.get(currentShip);
+  if (failed && now() - failed.at < SHIP_FAILURE_TTL_MS) return unavailable(failed.message);
+
+  let timer: NodeJS.Timeout | undefined;
+  let ship: string | null;
+  try {
+    ship = await Promise.race([
+      currentShip(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("timed out")),
+          opts.timeoutMs ?? SHIP_LOOKUP_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    recentFailures.set(currentShip, { at: now(), message });
+    return unavailable(message);
+  } finally {
+    clearTimeout(timer);
+  }
   if (!ship) return { size: null, source: "auto: current ship unavailable" };
   const known = shipPad(ship);
   if (!known) return { size: null, source: `auto: unknown ship ${ship}` };

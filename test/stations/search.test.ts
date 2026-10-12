@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
 import type { StationHit, StationQuery, StationResult } from "../../src/spansh/client.js";
 import { resolveRules } from "../../src/stations/filter.js";
@@ -117,5 +117,37 @@ describe("autoPad", () => {
       size: null,
       source: "auto: current ship unavailable",
     });
+  });
+
+  it("gives up on a ship lookup that never resolves", async () => {
+    const started = Date.now();
+    const r = await autoPad(() => new Promise<string | null>(() => undefined), { timeoutMs: 20 });
+    expect(r).toEqual({ size: null, source: "auto: current ship unavailable (timed out)" });
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it("puts the lookup error in the source", async () => {
+    const r = await autoPad(async () => {
+      throw new Error("Not logged in to Frontier. Call capi_login first.");
+    });
+    expect(r.source).toBe(
+      "auto: current ship unavailable (Not logged in to Frontier. Call capi_login first.)",
+    );
+  });
+
+  it("remembers a failure for 60 s so repeat searches skip the lookup", async () => {
+    let t = 1_000;
+    const lookup = vi.fn(async (): Promise<string | null> => {
+      throw new Error("down");
+    });
+    const opts = { now: () => t };
+    await autoPad(lookup, opts);
+    t += 59_000;
+    const again = await autoPad(lookup, opts);
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(again.source).toBe("auto: current ship unavailable (down)");
+    t += 2_000;
+    await autoPad(lookup, opts);
+    expect(lookup).toHaveBeenCalledTimes(2);
   });
 });
