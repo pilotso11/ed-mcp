@@ -24,6 +24,9 @@ Decisions made while scoping:
   shared send-only from the PC.
 - Syncthing setup is a README guide plus `journal_status` diagnostics
   (folder found, newest journal, age of the latest event). No setup script.
+- Backlog: rank stations by estimated travel time (extra jumps versus
+  supercruise distance) instead of LY with an ls cut-off. Tracked in
+  https://github.com/pilotso11/ed-mcp/issues/2.
 - A mission-board advisor (choosing missions to accept) is out of scope. The
   journal does not record the board, and screen reading was rejected.
 
