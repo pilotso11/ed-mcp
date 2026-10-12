@@ -132,9 +132,30 @@ function parseEntry(entry: unknown): SlefBuild {
   };
 }
 
+// EDSY's link format is CC BY-NC licensed, so we do not decode it; the caller has to fetch SLEF.
+function rejectLink(text: string): void {
+  const t = text.trim();
+  if (!/^https?:\/\//i.test(t)) return;
+  let host = "";
+  try {
+    host = new URL(t).hostname.toLowerCase();
+  } catch {
+    // fall through to the generic link message
+  }
+  if (host === "edsy.org" || host.endsWith(".edsy.org")) {
+    throw new UserError(
+      'This is an EDSY link, not SLEF. If you can control a web browser, open the link, click the "Export..." button (id outfitting_fit_export), read the value of the text input named export_slef, and call build_parse_slef again with that value. Otherwise ask the user to open the link in EDSY, click Export..., and paste the SLEF line.',
+    );
+  }
+  throw new UserError(
+    "This is a link, not SLEF. Ask for the build as SLEF JSON: EDSY, Coriolis and Inara can all export SLEF.",
+  );
+}
+
 export function parseSlef(input: unknown): SlefBuild[] {
   let value = input;
   if (typeof input === "string") {
+    rejectLink(input);
     try {
       value = JSON.parse(input);
     } catch {

@@ -100,4 +100,18 @@ describe("parseSlef", () => {
     expect(() => parseSlef(input)).toThrow(UserError);
     expect(() => parseSlef(input)).toThrow(/Not a SLEF build/);
   });
+
+  it("explains how to turn an EDSY link into SLEF", () => {
+    expect(() => parseSlef("  https://edsy.org/#/L=A0s,7_5A0  ")).toThrow(
+      new UserError(
+        'This is an EDSY link, not SLEF. If you can control a web browser, open the link, click the "Export..." button (id outfitting_fit_export), read the value of the text input named export_slef, and call build_parse_slef again with that value. Otherwise ask the user to open the link in EDSY, click Export..., and paste the SLEF line.',
+      ),
+    );
+  });
+
+  it("rejects other links", () => {
+    expect(() => parseSlef("https://coriolis.io/outfit/python?code=A")).toThrow(
+      "This is a link, not SLEF. Ask for the build as SLEF JSON: EDSY, Coriolis and Inara can all export SLEF.",
+    );
+  });
 });

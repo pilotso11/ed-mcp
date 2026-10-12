@@ -12,7 +12,9 @@ export function registerBuildTools(server: McpServer, deps: { catalog?: CatalogS
       description:
         "Parse a SLEF ship build (export from EDSY, Coriolis or Inara) into slots, modules, " +
         "blueprints, grades and experimental effects. Module names, class and rating are resolved " +
-        "from the game data catalog when available.",
+        "from the game data catalog when available. Accepts SLEF JSON only. An EDSY link " +
+        "(edsy.org/#/L=...) is not SLEF: open it in a browser, click Export..., read the " +
+        "export_slef text input and pass that value, or ask the user to paste the SLEF.",
       inputSchema: { slef: z.string().describe("SLEF JSON text") },
     },
     wrap(async ({ slef }: { slef: string }) => {
