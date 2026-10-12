@@ -23,6 +23,19 @@ describe("PreferencesStore", () => {
     expect(JSON.parse(await readFile(file, "utf8")).version).toBe(1);
   });
 
+  it("keeps both changes from concurrent set calls", async () => {
+    const s = new PreferencesStore(file);
+    await Promise.all([
+      s.set({ stations: { min_pad: "M" } }),
+      s.set({ discounts: { min_pct: 25 } }),
+      s.set({ stations: { planetary: "exclude" } }),
+    ]);
+    const p = await s.get();
+    expect(p.stations.min_pad).toBe("M");
+    expect(p.discounts.min_pct).toBe(25);
+    expect(p.stations.planetary).toBe("exclude");
+  });
+
   it("rejects an invalid patch without writing", async () => {
     const s = new PreferencesStore(file);
     await expect(s.set({ stations: { min_pad: "XL" } })).rejects.toThrow(/Invalid preferences/);
