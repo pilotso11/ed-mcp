@@ -192,6 +192,19 @@ describe("SpanshClient.system", () => {
 });
 
 describe("SpanshClient.route", () => {
+  it("submits a route once and surfaces a 502", async () => {
+    const { client, f } = make([
+      {
+        match: (u, i) => u.endsWith("/api/route") && i?.method === "POST",
+        respond: () => text("", 502),
+      },
+    ]);
+    await expect(client.route({ from: "Sol", to: "Colonia", rangeLy: 50 })).rejects.toThrow(
+      /Spansh: HTTP 502/,
+    );
+    expect(f.calls).toHaveLength(1);
+  });
+
   it("submits a form, polls with back-off and maps waypoints", async () => {
     const submit = await raw("route-submit.json");
     const pending = await raw("results-route-pending.json");

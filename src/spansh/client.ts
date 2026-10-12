@@ -1,7 +1,7 @@
 import { distance } from "fastest-levenshtein";
 import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
-import type { HttpClient } from "../http/client.js";
+import type { HttpClient, RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
 
 export type StationService =
@@ -282,9 +282,10 @@ export class SpanshClient {
       const deadline = this.now() + this.routeTimeoutMs;
       let job = this.routeJobs.get(key);
       if (!job) {
-        const submitted = (await this.post("/route", key, "application/x-www-form-urlencoded")) as {
-          job: string;
-        };
+        // A retry after Spansh accepted the job would submit a second one and lose the first id.
+        const submitted = (await this.post("/route", key, "application/x-www-form-urlencoded", {
+          retry: false,
+        })) as { job: string };
         job = submitted.job;
         this.routeJobs.set(key, job);
       }
@@ -352,12 +353,17 @@ export class SpanshClient {
     return body;
   }
 
-  private async post(path: string, body: string, contentType: string): Promise<unknown> {
-    const res = await this.raw(path, {
-      method: "POST",
-      body,
-      headers: { "content-type": contentType },
-    });
+  private async post(
+    path: string,
+    body: string,
+    contentType: string,
+    opts?: RequestOptions,
+  ): Promise<unknown> {
+    const res = await this.raw(
+      path,
+      { method: "POST", body, headers: { "content-type": contentType } },
+      opts,
+    );
     if (res.status >= 400) throw new SpanshError(res.status, res.body);
     return res.body;
   }
@@ -366,6 +372,7 @@ export class SpanshClient {
   private async raw(
     path: string,
     init: RequestInit = {},
+    opts?: RequestOptions,
   ): Promise<{ status: number; body: unknown }> {
     const turn = this.gate.then(async () => {
       const wait = this.lastStart + this.minIntervalMs - Date.now();
@@ -374,7 +381,7 @@ export class SpanshClient {
     });
     this.gate = turn.catch(() => undefined);
     await turn;
-    const res = await this.http.request(`${this.baseUrl}${path}`, init);
+    const res = await this.http.request(`${this.baseUrl}${path}`, init, opts);
     const text = await res.text();
     let body: unknown;
     try {
