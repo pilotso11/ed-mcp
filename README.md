@@ -102,6 +102,8 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `spansh_find_stations`     | Nearest stations selling a module or ship, or with a service |
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
+| `prefs_get`                | Get your stored travel preferences                           |
+| `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
 | `cache_status`             | Cache and game data status                                   |
 | `plan_list`                | List saved plans                                             |
@@ -110,6 +112,38 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `plan_update_item`         | Update one plan item                                         |
 | `plan_delete`              | Delete a plan                                                |
 | `plan_export`              | Export a plan as Markdown                                    |
+
+## Travel preferences
+
+`spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json` in the config folder. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
+
+Defaults:
+
+| Preference                      | Default                              |
+| ------------------------------- | ------------------------------------ |
+| `stations.max_arrival_ls`       | 1000 ls, `soft`                      |
+| `stations.planetary`            | `avoid`                              |
+| `stations.fleet_carriers`       | `exclude`                            |
+| `stations.megaships`            | `allow`                              |
+| `stations.min_pad`              | `auto`                               |
+| `discounts`                     | enabled, `min_pct` 10, `max_extra_ly` 30 |
+
+- `max_arrival_ls` mode is `soft`, `hard` or `off`.
+- `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
+- `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
+
+A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
+
+To change your preferences, ask Claude, for example "from now on ignore stations over 2,000 ls". Claude calls `prefs_set` with a patch such as `{"stations":{"max_arrival_ls":{"value":2000}}}`. The patch is strict: unknown keys are errors. The change applies to future sessions.
+
+For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. `large_pad: true` is the same as `min_pad: "L"`.
+
+Each result has these fields:
+
+- `discount_pct` on each station: how far its price is below the median price of the filtered results.
+- `recommended`: the station to use, with a reason. It is the nearest station, unless a station at least `min_pct` cheaper is no more than `max_extra_ly` further away. The recommended station is always in the returned page.
+- `relaxed`: the rules the search dropped.
+- `applied_preferences`: the rules in effect, including the pad source.
 
 ## Development
 
