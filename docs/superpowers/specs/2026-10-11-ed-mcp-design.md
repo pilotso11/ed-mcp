@@ -149,7 +149,7 @@ argument up to 50).
   "items": [
     {
       "id": "pd-fsd",
-      "kind": "buy | engineer | experimental | unlock_engineer | gather | trade",
+      "kind": "buy | engineer | experimental | unlock_engineer | gather | trade | refit",
       "description": "5A FSD, Increased Range G5, Mass Manager",
       "status": "todo | in_progress | done | skipped",
       "station": "optional station and system",

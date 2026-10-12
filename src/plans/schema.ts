@@ -7,6 +7,7 @@ export const ItemKind = z.enum([
   "unlock_engineer",
   "gather",
   "trade",
+  "refit",
 ]);
 export const ItemStatus = z.enum(["todo", "in_progress", "done", "skipped"]);
 

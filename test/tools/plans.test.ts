@@ -57,6 +57,21 @@ describe("plan tools", () => {
     expect((await callTool(client, "plan_get", { id: "cutter" })).json).toEqual(before);
   });
 
+  it("round-trips a refit item and exports it as markdown", async () => {
+    const { client } = await setup();
+    const refit = {
+      ...plan,
+      items: [{ id: "swap", kind: "refit", description: "Move the G5 FSD to slot 4" }],
+    };
+    const up = await callTool(client, "plan_upsert", { plan: refit });
+    expect(up.isError).toBe(false);
+    expect((await callTool(client, "plan_get", { id: "cutter" })).json).toMatchObject({
+      items: [{ id: "swap", kind: "refit", status: "todo" }],
+    });
+    const md = await callTool(client, "plan_export", { id: "cutter" });
+    expect((md.json as { markdown: string }).markdown).toContain("**refit** Move the G5 FSD");
+  });
+
   it("returns errors as tool errors", async () => {
     const { client } = await setup();
     const r = await callTool(client, "plan_get", { id: "missing" });
