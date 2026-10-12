@@ -1,0 +1,46 @@
+{
+  "header": {
+    "eventStatus": 200,
+    "eventData": {
+      "userID": 110551,
+      "userName": "Pin72"
+    }
+  },
+  "events": [
+    {
+      "eventCustomID": 1,
+      "eventStatus": 200,
+      "eventData": {
+        "userID": 110551,
+        "userName": "Pin72",
+        "commanderName": "pin72",
+        "commanderRanksPilot": [
+          {
+            "rankName": "combat",
+            "rankValue": "8",
+            "rankProgress": 0.15
+          },
+          {
+            "rankName": "soldier",
+            "rankValue": "6",
+            "rankProgress": 0.34
+          },
+          {
+            "rankName": "empire",
+            "rankValue": "14",
+            "rankProgress": 0
+          }
+        ],
+        "preferredAllegianceName": "Independent",
+        "preferredGameRole": "Freelancer/Explorer",
+        "commanderMainShip": {
+          "shipType": "federation_corvette",
+          "shipName": "Tfs Recursive Loop",
+          "shipIdent": "X-QF5X",
+          "shipRole": ""
+        },
+        "inaraURL": "https://inara.cz/elite/cmdr/110551/"
+      }
+    }
+  ]
+}

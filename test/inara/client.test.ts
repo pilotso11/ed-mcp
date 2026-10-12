@@ -73,6 +73,16 @@ describe("InaraClient", () => {
     });
   });
 
+  it("converts rank values sent as strings (live Inara responses)", async () => {
+    const { client } = make(await fixture("inara/profile-live-string-ranks.json"));
+    const p = await client.profile();
+    expect(p.ranks).toEqual({
+      combat: { rank: 8, progress: 0.15 },
+      soldier: { rank: 6, progress: 0.34 },
+      empire: { rank: 14, progress: 0 },
+    });
+  });
+
   it("looks up another commander by name and caches per name", async () => {
     const { client, f } = make(await fixture("inara/profile-ok.json"));
     await client.profile("Someone");

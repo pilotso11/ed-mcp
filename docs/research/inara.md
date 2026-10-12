@@ -67,3 +67,14 @@ failed). None are live responses.
 - Batch events; cache on the client; do not repeat identical requests.
 - Excessive requests may invalidate the key.
 - Do not retry rapidly when Inara is down.
+
+## Verified 2026-10-12
+
+After Inara whitelisted the app name `ed-mcp`, `getCommanderProfile` and
+`getCommunityGoalsRecent` worked with a real personal key. Before the
+whitelist, the header returned status 400 with "This application has no
+access allowed." Live responses differ from the documentation in one way:
+`commanderRanksPilot[].rankValue` is a string (for example `"8"`), not a
+number. The list also includes the Odyssey ranks `soldier` and
+`exobiologist`. Fixture `profile-live-string-ranks.json` follows the live
+shape.

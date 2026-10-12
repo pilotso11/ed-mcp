@@ -86,8 +86,9 @@ export class InaraClient {
       | undefined;
     const ranks = (d.commanderRanksPilot ?? []) as Array<{
       rankName: string;
-      rankValue: number;
-      rankProgress: number;
+      // Live responses send rankValue as a string; the documentation shows a number.
+      rankValue: number | string;
+      rankProgress: number | string;
     }>;
     const out: InaraProfile = {
       commander: (d.commanderName as string | undefined) ?? null,
@@ -95,7 +96,7 @@ export class InaraClient {
       ranks: Object.fromEntries(
         ranks.map((r) => [
           r.rankName,
-          { rank: r.rankValue, progress: Math.round(r.rankProgress * 100) / 100 },
+          { rank: Number(r.rankValue), progress: Math.round(Number(r.rankProgress) * 100) / 100 },
         ]),
       ),
       allegiance: (d.preferredAllegianceName as string | undefined) ?? null,
