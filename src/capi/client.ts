@@ -1,6 +1,7 @@
 import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
 import type { HttpClient } from "../http/client.js";
+import { isCosmeticSlot } from "../slef/parse.js";
 import type { CapiAuth } from "./auth.js";
 
 export interface CapiProfile {
@@ -129,24 +130,26 @@ function mapShip(s: RawShip): NonNullable<CapiProfile["ship"]> {
     name: s.shipName || null,
     ident: s.shipID || null,
     value: s.value?.total ?? null,
-    modules: Object.entries(s.modules ?? {}).map(([slot, m]) => {
-      const specials = m.specialModifications;
-      const experimental =
-        specials && !Array.isArray(specials) ? (Object.keys(specials)[0] ?? null) : null;
-      return {
-        slot,
-        item: (m.module?.name ?? "").toLowerCase(),
-        name: m.module?.locName ?? null,
-        on: m.module?.on ?? null,
-        engineering: m.engineer?.recipeName
-          ? {
-              blueprint: m.engineer.recipeName,
-              grade: m.engineer.recipeLevel ?? 0,
-              engineer: m.engineer.engineerName ?? null,
-              experimental,
-            }
-          : null,
-      };
-    }),
+    modules: Object.entries(s.modules ?? {})
+      .filter(([slot]) => !isCosmeticSlot(slot))
+      .map(([slot, m]) => {
+        const specials = m.specialModifications;
+        const experimental =
+          specials && !Array.isArray(specials) ? (Object.keys(specials)[0] ?? null) : null;
+        return {
+          slot,
+          item: (m.module?.name ?? "").toLowerCase(),
+          name: m.module?.locName ?? null,
+          on: m.module?.on ?? null,
+          engineering: m.engineer?.recipeName
+            ? {
+                blueprint: m.engineer.recipeName,
+                grade: m.engineer.recipeLevel ?? 0,
+                engineer: m.engineer.engineerName ?? null,
+                experimental,
+              }
+            : null,
+        };
+      }),
   };
 }

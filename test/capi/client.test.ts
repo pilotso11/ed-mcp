@@ -15,6 +15,34 @@ function fakeAuth(tokens: string[]) {
 }
 
 describe("CapiClient", () => {
+  it("leaves cosmetic slots out of the modules", async () => {
+    const body = await fixture<{ ship: { modules: object } }>("capi/profile.json");
+    const cosmetic = (name: string) => ({ module: { name, locName: name } });
+    Object.assign(body.ship.modules, {
+      PaintJob: cosmetic("paintjob_krait_mkii_default"),
+      Decal1: cosmetic("decal_explorer"),
+      ShipName0: cosmetic("shipname_plate"),
+      ShipID0: cosmetic("shipid_plate"),
+      ShipKitSpoiler: cosmetic("krait_mkii_spoiler1"),
+      WeaponColour: cosmetic("weaponcolour_red"),
+      EngineColour: cosmetic("enginecolour_blue"),
+      VesselVoice: cosmetic("voicepack_verity"),
+    });
+    const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
+    const c = new CapiClient(
+      new HttpClient({ userAgent: "EDCD-EdMcp-0.1.0", fetchFn: f }),
+      fakeAuth(["A"]).auth,
+      new TtlCache("capi", 60_000),
+    );
+    const slots = (await c.profile()).ship!.modules.map((m) => m.slot);
+    expect(slots).toContain("FrameShiftDrive");
+    expect(slots).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^(PaintJob|Decal|Ship|Weapon|Engine|Vessel)/),
+      ]),
+    );
+  });
+
   it("maps the profile", async () => {
     const body = await fixture("capi/profile.json");
     const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);

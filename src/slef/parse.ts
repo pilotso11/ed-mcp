@@ -40,7 +40,12 @@ const CORE = new Set([
 ]);
 const HARDPOINT_SIZE: Record<string, number> = { small: 1, medium: 2, large: 3, huge: 4 };
 const COSMETIC =
-  /^(paintjob|decal\d*|shipname\d*|shipid\d*|shipkit|bobble\d*|weaponcolour|enginecolour|vesselvoice|stringlights|(ship)?cockpit)/;
+  /^(paintjob|decal\d*|shipname\d*|shipid\d*|shipkit|bobble\d*|weaponcolour|enginecolour|vesselvoice|stringlights|(ship)?cockpit)/i;
+
+/** CAPI and SLEF both list paint, decals, nameplates and ship-kit parts as modules; they are noise for build planning. */
+export function isCosmeticSlot(slot: string): boolean {
+  return COSMETIC.test(slot);
+}
 
 interface RawModule {
   Slot?: unknown;
@@ -77,7 +82,7 @@ function parseModule(m: RawModule): SlefModule | null {
   if (typeof m !== "object" || m === null) return null;
   const slot = str(m.Slot);
   const item = str(m.Item)?.toLowerCase();
-  if (!slot || !item || COSMETIC.test(slot.toLowerCase())) return null;
+  if (!slot || !item || isCosmeticSlot(slot)) return null;
   const { kind, size } = classify(slot, item);
   const e = m.Engineering;
   const blueprint = str(e?.BlueprintName);
