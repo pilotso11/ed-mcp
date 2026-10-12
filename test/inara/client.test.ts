@@ -93,7 +93,7 @@ describe("InaraClient", () => {
   it("explains an auth failure", async () => {
     const { client } = make(await fixture("inara/auth-failed.json"));
     await expect(client.profile()).rejects.toThrow(
-      /Inara rejected the request: Invalid API key\..*INARA_API_KEY.*"ed-mcp".*whitelisted/,
+      /Inara rejected the request: Invalid API key\. Check INARA_API_KEY.*"ed-mcp".*whitelisted/,
     );
   });
 
