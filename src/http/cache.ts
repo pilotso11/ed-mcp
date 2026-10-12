@@ -15,14 +15,19 @@ interface Entry<V> {
   storedAt: number;
 }
 
+const SWEEP_EVERY = 100;
+const SWEEP_ABOVE = 500;
+
 export class TtlCache<V> implements Clearable {
   private readonly entries = new Map<string, Entry<V>>();
   private readonly inflight = new Map<string, Promise<V>>();
+  private setsSinceSweep = 0;
 
   constructor(
     readonly name: string,
     private readonly ttlMs: number,
     private readonly now: () => number = Date.now,
+    private readonly maxEntries = 1000,
   ) {}
 
   get(key: string): V | undefined {
@@ -36,7 +41,20 @@ export class TtlCache<V> implements Clearable {
   }
 
   set(key: string, value: V): void {
+    // Re-insert so a refreshed key counts as the newest in Map order.
+    this.entries.delete(key);
     this.entries.set(key, { value, storedAt: this.now() });
+    if (++this.setsSinceSweep >= SWEEP_EVERY || this.entries.size > SWEEP_ABOVE) this.sweep();
+    while (this.entries.size > this.maxEntries) {
+      this.entries.delete(this.entries.keys().next().value!);
+    }
+  }
+
+  // Keys come from user input and nothing reads most of them again, so expired entries would linger.
+  private sweep(): void {
+    this.setsSinceSweep = 0;
+    const cutoff = this.now() - this.ttlMs;
+    for (const [k, e] of this.entries) if (e.storedAt <= cutoff) this.entries.delete(k);
   }
 
   async getOrLoad(key: string, load: () => Promise<V>): Promise<V> {

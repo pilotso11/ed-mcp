@@ -52,4 +52,48 @@ describe("CacheRegistry", () => {
     expect(r.clearAll()).toEqual({ inara: 0, edsm: 2 });
     expect(() => r.clear("nope")).toThrow('Unknown cache "nope"');
   });
+
+  it("sweeps expired entries on set once the cache has grown", () => {
+    let t = 0;
+    const c = new TtlCache<number>("x", 1000, () => t);
+    for (let i = 0; i < 99; i++) c.set(`old${i}`, i);
+    t = 2000;
+    c.set("fresh", 1); // the 100th set triggers a sweep
+    expect(c.clear()).toBe(1); // clear() counts raw entries, unlike stats()
+  });
+
+  it("sweeps expired entries when the size passes 500", () => {
+    let t = 0;
+    const c = new TtlCache<number>("x", 1000, () => t);
+    for (let i = 0; i < 501; i++) c.set(`old${i}`, i);
+    t = 2000;
+    c.set("fresh", 1);
+    expect(c.clear()).toBe(1);
+  });
+
+  it("evicts the oldest entries past maxEntries", () => {
+    const c = new TtlCache<number>("x", 1000, () => 0, 3);
+    for (const k of ["a", "b", "c", "d"]) c.set(k, 1);
+    expect(c.get("a")).toBeUndefined();
+    expect(["b", "c", "d"].map((k) => c.get(k))).toEqual([1, 1, 1]);
+    expect(c.stats().entries).toBe(3);
+  });
+
+  it("defaults to 1000 entries", () => {
+    const c = new TtlCache<number>("x", 60_000, () => 0);
+    for (let i = 0; i < 1005; i++) c.set(`k${i}`, i);
+    expect(c.get("k4")).toBeUndefined();
+    expect(c.get("k5")).toBe(5);
+    expect(c.stats().entries).toBe(1000);
+  });
+
+  it("treats re-setting a key as the newest entry", () => {
+    const c = new TtlCache<number>("x", 1000, () => 0, 2);
+    c.set("a", 1);
+    c.set("b", 2);
+    c.set("a", 3);
+    c.set("c", 4);
+    expect(c.get("b")).toBeUndefined();
+    expect(c.get("a")).toBe(3);
+  });
 });
