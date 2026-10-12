@@ -52,7 +52,7 @@ file and is never overwritten.
     "planetary": "avoid",
     "fleet_carriers": "exclude",
     "megaships": "allow",
-    "min_pad": null
+    "min_pad": "auto"
   },
   "discounts": { "enabled": true, "min_pct": 10, "max_extra_ly": 30 }
 }
@@ -67,7 +67,7 @@ The JSON above is the default.
 | `planetary` | `allow`, `avoid`, `exclude` | Ground stations and settlements. `avoid` uses them only when nothing else matches |
 | `fleet_carriers` | `allow`, `exclude` | Fleet carriers (stock changes often) |
 | `megaships` | `allow`, `avoid`, `exclude` | Megaships |
-| `min_pad` | `S`, `M`, `L`, `null` | Smallest pad the station must have. `null` means no requirement |
+| `min_pad` | `auto`, `S`, `M`, `L`, `none` | Smallest pad the station must have. `auto` (default) uses the pad size of the ship currently flown. `none` means no requirement |
 | `discounts.enabled` | boolean | Whether to recommend discounted stations |
 | `discounts.min_pct` | 0 to 100 | Minimum discount worth a detour |
 | `discounts.max_extra_ly` | number >= 0 | Maximum extra distance for a discount |
@@ -99,6 +99,21 @@ same logic. It has no MCP or HTTP dependencies.
   Fleet carriers are identified by type, or by a name like `XXX-XXX` when the
   type is missing.
 - Pad requirements use Spansh's pad fields (`has_large_pad`, `medium_pads`).
+- `min_pad` resolution, highest first: the per-call `min_pad` input; a fixed
+  stored value (`S`, `M`, `L`, `none`); `auto`. For `auto`, the current ship
+  comes from the Frontier CAPI profile when logged in (and from the journal's
+  `Loadout` once sub-project 2 exists). If no source is available, there is no
+  pad requirement, and `applied_preferences` says why.
+
+## Ship pad sizes
+
+`src/catalog/data/ships.json` maps ship symbols (lowercase, as used by CAPI
+and journals, for example `corsair`, `federation_corvette`) to `{ name, pad }`
+where `pad` is `S`, `M` or `L`. `npm run catalog:statics` generates it from
+coriolis-data's ship files, the same way it builds `groups.json`. It holds
+identifiers and pad sizes only. A ship missing from the table means no pad
+requirement and a warning in the result. A test checks that well-known ships
+map correctly (for example Sidewinder S, Corsair M, Anaconda L).
 - Soft rules: if no station passes, the search repeats without the soft
   arrival limit and with `avoid` rules relaxed to `allow`. The result lists
   what was relaxed. `hard` and `exclude` rules are never relaxed.
@@ -112,7 +127,8 @@ Result additions:
   unless discounts are enabled and a station at least `min_pct` cheaper is no
   more than `max_extra_ly` further away, in which case that station.
 - `relaxed`: list of relaxed rules, empty when none.
-- `applied_preferences`: the effective rules after overrides.
+- `applied_preferences`: the effective rules after overrides, including the
+  resolved pad and its source (for example `M (auto: current ship Corsair)`).
 
 ## Errors
 
@@ -125,6 +141,8 @@ Result additions:
 
 - Preferences store: defaults when missing, round trip, deep merge, invalid
   patch rejected without writing, invalid file reported and not overwritten.
+- Pad resolution: per-call override, fixed stored value, `auto` with a CAPI
+  ship, `auto` with no source, unknown ship.
 - Filter module: each rule with each mode, fleet carrier detection with and
   without type, pad sizes, relax order, discount and recommendation logic
   including ties and missing prices.
@@ -139,4 +157,3 @@ Result additions:
 - Preferences for tools without station choices (plans, catalog, CAPI).
 - Published base prices for modules. The discount baseline is the median of
   nearby results.
-- Ship-aware pad defaults. `min_pad` is set by the commander.
