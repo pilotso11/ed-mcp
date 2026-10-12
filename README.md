@@ -143,8 +143,9 @@ Each result has these fields:
 - `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
 - `matched`: how many stations match your preferences among the nearest 50 that the server fetched.
 - `discount_pct` on each station: how far its price is below the median price of the filtered results.
-- `recommended`: the station to use, with a reason. It is the nearest station, unless a station at least `min_pct` cheaper is no more than `max_extra_ly` further away. The recommended station is always in the returned page.
+- `recommended`: the station to use, with a reason. It is the nearest station, unless a station at least `min_pct` cheaper than the nearest station is no more than `max_extra_ly` further away. Then the cheapest such station wins. If the nearest has no price, the comparison is against the median price instead. The recommended station is always in the returned page.
 - `relaxed`: the rules the search dropped.
+- `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
 - `applied_preferences`: the rules in effect, including the pad source.
 
 ## Development

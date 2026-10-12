@@ -1,7 +1,7 @@
 # Travel preferences and planner roadmap
 
 Date: 2026-10-12
-Status: draft, awaiting review
+Status: approved, implemented
 
 ## Roadmap
 
@@ -113,6 +113,30 @@ same logic. It has no MCP or HTTP dependencies.
   comes from the Frontier CAPI profile when logged in (and from the journal's
   `Loadout` once sub-project 2 exists). If no source is available, there is no
   pad requirement, and `applied_preferences` says why.
+- Soft rules: if no station passes, the search repeats without the soft
+  arrival limit and with `avoid` rules relaxed to `allow`. The result lists
+  what was relaxed. `hard` and `exclude` rules are never relaxed.
+
+Result additions:
+
+- `total`: Spansh's match count before preferences (10000 means "10000 or
+  more"). `matched`: how many of the fetched stations (the nearest 50) pass
+  the rules, counted before the result is cut to `limit`.
+- Each station gets `discount_pct`: how far its price is below the median
+  price of the stations in the result (the average of the two middle prices
+  for an even count), rounded to a whole percent, or `null` when there is no
+  price. It is for display only.
+- `recommended`: the station to choose and why. The nearest passing station,
+  unless discounts are enabled and another station is at least `min_pct`
+  cheaper than the nearest station (exact, unrounded) and no more than
+  `max_extra_ly` further away. The cheapest such station wins; ties go to the
+  nearer one. If the nearest station has no price, the candidate is compared
+  with the median price instead. The recommended station is always in the
+  returned page.
+- `relaxed`: list of relaxed rules, empty when none. `relax_attempted` is
+  `true` when the strict pass found nothing and the relaxed pass ran.
+- `applied_preferences`: the effective rules after overrides, including the
+  resolved pad and its source (for example `M (auto: current ship Corsair)`).
 
 ## Ship pad sizes
 
@@ -123,28 +147,13 @@ coriolis-data's ship files, the same way it builds `groups.json`. It holds
 identifiers and pad sizes only. A ship missing from the table means no pad
 requirement and a warning in the result. A test checks that well-known ships
 map correctly (for example Sidewinder S, Corsair M, Anaconda L).
-- Soft rules: if no station passes, the search repeats without the soft
-  arrival limit and with `avoid` rules relaxed to `allow`. The result lists
-  what was relaxed. `hard` and `exclude` rules are never relaxed.
-
-Result additions:
-
-- Each station gets `discount_pct`: how far its price is below the median
-  price of the stations in the result, rounded to a whole percent, or `null`
-  when there is no price.
-- `recommended`: the station to choose and why. The nearest passing station,
-  unless discounts are enabled and a station at least `min_pct` cheaper is no
-  more than `max_extra_ly` further away, in which case that station.
-- `relaxed`: list of relaxed rules, empty when none.
-- `applied_preferences`: the effective rules after overrides, including the
-  resolved pad and its source (for example `M (auto: current ship Corsair)`).
 
 ## Errors
 
 - Invalid preferences file: `UserError("Preferences file <path> is invalid: <issues>")`.
 - Invalid `prefs_set` patch: `UserError` listing the invalid fields.
 - No stations even after relaxing: the normal empty result, with `relaxed`
-  listing what was tried.
+  empty and `relax_attempted: true`.
 
 ## Testing
 

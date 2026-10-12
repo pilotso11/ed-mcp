@@ -20,6 +20,7 @@ export interface StationSearchResult {
   stations: PricedHit[];
   recommended: { name: string; system: string; reason: string } | null;
   relaxed: string[];
+  relax_attempted: boolean;
   applied_preferences: Record<string, unknown>;
 }
 
@@ -79,6 +80,7 @@ export async function searchStations(
   });
   let outcome = applyRules(first.stations, rules, false);
   let source = first;
+  const relaxAttempted = !outcome.stations.length;
   if (!outcome.stations.length) {
     // Spansh already cut by arrival distance, so a soft limit needs a second, wider search.
     const wider =
@@ -105,6 +107,7 @@ export async function searchStations(
     stations: page,
     recommended,
     relaxed: outcome.relaxed,
+    relax_attempted: relaxAttempted,
     applied_preferences: describeRules(rules),
   };
 }

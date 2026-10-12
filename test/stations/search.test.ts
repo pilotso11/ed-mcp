@@ -50,6 +50,19 @@ describe("searchStations", () => {
     expect(sp.calls[1]?.maxArrivalLs).toBeUndefined();
     expect(r.stations.map((s) => s.name)).toEqual(["far"]);
     expect(r.relaxed).toContain("max_arrival_ls");
+    expect(r.relax_attempted).toBe(true);
+  });
+
+  it("sets relax_attempted with an empty relaxed list when nothing matches at all", async () => {
+    const sp = fakeSpansh([[], []]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
+    expect(r).toMatchObject({ stations: [], relaxed: [], relax_attempted: true });
+  });
+
+  it("leaves relax_attempted false when the strict pass finds stations", async () => {
+    const sp = fakeSpansh([[hit({})]]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
+    expect(r.relax_attempted).toBe(false);
   });
 
   it("requests large pads from Spansh only for an L requirement", async () => {
