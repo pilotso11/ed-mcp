@@ -50,7 +50,10 @@ export function registerSpanshTools(
           .optional(),
         ship: z.string().optional(),
         service: Service.optional(),
-        large_pad: z.boolean().optional().describe("Same as preferences.stations.min_pad = L"),
+        large_pad: z
+          .boolean()
+          .optional()
+          .describe("Same as preferences.stations.min_pad = L; takes precedence over it."),
         max_distance_ly: z.number().positive().optional(),
         preferences: PrefsPatchSchema.optional(),
         use_preferences: z.boolean().default(true),
@@ -69,7 +72,7 @@ export function registerSpanshTools(
         use_preferences: boolean;
         limit: number;
       }) => {
-        const stored = deps.prefs ? await deps.prefs.get() : DEFAULT_PREFS;
+        const stored = deps.prefs && a.use_preferences ? await deps.prefs.get() : DEFAULT_PREFS;
         const override: PrefsPatch = a.large_pad
           ? { ...a.preferences, stations: { ...a.preferences?.stations, min_pad: "L" } }
           : (a.preferences ?? {});

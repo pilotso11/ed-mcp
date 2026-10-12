@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -114,6 +114,24 @@ describe("spansh tools", () => {
           "none (auto: current ship unavailable (Not logged in to Frontier. Call capi_login first.))",
       },
     });
+  });
+
+  it("ignores a broken preferences file when use_preferences is false", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "badprefs-"));
+    const prefsFile = path.join(dir, "preferences.json");
+    await writeFile(prefsFile, "not json");
+    const { client } = await setup({ prefsFile });
+    const off = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      use_preferences: false,
+    });
+    expect(off.isError).toBe(false);
+    const on = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+    });
+    expect(on.isError).toBe(true);
   });
 
   it("does not look up the ship unless min_pad is auto", async () => {
