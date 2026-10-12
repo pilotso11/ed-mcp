@@ -1,0 +1,194 @@
+{
+  "adder": {
+    "name": "Adder",
+    "pad": "S"
+  },
+  "anaconda": {
+    "name": "Anaconda",
+    "pad": "L"
+  },
+  "asp": {
+    "name": "Asp Explorer",
+    "pad": "M"
+  },
+  "asp_scout": {
+    "name": "Asp Scout",
+    "pad": "M"
+  },
+  "belugaliner": {
+    "name": "Beluga Liner",
+    "pad": "L"
+  },
+  "cobramkiii": {
+    "name": "Cobra MkIII",
+    "pad": "S"
+  },
+  "cobramkiv": {
+    "name": "Cobra MkIV",
+    "pad": "S"
+  },
+  "cobramkv": {
+    "name": "Cobra MkV",
+    "pad": "S"
+  },
+  "corsair": {
+    "name": "Corsair",
+    "pad": "M"
+  },
+  "cutter": {
+    "name": "Imperial Cutter",
+    "pad": "L"
+  },
+  "diamondback": {
+    "name": "Diamondback Scout",
+    "pad": "S"
+  },
+  "diamondbackxl": {
+    "name": "Diamondback Explorer",
+    "pad": "S"
+  },
+  "dolphin": {
+    "name": "Dolphin",
+    "pad": "S"
+  },
+  "eagle": {
+    "name": "Eagle",
+    "pad": "S"
+  },
+  "empire_courier": {
+    "name": "Imperial Courier",
+    "pad": "S"
+  },
+  "empire_eagle": {
+    "name": "Imperial Eagle",
+    "pad": "S"
+  },
+  "empire_trader": {
+    "name": "Imperial Clipper",
+    "pad": "L"
+  },
+  "explorer_nx": {
+    "name": "Caspian Explorer",
+    "pad": "L"
+  },
+  "federation_corvette": {
+    "name": "Federal Corvette",
+    "pad": "L"
+  },
+  "federation_dropship": {
+    "name": "Federal Dropship",
+    "pad": "M"
+  },
+  "federation_dropship_mkii": {
+    "name": "Federal Assault Ship",
+    "pad": "M"
+  },
+  "federation_gunship": {
+    "name": "Federal Gunship",
+    "pad": "M"
+  },
+  "ferdelance": {
+    "name": "Fer-de-Lance",
+    "pad": "M"
+  },
+  "hauler": {
+    "name": "Hauler",
+    "pad": "S"
+  },
+  "independant_trader": {
+    "name": "Keelback",
+    "pad": "M"
+  },
+  "krait_light": {
+    "name": "Krait Phantom",
+    "pad": "M"
+  },
+  "krait_mkii": {
+    "name": "Krait MkII",
+    "pad": "M"
+  },
+  "lakonminer": {
+    "name": "Type-11 Prospector",
+    "pad": "M"
+  },
+  "mamba": {
+    "name": "Mamba",
+    "pad": "M"
+  },
+  "mandalay": {
+    "name": "Mandalay",
+    "pad": "M"
+  },
+  "mediumtransport01": {
+    "name": "Lynx Highliner",
+    "pad": "M"
+  },
+  "orca": {
+    "name": "Orca",
+    "pad": "L"
+  },
+  "panthermkii": {
+    "name": "Panther Clipper MkII",
+    "pad": "L"
+  },
+  "python": {
+    "name": "Python",
+    "pad": "M"
+  },
+  "python_nx": {
+    "name": "Python MkII",
+    "pad": "M"
+  },
+  "sidewinder": {
+    "name": "Sidewinder",
+    "pad": "S"
+  },
+  "smallcombat01_nx": {
+    "name": "Kestrel Mk II",
+    "pad": "S"
+  },
+  "type6": {
+    "name": "Type-6 Transporter",
+    "pad": "M"
+  },
+  "type7": {
+    "name": "Type-7 Transporter",
+    "pad": "L"
+  },
+  "type8": {
+    "name": "Type-8 Transporter",
+    "pad": "M"
+  },
+  "type9": {
+    "name": "Type-9 Heavy",
+    "pad": "L"
+  },
+  "type9_military": {
+    "name": "Type-10 Defender",
+    "pad": "L"
+  },
+  "typex": {
+    "name": "Alliance Chieftain",
+    "pad": "M"
+  },
+  "typex_2": {
+    "name": "Alliance Crusader",
+    "pad": "M"
+  },
+  "typex_3": {
+    "name": "Alliance Challenger",
+    "pad": "M"
+  },
+  "viper": {
+    "name": "Viper MkIII",
+    "pad": "S"
+  },
+  "viper_mkiv": {
+    "name": "Viper MkIV",
+    "pad": "S"
+  },
+  "vulture": {
+    "name": "Vulture",
+    "pad": "S"
+  }
+}
