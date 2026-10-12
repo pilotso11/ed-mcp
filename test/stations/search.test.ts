@@ -59,6 +59,15 @@ describe("searchStations", () => {
     expect(sp.calls[0]?.largePad).toBe(true);
   });
 
+  it("counts the stations that pass the rules as matched, before the limit", async () => {
+    const sp = fakeSpansh([
+      [hit({ name: "1" }), hit({ name: "2" }), hit({ name: "g", planetary: true }), hit({})],
+    ]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 1);
+    expect(r).toMatchObject({ total: 4, matched: 3 });
+    expect(r.stations).toHaveLength(1);
+  });
+
   it("caps results at the limit", async () => {
     const sp = fakeSpansh([[hit({ name: "1" }), hit({ name: "2" }), hit({ name: "3" })]]);
     const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 2);

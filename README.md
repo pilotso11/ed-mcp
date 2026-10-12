@@ -140,6 +140,8 @@ For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use
 
 Each result has these fields:
 
+- `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
+- `matched`: how many stations match your preferences among the nearest 50 that the server fetched.
 - `discount_pct` on each station: how far its price is below the median price of the filtered results.
 - `recommended`: the station to use, with a reason. It is the nearest station, unless a station at least `min_pct` cheaper is no more than `max_extra_ly` further away. The recommended station is always in the returned page.
 - `relaxed`: the rules the search dropped.

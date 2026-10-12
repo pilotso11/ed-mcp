@@ -37,7 +37,7 @@ export function registerSpanshTools(
         "Applies the commander's stored travel preferences (arrival distance, station types, pad size " +
         "from the current ship, discounts); override any of them for this call with `preferences` " +
         "(same shape as prefs_set's patch) or ignore them with use_preferences=false. Returns " +
-        "discount_pct per station, a recommended station with the reason, any relaxed rules, and the " +
+        "total (Spansh matches before preferences; 10000 means 10000 or more), matched (matches after preferences among the nearest 50), discount_pct per station, a recommended station with the reason, any relaxed rules, and the " +
         "applied preferences. Cached 5 min.",
       inputSchema: {
         near: z.string().describe("Exact reference system name"),

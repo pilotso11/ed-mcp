@@ -15,6 +15,7 @@ const FETCH_SIZE = 50;
 export interface StationSearchResult {
   near: string;
   total: number;
+  matched: number;
   total_capped: boolean;
   stations: PricedHit[];
   recommended: { name: string; system: string; reason: string } | null;
@@ -99,6 +100,7 @@ export async function searchStations(
   return {
     near: source.near,
     total: source.total,
+    matched: priced.length,
     total_capped: source.total_capped,
     stations: page,
     recommended,
