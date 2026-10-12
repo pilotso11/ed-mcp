@@ -86,10 +86,16 @@ same logic. It has no MCP or HTTP dependencies.
 
 `spansh_find_stations` changes:
 
-- New optional inputs override the stored preferences for one call:
-  `max_arrival_ls`, `arrival_mode`, `planetary`, `fleet_carriers`,
-  `megaships`, `min_pad`, `discounts` (boolean), and `use_preferences`
-  (default `true`; `false` ignores all stored preferences).
+- New optional input `preferences`: a partial preferences object with the
+  same shape as a `prefs_set` patch. It is deep-merged over the stored
+  preferences for this call only and is never saved. Every preference can be
+  overridden this way, including nested values such as
+  `discounts.max_extra_ly`, and preferences added later are overridable
+  without new inputs. Example:
+  `{ "stations": { "max_arrival_ls": { "value": 5000, "mode": "hard" } }, "discounts": { "enabled": false } }`.
+- New optional input `use_preferences` (default `true`). `false` starts from
+  the built-in defaults with every rule off, then applies `preferences` on top,
+  so a call can ignore stored settings entirely.
 - The existing `large_pad` input stays and means `min_pad: "L"`.
 - The search requests up to 50 results from Spansh so filtering still leaves
   choices, then returns at most `limit`.
@@ -99,7 +105,7 @@ same logic. It has no MCP or HTTP dependencies.
   Fleet carriers are identified by type, or by a name like `XXX-XXX` when the
   type is missing.
 - Pad requirements use Spansh's pad fields (`has_large_pad`, `medium_pads`).
-- `min_pad` resolution, highest first: the per-call `min_pad` input; a fixed
+- `min_pad` resolution, highest first: `preferences.stations.min_pad` in the call; a fixed
   stored value (`S`, `M`, `L`, `none`); `auto`. For `auto`, the current ship
   comes from the Frontier CAPI profile when logged in (and from the journal's
   `Loadout` once sub-project 2 exists). If no source is available, there is no
@@ -141,13 +147,16 @@ Result additions:
 
 - Preferences store: defaults when missing, round trip, deep merge, invalid
   patch rejected without writing, invalid file reported and not overwritten.
+- Per-call `preferences`: overrides any stored value including nested
+  discount values, is not saved, and is validated like a `prefs_set` patch;
+  `use_preferences: false` ignores stored values.
 - Pad resolution: per-call override, fixed stored value, `auto` with a CAPI
   ship, `auto` with no source, unknown ship.
 - Filter module: each rule with each mode, fleet carrier detection with and
   without type, pad sizes, relax order, discount and recommendation logic
   including ties and missing prices.
 - `spansh_find_stations`: stored preferences applied by default, per-call
-  overrides, `use_preferences: false`, relaxation reported, arrival filter
+  `preferences` overrides, `use_preferences: false`, relaxation reported, arrival filter
   present in the Spansh request body. Uses recorded Spansh fixtures.
 - One live check: a material trader search near Atlas with defaults returns
   only orbital stations within 1,000 ls.
