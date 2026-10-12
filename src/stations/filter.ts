@@ -69,30 +69,45 @@ export function applyRules(
   const strict = hits.filter((h) => pass(h, { arrival: arrivalOn, avoid: true }));
   if (strict.length || !relax) return { stations: strict, relaxed: [] };
 
-  const relaxed: string[] = [];
   const keepArrival = s.max_arrival_ls.mode === "hard";
-  if (arrivalOn && !keepArrival) relaxed.push("max_arrival_ls");
-  if (s.planetary === "avoid") relaxed.push("planetary");
-  if (s.megaships === "avoid") relaxed.push("megaships");
-  if (!relaxed.length) return { stations: [], relaxed: [] };
-  return { stations: hits.filter((h) => pass(h, { arrival: keepArrival, avoid: false })), relaxed };
+  const stations = hits.filter((h) => pass(h, { arrival: keepArrival, avoid: false }));
+  // Report a rule only if a returned station actually breaks it.
+  const relaxed: string[] = [];
+  if (
+    arrivalOn &&
+    !keepArrival &&
+    stations.some((h) => h.arrival_ls !== null && h.arrival_ls > s.max_arrival_ls.value)
+  )
+    relaxed.push("max_arrival_ls");
+  if (s.planetary === "avoid" && stations.some((h) => h.planetary)) relaxed.push("planetary");
+  if (s.megaships === "avoid" && stations.some(isMegaship)) relaxed.push("megaships");
+  return { stations, relaxed: stations.length ? relaxed : [] };
 }
 
 export type PricedHit = StationHit & { discount_pct: number | null };
 
-export function withDiscounts(hits: StationHit[]): PricedHit[] {
+function medianPrice(hits: StationHit[]): number | null {
   const prices = hits
     .map((h) => h.price)
     .filter((p): p is number => typeof p === "number" && p > 0)
     .sort((a, b) => a - b);
-  const median = prices.length ? prices[Math.floor(prices.length / 2)]! : null;
-  return hits.map((h) => ({
-    ...h,
-    discount_pct:
-      median && h.price ? Math.max(0, Math.round(((median - h.price) / median) * 100)) : null,
-  }));
+  return prices.length ? prices[Math.floor(prices.length / 2)]! : null;
 }
 
+function exactDiscount(price: number | null, median: number | null): number | null {
+  return median && price ? Math.max(0, ((median - price) / median) * 100) : null;
+}
+
+export function withDiscounts(hits: StationHit[]): PricedHit[] {
+  const median = medianPrice(hits);
+  return hits.map((h) => {
+    const d = exactDiscount(h.price, median);
+    return { ...h, discount_pct: d === null ? null : Math.round(d) };
+  });
+}
+
+// `hits` must be sorted nearest first (searchStations passes Spansh's distance-sorted list).
+// min_pct is checked against the unrounded discount; discount_pct is rounded for display.
 export function recommend(
   hits: PricedHit[],
   rules: Rules,
@@ -101,10 +116,11 @@ export function recommend(
   if (!nearest) return null;
   const d = rules.prefs.discounts;
   if (d.enabled) {
+    const median = medianPrice(hits);
     const best = hits
       .filter(
         (h) =>
-          (h.discount_pct ?? 0) >= d.min_pct &&
+          (exactDiscount(h.price, median) ?? 0) >= d.min_pct &&
           (h.discount_pct ?? 0) > (nearest.discount_pct ?? 0) &&
           h.distance_ly - nearest.distance_ly <= d.max_extra_ly,
       )

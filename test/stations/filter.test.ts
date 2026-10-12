@@ -105,6 +105,24 @@ describe("applyRules", () => {
     expect(relaxed.relaxed).toEqual(["max_arrival_ls", "planetary"]);
   });
 
+  it("reports only rules a returned station breaks", () => {
+    const far = applyRules([hit({ name: "far", arrival_ls: 5000 })], rules, true);
+    expect(far.relaxed).toEqual(["max_arrival_ls"]);
+    const mega = resolveRules(DEFAULT_PREFS, { stations: { megaships: "avoid" } }, true, AUTO_M);
+    const ship = applyRules([hit({ name: "ship", type: "Mega ship" })], mega, true);
+    expect(ship.stations.map((h) => h.name)).toEqual(["ship"]);
+    expect(ship.relaxed).toEqual(["megaships"]);
+  });
+
+  it("reports nothing relaxed when the relaxed pass is still empty", () => {
+    expect(applyRules([hit({ pad: "S" })], rules, true)).toEqual({ stations: [], relaxed: [] });
+  });
+
+  it("never relaxes exclude rules", () => {
+    const ex = resolveRules(DEFAULT_PREFS, { stations: { planetary: "exclude" } }, true, AUTO_M);
+    expect(applyRules([hit({ planetary: true })], ex, true)).toEqual({ stations: [], relaxed: [] });
+  });
+
   it("never relaxes hard arrival limits", () => {
     const hard = resolveRules(
       DEFAULT_PREFS,
@@ -150,5 +168,21 @@ describe("discounts and recommendation", () => {
     const off = resolveRules(DEFAULT_PREFS, { discounts: { enabled: false } }, true, AUTO_M);
     expect(recommend(priced, off)).toEqual({ name: "near", system: "Sys", reason: "nearest" });
     expect(recommend([], rules)).toBeNull();
+  });
+
+  it("checks min_pct against the unrounded discount", () => {
+    const priced = withDiscounts([
+      hit({ name: "near", distance_ly: 1, price: 100 }),
+      hit({ name: "a", distance_ly: 2, price: 100 }),
+      hit({ name: "almost", distance_ly: 3, price: 90.4 }),
+    ]);
+    expect(priced[2]!.discount_pct).toBe(10);
+    expect(recommend(priced, rules)?.name).toBe("near");
+  });
+
+  it("falls back to nearest for a single station or no prices", () => {
+    expect(recommend(withDiscounts([hit({ name: "only", price: 50 })]), rules)?.name).toBe("only");
+    const none = withDiscounts([hit({ name: "n1" }), hit({ name: "n2", distance_ly: 3 })]);
+    expect(recommend(none, rules)).toEqual({ name: "n1", system: "Sys", reason: "nearest" });
   });
 });
