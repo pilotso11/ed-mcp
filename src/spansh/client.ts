@@ -19,6 +19,7 @@ export interface StationQuery {
   service?: StationService;
   largePad?: boolean;
   maxDistanceLy?: number;
+  maxArrivalLs?: number;
   limit: number;
 }
 
@@ -196,6 +197,9 @@ export class SpanshClient {
     }
     if (q.largePad) filters.has_large_pad = { value: true };
     if (q.maxDistanceLy !== undefined) filters.distance = { min: 0, max: q.maxDistanceLy };
+    if (q.maxArrivalLs !== undefined) {
+      filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
+    }
 
     const body = {
       filters,

@@ -154,6 +154,21 @@ describe("SpanshClient.findStations", () => {
       client.findStations({ near: "Sol", service: "tech_broker_human", limit: 3 }),
     ).rejects.toThrow(/Unknown module.*module, ship or service filter/);
   });
+
+  it("sends the arrival distance limit", async () => {
+    const body = await raw("stations-search-material-trader.json");
+    const { client, f } = make([
+      { match: (u) => u.endsWith("/stations/search"), respond: () => text(body) },
+    ]);
+    await client.findStations({
+      near: "Sol",
+      service: "material_trader_raw",
+      maxArrivalLs: 1000,
+      limit: 3,
+    });
+    const sent = JSON.parse(String(f.calls[0]!.init!.body));
+    expect(sent.filters.distance_to_arrival).toEqual({ comparison: "<=>", value: [0, 1000] });
+  });
 });
 
 describe("SpanshClient.system", () => {

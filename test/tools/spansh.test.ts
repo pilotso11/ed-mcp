@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SpanshClient } from "../../src/spansh/client.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
+import { PreferencesStore } from "../../src/prefs/store.js";
 import { registerSpanshTools } from "../../src/tools/spansh.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 import { fakeFetch } from "../helpers/fakeFetch.js";
 
 const raw = (n: string) => readFile(new URL(`../fixtures/spansh/${n}`, import.meta.url), "utf8");
 
-async function setup() {
+async function setup(opts: { ship?: string | null; prefsFile?: string } = {}) {
   const stations = await raw("stations-search-material-trader.json");
   const f = fakeFetch([
     { match: (u) => u.endsWith("/stations/search"), respond: () => new Response(stations) },
@@ -20,9 +23,11 @@ async function setup() {
     new TtlCache("spansh", 300_000),
     { minIntervalMs: 0 },
   );
+  const dir = await mkdtemp(path.join(os.tmpdir(), "spanshtools-"));
+  const prefs = new PreferencesStore(opts.prefsFile ?? path.join(dir, "preferences.json"));
   const server = new McpServer({ name: "t", version: "0" });
-  registerSpanshTools(server, { spansh });
-  return { client: await connectTestClient(server), f };
+  registerSpanshTools(server, { spansh, prefs, currentShip: async () => opts.ship ?? "Corsair" });
+  return { client: await connectTestClient(server), f, prefs };
 }
 
 describe("spansh tools", () => {
@@ -35,7 +40,49 @@ describe("spansh tools", () => {
     });
     expect(r.isError).toBe(false);
     expect(r.json).toMatchObject({ near: "Sol", total: 28 });
-    expect(JSON.parse(String(f.calls[0]!.init!.body)).size).toBe(3);
+    expect(JSON.parse(String(f.calls[0]!.init!.body)).size).toBe(50);
+  });
+
+  it("applies stored preferences and reports them", async () => {
+    const { client, f } = await setup();
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      limit: 3,
+    });
+    expect(r.isError).toBe(false);
+    const body = JSON.parse(String(f.calls[0]!.init!.body));
+    expect(body.filters.distance_to_arrival).toEqual({ comparison: "<=>", value: [0, 1000] });
+    expect(r.json).toMatchObject({
+      applied_preferences: {
+        min_pad: "M (auto: current ship Corsair)",
+        max_arrival_ls: "1000 ls (soft)",
+      },
+      relaxed: expect.any(Array),
+    });
+  });
+
+  it("accepts per-call preference overrides without saving them", async () => {
+    const { client, f, prefs } = await setup();
+    await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      preferences: { stations: { max_arrival_ls: { mode: "off" } } },
+    });
+    expect(JSON.parse(String(f.calls[0]!.init!.body)).filters.distance_to_arrival).toBeUndefined();
+    expect((await prefs.get()).stations.max_arrival_ls.mode).toBe("soft");
+  });
+
+  it("ignores stored preferences when use_preferences is false", async () => {
+    const { client } = await setup();
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      use_preferences: false,
+    });
+    expect(r.json).toMatchObject({
+      applied_preferences: { max_arrival_ls: "off", min_pad: "none (none)" },
+    });
   });
 
   it("caps limit at 50", async () => {

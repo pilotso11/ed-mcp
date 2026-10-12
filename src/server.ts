@@ -30,6 +30,7 @@ export interface ServerDeps {
   spansh?: SpanshClient;
   capiAuth?: CapiAuth;
   capi?: CapiClient;
+  currentShip?: () => Promise<string | null>;
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -42,7 +43,12 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
   if (deps.inara) registerInaraTools(server, { inara: deps.inara });
   if (deps.edsm) registerEdsmTools(server, { edsm: deps.edsm });
-  if (deps.spansh) registerSpanshTools(server, { spansh: deps.spansh });
+  if (deps.spansh)
+    registerSpanshTools(server, {
+      spansh: deps.spansh,
+      prefs: deps.prefs,
+      currentShip: deps.currentShip,
+    });
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }

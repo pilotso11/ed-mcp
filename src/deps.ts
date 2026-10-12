@@ -46,6 +46,7 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     spansh,
     capiAuth,
     capi,
+    currentShip: async () => (await capi.profile()).ship?.type ?? null,
     plans: new PlanStore(config.plansFile),
     prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
   };

@@ -1,6 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { SpanshClient, StationService } from "../spansh/client.js";
+import { DEFAULT_PREFS, PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
+import type { PreferencesStore } from "../prefs/store.js";
+import { resolveRules } from "../stations/filter.js";
+import { autoPad, searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
 const Service = z.enum([
@@ -13,7 +17,14 @@ const Service = z.enum([
 ]);
 const Limit = z.number().int().min(1).max(50).default(10);
 
-export function registerSpanshTools(server: McpServer, deps: { spansh: SpanshClient }): void {
+export function registerSpanshTools(
+  server: McpServer,
+  deps: {
+    spansh: SpanshClient;
+    prefs?: PreferencesStore;
+    currentShip?: () => Promise<string | null>;
+  },
+): void {
   const { spansh } = deps;
 
   server.registerTool(
@@ -23,7 +34,11 @@ export function registerSpanshTools(server: McpServer, deps: { spansh: SpanshCli
         "Find stations nearest to a system that sell a module or ship, or offer a service " +
         "(material trader, tech broker, interstellar factors). Give exactly one of module, ship, service. " +
         "Module names are generic (e.g. 'Frame Shift Drive') with class 1-8 and rating A-I. " +
-        "Results are sorted by distance and include price and data age. Cached 5 min.",
+        "Applies the commander's stored travel preferences (arrival distance, station types, pad size " +
+        "from the current ship, discounts); override any of them for this call with `preferences` " +
+        "(same shape as prefs_set's patch) or ignore them with use_preferences=false. Returns " +
+        "discount_pct per station, a recommended station with the reason, any relaxed rules, and the " +
+        "applied preferences. Cached 5 min.",
       inputSchema: {
         near: z.string().describe("Exact reference system name"),
         module: z
@@ -35,8 +50,10 @@ export function registerSpanshTools(server: McpServer, deps: { spansh: SpanshCli
           .optional(),
         ship: z.string().optional(),
         service: Service.optional(),
-        large_pad: z.boolean().optional(),
+        large_pad: z.boolean().optional().describe("Same as preferences.stations.min_pad = L"),
         max_distance_ly: z.number().positive().optional(),
+        preferences: PrefsPatchSchema.optional(),
+        use_preferences: z.boolean().default(true),
         limit: Limit,
       },
     },
@@ -48,17 +65,36 @@ export function registerSpanshTools(server: McpServer, deps: { spansh: SpanshCli
         service?: StationService;
         large_pad?: boolean;
         max_distance_ly?: number;
+        preferences?: PrefsPatch;
+        use_preferences: boolean;
         limit: number;
-      }) =>
-        spansh.findStations({
-          near: a.near,
-          module: a.module,
-          ship: a.ship,
-          service: a.service,
-          largePad: a.large_pad,
-          maxDistanceLy: a.max_distance_ly,
-          limit: a.limit,
-        }),
+      }) => {
+        const stored = deps.prefs ? await deps.prefs.get() : DEFAULT_PREFS;
+        const override: PrefsPatch = a.large_pad
+          ? { ...a.preferences, stations: { ...a.preferences?.stations, min_pad: "L" } }
+          : (a.preferences ?? {});
+        // Only ask CAPI for the current ship when the pad requirement needs it.
+        let rules = resolveRules(stored, override, a.use_preferences, {
+          size: null,
+          source: "none",
+        });
+        if (rules.prefs.stations.min_pad === "auto") {
+          const auto = await autoPad(deps.currentShip ?? (async () => null));
+          rules = resolveRules(stored, override, a.use_preferences, auto);
+        }
+        return searchStations(
+          spansh,
+          {
+            near: a.near,
+            module: a.module,
+            ship: a.ship,
+            service: a.service,
+            maxDistanceLy: a.max_distance_ly,
+          },
+          rules,
+          a.limit,
+        );
+      },
     ),
   );
 
