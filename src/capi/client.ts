@@ -108,9 +108,14 @@ export class CapiClient {
         await this.auth.invalidate();
         continue;
       }
-      if (res.status === 401)
+      if (res.status === 401) {
+        await res.body?.cancel().catch(() => undefined);
         throw new UserError("Frontier rejected the login. Call capi_login again.");
-      if (!res.ok) throw new UserError(`Frontier CAPI returned HTTP ${res.status}`);
+      }
+      if (!res.ok) {
+        await res.body?.cancel().catch(() => undefined);
+        throw new UserError(`Frontier CAPI returned HTTP ${res.status}`);
+      }
       return res.json();
     }
     throw new UserError("Frontier CAPI request failed");

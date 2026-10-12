@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HttpClient, HttpError } from "../../src/http/client.js";
-import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
+import { fakeFetch, jsonResponse, unreadResponse } from "../helpers/fakeFetch.js";
 
 const UA = "ed-mcp/0.1.0 (+https://github.com/pilotso11/ed-mcp)";
 const any = () => true;
@@ -48,6 +48,14 @@ describe("HttpClient", () => {
     const http = new HttpClient({ userAgent: UA, fetchFn: f, retryDelayMs: 0 });
     expect(await http.json("https://x.test/a")).toBe(1);
     expect(cancelled).toBe(true);
+  });
+
+  it("cancels the body of a failed response that json() discards", async () => {
+    const { res, cancelled } = unreadResponse(404);
+    const f = fakeFetch([{ match: any, respond: () => res }]);
+    const http = new HttpClient({ userAgent: UA, fetchFn: f });
+    await expect(http.json("https://x.test/a")).rejects.toThrow(/HTTP 404/);
+    expect(cancelled()).toBe(true);
   });
 
   it("retries once on a network error, then gives up", async () => {

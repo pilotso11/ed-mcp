@@ -59,7 +59,10 @@ export class HttpClient {
   async json<T>(url: string, init: RequestInit = {}, opts: RequestOptions = {}): Promise<T> {
     const host = new URL(url).host;
     const res = await this.request(url, init, opts);
-    if (!res.ok) throw new HttpError(`${host} returned HTTP ${res.status}`, res.status);
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => undefined);
+      throw new HttpError(`${host} returned HTTP ${res.status}`, res.status);
+    }
     try {
       return (await res.json()) as T;
     } catch {

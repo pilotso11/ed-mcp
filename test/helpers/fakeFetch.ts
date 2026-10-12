@@ -38,3 +38,14 @@ export async function fixture<T = unknown>(rel: string): Promise<T> {
   const url = new URL(`../fixtures/${rel}`, import.meta.url);
   return JSON.parse(await readFile(url, "utf8")) as T;
 }
+
+/** A response whose body is never read; `cancelled()` reports whether the body was cancelled. */
+export function unreadResponse(status: number): { res: Response; cancelled: () => boolean } {
+  let cancelled = false;
+  const body = new ReadableStream({
+    cancel() {
+      cancelled = true;
+    },
+  });
+  return { res: new Response(body, { status }), cancelled: () => cancelled };
+}

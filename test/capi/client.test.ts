@@ -3,7 +3,7 @@ import { CapiClient } from "../../src/capi/client.js";
 import type { CapiAuth } from "../../src/capi/auth.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
-import { fakeFetch, fixture, jsonResponse } from "../helpers/fakeFetch.js";
+import { fakeFetch, fixture, jsonResponse, unreadResponse } from "../helpers/fakeFetch.js";
 
 function fakeAuth(tokens: string[]) {
   let invalidated = 0;
@@ -103,5 +103,30 @@ describe("CapiClient", () => {
     );
     await c.profile();
     expect(cancelled).toBe(true);
+  });
+
+  it.each([
+    [401, /capi_login/],
+    [403, /HTTP 403/],
+  ])("cancels the body of a terminal %i response", async (status, message) => {
+    const sent: Array<ReturnType<typeof unreadResponse>> = [];
+    const f = fakeFetch([
+      {
+        match: () => true,
+        respond: () => {
+          const r = unreadResponse(status);
+          sent.push(r);
+          return r.res;
+        },
+      },
+    ]);
+    const { auth } = fakeAuth(["A", "B"]);
+    const c = new CapiClient(
+      new HttpClient({ userAgent: "x", fetchFn: f }),
+      auth,
+      new TtlCache("capi", 60_000),
+    );
+    await expect(c.profile()).rejects.toThrow(message);
+    expect(sent.map((r) => r.cancelled())).toEqual(sent.map(() => true));
   });
 });

@@ -165,7 +165,10 @@ export class CatalogService implements Refreshable {
           unchanged.push(k);
           continue;
         }
-        if (res.status !== 200) throw new UserError(`${k}: HTTP ${res.status}`);
+        if (res.status !== 200) {
+          await res.body?.cancel().catch(() => undefined);
+          throw new UserError(`${k}: HTTP ${res.status}`);
+        }
         next[k] = await res.text();
         files[k] = { etag: res.headers.get("etag"), fetched_at: stamp };
         changed.push(k);

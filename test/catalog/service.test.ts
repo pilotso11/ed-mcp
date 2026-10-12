@@ -5,7 +5,7 @@ import path from "node:path";
 import { CatalogService } from "../../src/catalog/service.js";
 import type { RawSources } from "../../src/catalog/types.js";
 import { HttpClient } from "../../src/http/client.js";
-import { fakeFetch } from "../helpers/fakeFetch.js";
+import { fakeFetch, unreadResponse } from "../helpers/fakeFetch.js";
 import { rawFixture, SMALL, staticsFixture } from "../helpers/catalogFixture.js";
 
 const SOURCES: Record<keyof RawSources, string> = {
@@ -115,6 +115,13 @@ describe("CatalogService", () => {
       /Game data catalog is not available.*materials.*HTTP 404/,
     );
     expect(s.status().state).toBe("error");
+  });
+
+  it("cancels the body of an unexpected status response", async () => {
+    const { res, cancelled } = unreadResponse(404);
+    const s = service(fakeFetch([{ match: () => true, respond: () => res }]));
+    await expect(s.get()).rejects.toThrow(/HTTP 404/);
+    expect(cancelled()).toBe(true);
   });
 
   it("refreshes in the background when older than 7 days", async () => {
