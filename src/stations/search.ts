@@ -55,12 +55,19 @@ export async function searchStations(
   }
   // Discounts and the recommendation use every filtered hit, not just the page returned.
   const priced = withDiscounts(outcome.stations);
+  const recommended = recommend(priced, rules);
+  const page = priced.slice(0, limit);
+  const pick = recommended
+    ? priced.find((h) => h.name === recommended.name && h.system === recommended.system)
+    : undefined;
+  // The recommended station must be in the page so its price, arrival and pad are visible.
+  if (pick && !page.includes(pick)) page[page.length - 1] = pick;
   return {
     near: source.near,
     total: source.total,
     total_capped: source.total_capped,
-    stations: priced.slice(0, limit),
-    recommended: recommend(priced, rules),
+    stations: page,
+    recommended,
     relaxed: outcome.relaxed,
     applied_preferences: describeRules(rules),
   };

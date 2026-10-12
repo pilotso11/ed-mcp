@@ -66,6 +66,41 @@ describe("searchStations", () => {
   });
 });
 
+describe("recommended station in the page", () => {
+  const cheap = hit({ name: "cheap", distance_ly: 10, price: 50 });
+  const dear = (n: string, d: number) => hit({ name: n, distance_ly: d, price: 100 });
+
+  it("swaps it in for the last entry when limit is 1", async () => {
+    const sp = fakeSpansh([[dear("near", 1), cheap, dear("x", 11)]]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 1);
+    expect(r.recommended?.name).toBe("cheap");
+    expect(r.stations.map((s) => s.name)).toEqual(["cheap"]);
+  });
+
+  it("keeps the nearest and replaces the last entry", async () => {
+    const sp = fakeSpansh([
+      [dear("near", 1), dear("b", 2), dear("c", 3), dear("d", 4), { ...cheap, distance_ly: 5 }],
+    ]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 2);
+    expect(r.stations.map((s) => s.name)).toEqual(["near", "cheap"]);
+  });
+
+  it("makes one Spansh call for hard and off arrival modes with no results", async () => {
+    for (const mode of ["hard", "off"] as const) {
+      const r2 = resolveRules(
+        DEFAULT_PREFS,
+        { stations: { max_arrival_ls: { mode } } },
+        true,
+        AUTO,
+      );
+      const sp = fakeSpansh([[], [hit({})]]);
+      const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, r2, 10);
+      expect(sp.calls).toHaveLength(1);
+      expect(r.stations).toEqual([]);
+    }
+  });
+});
+
 describe("autoPad", () => {
   it("uses the current ship", async () => {
     expect(await autoPad(async () => "Corsair")).toEqual({

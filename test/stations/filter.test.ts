@@ -138,6 +138,18 @@ describe("applyRules", () => {
   });
 });
 
+describe("describeRules pad", () => {
+  it("omits an uninformative source", () => {
+    const none = resolveRules(OFF_PREFS, undefined, true, AUTO_M);
+    expect(describeRules(none).min_pad).toBe("none");
+    const unavailable = resolveRules(DEFAULT_PREFS, undefined, true, {
+      size: null,
+      source: "auto: current ship unavailable",
+    });
+    expect(describeRules(unavailable).min_pad).toBe("none (auto: current ship unavailable)");
+  });
+});
+
 describe("discounts and recommendation", () => {
   const rules = resolveRules(DEFAULT_PREFS, undefined, true, AUTO_M);
 

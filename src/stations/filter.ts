@@ -151,7 +151,9 @@ export function describeRules(rules: Rules): Record<string, unknown> {
     megaships: s.megaships,
     min_pad: rules.pad.size
       ? `${rules.pad.size} (${rules.pad.source})`
-      : `none (${rules.pad.source})`,
+      : rules.pad.source === "none"
+        ? "none"
+        : `none (${rules.pad.source})`,
     discounts: rules.prefs.discounts.enabled
       ? `>= ${rules.prefs.discounts.min_pct}% within ${rules.prefs.discounts.max_extra_ly} extra LY`
       : "off",
