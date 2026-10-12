@@ -456,3 +456,12 @@ enter, and a warning that approval is not instant.
 - `/me` and `/decode` response shapes beyond Frontier's 2019 examples.
 - Whether `pts-companion.orerve.net` still exists.
 - Any hard rate limit number.
+
+## Verified 2026-10-12
+
+A client registered on 2026-10-12 (scopes AUTH and CAPI, shown as INACTIVE in
+the developer portal at the time) completed a real login with
+`redirect_uri=http://localhost:<random port>/auth`. The code exchange,
+token storage and `GET /profile` all worked. The profile returned the
+commander, current system and station, the current ship with every module and
+its engineering, and the full fleet.
