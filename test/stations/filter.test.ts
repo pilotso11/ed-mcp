@@ -175,21 +175,75 @@ describe("discounts and recommendation", () => {
     expect(recommend(priced, rules)).toEqual({
       name: "cheap",
       system: "Sys",
-      reason: "15% cheaper than typical, 15.0 LY further than the nearest",
+      reason: "15% cheaper than the nearest (near), 15.0 LY further",
     });
     const off = resolveRules(DEFAULT_PREFS, { discounts: { enabled: false } }, true, AUTO_M);
     expect(recommend(priced, off)).toEqual({ name: "near", system: "Sys", reason: "nearest" });
     expect(recommend([], rules)).toBeNull();
   });
 
-  it("checks min_pct against the unrounded discount", () => {
+  it("averages the two middle prices for an even count", () => {
+    const priced = withDiscounts([
+      hit({ name: "a", price: 80 }),
+      hit({ name: "b", price: 90 }),
+      hit({ name: "c", price: 110 }),
+      hit({ name: "d", price: 120 }),
+    ]);
+    // Median is 100.
+    expect(priced.map((h) => h.discount_pct)).toEqual([20, 10, 0, 0]);
+  });
+
+  it("compares a candidate with the nearest station, not the median", () => {
+    // Median is 50, so "mid" looks dear against it, but it is 40% below the nearest.
     const priced = withDiscounts([
       hit({ name: "near", distance_ly: 1, price: 100 }),
-      hit({ name: "a", distance_ly: 2, price: 100 }),
-      hit({ name: "almost", distance_ly: 3, price: 90.4 }),
+      hit({ name: "mid", distance_ly: 5, price: 60 }),
+      hit({ name: "x", distance_ly: 6, price: 50 }),
+      hit({ name: "y", distance_ly: 7, price: 40 }),
+      hit({ name: "z", distance_ly: 90, price: 10 }),
     ]);
-    expect(priced[2]!.discount_pct).toBe(10);
-    expect(recommend(priced, rules)?.name).toBe("near");
+    expect(recommend(priced, rules)).toEqual({
+      name: "y",
+      system: "Sys",
+      reason: "60% cheaper than the nearest (near), 6.0 LY further",
+    });
+  });
+
+  it("picks the nearer station when the cheapest prices tie", () => {
+    const priced = withDiscounts([
+      hit({ name: "near", distance_ly: 1, price: 100 }),
+      hit({ name: "far", distance_ly: 9, price: 70 }),
+      hit({ name: "closer", distance_ly: 4, price: 70 }),
+    ]);
+    expect(recommend(priced, rules)?.name).toBe("closer");
+  });
+
+  it("checks min_pct against the exact discount from the nearest", () => {
+    const at = (price: number) =>
+      recommend(
+        withDiscounts([
+          hit({ name: "near", distance_ly: 1, price: 100 }),
+          hit({ name: "cand", distance_ly: 2, price }),
+        ]),
+        rules,
+      )?.name;
+    expect(at(90)).toBe("cand");
+    expect(at(90.4)).toBe("near");
+  });
+
+  it("uses the median rule when the nearest station has no price", () => {
+    const priced = withDiscounts([
+      hit({ name: "near", distance_ly: 1, price: null }),
+      hit({ name: "a", distance_ly: 2, price: 100 }),
+      hit({ name: "b", distance_ly: 3, price: 100 }),
+      hit({ name: "c", distance_ly: 3.5, price: 100 }),
+      hit({ name: "almost", distance_ly: 4, price: 90.4 }),
+      hit({ name: "cheap", distance_ly: 5, price: 80 }),
+    ]);
+    expect(priced[4]!.discount_pct).toBe(10);
+    expect(recommend(priced, rules)).toMatchObject({ name: "cheap" });
+    const noneEnough = priced.filter((h) => h.name !== "cheap");
+    expect(recommend(noneEnough, rules)?.name).toBe("near");
   });
 
   it("falls back to nearest for a single station or no prices", () => {
