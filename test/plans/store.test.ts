@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { renameSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PlanStore } from "../../src/plans/store.js";
@@ -111,6 +112,24 @@ describe("PlanStore", () => {
       await utimes(lockOf(), old, old);
       await new PlanStore(file, now).upsert(input());
       await expect(readFile(lockOf())).rejects.toThrow(/ENOENT/);
+    });
+
+    it("leaves a lock alone that another writer took over", async () => {
+      let stalled = false;
+      // Writer A stalls past the stale limit while it holds the lock; writer B breaks
+      // A's lock and takes a fresh one before A gets to release.
+      const a = new PlanStore(file, () => {
+        if (!stalled) {
+          stalled = true;
+          const old = new Date(Date.now() - 60_000);
+          utimesSync(lockOf(), old, old);
+          renameSync(lockOf(), `${lockOf()}.aside`);
+          writeFileSync(lockOf(), "writer-b");
+        }
+        return now();
+      });
+      await a.upsert(input());
+      expect(await readFile(lockOf(), "utf8")).toBe("writer-b");
     });
 
     it("waits for a fresh lock to be released", async () => {

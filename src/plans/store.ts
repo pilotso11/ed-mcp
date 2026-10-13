@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -148,8 +149,21 @@ export class PlanStore {
     for (;;) {
       try {
         const handle = await open(lock, "wx");
+        const token = randomUUID();
+        try {
+          await handle.writeFile(token);
+        } catch (err) {
+          await handle.close().catch(() => undefined);
+          await unlink(lock).catch(() => undefined);
+          throw err;
+        }
         await handle.close();
-        return () => unlink(lock).catch(() => undefined);
+        // If we stalled past LOCK_STALE_MS, another process may have broken our lock and
+        // taken a fresh one. Only remove the lock while it still holds our token.
+        return async () => {
+          const held = await readFile(lock, "utf8").catch(() => undefined);
+          if (held === token) await unlink(lock).catch(() => undefined);
+        };
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
       }
