@@ -90,7 +90,7 @@ export function loadConfig(
     edsm: edsmKey && edsmCmdr ? { apiKey: edsmKey, cmdr: edsmCmdr } : undefined,
     capi: capiClientId ? { clientId: capiClientId } : undefined,
     journalDir:
-      get(env, "ED_JOURNAL_DIR") ??
+      userPath(env, "ED_JOURNAL_DIR") ??
       (platform === "win32"
         ? path.join(os.homedir(), "Saved Games", "Frontier Developments", "Elite Dangerous")
         : undefined),

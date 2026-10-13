@@ -95,6 +95,23 @@ describe("loadConfig", () => {
       );
     });
   });
+
+  describe("ED_JOURNAL_DIR paths", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("expands ~", () => {
+      vi.spyOn(os, "homedir").mockReturnValue(path.resolve("/home/j"));
+      const c = loadConfig({ ED_JOURNAL_DIR: "~/Journals" }, dirs, "darwin");
+      expect(c.journalDir).toBe(path.join(path.resolve("/home/j"), "Journals"));
+    });
+
+    it("rejects a relative path", () => {
+      expect(() => loadConfig({ ED_JOURNAL_DIR: "Journals" }, dirs)).toThrow(ConfigError);
+      expect(() => loadConfig({ ED_JOURNAL_DIR: "Journals" }, dirs)).toThrow(
+        "ED_JOURNAL_DIR: Use an absolute path or one starting with ~: Journals",
+      );
+    });
+  });
 });
 
 describe("NotConfiguredError", () => {
