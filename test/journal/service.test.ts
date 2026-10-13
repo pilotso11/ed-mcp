@@ -41,7 +41,7 @@ async function folder(): Promise<string> {
 
 describe("JournalService.state", () => {
   it("uses the 14 days before the newest journal and Cargo.json", async () => {
-    const s = await new JournalService(await folder()).state();
+    const s = await new JournalService(await folder(), { now: at("2026-10-12T10:06:00Z") }).state();
     expect(s.missions.map((m) => m.id)).toEqual([1]);
     expect(s.materials.raw).toEqual([{ symbol: "iron", name: "iron", count: 5 }]);
     expect(s.cargo).toEqual([{ name: "Gold", count: 4, stolen: false, mission_id: null }]);
@@ -86,6 +86,25 @@ describe("JournalService.state", () => {
     await expect(new JournalService(empty).state()).rejects.toThrow(
       `No journal files in ${empty}. Run journal_status for help.`,
     );
+  });
+});
+
+describe("JournalService.state freshness", () => {
+  it("reports the age of the newest event and warns when it is stale", async () => {
+    const dir = await folder();
+    const fresh = await new JournalService(dir, { now: at("2026-10-12T10:15:00Z") }).state();
+    expect(fresh.age_minutes).toBe(10);
+    expect(fresh.warnings).toEqual([]);
+    const stale = await new JournalService(dir, { now: at("2026-10-12T11:05:00Z") }).state();
+    expect(stale.age_minutes).toBe(60);
+    expect(stale.warnings).toEqual([expect.stringMatching(/60 minutes old.*Syncthing/)]);
+  });
+
+  it("clamps a future event time to zero minutes", async () => {
+    const dir = await folder();
+    const s = await new JournalService(dir, { now: at("2026-10-12T09:00:00Z") }).state();
+    expect(s.age_minutes).toBe(0);
+    expect(s.warnings).toEqual([]);
   });
 });
 

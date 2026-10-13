@@ -45,6 +45,27 @@ describe("JournalService.status", () => {
     expect(stale.warnings[0]).toMatch(/Syncthing/);
   });
 
+  it("clamps age_minutes to zero when the clock is behind the journal", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jclock-"));
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:10:00Z", "Commander", { Name: "pin72" }),
+    ]);
+    const s = await new JournalService(dir, { now: at("2026-10-12T10:00:00Z") }).status();
+    expect(s.age_minutes).toBe(0);
+  });
+
+  it("takes the commander from earlier journals when the newest has none", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jcmdr-"));
+    await writeJournal(dir, "Journal.2026-10-11T100000.01.log", [
+      ev("2026-10-11T10:00:00Z", "Commander", { Name: "pin72" }),
+    ]);
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "Fileheader", { gameversion: "4.2.1" }),
+    ]);
+    const s = await new JournalService(dir, { now: at("2026-10-12T10:05:00Z") }).status();
+    expect(s.commander).toBe("pin72");
+  });
+
   it("warns when the folder has no journals", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jempty-"));
     expect((await new JournalService(dir).status()).warnings[0]).toMatch(/No journal files/);

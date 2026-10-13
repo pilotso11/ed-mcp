@@ -5,6 +5,20 @@ import type { JournalService } from "../journal/service.js";
 import type { MaterialKind } from "../journal/state.js";
 import { wrap } from "./result.js";
 
+const FRESHNESS_TEXT =
+  "as_of is the time of the newest journal event and age_minutes its age; warnings flag stale " +
+  "data (over 30 minutes old) and unreadable journal files.";
+
+const freshness = (s: {
+  as_of: string | null;
+  age_minutes: number | null;
+  warnings: string[];
+}) => ({
+  as_of: s.as_of,
+  age_minutes: s.age_minutes,
+  warnings: s.warnings,
+});
+
 export function registerJournalTools(
   server: McpServer,
   deps: { journal: JournalService; catalog?: CatalogService },
@@ -26,7 +40,7 @@ export function registerJournalTools(
       description:
         "The commander's current state from the local game journal: name, credits, location " +
         "(system, station, docked), ship (type, name, jump range, cargo and fuel capacity) and cargo. " +
-        "as_of is the time of the newest journal event; warnings list unreadable journal files.",
+        FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
@@ -36,8 +50,7 @@ export function registerJournalTools(
         location: s.location,
         ship: s.ship,
         cargo: s.cargo,
-        as_of: s.as_of,
-        warnings: s.warnings,
+        ...freshness(s),
       };
     }),
   );
@@ -47,8 +60,8 @@ export function registerJournalTools(
     {
       description:
         "Engineering materials the commander holds, from the local game journal, by kind (raw, " +
-        "manufactured, encoded) with counts. Pass kinds to limit the result. as_of is the time of " +
-        "the newest journal event.",
+        "manufactured, encoded) with counts. Pass kinds to limit the result. " +
+        FRESHNESS_TEXT,
       inputSchema: { kinds: z.array(z.enum(["raw", "manufactured", "encoded"])).optional() },
     },
     wrap(async (a: { kinds?: MaterialKind[] }) => {
@@ -71,7 +84,7 @@ export function registerJournalTools(
           }
         });
       }
-      return { ...out, as_of: s.as_of };
+      return { ...out, ...freshness(s) };
     }),
   );
 
@@ -80,11 +93,19 @@ export function registerJournalTools(
     {
       description:
         "Active missions from the local game journal: destination, expiry, reward and passenger or " +
-        "cargo details, soonest expiry first. as_of is the time of the newest journal event.",
+        "cargo details, soonest expiry first. expired is true once the expiry has passed. " +
+        "details_missing marks missions accepted before the 14-day journal window (name and expiry only). " +
+        FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
-      return { missions: s.missions, as_of: s.as_of };
+      const now = deps.journal.now();
+      // Expired missions stay listed: the game keeps them until the commander clears them.
+      const missions = s.missions.map((m) => ({
+        ...m,
+        expired: m.expires !== null && Date.parse(m.expires) < now,
+      }));
+      return { missions, ...freshness(s) };
     }),
   );
 
@@ -93,11 +114,12 @@ export function registerJournalTools(
     {
       description:
         "Engineer progress from the local game journal: invited, unlocked or known, with rank and " +
-        "rank progress. as_of is the time of the newest journal event.",
+        "rank progress. " +
+        FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
-      return { engineers: s.engineers, as_of: s.as_of };
+      return { engineers: s.engineers, ...freshness(s) };
     }),
   );
 }

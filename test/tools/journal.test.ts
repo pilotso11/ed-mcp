@@ -9,7 +9,13 @@ import { registerJournalTools } from "../../src/tools/journal.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 import { ev, writeJournal } from "../helpers/journal.js";
 
-async function setup(configured = true, catalog?: CatalogService) {
+const at = (iso: string) => () => Date.parse(iso);
+
+async function setup(
+  configured = true,
+  catalog?: CatalogService,
+  now = at("2026-10-12T10:10:00Z"),
+) {
   let service = new JournalService(undefined);
   if (configured) {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jtools-"));
@@ -21,12 +27,21 @@ async function setup(configured = true, catalog?: CatalogService) {
         Manufactured: [],
         Encoded: [{ Name: "dataminedwake", Count: 2 }],
       }),
-      ev("2026-10-12T10:03:00Z", "MissionAccepted", { MissionID: 1, Name: "Courier" }),
+      ev("2026-10-12T10:03:00Z", "MissionAccepted", {
+        MissionID: 1,
+        Name: "Courier",
+        Expiry: "2026-10-12T11:00:00Z",
+      }),
+      ev("2026-10-12T10:03:30Z", "MissionAccepted", {
+        MissionID: 2,
+        Name: "Late",
+        Expiry: "2026-10-12T10:05:00Z",
+      }),
       ev("2026-10-12T10:04:00Z", "EngineerProgress", {
         Engineers: [{ Engineer: "Tod", EngineerID: 1, Progress: "Unlocked", Rank: 3 }],
       }),
     ]);
-    service = new JournalService(dir);
+    service = new JournalService(dir, { now });
   }
   const server = new McpServer({ name: "t", version: "0" });
   registerJournalTools(server, { journal: service, catalog });
@@ -46,10 +61,17 @@ describe("journal tools", () => {
   it("journal_materials filters by kind", async () => {
     const c = await setup();
     const r = (await callTool(c, "journal_materials", { kinds: ["encoded"] })).json as any;
-    expect(Object.keys(r).sort()).toEqual(["as_of", "encoded"]);
+    expect(Object.keys(r).sort()).toEqual(["age_minutes", "as_of", "encoded", "warnings"]);
     expect(r.encoded).toEqual([{ symbol: "dataminedwake", name: "dataminedwake", count: 2 }]);
     const all = (await callTool(c, "journal_materials")).json as any;
-    expect(Object.keys(all).sort()).toEqual(["as_of", "encoded", "manufactured", "raw"]);
+    expect(Object.keys(all).sort()).toEqual([
+      "age_minutes",
+      "as_of",
+      "encoded",
+      "manufactured",
+      "raw",
+      "warnings",
+    ]);
   });
 
   it("journal_materials names materials from the catalog and ignores unknown ones", async () => {
@@ -69,9 +91,27 @@ describe("journal tools", () => {
   it("journal_missions and journal_engineers return lists", async () => {
     const c = await setup();
     const m = (await callTool(c, "journal_missions")).json as any;
-    expect(m.missions.map((x: any) => x.id)).toEqual([1]);
+    expect(m.missions.map((x: any) => [x.id, x.expired])).toEqual([
+      [2, true],
+      [1, false],
+    ]);
     const e = (await callTool(c, "journal_engineers")).json as any;
     expect(e.engineers.map((x: any) => x.name)).toEqual(["Tod"]);
+  });
+
+  it("every state tool reports as_of, age_minutes and the stale warning", async () => {
+    const c = await setup(true, undefined, at("2026-10-12T11:04:00Z"));
+    for (const tool of [
+      "journal_commander",
+      "journal_materials",
+      "journal_missions",
+      "journal_engineers",
+    ]) {
+      const r = (await callTool(c, tool)).json as any;
+      expect(r.as_of, tool).toBe("2026-10-12T10:04:00Z");
+      expect(r.age_minutes, tool).toBe(60);
+      expect(r.warnings, tool).toEqual([expect.stringMatching(/60 minutes old.*Syncthing/)]);
+    }
   });
 
   it("returns the not-configured message", async () => {

@@ -22,12 +22,16 @@ function errText(err: unknown): string {
 }
 
 export const STALE_MS = 30 * 60_000;
+
+function staleWarning(minutes: number): string {
+  return `The newest journal event is ${minutes} minutes old. The game is not running, or sync has stopped: check Syncthing on the PC.`;
+}
 const STATE_WINDOW_MS = 14 * 86_400_000;
 const FRESH_MS = 86_400_000;
 
 export class JournalService {
   protected readonly reader: JournalReader;
-  protected readonly now: () => number;
+  readonly now: () => number;
 
   constructor(
     readonly dir: string | undefined,
@@ -107,7 +111,12 @@ export class JournalService {
     }
     base.newest_event = last.timestamp;
     base.commander =
-      (events.findLast((e) => e.event === "Commander")?.Name as string | undefined) ?? null;
+      (events.findLast((e) => e.event === "Commander")?.Name as string | undefined) ??
+      // A session can span files; the Commander event is then in an earlier one.
+      (await this.state().then(
+        (s) => s.commander,
+        () => null,
+      ));
     base.game_version =
       (events.find((e) => e.event === "Fileheader")?.gameversion as string | undefined) ?? null;
     const age = this.now() - Date.parse(last.timestamp);
@@ -116,17 +125,14 @@ export class JournalService {
         `The last event in ${newest.name} has an unreadable timestamp: ${last.timestamp}`,
       );
     } else {
-      base.age_minutes = Math.round(age / 60_000);
-      if (age > STALE_MS) {
-        base.warnings.push(
-          `The newest journal event is ${base.age_minutes} minutes old. The game is not running, or sync has stopped: check Syncthing on the PC.`,
-        );
-      }
+      // A PC clock ahead of this machine's would give a negative age.
+      base.age_minutes = Math.max(0, Math.round(age / 60_000));
+      if (age > STALE_MS) base.warnings.push(staleWarning(base.age_minutes));
     }
     return base;
   }
 
-  async state(): Promise<JournalState & { warnings: string[] }> {
+  async state(): Promise<JournalState & { age_minutes: number | null; warnings: string[] }> {
     const dir = this.requireDir();
     const found = await this.files();
     const hint = "Run journal_status for help.";
@@ -156,7 +162,10 @@ export class JournalService {
     const state = buildState(events);
     const cargo = await this.readCargoFile(dir);
     if (cargo) state.cargo = cargo;
-    return { ...state, warnings };
+    const age = this.now() - Date.parse(state.as_of ?? "");
+    const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
+    if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
+    return { ...state, age_minutes: ageMinutes, warnings };
   }
 
   // Newer game builds keep the cargo list here instead of in the Cargo event.
