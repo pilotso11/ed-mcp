@@ -30,7 +30,7 @@ describe("listJournals", () => {
     ]) {
       await writeFile(path.join(dir, n), "");
     }
-    expect((await listJournals(dir)).map((f) => f.name)).toEqual([
+    expect((await listJournals(dir)).files.map((f) => f.name)).toEqual([
       "Journal.221231235959.01.log",
       "Journal.2026-10-12T183456.01.log",
       "Journal.2026-10-12T183456.02.log",
@@ -45,6 +45,32 @@ describe("listJournals", () => {
     await writeFile(path.join(dir, b), "");
     await utimes(path.join(dir, a), new Date(2000), new Date(2000));
     await utimes(path.join(dir, b), new Date(1000), new Date(1000));
-    expect((await listJournals(dir)).map((f) => f.name)).toEqual([b, a]);
+    expect((await listJournals(dir)).files.map((f) => f.name)).toEqual([b, a]);
+  });
+});
+
+describe("listJournals windowMs", () => {
+  it("keeps only names within the window before the newest name and counts all", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jwin-"));
+    for (const n of [
+      "Journal.2026-09-01T100000.01.log",
+      "Journal.2026-10-01T100000.01.log",
+      "Journal.2026-10-12T100000.01.log",
+      "Journal.2026-10-12T100000.02.log",
+    ]) {
+      await writeFile(path.join(dir, n), "");
+    }
+    const week = await listJournals(dir, { windowMs: 14 * 86_400_000 });
+    expect(week.total).toBe(4);
+    expect(week.files.map((f) => f.name)).toEqual([
+      "Journal.2026-10-01T100000.01.log",
+      "Journal.2026-10-12T100000.01.log",
+      "Journal.2026-10-12T100000.02.log",
+    ]);
+    const newest = await listJournals(dir, { windowMs: 0 });
+    expect(newest.files.map((f) => f.name)).toEqual([
+      "Journal.2026-10-12T100000.01.log",
+      "Journal.2026-10-12T100000.02.log",
+    ]);
   });
 });

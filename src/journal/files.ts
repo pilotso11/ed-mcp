@@ -23,25 +23,40 @@ export function parseJournalName(name: string): { time: Date; part: number } | n
   return { time, part: Number(m[7]) };
 }
 
-export async function listJournals(dir: string): Promise<JournalFile[]> {
-  const names = await readdir(dir);
+// windowMs keeps names no more than that much older than the newest name. The filter runs on
+// the parsed names before any stat, so years of old journals cost nothing.
+export async function listJournals(
+  dir: string,
+  opts: { windowMs?: number } = {},
+): Promise<{ files: JournalFile[]; total: number }> {
+  const named = (await readdir(dir)).flatMap((name) => {
+    const p = parseJournalName(name);
+    return p ? [{ name, ...p }] : [];
+  });
+  let candidates = named;
+  if (opts.windowMs !== undefined && named.length) {
+    const newest = named.reduce((t, n) => Math.max(t, n.time.getTime()), -Infinity);
+    const since = newest - opts.windowMs;
+    candidates = named.filter((n) => n.time.getTime() >= since);
+  }
   const files = await Promise.all(
-    names.map(async (name) => {
-      const p = parseJournalName(name);
-      if (!p) return null;
-      const file = path.join(dir, name);
+    candidates.map(async (n) => {
+      const file = path.join(dir, n.name);
       // A file can vanish between readdir and stat while the game or sync runs.
       const mtimeMs = await stat(file).then(
         (st) => st.mtimeMs,
         () => null,
       );
-      return mtimeMs === null ? null : { path: file, name, ...p, mtimeMs };
+      return mtimeMs === null ? null : { path: file, ...n, mtimeMs };
     }),
   );
   // The clock repeats an hour when daylight saving ends, so name time and part can tie: use mtime.
-  return files
-    .filter((f): f is JournalFile => f !== null)
-    .sort(
-      (a, b) => a.time.getTime() - b.time.getTime() || a.part - b.part || a.mtimeMs - b.mtimeMs,
-    );
+  return {
+    files: files
+      .filter((f): f is JournalFile => f !== null)
+      .sort(
+        (a, b) => a.time.getTime() - b.time.getTime() || a.part - b.part || a.mtimeMs - b.mtimeMs,
+      ),
+    total: named.length,
+  };
 }

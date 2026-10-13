@@ -3,7 +3,7 @@ import path from "node:path";
 import { NotConfiguredError, UserError } from "../errors.js";
 import { listJournals, type JournalFile } from "./files.js";
 import { JournalReader, type JournalEvent } from "./reader.js";
-import { buildState, mapCargo, type JournalState } from "./state.js";
+import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.js";
 
 export interface JournalStatus {
   dir: string;
@@ -28,16 +28,21 @@ function staleWarning(minutes: number): string {
 }
 const STATE_WINDOW_MS = 14 * 86_400_000;
 const FRESH_MS = 86_400_000;
+const MEMO_MS = 1_000;
+
+type JournalSnapshot = JournalState & { age_minutes: number | null; warnings: string[] };
 
 export class JournalService {
   protected readonly reader: JournalReader;
   readonly now: () => number;
+  // Timed with performance.now so an injected test clock cannot freeze it.
+  private memo?: { at: number; value: Promise<JournalSnapshot> };
 
   constructor(
     readonly dir: string | undefined,
     opts: { now?: () => number; reader?: JournalReader } = {},
   ) {
-    this.reader = opts.reader ?? new JournalReader();
+    this.reader = opts.reader ?? new JournalReader({ keep: STATE_EVENTS });
     this.now = opts.now ?? Date.now;
   }
 
@@ -46,7 +51,9 @@ export class JournalService {
     return this.dir;
   }
 
-  protected async files(): Promise<{ files: JournalFile[]; error?: string } | { missing: string }> {
+  protected async files(
+    windowMs: number,
+  ): Promise<{ files: JournalFile[]; total: number; error?: string } | { missing: string }> {
     const dir = this.requireDir();
     try {
       if (!(await stat(dir)).isDirectory()) return { missing: `Journal folder not found: ${dir}` };
@@ -60,20 +67,20 @@ export class JournalService {
       };
     }
     try {
-      return { files: await listJournals(dir) };
+      return await listJournals(dir, { windowMs });
     } catch (err) {
-      return { files: [], error: `Cannot read journal folder ${dir}: ${errText(err)}` };
+      return { files: [], total: 0, error: `Cannot read journal folder ${dir}: ${errText(err)}` };
     }
   }
 
   async status(): Promise<JournalStatus> {
     const dir = this.requireDir();
-    const found = await this.files();
-    const files = "files" in found ? found.files : null;
+    // Status needs only the newest journal; the rest are counted, not opened.
+    const found = await this.files(0);
     const base: JournalStatus = {
       dir,
-      exists: files !== null,
-      files: files?.length ?? 0,
+      exists: "files" in found,
+      files: "files" in found ? found.total : 0,
       newest_file: null,
       newest_event: null,
       age_minutes: null,
@@ -132,9 +139,21 @@ export class JournalService {
     return base;
   }
 
-  async state(): Promise<JournalState & { age_minutes: number | null; warnings: string[] }> {
+  // A search asks for the ship and the jump range separately; one read serves both.
+  state(): Promise<JournalSnapshot> {
+    const t = performance.now();
+    if (this.memo && t - this.memo.at < MEMO_MS) return this.memo.value;
+    const value = this.load();
+    this.memo = { at: t, value };
+    value.catch(() => {
+      if (this.memo?.value === value) this.memo = undefined;
+    });
+    return value;
+  }
+
+  private async load(): Promise<JournalSnapshot> {
     const dir = this.requireDir();
-    const found = await this.files();
+    const found = await this.files(STATE_WINDOW_MS);
     const hint = "Run journal_status for help.";
     if (!("files" in found)) {
       throw new UserError(
@@ -144,14 +163,11 @@ export class JournalService {
       );
     }
     if (found.error) throw new UserError(`${found.error}. ${hint}`);
-    const newest = found.files.at(-1);
-    if (!newest) throw new UserError(`No journal files in ${dir}. ${hint}`);
+    if (!found.files.length) throw new UserError(`No journal files in ${dir}. ${hint}`);
 
-    // Name times are local wall-clock; comparing them with each other is safe.
-    const since = newest.time.getTime() - STATE_WINDOW_MS;
     const warnings: string[] = [];
     const events: JournalEvent[] = [];
-    for (const file of found.files.filter((f) => f.time.getTime() >= since)) {
+    for (const file of found.files) {
       try {
         // No spread: a long session can hold more events than the call stack allows as arguments.
         for (const e of await this.reader.read(file)) events.push(e);
@@ -159,6 +175,7 @@ export class JournalService {
         warnings.push(`Cannot read ${file.name}: ${errText(err)}`);
       }
     }
+    this.reader.retain(found.files.map((f) => f.path));
     const state = buildState(events);
     const cargo = await this.readCargoFile(dir);
     if (cargo) state.cargo = cargo;

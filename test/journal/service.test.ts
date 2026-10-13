@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { listJournals } from "../../src/journal/files.js";
 import { JournalReader } from "../../src/journal/reader.js";
 import { JournalService } from "../../src/journal/service.js";
 import { ev, writeJournal } from "../helpers/journal.js";
@@ -86,6 +87,55 @@ describe("JournalService.state", () => {
     await expect(new JournalService(empty).state()).rejects.toThrow(
       `No journal files in ${empty}. Run journal_status for help.`,
     );
+  });
+});
+
+describe("JournalService.state reading", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("evicts cached files that fall out of the 14-day window", async () => {
+    const dir = await folder();
+    const reader = new JournalReader();
+    const [old] = (await listJournals(dir)).files;
+    const first = await reader.read(old!);
+    await new JournalService(dir, { reader }).state();
+    expect(await reader.read(old!)).not.toBe(first);
+  });
+
+  it("reads only the journals in the window", async () => {
+    const dir = await folder();
+    const reader = new JournalReader();
+    const read = vi.spyOn(reader, "read");
+    await new JournalService(dir, { reader }).state();
+    expect(read.mock.calls.map(([f]) => f.name)).toEqual([
+      "Journal.2026-10-10T100000.01.log",
+      "Journal.2026-10-12T100000.01.log",
+    ]);
+  });
+
+  it("reuses the state for one second", async () => {
+    const dir = await folder();
+    const reader = new JournalReader();
+    const read = vi.spyOn(reader, "read");
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1_000);
+    const svc = new JournalService(dir, { reader, now: at("2026-10-12T10:06:00Z") });
+    await svc.freshShip();
+    await svc.freshShip();
+    expect(read).toHaveBeenCalledTimes(2);
+    clock.mockReturnValue(2_001);
+    await svc.state();
+    expect(read).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not reuse a failed read", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jretry-"));
+    vi.spyOn(performance, "now").mockReturnValue(1_000);
+    const svc = new JournalService(dir);
+    await expect(svc.state()).rejects.toThrow(/No journal files/);
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "Commander", { Name: "pin72" }),
+    ]);
+    expect((await svc.state()).commander).toBe("pin72");
   });
 });
 

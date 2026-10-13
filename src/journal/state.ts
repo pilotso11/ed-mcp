@@ -86,6 +86,37 @@ export function mapCargo(inventory: unknown): JournalState["cargo"] {
   }));
 }
 
+// Every event buildState handles, plus Fileheader for journal_status. The reader drops the rest.
+export const STATE_EVENTS: ReadonlySet<string> = new Set([
+  "Fileheader",
+  "Commander",
+  "LoadGame",
+  "Location",
+  "FSDJump",
+  "CarrierJump",
+  "Docked",
+  "Undocked",
+  "Loadout",
+  "ShipyardSwap",
+  "Cargo",
+  "Materials",
+  "MaterialCollected",
+  "MaterialDiscarded",
+  "MaterialTrade",
+  "EngineerCraft",
+  "Synthesis",
+  "TechnologyBroker",
+  "ScientificResearch",
+  "EngineerContribution",
+  "MissionCompleted",
+  "MissionAccepted",
+  "MissionRedirected",
+  "MissionFailed",
+  "MissionAbandoned",
+  "Missions",
+  "EngineerProgress",
+]);
+
 export function buildState(events: JournalEvent[]): JournalState {
   let commander: string | null = null;
   let credits: number | null = null;

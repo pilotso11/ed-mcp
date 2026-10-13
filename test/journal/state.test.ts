@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { buildState } from "../../src/journal/state.js";
+import { readFileSync } from "node:fs";
+import { buildState, STATE_EVENTS } from "../../src/journal/state.js";
 import { ev } from "../helpers/journal.js";
 
 const T = (n: number) => `2026-10-12T10:00:${String(n).padStart(2, "0")}Z`;
+
+describe("STATE_EVENTS", () => {
+  it("names every event buildState handles", () => {
+    const src = readFileSync(new URL("../../src/journal/state.ts", import.meta.url), "utf8");
+    const handled = [...src.matchAll(/case "(\w+)":/g)].map((m) => m[1]!);
+    expect(handled.length).toBeGreaterThan(20);
+    for (const name of handled) expect(STATE_EVENTS.has(name), name).toBe(true);
+    expect(STATE_EVENTS.has("Fileheader")).toBe(true);
+  });
+});
 
 describe("buildState", () => {
   it("tracks location through a jump, docking and undocking", () => {
