@@ -30,7 +30,9 @@ export function buildDeps(
   const edsm = new EdsmClient(http, config.edsm, edsmCache);
   const spanshCache = new TtlCache<unknown>("spansh", 300_000);
   caches.register(spanshCache);
-  const spansh = new SpanshClient(http, spanshCache);
+  const spanshSystemCache = new TtlCache<unknown>("spansh-systems", 86_400_000);
+  caches.register(spanshSystemCache);
+  const spansh = new SpanshClient(http, spanshCache, { systemCache: spanshSystemCache });
   const capiHttp = new HttpClient({ userAgent: `EDCD-EdMcp-${VERSION}`, fetchFn: opts.fetchFn });
   const capiCache = new TtlCache<unknown>("capi", 60_000);
   caches.register(capiCache);

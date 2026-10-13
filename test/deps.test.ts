@@ -29,6 +29,15 @@ describe("buildDeps", () => {
     );
   });
 
+  it("lists a long-lived Spansh system cache in cache_status", async () => {
+    const dir = path.join(os.tmpdir(), "ed-mcp-deps");
+    const deps = buildDeps(loadConfig({}, { config: dir, cache: dir }));
+    expect(deps.caches!.names()).toContain("spansh-systems");
+    const client = await connectTestClient(createServer(deps));
+    const status = await client.callTool({ name: "cache_status", arguments: {} });
+    expect(JSON.stringify(status)).toContain("spansh-systems");
+  });
+
   it("clears the CAPI profile cache on logout", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
     const now = Date.now();
