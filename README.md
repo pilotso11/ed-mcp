@@ -184,7 +184,7 @@ The result lists the `hops` in order. Each hop has the `from` and `to` stations,
 
 Spansh takes one to several minutes. While it works, the tool returns `status: "pending"` with the Spansh `job` id and the resolved `inputs`. Call it again with those inputs to resume the same job, even if your journal has changed since. Finished routes are cached for 5 minutes.
 
-`profit_per_hour` is `total_profit` divided by `total_travel_min`, from the travel model. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover the way to the start station. It does not add time for planetary landings, because Spansh gives no station type.
+`profit_per_hour` is `total_profit` ÷ `total_travel_min` × 60, from the travel model. It is a one-way figure. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover market and loading time, the way to the start station or the return trip. It does not add time for planetary landings, because Spansh gives no station type.
 
 ### commodity_prices
 

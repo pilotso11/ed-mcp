@@ -49,8 +49,9 @@ Output when done:
   `total_profit`), `profit`, `cumulative_profit`.
 - `total_profit`, `total_travel_min`, `profit_per_hour`
   (`total_profit / total_travel_min * 60`, using the travel model for each
-  hop: jumps at the resolved jump range plus station time for the destination,
-  docking and planetary time included).
+  hop: jumps at the resolved jump range plus station time for the destination
+  and docking). It is a one-way figure: it leaves out market and loading
+  time, the way to the start and the return trip.
 - `applied_preferences`, `inputs` (the resolved request values) and notes.
 - No route: `{ status: "ok", hops: [], message: "No profitable route found" }`.
 
@@ -58,11 +59,16 @@ Output when done:
 
 Best stations near a system to `sell` or `buy` one commodity, from Spansh
 station search with a `market` filter, sorted by price (sell: highest
-`sell_price` with demand > 0; buy: lowest `buy_price` with supply > 0), then
-filtered and ranked with travel preferences.
+`sell_price` with demand ≥ `amount`, else ≥ 1; buy: lowest `buy_price` with
+supply ≥ `amount`, else ≥ 1), within `max_distance_ly` (`distance` filter) and
+with `market_updated_at` inside `max_price_age_days`, then filtered and ranked
+with travel preferences. It fetches `limit + 10` stations (at most 30). Zero
+results add the note "No stations found; check the exact English commodity
+name"; a Spansh 400 becomes a `UserError`.
 
 Input: `commodity` (name), `mode` (`sell` | `buy`), `near` (default journal
-system), `amount` (optional tonnes), `limit` (10), `preferences`,
+system), `amount` (optional tonnes), `limit` (10, at most 30),
+`max_distance_ly` (75), `max_price_age_days` (2), `preferences`,
 `use_preferences`.
 
 Each station: `name`, `system`, `distance_ly`, `arrival_ls`, `price`,
@@ -70,7 +76,9 @@ Each station: `name`, `system`, `distance_ly`, `arrival_ls`, `price`,
 given, also `value = price * amount - travel_cost` for selling (or `price *
 amount + travel_cost` for buying), where `travel_cost = travel_s / 3600 *
 credits_per_hour`, and stations are ranked by that value; otherwise by price.
-`recommended` names the best station and why.
+`recommended` names the best station and why; it is never a station with
+prices older than `max_price_age_days`, and a negative value says travel costs
+more than the trade earns.
 
 ## Spansh client additions
 
