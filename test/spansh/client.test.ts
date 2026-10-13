@@ -343,6 +343,25 @@ describe("SpanshClient.route", () => {
     expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
   });
 
+  it("keeps job ids for only the 100 most recent unfinished routes", async () => {
+    const submit = await raw("route-submit.json");
+    const done = await raw("results-route-ok.json");
+    let broken = true;
+    const { client, f } = makeTimed([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => (broken ? text("", 503) : text(done)) },
+    ]);
+    const q = (i: number) => ({ from: `Sys ${i}`, to: "Colonia", rangeLy: 50 });
+    for (let i = 0; i <= 100; i++) await expect(client.route(q(i))).rejects.toThrow();
+    broken = false;
+    const submits = () => f.calls.filter((c) => isSubmit(c.url, c.init)).length;
+    expect(submits()).toBe(101);
+    await client.route(q(1));
+    expect(submits()).toBe(101);
+    await client.route(q(0));
+    expect(submits()).toBe(102);
+  });
+
   it("forgets the job after a 404 and submits again next time", async () => {
     const submit = await raw("route-submit.json");
     const done = await raw("results-route-ok.json");

@@ -132,6 +132,8 @@ function pad(s: RawStation): Pad {
   return null;
 }
 
+const MAX_ROUTE_JOBS = 100;
+
 export class SpanshClient {
   private readonly baseUrl: string;
   private readonly minIntervalMs: number;
@@ -288,6 +290,10 @@ export class SpanshClient {
         })) as { job: string };
         job = submitted.job;
         this.routeJobs.set(key, job);
+        // Routes that are never asked for again would otherwise keep their ids forever.
+        if (this.routeJobs.size > MAX_ROUTE_JOBS) {
+          this.routeJobs.delete(this.routeJobs.keys().next().value!);
+        }
       }
       let delay = 1000;
       for (;;) {
