@@ -107,10 +107,10 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `catalog_material`         | Material grade, trade group and trade rules                  |
 | `catalog_module`           | Outfitting module by symbol or name                          |
 | `materials_plan`           | Material needs, trades from surplus and traders to use       |
-| `missions_route`           | Best stop order for accepted missions, with deadlines        |
 | `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
+| `missions_route`           | Best stop order for accepted missions, with deadlines        |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
