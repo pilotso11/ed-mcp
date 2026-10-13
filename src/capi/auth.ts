@@ -228,6 +228,8 @@ export class CapiAuth {
   }
 
   async logout(): Promise<void> {
+    // A browser login finished after logout must not store tokens again.
+    this.pending?.cancel();
     await this.tokens.clear();
     this.failure = null;
     this.onSessionChange();

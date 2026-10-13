@@ -207,6 +207,35 @@ describe("CapiAuth login", () => {
     expect(sessionChanges).toBe(0);
   });
 
+  it("cancels a pending login on logout", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const opened: string[] = [];
+    const { auth, f } = make(
+      [
+        {
+          match: () => true,
+          respond: async () => {
+            await gate;
+            return jsonResponse({ access_token: "A1", refresh_token: "R1", expires_in: 14400 });
+          },
+        },
+      ],
+      opened,
+    );
+    await auth.startLogin();
+    const q = new URL(opened[0]!).searchParams;
+    const redirect = new URL(q.get("redirect_uri")!);
+    const cb = fetch(`http://127.0.0.1:${redirect.port}/auth?code=C1&state=${q.get("state")}`);
+    while (f.calls.length === 0) await new Promise((r) => setTimeout(r, 1));
+    await auth.logout();
+    release();
+    await cb;
+    expect(await tokens.load()).toBeNull();
+    expect(await auth.state()).toEqual({ state: "logged_out" });
+    expect(sessionChanges).toBe(1);
+  });
+
   it("reports a failure once, then starts a new flow", async () => {
     const opened: string[] = [];
     const { auth } = make([], opened);
