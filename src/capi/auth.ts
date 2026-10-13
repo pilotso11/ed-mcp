@@ -21,6 +21,8 @@ interface Pending {
   expiresAt: number;
   servers: Server[];
   done: Promise<void>;
+  /** Ends the attempt without recording a failure. */
+  cancel: () => void;
 }
 
 const PAGE = (msg: string) =>
@@ -76,7 +78,10 @@ export class CapiAuth {
 
   async startLogin(opts: { force?: boolean } = {}): Promise<LoginState> {
     const cfg = this.requireConfig();
-    if (this.pending) return this.state();
+    if (this.pending) {
+      if (!opts.force) return this.state();
+      this.pending.cancel();
+    }
     if (!opts.force) {
       if (this.failure) {
         const error = this.failure;
@@ -131,7 +136,9 @@ export class CapiAuth {
         };
       }
       try {
-        await this.exchange(cfg, code!, verifier, redirectUri);
+        // A forced restart may cancel this attempt while the exchange is in flight.
+        const saved = await this.exchange(cfg, code!, verifier, redirectUri, () => !settled);
+        if (!saved) return { status: 400, body: PAGE("This login attempt has already ended.") };
         finish(null);
         return { status: 200, body: PAGE("Logged in to Frontier. You can close this tab.") };
       } catch (err) {
@@ -177,7 +184,13 @@ export class CapiAuth {
       redirect_uri: redirectUri,
     }).toString();
 
-    pending = { url: url.href, expiresAt: this.now() + this.loginTimeoutMs, servers, done };
+    pending = {
+      url: url.href,
+      expiresAt: this.now() + this.loginTimeoutMs,
+      servers,
+      done,
+      cancel: () => finish(null),
+    };
     this.pending = pending;
     await this.openUrl(url.href).catch(() => undefined); // the URL is returned for manual opening
     return this.state();
@@ -225,7 +238,13 @@ export class CapiAuth {
     return this.cfg;
   }
 
-  private async exchange(cfg: CapiConfig, code: string, verifier: string, redirectUri: string) {
+  private async exchange(
+    cfg: CapiConfig,
+    code: string,
+    verifier: string,
+    redirectUri: string,
+    current: () => boolean,
+  ): Promise<boolean> {
     const res = await this.token({
       grant_type: "authorization_code",
       client_id: cfg.clientId,
@@ -233,6 +252,7 @@ export class CapiAuth {
       code,
       redirect_uri: redirectUri,
     });
+    if (!current()) return false;
     await this.tokens.save({
       refresh_token: res.refresh_token,
       access_token: res.access_token,
@@ -240,6 +260,7 @@ export class CapiAuth {
       authorized_at: this.now(),
     });
     this.onSessionChange();
+    return true;
   }
 
   private async refresh(cfg: CapiConfig, t: StoredTokens, retried = false): Promise<string> {

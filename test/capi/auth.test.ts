@@ -160,6 +160,53 @@ describe("CapiAuth login", () => {
     expect(opened).toHaveLength(1);
   });
 
+  it("replaces a pending login when forced", async () => {
+    const opened: string[] = [];
+    const { auth } = make([], opened);
+    await auth.startLogin();
+    const first = new URL(opened[0]!).searchParams;
+    const restarted = await auth.startLogin({ force: true });
+    expect(restarted.state).toBe("waiting");
+    expect(opened).toHaveLength(2);
+    const second = new URL(opened[1]!).searchParams;
+    expect(second.get("state")).not.toBe(first.get("state"));
+    expect(restarted).toMatchObject({ url: opened[1] });
+    const oldPort = new URL(first.get("redirect_uri")!).port;
+    await expect(
+      fetch(`http://127.0.0.1:${oldPort}/auth?error=access_denied&state=${first.get("state")}`),
+    ).rejects.toThrow();
+    expect(await auth.state()).toMatchObject({ state: "waiting", url: opened[1] });
+  });
+
+  it("does not let a cancelled login's code exchange store tokens", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const opened: string[] = [];
+    const { auth, f } = make(
+      [
+        {
+          match: () => true,
+          respond: async () => {
+            await gate;
+            return jsonResponse({ access_token: "A1", refresh_token: "R1", expires_in: 14400 });
+          },
+        },
+      ],
+      opened,
+    );
+    await auth.startLogin();
+    const q = new URL(opened[0]!).searchParams;
+    const redirect = new URL(q.get("redirect_uri")!);
+    const cb = fetch(`http://127.0.0.1:${redirect.port}/auth?code=C1&state=${q.get("state")}`);
+    while (f.calls.length === 0) await new Promise((r) => setTimeout(r, 1));
+    await auth.startLogin({ force: true });
+    release();
+    await cb;
+    expect(await tokens.load()).toBeNull();
+    expect(await auth.state()).toMatchObject({ state: "waiting", url: opened[1] });
+    expect(sessionChanges).toBe(0);
+  });
+
   it("reports a failure once, then starts a new flow", async () => {
     const opened: string[] = [];
     const { auth } = make([], opened);
