@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -117,6 +117,39 @@ describe("plan tools", () => {
     const before = await readFile(store, "utf8");
     const r = await callTool(client, "plan_export", { id: "cutter", path: store, overwrite: true });
     expect(r.isError).toBe(true);
+    expect(await readFile(store, "utf8")).toBe(before);
+  });
+
+  it("refuses to export over the store file through a symlinked directory", async () => {
+    const { client, dir } = await setup();
+    const link = `${dir}-link`;
+    // Junctions need no privileges on Windows; other platforms ignore the type.
+    await symlink(dir, link, "junction");
+    await callTool(client, "plan_upsert", { plan });
+    const store = path.join(dir, "plans.json");
+    const before = await readFile(store, "utf8");
+    const r = await callTool(client, "plan_export", {
+      id: "cutter",
+      path: path.join(link, "plans.json"),
+      overwrite: true,
+    });
+    expect(r).toMatchObject({ isError: true, text: expect.stringContaining("plan store file") });
+    expect(await readFile(store, "utf8")).toBe(before);
+  });
+
+  it("refuses to export over the store file named in another case", async (ctx) => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const store = path.join(dir, "plans.json");
+    const upper = path.join(dir, "PLANS.JSON");
+    const caseInsensitive = await stat(upper).then(
+      () => true,
+      () => false,
+    );
+    if (!caseInsensitive) ctx.skip();
+    const before = await readFile(store, "utf8");
+    const r = await callTool(client, "plan_export", { id: "cutter", path: upper, overwrite: true });
+    expect(r).toMatchObject({ isError: true, text: expect.stringContaining("plan store file") });
     expect(await readFile(store, "utf8")).toBe(before);
   });
 

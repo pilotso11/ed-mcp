@@ -6,7 +6,7 @@ import { planToMarkdown } from "../plans/markdown.js";
 import { ItemStatus, PlanInputSchema, type PlanInput } from "../plans/schema.js";
 import type { PlanStore } from "../plans/store.js";
 import { UserError } from "../errors.js";
-import { resolveUserPath } from "../paths.js";
+import { resolveUserPath, sameFile } from "../paths.js";
 import { wrap } from "./result.js";
 
 export function registerPlanTools(server: McpServer, deps: { plans: PlanStore }): void {
@@ -86,7 +86,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       const markdown = planToMarkdown(await plans.get(a.id));
       if (!a.path) return { markdown };
       const target = resolveUserPath(a.path);
-      if (target === path.resolve(plans.file)) {
+      if (await sameFile(target, plans.file)) {
         throw new UserError(`${target} is the plan store file; choose another path`);
       }
       if (!a.overwrite && (await exists(target))) {
