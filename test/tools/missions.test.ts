@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { UserError } from "../../src/errors.js";
+import { NotConfiguredError, UserError } from "../../src/errors.js";
 import type { JournalService } from "../../src/journal/service.js";
 import type { Mission } from "../../src/journal/state.js";
 import type { SpanshClient, SystemInfo } from "../../src/spansh/client.js";
@@ -44,12 +44,23 @@ const stationNames: Record<string, string[]> = {
   beta: ["Beta Hub"],
 };
 
-function setup(opts: { betaExpires?: string | null; warnings?: string[] } = {}) {
+interface Opts {
+  betaExpires?: string | null;
+  warnings?: string[];
+  age?: number;
+  types?: Record<string, string>;
+  down?: string[];
+  noJournal?: boolean;
+  ghost?: boolean;
+}
+
+function setup(opts: Opts = {}) {
   const lookups: string[] = [];
   const spansh = {
     system: async (name: string) => {
       lookups.push(name);
       const key = name.toLowerCase();
+      if (opts.down?.includes(key)) throw new Error("Spansh is down");
       const c = coords[key];
       if (!c) throw new UserError(`System "${name}" not found on Spansh.`);
       return {
@@ -57,7 +68,7 @@ function setup(opts: { betaExpires?: string | null; warnings?: string[] } = {}) 
         coords: { x: c[0], y: c[1], z: c[2] },
         stations: (stationNames[key] ?? []).map((s) => ({
           name: s,
-          type: "Orbis",
+          type: opts.types?.[s] ?? "Orbis Starport",
           arrival_ls: 500,
         })),
       } as unknown as SystemInfo;
@@ -76,16 +87,22 @@ function setup(opts: { betaExpires?: string | null; warnings?: string[] } = {}) 
       destination_station: "Beta Hub",
       expires: opts.betaExpires === undefined ? at(8) : opts.betaExpires,
     }),
+    ...(opts.ghost
+      ? [mission(6, { destination_system: "Alpha", destination_station: "Ghost" })]
+      : []),
     mission(5, { destination_system: "Nowhere", destination_station: "Void" }),
   ];
   const journal = {
-    state: async () => ({
-      as_of: "2026-10-13T07:55:00Z",
-      age_minutes: 5,
-      warnings: opts.warnings ?? [],
-      missions,
-      location: { system: "Sol", station: "Abraham Lincoln", docked: true },
-    }),
+    state: async () => {
+      if (opts.noJournal) throw new NotConfiguredError("Journal", ["ED_JOURNAL_DIR"]);
+      return {
+        as_of: "2026-10-13T07:55:00Z",
+        age_minutes: opts.age ?? 5,
+        warnings: opts.warnings ?? [],
+        missions,
+        location: { system: "Sol", station: "Abraham Lincoln", docked: true },
+      };
+    },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
   registerMissionTools(server, { journal, spansh, now: () => NOW });
@@ -170,5 +187,50 @@ describe("missions_route", () => {
     expect(j.stops[1]).toMatchObject({ system: "Sol", station: "Abraham Lincoln", missions: [] });
     expect(j.total_min).toBe(j.stops[1].arrive_min);
     expect(j.stops[1].arrive_min).toBeGreaterThan(j.stops[0].arrive_min);
+  });
+
+  it("adds 90 s for a planetary station", async () => {
+    const base = await route({ include: [4] }, { betaExpires: null });
+    const planetary = await route(
+      { include: [4] },
+      { betaExpires: null, types: { "Beta Hub": "Planetary Port" } },
+    );
+    const diff = planetary.j.stops[0].leg_min - base.j.stops[0].leg_min;
+    expect(diff).toBeCloseTo(1.5, 5);
+  });
+
+  it("does not repeat the missing-station note", async () => {
+    const { j } = await route(
+      { include: [6], return_to: { system: "Alpha", station: "Ghost" } },
+      { ghost: true },
+    );
+    expect(j.notes).toEqual([expect.stringContaining("Station Ghost not found in Alpha")]);
+  });
+
+  it("returns the not-configured message", async () => {
+    const { r } = await route({}, { noJournal: true });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Journal not configured: set ED_JOURNAL_DIR");
+  });
+
+  it("marks only the stop whose system lookup fails as unroutable", async () => {
+    const { j } = await route({}, { down: ["beta"], betaExpires: null });
+    expect(ids(j)).toEqual(["Alpha Port", "Alpha Dock"]);
+    expect(j.unroutable).toContainEqual({
+      id: 4,
+      name: "Mission_4",
+      reason: "Spansh lookup failed: Spansh is down",
+    });
+  });
+
+  it("explains an unknown from system", async () => {
+    const { r } = await route({ from: "Atlantis" });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('Cannot use from "Atlantis"');
+  });
+
+  it("notes a stale journal location", async () => {
+    const { j } = await route({}, { age: 45 });
+    expect(j.notes).toEqual([expect.stringContaining("journal 45 minutes old")]);
   });
 });

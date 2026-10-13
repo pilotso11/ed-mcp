@@ -20,7 +20,11 @@ interface Place {
   station: string | null;
   coords: SystemInfo["coords"];
   arrivalLs: number | null;
+  planetary: boolean;
 }
+
+// Spansh system records carry no planetary flag, only the station type.
+const PLANETARY = /planetary|surface|settlement/i;
 
 const min = (s: number) => Math.round(s / 6) / 10;
 const same = (a: string | null, b: string | null) =>
@@ -46,7 +50,8 @@ export function registerMissionTools(
         "hand-ins for completed missions. Uses Spansh coordinates and the travel-time model to minimise " +
         "time while meeting deadlines; lists late and unroutable missions. The order is exact up to 12 " +
         "stops; above that it is a nearest-first heuristic and deadline handling is best-effort. " +
-        "Stations are treated as orbital because Spansh system records do not flag planetary ones.",
+        "Planetary stations are inferred from the Spansh station type. `from` and `return_to` must be " +
+        "systems Spansh knows.",
       inputSchema: {
         from: z.string().optional().describe("Start system; default the journal location"),
         include: z.array(z.number().int()).optional().describe("Only these mission ids"),
@@ -69,7 +74,7 @@ export function registerMissionTools(
         const state = await deps.journal.state();
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
         const travel = rules.travel;
-        const notes: string[] = [];
+        const notes = new Set<string>();
 
         const systems = new Map<string, Promise<SystemInfo>>();
         const lookup = (name: string) => {
@@ -78,11 +83,21 @@ export function registerMissionTools(
           if (!p) systems.set(key, (p = deps.spansh.system(name, STATION_LIMIT)));
           return p;
         };
+        const endpoint = async (label: string, system: string, station: string | null) => {
+          try {
+            return await place(system, station);
+          } catch (e) {
+            if (e instanceof UserError) {
+              throw new UserError(`Cannot use ${label} "${system}": ${e.message}`);
+            }
+            throw e;
+          }
+        };
         const place = async (system: string, station: string | null): Promise<Place> => {
           const info = await lookup(system);
           const hit = station ? info.stations.find((s) => same(s.name, station)) : undefined;
           if (station && !hit) {
-            notes.push(
+            notes.add(
               `Station ${station} not found in ${info.name}; assumed 1000 ls from arrival.`,
             );
           }
@@ -91,18 +106,24 @@ export function registerMissionTools(
             station,
             coords: info.coords,
             arrivalLs: hit?.arrival_ls ?? null,
+            planetary: PLANETARY.test(hit?.type ?? ""),
           };
         };
 
         let startPlace: Place;
         let source: "journal" | "input";
         if (a.from) {
-          startPlace = await place(a.from, null);
+          startPlace = await endpoint("from", a.from, null);
           source = "input";
         } else {
           const loc = state.location;
           if (!loc.system) throw new UserError("The journal has no location; give from.");
           startPlace = await place(loc.system, loc.docked ? loc.station : null);
+          if (state.age_minutes !== null && state.age_minutes > 30) {
+            notes.add(
+              `The start location comes from a journal ${state.age_minutes} minutes old; give from if you have moved.`,
+            );
+          }
           source = "journal";
         }
 
@@ -115,13 +136,15 @@ export function registerMissionTools(
             places.push(await place(stop.system, stop.station));
             stops.push(stop);
           } catch (e) {
-            if (!(e instanceof UserError)) throw e;
-            for (const m of stop.missions)
-              unroutable.push({ id: m.id, name: m.name, reason: e.message });
+            const reason =
+              e instanceof UserError
+                ? e.message
+                : `Spansh lookup failed: ${e instanceof Error ? e.message : String(e)}`;
+            for (const m of stop.missions) unroutable.push({ id: m.id, name: m.name, reason });
           }
         }
         const returnPlace = a.return_to
-          ? await place(a.return_to.system, a.return_to.station ?? null)
+          ? await endpoint("return_to", a.return_to.system, a.return_to.station ?? null)
           : undefined;
 
         const n = stops.length;
@@ -139,7 +162,7 @@ export function registerMissionTools(
             {
               distanceLy,
               arrivalLs: t.arrivalLs,
-              planetary: false,
+              planetary: t.planetary,
               stationKnown: t.station !== null,
             },
             travel,
@@ -206,7 +229,7 @@ export function registerMissionTools(
           total_min: min(solution.total),
           late: lateIds,
           unroutable,
-          notes,
+          notes: [...notes],
           applied_preferences: describeRules(rules),
           as_of: state.as_of,
           age_minutes: state.age_minutes,

@@ -156,7 +156,7 @@ Up to 12 stops, the search is exact. It meets every deadline (`expires`) at the 
 
 The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
-Limits: the tool cannot see the mission board. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. Spansh system records do not flag planetary stations, so all stations count as orbital.
+Limits: the tool cannot see the mission board. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
 
 ## Game journal
 
