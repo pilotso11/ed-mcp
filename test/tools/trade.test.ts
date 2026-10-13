@@ -97,8 +97,8 @@ describe("trade_route", () => {
     expect(j.hops).toHaveLength(3);
     expect(j.total_profit).toBe(2354800);
     // Hops of 1 jump each at 30 LY, arrivals 310, 259 and 2 ls, default travel model:
-    // 219.09 + 215.69 + 201.19 = 635.97 s; 2,354,800 / 635.97 s * 3600.
-    expect(j.profit_per_hour).toBe(13_329_662);
+    // 276.06 + 270.63 + 211.35 = 758.04 s; 2,354,800 / 758.04 s * 3600.
+    expect(j.profit_per_hour).toBe(11_183_187);
     expect(j.notes).toContain(
       "The soft arrival limit (1000 ls) is not enforced for trade routes; set its mode to hard to apply it.",
     );
