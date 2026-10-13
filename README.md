@@ -39,6 +39,7 @@ All settings are optional. A tool for a service you did not configure returns a 
 | `EDSM_API_KEY`   | edsm.net, Settings, API Key                                | EDSM tools are off                                        |
 | `EDSM_CMDR`      | Your commander name on EDSM                                | EDSM tools are off                                        |
 | `CAPI_CLIENT_ID` | Frontier developer portal (user.frontierstore.net/developer) | Frontier login tools are off                            |
+| `ED_JOURNAL_DIR` | The Elite Dangerous journal folder. On Windows it defaults to `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. On a Mac, set it to your Syncthing copy | Journal tools are off on a Mac; the Windows default applies on the gaming PC |
 | `ED_MCP_PLANS`   | An absolute file path, or one starting with `~`            | Plans go to `plans.json` in the config directory          |
 
 Inara needs both `INARA_API_KEY` and `INARA_CMDR`. EDSM needs both `EDSM_API_KEY` and `EDSM_CMDR`. An invalid `INARA_DEV_MODE` value stops the server at startup.
@@ -95,6 +96,11 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `capi_login`               | Log in to Frontier in the browser                            |
 | `capi_profile`             | Current ship with engineering, location and fleet            |
 | `capi_logout`              | Forget the Frontier login                                    |
+| `journal_status`           | Journal folder, newest journal, its age and warnings         |
+| `journal_commander`        | Commander, location, ship and cargo from the journal         |
+| `journal_materials`        | Materials held, by kind, from the journal                    |
+| `journal_missions`         | Active missions, soonest expiry first                        |
+| `journal_engineers`        | Engineer progress from the journal                           |
 | `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
 | `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
@@ -114,6 +120,39 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `plan_delete`              | Delete a plan                                                |
 | `plan_export`              | Export a plan as Markdown                                    |
 
+## Game journal
+
+Elite Dangerous writes a journal file while you play. The server reads it from disk. The data is local and current, so the journal tools need no EDSM account. Materials, cargo, location, ship, missions and engineer progress all come from it.
+
+The server reads the journal files from the last 14 days, plus `Cargo.json` for the current cargo. It never writes to the journal folder.
+
+Set `ED_JOURNAL_DIR` to the journal folder. On the gaming PC (Windows) it defaults to `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. On a Mac there is no default. Set it to a synced copy of the folder (see below). Without a folder, the journal tools return a message that names `ED_JOURNAL_DIR`. In the Desktop extension, use the Journal folder field.
+
+Tools:
+
+- `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems. Run it first when journal data looks wrong.
+- `journal_commander`: commander name, credits, location, ship and cargo.
+- `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
+- `journal_missions`: active missions with destination, expiry, reward and passenger or cargo details.
+- `journal_engineers`: engineers with progress, rank and rank progress.
+
+Most results include `as_of`, the time of the newest journal event.
+
+Freshness rules:
+
+- `journal_status` warns when the newest event is more than 30 minutes old. The game is not running, or sync has stopped.
+- `min_pad: "auto"` and `jump_range_ly: "auto"` use the journal ship and its jump range only when the newest event is less than 24 hours old. Otherwise they fall back (see the travel preferences).
+
+### Using the journal from a Mac (Syncthing)
+
+The game runs on the PC, so a Mac cannot read the journal directly. Syncthing copies the folder to the Mac.
+
+1. Install Syncthing on the PC and the Mac (syncthing.net). On the PC, use SyncTrayzor or the Windows installer.
+2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set Folder Type to **Send Only**. The Mac must never write to the live journal folder.
+3. Pair the devices. Add the Mac's device ID on the PC, then accept the PC on the Mac. Share the folder with the Mac. On the Mac, accept the folder into a local folder, for example `~/EliteJournal`, and set Folder Type to **Receive Only**.
+4. Set `ED_JOURNAL_DIR` to that folder in the MCP config, or in the Desktop extension's Journal folder field.
+5. Ask Claude to run `journal_status`. While you play, it should show the newest journal and an age of a few minutes. If it warns that the journal is old, check that Syncthing is running on the PC.
+
 ## Travel preferences
 
 `spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json` in the config folder. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
@@ -131,7 +170,7 @@ Defaults:
 
 - `max_arrival_ls` mode is `soft`, `hard` or `off`.
 - `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
-- `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
+- `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the current ship from the journal when the newest journal event is less than 24 hours old. Otherwise it uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
 
 A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
 
@@ -156,7 +195,7 @@ The server ranks stations by estimated travel time. For purchases it also ranks 
 
 | Setting                | Default                                                      |
 | ---------------------- | ------------------------------------------------------------ |
-| `jump_range_ly`        | 30                                                           |
+| `jump_range_ly`        | `auto`                                                       |
 | `seconds_per_jump`     | 60                                                           |
 | `refuel_every_jumps`   | 0 (no refuel stops)                                          |
 | `refuel_s`             | 15                                                           |
@@ -166,6 +205,8 @@ The server ranks stations by estimated travel time. For purchases it also ranks 
 | `dock_s`               | 80                                                           |
 | `planetary_extra_s`    | 90                                                           |
 | `credits_per_hour`     | 20,000,000                                                   |
+
+`jump_range_ly` is a number of light years or `"auto"`. `auto` uses the maximum jump range of your current ship from the journal, when the newest journal event is less than 24 hours old. Otherwise it uses 30 ly. `applied_preferences` shows the range and where it came from: `request`, `preferences`, the journal, or the 30 ly default. A number you set always wins.
 
 The server estimates travel time like this:
 

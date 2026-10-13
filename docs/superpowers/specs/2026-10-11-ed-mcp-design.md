@@ -110,6 +110,8 @@ tool.
 
 ## Tools
 
+The journal tools read the local game journal (`ED_JOURNAL_DIR`). See `2026-10-13-journal-source-design.md`.
+
 | Group | Tool | Source | Returns |
 |---|---|---|---|
 | Commander | `inara_commander_profile` | Inara | ranks, squadron, Inara URL. Optional `name` looks up another commander |
@@ -119,6 +121,11 @@ tool.
 | | `capi_login` | CAPI | starts the browser login, returns the login URL at once and reports the state when called again |
 | | `capi_profile` | CAPI | current system and station, current ship with modules and engineering, ship list |
 | | `capi_logout` | CAPI | deletes the stored Frontier login |
+| Journal | `journal_status` | journal | folder state, newest journal, age of the last event, warnings |
+| | `journal_commander` | journal | commander, credits, location, ship and cargo |
+| | `journal_materials` | journal | raw, manufactured and encoded materials with counts |
+| | `journal_missions` | journal | active missions, soonest expiry first |
+| | `journal_engineers` | journal | engineer progress, rank and rank progress |
 | Builds | `build_parse_slef` | local | SLEF JSON → ship type and slots, each with module, blueprint, grade and experimental |
 | Catalog | `catalog_blueprint` | catalog | materials per grade for a blueprint on a module type |
 | | `catalog_engineers` | catalog | engineers for a blueprint with max grade, system, unlock requirements |
