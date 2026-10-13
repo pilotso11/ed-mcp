@@ -93,6 +93,22 @@ describe("SpanshClient.findStations", () => {
     expect(JSON.stringify(r)).not.toContain("export_commodities");
   });
 
+  it("returns no price for a module search without class and rating", async () => {
+    const body = await raw("stations-search-module.json");
+    const { client } = make([
+      { match: (u) => u.endsWith("/stations/search"), respond: () => text(body) },
+    ]);
+    for (const module of [
+      { name: "Frame Shift Drive" },
+      { name: "Frame Shift Drive", class: 5 },
+      { name: "Frame Shift Drive", rating: "A" },
+    ]) {
+      const r = await client.findStations({ near: "Sol", module, limit: 3 });
+      expect(r.stations.length).toBeGreaterThan(0);
+      expect(r.stations.map((s) => s.price)).toEqual(r.stations.map(() => null));
+    }
+  });
+
   it("resolves the ship name before searching", async () => {
     const body = await raw("stations-search-ship.json");
     const { client, f } = make([
