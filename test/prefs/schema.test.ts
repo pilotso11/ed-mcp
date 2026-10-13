@@ -55,4 +55,11 @@ describe("prefs schema", () => {
     expect(() => parsePatch({ stations: { planetary: "never" } })).toThrow(/Invalid preferences/);
     expect(() => parsePatch({ travel: { occlusion: { chance: 2 } } })).toThrow(UserError);
   });
+
+  it("rejects numbers that JSON cannot store", () => {
+    // JSON.parse turns 1e400 into Infinity, which JSON.stringify cannot write back.
+    const huge = JSON.parse("1e400") as number;
+    expect(() => parsePatch({ stations: { max_arrival_ls: { value: huge } } })).toThrow(UserError);
+    expect(() => parsePatch({ travel: { credits_per_hour: huge } })).toThrow(UserError);
+  });
 });
