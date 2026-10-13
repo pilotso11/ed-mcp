@@ -17,21 +17,42 @@ export type RankedHit = PricedHit & TravelEstimate & { effective_cost: number | 
 // Spansh omits arrival distance for some stations; 1,000 ls is a typical value.
 const ASSUMED_ARRIVAL_LS = 1000;
 
-export function estimateTravel(h: StationHit, t: ResolvedTravel): TravelEstimate {
-  const jumps = h.distance_ly > 0 ? Math.ceil(h.distance_ly / t.jump_range_ly) : 0;
+export interface Leg {
+  distanceLy: number;
+  arrivalLs: number | null;
+  planetary: boolean;
+  // False for a system-only destination: only the jumps and docking time are counted.
+  stationKnown: boolean;
+}
+
+export function legSeconds(l: Leg, t: ResolvedTravel): { jumps: number; seconds: number } {
+  const jumps = l.distanceLy > 0 ? Math.ceil(l.distanceLy / t.jump_range_ly) : 0;
   const refuels = t.refuel_every_jumps > 0 ? Math.floor(jumps / t.refuel_every_jumps) : 0;
-  const ls = Math.max(0, h.arrival_ls ?? ASSUMED_ARRIVAL_LS);
+  const base = jumps * t.seconds_per_jump + refuels * t.refuel_s + t.dock_s;
+  if (!l.stationKnown) return { jumps, seconds: base };
+  const ls = Math.max(0, l.arrivalLs ?? ASSUMED_ARRIVAL_LS);
   const sc = t.supercruise;
   const seconds =
-    jumps * t.seconds_per_jump +
-    refuels * t.refuel_s +
+    base +
     sc.base_s +
     (sc.coeff * ls ** sc.exponent) / sc.speed_factor +
     // Expected cost: the station is behind the star about `chance` of the time.
     t.occlusion.chance * t.occlusion.seconds +
     (ls <= t.near_star.within_ls ? t.near_star.seconds : 0) +
-    t.dock_s +
-    (h.planetary ? t.planetary_extra_s : 0);
+    (l.planetary ? t.planetary_extra_s : 0);
+  return { jumps, seconds };
+}
+
+export function estimateTravel(h: StationHit, t: ResolvedTravel): TravelEstimate {
+  const { jumps, seconds } = legSeconds(
+    {
+      distanceLy: h.distance_ly,
+      arrivalLs: h.arrival_ls,
+      planetary: h.planetary === true,
+      stationKnown: true,
+    },
+    t,
+  );
   const travel_s = Math.round(seconds);
   return {
     jumps,

@@ -71,6 +71,7 @@
     },
     { "name": "journal_materials", "description": "Engineering materials held, from the journal" },
     { "name": "journal_missions", "description": "Active missions from the journal" },
+    { "name": "missions_route", "description": "Best stop order for accepted missions" },
     { "name": "journal_engineers", "description": "Engineer progress from the journal" },
     { "name": "cache_refresh", "description": "Clear cached data or refresh game data" },
     { "name": "cache_status", "description": "Cache and game data status" },

@@ -1,0 +1,218 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { UserError } from "../errors.js";
+import type { JournalService } from "../journal/service.js";
+import { optimiseRoute } from "../routes/optimise.js";
+import { missionsToStops, type Stop, type Unroutable } from "../routes/stops.js";
+import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
+import type { PreferencesStore } from "../prefs/store.js";
+import type { SpanshClient, SystemInfo } from "../spansh/client.js";
+import { describeRules } from "../stations/filter.js";
+import { resolveSearchRules } from "../stations/rules.js";
+import { legSeconds } from "../stations/travel.js";
+import { wrap } from "./result.js";
+
+// High enough that the destination station is in the list even for crowded systems.
+const STATION_LIMIT = 500;
+
+interface Place {
+  system: string;
+  station: string | null;
+  coords: SystemInfo["coords"];
+  arrivalLs: number | null;
+}
+
+const min = (s: number) => Math.round(s / 6) / 10;
+const same = (a: string | null, b: string | null) =>
+  a !== null && b !== null && a.toLowerCase() === b.toLowerCase();
+
+export function registerMissionTools(
+  server: McpServer,
+  deps: {
+    journal: JournalService;
+    spansh: SpanshClient;
+    prefs?: PreferencesStore;
+    currentShip?: () => Promise<string | { type: string; source: string } | null>;
+    jumpRange?: () => Promise<number | null>;
+    now?: () => number;
+  },
+): void {
+  const now = deps.now ?? Date.now;
+  server.registerTool(
+    "missions_route",
+    {
+      description:
+        "Order the stops for accepted missions (from the game journal): passengers, deliveries and " +
+        "hand-ins for completed missions. Uses Spansh coordinates and the travel-time model to minimise " +
+        "time while meeting deadlines; lists late and unroutable missions. The order is exact up to 12 " +
+        "stops; above that it is a nearest-first heuristic and deadline handling is best-effort. " +
+        "Stations are treated as orbital because Spansh system records do not flag planetary ones.",
+      inputSchema: {
+        from: z.string().optional().describe("Start system; default the journal location"),
+        include: z.array(z.number().int()).optional().describe("Only these mission ids"),
+        return_to: z
+          .object({ system: z.string(), station: z.string().optional() })
+          .optional()
+          .describe("Add a final stop here"),
+        preferences: PrefsPatchSchema.optional(),
+        use_preferences: z.boolean().default(true),
+      },
+    },
+    wrap(
+      async (a: {
+        from?: string;
+        include?: number[];
+        return_to?: { system: string; station?: string };
+        preferences?: PrefsPatch;
+        use_preferences: boolean;
+      }) => {
+        const state = await deps.journal.state();
+        const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
+        const travel = rules.travel;
+        const notes: string[] = [];
+
+        const systems = new Map<string, Promise<SystemInfo>>();
+        const lookup = (name: string) => {
+          const key = name.toLowerCase();
+          let p = systems.get(key);
+          if (!p) systems.set(key, (p = deps.spansh.system(name, STATION_LIMIT)));
+          return p;
+        };
+        const place = async (system: string, station: string | null): Promise<Place> => {
+          const info = await lookup(system);
+          const hit = station ? info.stations.find((s) => same(s.name, station)) : undefined;
+          if (station && !hit) {
+            notes.push(
+              `Station ${station} not found in ${info.name}; assumed 1000 ls from arrival.`,
+            );
+          }
+          return {
+            system: info.name,
+            station,
+            coords: info.coords,
+            arrivalLs: hit?.arrival_ls ?? null,
+          };
+        };
+
+        let startPlace: Place;
+        let source: "journal" | "input";
+        if (a.from) {
+          startPlace = await place(a.from, null);
+          source = "input";
+        } else {
+          const loc = state.location;
+          if (!loc.system) throw new UserError("The journal has no location; give from.");
+          startPlace = await place(loc.system, loc.docked ? loc.station : null);
+          source = "journal";
+        }
+
+        const grouped = missionsToStops(state.missions, a.include);
+        const unroutable: Unroutable[] = [...grouped.unroutable];
+        const stops: Stop[] = [];
+        const places: Place[] = [];
+        for (const stop of grouped.stops) {
+          try {
+            places.push(await place(stop.system, stop.station));
+            stops.push(stop);
+          } catch (e) {
+            if (!(e instanceof UserError)) throw e;
+            for (const m of stop.missions)
+              unroutable.push({ id: m.id, name: m.name, reason: e.message });
+          }
+        }
+        const returnPlace = a.return_to
+          ? await place(a.return_to.system, a.return_to.station ?? null)
+          : undefined;
+
+        const n = stops.length;
+        const nodes = [...places, startPlace, ...(returnPlace ? [returnPlace] : [])];
+        const leg = (from: number, to: number) => {
+          const f = nodes[from]!;
+          const t = nodes[to]!;
+          if (same(f.system, t.system) && same(f.station, t.station)) {
+            return { jumps: 0, seconds: 0 };
+          }
+          const distanceLy = same(f.system, t.system)
+            ? 0
+            : Math.hypot(f.coords.x - t.coords.x, f.coords.y - t.coords.y, f.coords.z - t.coords.z);
+          return legSeconds(
+            {
+              distanceLy,
+              arrivalLs: t.arrivalLs,
+              planetary: false,
+              stationKnown: t.station !== null,
+            },
+            travel,
+          );
+        };
+
+        const nowMs = now();
+        const deadlineOf = (expires: string | null) => {
+          const ms = expires ? Date.parse(expires) : NaN;
+          return Number.isNaN(ms) ? Infinity : (ms - nowMs) / 1000;
+        };
+        const solution = optimiseRoute({
+          legSeconds: (f, t) => leg(f, t).seconds,
+          n,
+          deadlines: stops.map((s) => s.missions.map((m) => deadlineOf(m.expires))),
+          start: n,
+          finish: returnPlace ? n + 1 : undefined,
+        });
+
+        const lateIds: number[] = [];
+        let at = n;
+        const out = solution.order.map((idx, i) => {
+          const stop = stops[idx]!;
+          const arrive = solution.arrive[i]!;
+          const l = leg(at, idx);
+          at = idx;
+          return {
+            system: stop.system,
+            station: stop.station,
+            ...(stop.station === null && { station_unknown: true }),
+            arrive_min: min(arrive),
+            leg_min: min(l.seconds),
+            jumps: l.jumps,
+            missions: stop.missions.map((m) => {
+              const slack = deadlineOf(m.expires) - arrive;
+              if (slack < 0) lateIds.push(m.id);
+              return {
+                ...m,
+                ...(slack === Infinity
+                  ? {}
+                  : slack >= 0
+                    ? { slack_min: min(slack) }
+                    : { late_min: min(-slack) }),
+              };
+            }),
+          };
+        });
+        if (returnPlace) {
+          const l = leg(at, n + 1);
+          out.push({
+            system: returnPlace.system,
+            station: returnPlace.station,
+            ...(returnPlace.station === null && { station_unknown: true }),
+            arrive_min: min(solution.total),
+            leg_min: min(l.seconds),
+            jumps: l.jumps,
+            missions: [],
+          });
+        }
+
+        return {
+          start: { system: startPlace.system, station: startPlace.station, source },
+          stops: out,
+          total_min: min(solution.total),
+          late: lateIds,
+          unroutable,
+          notes,
+          applied_preferences: describeRules(rules),
+          as_of: state.as_of,
+          age_minutes: state.age_minutes,
+          warnings: state.warnings,
+        };
+      },
+    ),
+  );
+}

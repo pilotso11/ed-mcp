@@ -106,6 +106,7 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
 | `catalog_material`         | Material grade, trade group and trade rules                  |
 | `materials_plan`           | Material needs, trades from surplus and traders to use       |
+| `missions_route`           | Best stop order for accepted missions, with deadlines        |
 | `catalog_module`           | Outfitting module by symbol or name                          |
 | `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
 | `spansh_system`            | System coordinates and stations                              |
@@ -137,6 +138,25 @@ Inputs:
 The tool trades only surplus (what you hold above what the plan needs). Trades stay inside one kind (raw, manufactured or encoded). Guardian and Thargoid materials have no trade group, so it never trades them. The rate is an exact give:get ratio. A trade gives `6^up` (times 6 more for another trade group) and gets `3^down`, where `up` and `down` are grade steps, reduced by their common divisor. For example, trading 2 of a grade 5 material in one group for a grade 1 material in another group gives 27 of the grade 1 material (2:27). Trades use whole batches, so a trade can return more than you need. The tool picks the cheapest source by material value (3^grade), nearest grade first.
 
 The result lists `needs` (with `have` and `short`), `trades` (each with the `name`, `count` and `grade` of what you give and get), `still_short`, the best `traders` of each type used, the `inventory_source`, `warnings`, `notes` and `unknown` names. The tool does not check storage caps (300, 250, 200, 150 and 100 for grades 1 to 5). A trade can give more than a cap allows.
+
+## Mission routes
+
+`missions_route` orders the stops for the missions in your journal. Passenger and delivery missions go to their destination. Completed missions go back to where you accepted them, which is usually where you collect the reward. Missions with no known stop, or in a system Spansh does not know, appear in `unroutable` with a reason.
+
+Inputs:
+
+- `from`: the start system. The default is the journal location.
+- `include`: mission ids to route. The default is every mission.
+- `return_to`: a system and optional station to add as the final stop.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+The tool groups missions by station, so one visit handles all of them. It gets coordinates and arrival distances from Spansh, and times each leg with the travel model. Legs inside one system have no jumps. A mission with no station counts jumps and docking time only, and its stop is marked `station_unknown`.
+
+Up to 12 stops, the search is exact. It meets every deadline (`expires`) at the estimated arrival time if any order can, and takes the shortest such order. If no order can, it minimises the late missions first, then the time. Above 12 stops, it uses a nearest-first order with 2-opt improvements that never add late missions. Deadline handling is then best-effort.
+
+The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
+
+Limits: the tool cannot see the mission board. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. Spansh system records do not flag planetary stations, so all stations count as orbital.
 
 ## Game journal
 
