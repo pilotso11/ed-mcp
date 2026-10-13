@@ -1,5 +1,5 @@
 import { shipPad } from "../catalog/ships.js";
-import type { SpanshClient, StationQuery } from "../spansh/client.js";
+import type { SpanshClient, StationHit, StationQuery } from "../spansh/client.js";
 import {
   applyRules,
   brokenRules,
@@ -87,7 +87,13 @@ export async function searchStations(
       arrival.mode === "soft"
         ? await spansh.findStations({ ...base, maxArrivalLs: undefined })
         : first;
-    outcome = applyRules(wider.stations, rules, true);
+    // The pages are not nested: the wider one holds the nearest stations overall, which can
+    // all fail the arrival limit, so stations from the strict page must be kept too.
+    outcome = applyRules(
+      wider === first ? first.stations : union(first.stations, wider.stations),
+      rules,
+      true,
+    );
     source = wider;
   }
   const ranked = rankStations(withDiscounts(outcome.stations), rules.prefs.travel);
@@ -106,4 +112,10 @@ export async function searchStations(
     relax_attempted: relaxAttempted,
     applied_preferences: describeRules(rules),
   };
+}
+
+function union(a: StationHit[], b: StationHit[]): StationHit[] {
+  const key = (h: StationHit) => `${h.system.toLowerCase()}|${h.name.toLowerCase()}`;
+  const seen = new Set(a.map(key));
+  return [...a, ...b.filter((h) => !seen.has(key(h)))];
 }

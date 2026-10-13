@@ -63,6 +63,22 @@ describe("searchStations", () => {
     expect(sp.calls[1]?.maxArrivalLs).toBeUndefined();
   });
 
+  it("keeps the strict page's stations when the wider page does not include them", async () => {
+    // The wider page holds the 50 nearest stations overall, which can all be far from the star.
+    const near = hit({ name: "ground", planetary: true, arrival_ls: 300 });
+    const sp = fakeSpansh([[near], [hit({ name: "far", arrival_ls: 4000 })]]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
+    expect(r.stations.map((s) => s.name).sort()).toEqual(["far", "ground"]);
+    expect(r.matched).toBe(2);
+  });
+
+  it("lists a station on both pages once", async () => {
+    const both = hit({ name: "ground", planetary: true });
+    const sp = fakeSpansh([[both], [both, hit({ name: "far", arrival_ls: 4000 })]]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
+    expect(r.stations.map((s) => s.name).sort()).toEqual(["far", "ground"]);
+  });
+
   it("sets relax_attempted with an empty relaxed list when nothing matches at all", async () => {
     const sp = fakeSpansh([[], []]);
     const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
