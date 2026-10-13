@@ -27,6 +27,20 @@ describe("TokenStore", () => {
     expect(await new TokenStore(file).load()).toBeNull();
   });
 
+  it.each([
+    ["an empty object", "{}"],
+    ["null", "null"],
+    [
+      "a wrong field type",
+      '{"refresh_token":"r","access_token":null,"expires_at":"1","authorized_at":2}',
+    ],
+  ])("treats %s as logged out", async (_name, body) => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "tok-"));
+    const file = path.join(dir, "capi-token.json");
+    await writeFile(file, body);
+    expect(await new TokenStore(file).load()).toBeNull();
+  });
+
   it("removes the temp file when the rename fails", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "tok-"));
     // A directory at the target path makes rename fail.
