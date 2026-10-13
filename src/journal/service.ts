@@ -147,7 +147,8 @@ export class JournalService {
     const events: JournalEvent[] = [];
     for (const file of found.files.filter((f) => f.time.getTime() >= since)) {
       try {
-        events.push(...(await this.reader.read(file)));
+        // No spread: a long session can hold more events than the call stack allows as arguments.
+        for (const e of await this.reader.read(file)) events.push(e);
       } catch (err) {
         warnings.push(`Cannot read ${file.name}: ${errText(err)}`);
       }

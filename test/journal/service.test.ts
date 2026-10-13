@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { JournalReader } from "../../src/journal/reader.js";
 import { JournalService } from "../../src/journal/service.js";
 import { ev, writeJournal } from "../helpers/journal.js";
 
@@ -54,6 +55,29 @@ describe("JournalService.state", () => {
       ev("2026-10-12T10:00:00Z", "Commander", { Name: "pin72" }),
     ]);
     expect((await new JournalService(dir).state()).cargo).toEqual([]);
+  });
+
+  it("reads a journal with 200,000 events", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jbig-"));
+    const line = JSON.stringify(ev("2026-10-12T10:00:00Z", "Commander", { Name: "pin72" })) + "\n";
+    await writeFile(path.join(dir, "Journal.2026-10-12T100000.01.log"), line.repeat(200_000));
+    expect((await new JournalService(dir).state()).commander).toBe("pin72");
+  });
+
+  it("turns a file that cannot be read into a warning", async () => {
+    const dir = await folder();
+    const reader = new JournalReader();
+    const read = reader.read.bind(reader);
+    reader.read = async (file) => {
+      if (file.name === "Journal.2026-10-10T100000.01.log") {
+        throw Object.assign(new Error("denied"), { code: "EACCES" });
+      }
+      return read(file);
+    };
+    const s = await new JournalService(dir, { reader }).state();
+    expect(s.warnings).toContain("Cannot read Journal.2026-10-10T100000.01.log: EACCES");
+    expect(s.missions).toEqual([]);
+    expect(s.location.station).toBe("Abraham Lincoln");
   });
 
   it("rejects a missing folder and an empty folder", async () => {
