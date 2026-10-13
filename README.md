@@ -99,15 +99,15 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `journal_status`           | Journal folder, newest journal, its age and warnings         |
 | `journal_commander`        | Commander, location, ship and cargo from the journal         |
 | `journal_materials`        | Materials held, by kind, from the journal                    |
-| `journal_missions`         | Active missions, soonest expiry first                        |
+| `journal_missions`         | Accepted missions (active and complete), soonest expiry first |
 | `journal_engineers`        | Engineer progress from the journal                           |
 | `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
 | `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
 | `catalog_material`         | Material grade, trade group and trade rules                  |
+| `catalog_module`           | Outfitting module by symbol or name                          |
 | `materials_plan`           | Material needs, trades from surplus and traders to use       |
 | `missions_route`           | Best stop order for accepted missions, with deadlines        |
-| `catalog_module`           | Outfitting module by symbol or name                          |
 | `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
@@ -141,7 +141,7 @@ The result lists `needs` (with `have` and `short`), `trades` (each with the `nam
 
 ## Mission routes
 
-`missions_route` orders the stops for the missions in your journal. Passenger and delivery missions go to their destination. Completed missions go back to where you accepted them, which is usually where you collect the reward. Missions with no known stop, or in a system Spansh does not know, appear in `unroutable` with a reason.
+`missions_route` orders the stops for the missions in your journal. Passenger and delivery missions go to their destination. Completed missions go back to where you accepted them, which is usually where you collect the reward. Completed missions have no deadline. An active mission with a commodity but no destination goes to where you accepted it, with `kind: "source"` and the note "source the commodity first". Missions with no known stop, past their expiry, listed in `include` but absent from the journal, or in a system Spansh does not know, appear in `unroutable` with a reason. The first call for systems not seen in the last day can take tens of seconds.
 
 Inputs:
 
@@ -154,9 +154,9 @@ The tool groups missions by station, so one visit handles all of them. It gets c
 
 Up to 12 stops, the search is exact. It meets every deadline (`expires`) at the estimated arrival time if any order can, and takes the shortest such order. If no order can, it minimises the late missions first, then the time. Above 12 stops, it uses a nearest-first order with 2-opt improvements that never add late missions. Deadline handling is then best-effort.
 
-The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
+The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
-Limits: the tool cannot see the mission board. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
 
 ## Game journal
 
@@ -171,7 +171,7 @@ Tools:
 - `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems. Run it first when journal data looks wrong.
 - `journal_commander`: commander name, credits, location, ship and cargo.
 - `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
-- `journal_missions`: active missions with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
+- `journal_missions`: accepted missions (active and complete) with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
 - `journal_engineers`: engineers with progress, rank and rank progress.
 
 `journal_commander`, `journal_materials`, `journal_missions` and `journal_engineers` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.

@@ -25,6 +25,12 @@ done in the least time and before their deadlines.
 - A mission's stop is its destination (`destination_system`,
   `destination_station`) when `active`, or its origin when `complete`.
   Missions with no stop system are listed as `unroutable` with a reason.
+  An active mission with a commodity, no destination and a known origin is a
+  `source` stop at its origin with the note "source the commodity first".
+  Stub missions (accepted before the journal window), `include` ids that match
+  no mission, and active missions past their expiry are `unroutable`.
+- Completed missions have no deadline: their expiry is ignored and they
+  never count as late.
 - System coordinates come from Spansh (`spansh_system`, cached); the station's
   arrival distance comes from the same system record (the station list). A
   stop whose system Spansh does not know is `unroutable`.
@@ -64,11 +70,11 @@ Output:
 - `start`: system and station, and the source (`journal` or `input`).
 - `stops`: in order, each with `system`, `station`, `arrive_min`
   (cumulative minutes from now), `leg_min`, `jumps`, `missions` (`id`,
-  `name`, `kind` passenger/delivery/other, `passengers`, `status`,
-  `expires`, `slack_min` or `late_min`).
+  `name`, `kind` passenger/delivery/other/source, `passengers`, `status`,
+  `reward`, `note`, `expires` (active only), `slack_min` or `late_min`).
 - `total_min`, `late` (mission ids that miss their deadline), `unroutable`
-  (with reasons), `applied_preferences`, `as_of` and `warnings` (journal
-  freshness).
+  (with reasons), `notes`, `applied_preferences`, `as_of`, `age_minutes` and
+  `warnings` (journal freshness).
 
 ## Out of scope
 
