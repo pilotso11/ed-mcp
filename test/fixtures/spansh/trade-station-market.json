@@ -1,0 +1,318 @@
+{
+  "record": {
+    "controlling_minor_faction": "Lave Radio Network",
+    "controlling_minor_faction_influence": 0.480597,
+    "distance_to_arrival": 278.280233,
+    "economies": [
+      {
+        "name": "Agriculture",
+        "share": 100.0
+      }
+    ],
+    "export_commodities": [
+      {
+        "name": "Fruit and Vegetables"
+      },
+      {
+        "name": "Coffee"
+      },
+      {
+        "name": "Tea"
+      }
+    ],
+    "government": "Corporate",
+    "has_large_pad": true,
+    "has_market": true,
+    "has_outfitting": true,
+    "has_shipyard": true,
+    "import_commodities": [
+      {
+        "name": "Biowaste"
+      },
+      {
+        "name": "Clothing"
+      },
+      {
+        "name": "Hydrogen Fuel"
+      }
+    ],
+    "is_planetary": false,
+    "large_pads": 6,
+    "market": [
+      {
+        "buy_price": 91,
+        "category": "Foods",
+        "commodity": "Algae",
+        "demand": 1,
+        "sell_price": 54,
+        "supply": 21512
+      },
+      {
+        "buy_price": 1056,
+        "category": "Foods",
+        "commodity": "Animal Meat",
+        "demand": 1,
+        "sell_price": 1003,
+        "supply": 22812
+      },
+      {
+        "buy_price": 186,
+        "category": "Legal Drugs",
+        "commodity": "Beer",
+        "demand": 1,
+        "sell_price": 154,
+        "supply": 3198
+      },
+      {
+        "buy_price": 1032,
+        "category": "Foods",
+        "commodity": "Coffee",
+        "demand": 1,
+        "sell_price": 980,
+        "supply": 149656
+      },
+      {
+        "buy_price": 435,
+        "category": "Foods",
+        "commodity": "Fish",
+        "demand": 1,
+        "sell_price": 402,
+        "supply": 4600
+      },
+      {
+        "buy_price": 227,
+        "category": "Foods",
+        "commodity": "Fruit and Vegetables",
+        "demand": 1,
+        "sell_price": 204,
+        "supply": 157280
+      },
+      {
+        "buy_price": 0,
+        "category": "Medicines",
+        "commodity": "Advanced Medicines",
+        "demand": 470850,
+        "sell_price": 1761,
+        "supply": 0
+      },
+      {
+        "buy_price": 0,
+        "category": "Medicines",
+        "commodity": "Agri-Medicines",
+        "demand": 20947,
+        "sell_price": 1615,
+        "supply": 0
+      },
+      {
+        "buy_price": 0,
+        "category": "Chemicals",
+        "commodity": "Agronomic Treatment",
+        "demand": 110013,
+        "sell_price": 3747,
+        "supply": 0
+      },
+      {
+        "buy_price": 0,
+        "category": "Technology",
+        "commodity": "Animal Monitors",
+        "demand": 64776,
+        "sell_price": 825,
+        "supply": 0
+      },
+      {
+        "buy_price": 0,
+        "category": "Machinery",
+        "commodity": "Atmospheric Processors",
+        "demand": 118219,
+        "sell_price": 938,
+        "supply": 0
+      },
+      {
+        "buy_price": 0,
+        "category": "Medicines",
+        "commodity": "Basic Medicines",
+        "demand": 186829,
+        "sell_price": 841,
+        "supply": 0
+      },
+      {
+        "buy_price": 1933,
+        "category": "Technology",
+        "commodity": "Advanced Catalysers",
+        "demand": 0,
+        "sell_price": 1913,
+        "supply": 0
+      },
+      {
+        "buy_price": 2039,
+        "category": "Foods",
+        "commodity": "Aepyornis Egg",
+        "demand": 0,
+        "is_rare": true,
+        "sell_price": 2018,
+        "supply": 0
+      }
+    ],
+    "market_id": 128106744,
+    "market_updated_at": "2026-10-13T06:26:30Z",
+    "medium_pads": 14,
+    "modules": [
+      {
+        "category": "standard",
+        "class": 1,
+        "ed_symbol": "Adder_Armour_Grade1",
+        "name": "Lightweight Alloy",
+        "rating": "I",
+        "ship": "Adder"
+      },
+      {
+        "category": "standard",
+        "class": 1,
+        "ed_symbol": "Adder_Armour_Grade2",
+        "name": "Reinforced Alloy",
+        "price": 35120,
+        "rating": "I",
+        "ship": "Adder"
+      },
+      {
+        "category": "standard",
+        "class": 1,
+        "ed_symbol": "Adder_Armour_Grade3",
+        "name": "Military Grade Composite",
+        "price": 79030,
+        "rating": "I",
+        "ship": "Adder"
+      }
+    ],
+    "name": "Lave Station",
+    "outfitting_updated_at": "2026-10-13T05:30:49Z",
+    "primary_economy": "Agriculture",
+    "services": [
+      {
+        "name": "Dock"
+      },
+      {
+        "name": "Autodock"
+      },
+      {
+        "name": "Market"
+      },
+      {
+        "name": "Contacts"
+      },
+      {
+        "name": "Universal Cartographics"
+      },
+      {
+        "name": "Missions"
+      },
+      {
+        "name": "Outfitting"
+      },
+      {
+        "name": "Crew Lounge"
+      },
+      {
+        "name": "Restock"
+      },
+      {
+        "name": "Refuel"
+      },
+      {
+        "name": "Repair"
+      },
+      {
+        "name": "Shipyard"
+      },
+      {
+        "name": "Tuning"
+      },
+      {
+        "name": "Workshop"
+      },
+      {
+        "name": "Missions Generated"
+      },
+      {
+        "name": "Flight Controller"
+      },
+      {
+        "name": "Station Operations"
+      },
+      {
+        "name": "Powerplay"
+      },
+      {
+        "name": "Search and Rescue"
+      },
+      {
+        "name": "Station Menu"
+      },
+      {
+        "name": "Shop"
+      },
+      {
+        "name": "Livery"
+      },
+      {
+        "name": "Social Space"
+      },
+      {
+        "name": "Bartender"
+      },
+      {
+        "name": "Vista Genomics"
+      },
+      {
+        "name": "Pioneer Supplies"
+      },
+      {
+        "name": "Apex Interstellar"
+      },
+      {
+        "name": "Frontline Solutions"
+      },
+      {
+        "name": "System Colonisation"
+      }
+    ],
+    "ships": [
+      {
+        "name": "Adder",
+        "price": 87810,
+        "symbol": "Adder"
+      },
+      {
+        "name": "Beluga Liner",
+        "price": 84532780,
+        "symbol": "BelugaLiner"
+      },
+      {
+        "name": "Cobra MkIV",
+        "price": 764720,
+        "symbol": "CobraMkIV"
+      }
+    ],
+    "shipyard_updated_at": "2026-10-13T05:30:49Z",
+    "small_pads": 11,
+    "system_controlling_power": "Edmund Mahon",
+    "system_id64": 633742594786,
+    "system_is_being_colonised": false,
+    "system_is_colonised": false,
+    "system_name": "Lave",
+    "system_population": 25000000000,
+    "system_power": [
+      "Edmund Mahon",
+      "Felicia Winters",
+      "Nakato Kaine"
+    ],
+    "system_power_state": "Fortified",
+    "system_primary_economy": "Agriculture",
+    "system_secondary_economy": "None",
+    "system_x": 75.75,
+    "system_y": 48.75,
+    "system_z": 70.75,
+    "type": "Coriolis Starport",
+    "updated_at": "2026-10-13T06:26:30Z"
+  }
+}
