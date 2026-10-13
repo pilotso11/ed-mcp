@@ -72,6 +72,7 @@ The server keeps these files on your machine.
 | Data                                      | Location                                                   |
 | ----------------------------------------- | ---------------------------------------------------------- |
 | Plans (`plans.json`)                      | Config directory, or the path in `ED_MCP_PLANS`            |
+| Travel preferences (`preferences.json`)   | Config directory                                           |
 | Frontier login (`capi-token.json`)        | Config directory, with `0600` permissions                  |
 | Game data (catalog) and request cache     | Cache directory                                            |
 
