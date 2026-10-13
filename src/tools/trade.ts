@@ -266,9 +266,6 @@ export function registerTradeTools(
           maxAgeDays: a.max_price_age_days,
           minStock: a.amount ?? 1,
         });
-        if (!found.stations.length) {
-          notes.push("No stations found; check the exact English commodity name");
-        }
         const ranked = rankCommodityStations(
           found.stations,
           a.mode,
@@ -277,6 +274,19 @@ export function registerTradeTools(
           now(),
           a.max_price_age_days * 24,
         );
+        const applied_preferences = describeRules(rules);
+        if (!found.stations.length) {
+          notes.push("No stations found; check the exact English commodity name");
+        } else if (!ranked.stations.length) {
+          const { travel: _travel, ...stationRules } = applied_preferences;
+          const listed = Object.entries(stationRules)
+            .map(([k, v]) => `${k}: ${String(v)}`)
+            .join(", ");
+          notes.push(
+            `Spansh found ${found.stations.length} stations, but none passed your preferences (${listed}); ` +
+              "relax them with use_preferences: false or a preferences override",
+          );
+        }
         return {
           near: found.near,
           total: found.total,
@@ -292,7 +302,7 @@ export function registerTradeTools(
             max_distance_ly: a.max_distance_ly,
             max_price_age_days: a.max_price_age_days,
           },
-          applied_preferences: describeRules(rules),
+          applied_preferences,
           notes,
         };
       },

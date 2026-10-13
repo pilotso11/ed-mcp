@@ -487,6 +487,29 @@ describe("commodity_prices", () => {
     expect(j.notes).toContain("No stations found; check the exact English commodity name");
   });
 
+  it("names the preferences when they remove every station Spansh found", async () => {
+    const { client } = commodity();
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: {
+        stations: {
+          min_pad: "L",
+          planetary: "exclude",
+          max_arrival_ls: { value: 1000, mode: "hard" },
+        },
+      },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations).toEqual([]);
+    expect(j.notes).toEqual([
+      "Spansh found 3 stations, but none passed your preferences (max_arrival_ls: 1000 ls (hard), " +
+        "planetary: exclude, fleet_carriers: exclude, megaships: allow, min_pad: L (request)); " +
+        "relax them with use_preferences: false or a preferences override",
+    ]);
+  });
+
   it("defaults near to the journal system and errors without one", async () => {
     const { client, f } = commodity();
     await callTool(await client, "commodity_prices", { commodity: "Bauxite", mode: "sell" });
