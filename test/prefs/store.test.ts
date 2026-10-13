@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PreferencesStore } from "../../src/prefs/store.js";
@@ -49,5 +49,33 @@ describe("PreferencesStore", () => {
     await expect(s.get()).rejects.toThrow(/Preferences file .* is invalid/);
     await expect(s.set({ travel: { refuel_s: 90 } })).rejects.toThrow(/is invalid/);
     expect(await readFile(file, "utf8")).toBe('{"version":1,"stations":{}}');
+  });
+
+  describe("cross-process lock", () => {
+    const lockOf = () => `${file}.lock`;
+    beforeEach(() => mkdir(path.dirname(file), { recursive: true }));
+
+    it("takes over a stale lock", async () => {
+      await writeFile(lockOf(), "");
+      const old = new Date(Date.now() - 60_000);
+      await utimes(lockOf(), old, old);
+      await new PreferencesStore(file).set({ stations: { min_pad: "M" } });
+      await expect(readFile(lockOf())).rejects.toThrow(/ENOENT/);
+    });
+
+    it("waits for a fresh lock to be released", async () => {
+      await writeFile(lockOf(), "");
+      const pending = new PreferencesStore(file).set({ stations: { min_pad: "M" } });
+      await new Promise((r) => setTimeout(r, 150));
+      await expect(readFile(file)).rejects.toThrow(/ENOENT/);
+      await rm(lockOf());
+      expect((await pending).stations.min_pad).toBe("M");
+    });
+
+    it("times out when the lock is never released", async () => {
+      await writeFile(lockOf(), "");
+      const s = new PreferencesStore(file, { lockTimeoutMs: 120 });
+      await expect(s.set({})).rejects.toThrow(/locked by another process/);
+    });
   });
 });

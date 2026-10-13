@@ -3,12 +3,22 @@ import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
+import { acquireLock } from "../fs/lock.js";
 import { applyPatch, DEFAULT_PREFS, parsePatch, PrefsSchema, type Prefs } from "./schema.js";
+
+const LOCK_TIMEOUT_MS = 5000;
 
 export class PreferencesStore {
   private queue: Promise<unknown> = Promise.resolve();
 
-  constructor(readonly file: string) {}
+  private readonly lockTimeoutMs: number;
+
+  constructor(
+    readonly file: string,
+    opts: { lockTimeoutMs?: number } = {},
+  ) {
+    this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
+  }
 
   async get(): Promise<Prefs> {
     let raw: string;
@@ -31,7 +41,8 @@ export class PreferencesStore {
     return r.data;
   }
 
-  // Serialised so concurrent patches each see the previous one's result.
+  // Serialised so concurrent patches each see the previous one's result. The lock file
+  // extends that across processes (e.g. Claude Desktop and Claude Code).
   set(patch: unknown): Promise<Prefs> {
     const run = this.queue.then(() => this.write(patch));
     this.queue = run.catch(() => undefined);
@@ -40,16 +51,25 @@ export class PreferencesStore {
 
   private async write(patch: unknown): Promise<Prefs> {
     const parsed = parsePatch(patch);
-    const next = applyPatch(await this.get(), parsed);
     await mkdir(path.dirname(this.file), { recursive: true });
-    const tmp = `${this.file}.${randomUUID()}.tmp`;
+    const release = await acquireLock(
+      this.file,
+      this.lockTimeoutMs,
+      "Preferences file is locked by another process; try again",
+    );
     try {
-      await writeFile(tmp, JSON.stringify(next, null, 2));
-      await rename(tmp, this.file);
-    } catch (err) {
-      await unlink(tmp).catch(() => undefined);
-      throw err;
+      const next = applyPatch(await this.get(), parsed);
+      const tmp = `${this.file}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(tmp, JSON.stringify(next, null, 2));
+        await rename(tmp, this.file);
+      } catch (err) {
+        await unlink(tmp).catch(() => undefined);
+        throw err;
+      }
+      return next;
+    } finally {
+      await release();
     }
-    return next;
   }
 }
