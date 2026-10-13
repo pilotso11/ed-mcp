@@ -28,6 +28,15 @@ describe("loadConfig", () => {
     );
   });
 
+  it("treats a blank or placeholder ED_JOURNAL_DIR as unset", () => {
+    for (const v of ["", "  ", "${user_config.ed_journal_dir}"]) {
+      expect(loadConfig({ ED_JOURNAL_DIR: v }, dirs, "darwin").journalDir).toBeUndefined();
+      expect(loadConfig({ ED_JOURNAL_DIR: v }, dirs, "win32").journalDir).toMatch(
+        /Saved Games.Frontier Developments.Elite Dangerous$/,
+      );
+    }
+  });
+
   it("reads Inara config with defaults", () => {
     const c = loadConfig({ INARA_API_KEY: "k", INARA_CMDR: "Jameson" }, dirs);
     expect(c.inara).toEqual({ apiKey: "k", cmdr: "Jameson", appName: "ed-mcp", devMode: true });

@@ -15,6 +15,10 @@ export interface JournalStatus {
   warnings: string[];
 }
 
+function errText(err: unknown): string {
+  return (err as NodeJS.ErrnoException).code ?? (err as Error).message ?? String(err);
+}
+
 export const STALE_MS = 30 * 60_000;
 
 export class JournalService {
@@ -34,19 +38,30 @@ export class JournalService {
     return this.dir;
   }
 
-  protected async files(): Promise<JournalFile[] | null> {
+  protected async files(): Promise<{ files: JournalFile[]; error?: string } | { missing: string }> {
     const dir = this.requireDir();
     try {
-      if (!(await stat(dir)).isDirectory()) return null;
-    } catch {
-      return null;
+      if (!(await stat(dir)).isDirectory()) return { missing: `Journal folder not found: ${dir}` };
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      return {
+        missing:
+          code === undefined || code === "ENOENT"
+            ? `Journal folder not found: ${dir}. Set ED_JOURNAL_DIR to the journal folder (on a Mac, the Syncthing copy).`
+            : `Cannot access journal folder ${dir}: ${code}`,
+      };
     }
-    return listJournals(dir);
+    try {
+      return { files: await listJournals(dir) };
+    } catch (err) {
+      return { files: [], error: `Cannot read journal folder ${dir}: ${errText(err)}` };
+    }
   }
 
   async status(): Promise<JournalStatus> {
     const dir = this.requireDir();
-    const files = await this.files();
+    const found = await this.files();
+    const files = "files" in found ? found.files : null;
     const base: JournalStatus = {
       dir,
       exists: files !== null,
@@ -58,29 +73,45 @@ export class JournalService {
       game_version: null,
       warnings: [],
     };
-    if (files === null) {
-      base.warnings.push(
-        `Journal folder not found: ${dir}. Set ED_JOURNAL_DIR to the journal folder (on a Mac, the Syncthing copy).`,
-      );
+    if (!("files" in found)) {
+      base.warnings.push(found.missing);
       return base;
     }
-    const newest = files.at(-1);
+    if (found.error) {
+      base.warnings.push(found.error);
+      return base;
+    }
+    const newest = found.files.at(-1);
     if (!newest) {
       base.warnings.push(
         `No journal files in ${dir}. Play the game once, or check that Syncthing has synced the folder.`,
       );
       return base;
     }
-    const events = await this.reader.read(newest);
-    const last = events.at(-1);
     base.newest_file = newest.name;
-    base.newest_event = last?.timestamp ?? null;
+    let events;
+    try {
+      events = await this.reader.read(newest);
+    } catch (err) {
+      base.warnings.push(`Cannot read ${newest.name}: ${errText(err)}`);
+      return base;
+    }
+    const last = events.at(-1);
+    if (!last) {
+      base.warnings.push(`The newest journal ${newest.name} has no readable events yet.`);
+      return base;
+    }
+    base.newest_event = last.timestamp;
     base.commander =
       (events.findLast((e) => e.event === "Commander")?.Name as string | undefined) ?? null;
     base.game_version =
       (events.find((e) => e.event === "Fileheader")?.gameversion as string | undefined) ?? null;
-    if (last) {
-      const age = this.now() - Date.parse(last.timestamp);
+    const age = this.now() - Date.parse(last.timestamp);
+    if (Number.isNaN(age)) {
+      base.warnings.push(
+        `The last event in ${newest.name} has an unreadable timestamp: ${last.timestamp}`,
+      );
+    } else {
       base.age_minutes = Math.round(age / 60_000);
       if (age > STALE_MS) {
         base.warnings.push(

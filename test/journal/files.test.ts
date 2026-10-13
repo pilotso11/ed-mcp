@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { listJournals, parseJournalName } from "../../src/journal/files.js";
@@ -35,5 +35,16 @@ describe("listJournals", () => {
       "Journal.2026-10-12T183456.01.log",
       "Journal.2026-10-12T183456.02.log",
     ]);
+  });
+
+  it("breaks name-time and part ties by file mtime", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jties-"));
+    const a = "Journal.2026-10-12T183456.01.log";
+    const b = "Journal.261012183456.01.log";
+    await writeFile(path.join(dir, a), "");
+    await writeFile(path.join(dir, b), "");
+    await utimes(path.join(dir, a), new Date(2000), new Date(2000));
+    await utimes(path.join(dir, b), new Date(1000), new Date(1000));
+    expect((await listJournals(dir)).map((f) => f.name)).toEqual([b, a]);
   });
 });
