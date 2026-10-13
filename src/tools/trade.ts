@@ -91,6 +91,9 @@ export function registerTradeTools(
         const notes: string[] = [];
         const state = await journalState(notes);
 
+        if (!a.from_system !== !a.from_station) {
+          throw new UserError("Give both from_system and from_station");
+        }
         let system = a.from_system;
         let station = a.from_station;
         if (!system && !station && state?.location.docked) {

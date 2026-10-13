@@ -207,11 +207,15 @@ describe("trade_route", () => {
     expect(forms).toEqual([]);
   });
 
-  it("needs both from_system and from_station", async () => {
-    const { r } = await trade({ from_system: "Sol" }, { noJournal: true });
-    expect(r.isError).toBe(true);
-    expect(r.text).toBe("Give from_system and from_station, or dock first");
-  });
+  it.each([{ from_system: "Sol" }, { from_station: "Abraham Lincoln" }])(
+    "needs both from_system and from_station when one is given: %o",
+    async (args) => {
+      const { r, forms } = await trade(args);
+      expect(r.isError).toBe(true);
+      expect(r.text).toBe("Give both from_system and from_station");
+      expect(forms).toEqual([]);
+    },
+  );
 });
 
 const C_NOW = Date.parse("2026-10-13T06:35:18Z");
