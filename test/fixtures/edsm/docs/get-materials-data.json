@@ -1,0 +1,11 @@
+{
+  "msgnum": 100,
+  "msg": "OK",
+  "data": [
+    {
+      "type": "shieldpatternanalysis",
+      "name": "Aberrant Shield Pattern Analysis",
+      "qty": 4
+    }
+  ]
+}

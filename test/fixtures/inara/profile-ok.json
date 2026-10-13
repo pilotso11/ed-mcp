@@ -1,0 +1,37 @@
+{
+  "header": { "eventStatus": 200, "eventData": { "userID": 1, "userName": "Artie" } },
+  "events": [
+    {
+      "eventCustomID": 1,
+      "eventStatus": 200,
+      "eventData": {
+        "userID": 1,
+        "userName": "Artie",
+        "commanderName": "Artie",
+        "commanderRanksPilot": [
+          { "rankName": "combat", "rankValue": 7, "rankProgress": 0.4 },
+          { "rankName": "trade", "rankValue": 8, "rankProgress": 1 },
+          { "rankName": "exploration", "rankValue": 6, "rankProgress": 0.11 },
+          { "rankName": "cqc", "rankValue": 2, "rankProgress": 0.09 },
+          { "rankName": "empire", "rankValue": 12, "rankProgress": 0.17 },
+          { "rankName": "federation", "rankValue": 11, "rankProgress": 0.65 }
+        ],
+        "preferredAllegianceName": "Independent",
+        "preferredPowerName": "Felicia Winters",
+        "commanderMainShip": { "shipType": "federation_corvette", "shipName": "Spectre", "shipIdent": "X-0QAR", "shipRole": "" },
+        "commanderSquadron": {
+          "SquadronID": 5,
+          "SquadronName": "Inara Test Wing",
+          "SquadronMembersCount": 8,
+          "SquadronMemberRank": "Squadron commander",
+          "inaraURL": "https://inara.cz/squadron/5/"
+        },
+        "preferredGameRole": "Freelancer",
+        "avatarImageURL": "https://inara.cz/data/users/0/1x1548.jpg",
+        "inaraURL": "https://inara.cz/cmdr/1/",
+        "dataImportActive": false,
+        "otherNamesFound": ["Artiex2", "Artieblahblah"]
+      }
+    }
+  ]
+}

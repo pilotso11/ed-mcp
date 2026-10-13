@@ -1,0 +1,532 @@
+{
+  "count": 5404,
+  "from": 3,
+  "reference": {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "results": [
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Mother Gaia",
+      "controlling_minor_faction_influence": 0.315015,
+      "distance": 0.0,
+      "distance_to_arrival": 230.739009,
+      "economies": [
+        {
+          "name": "Refinery",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Copper"
+        },
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Synthetic Fabrics"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128016384",
+      "import_commodities": [
+        {
+          "name": "Methane Clathrate"
+        },
+        {
+          "name": "Mineral Oil"
+        },
+        {
+          "name": "Hydrogen Peroxide"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 2855292,
+          "sell_price": 3501,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 220310,
+          "sell_price": 1727,
+          "supply": 0
+        },
+        {
+          "buy_price": 2146,
+          "category": "Foods",
+          "commodity": "Aepyornis Egg",
+          "demand": 0,
+          "is_rare": true,
+          "sell_price": 2124,
+          "supply": 0
+        }
+      ],
+      "market_id": 128016384,
+      "market_updated_at": "2026-10-11T19:48:24Z",
+      "medium_pads": 13,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Daedalus",
+      "outfitting_updated_at": "2026-10-11T19:22:51Z",
+      "primary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Python MkII",
+          "price": 67527360,
+          "symbol": "Python_NX"
+        },
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T19:22:48Z",
+      "small_pads": 10,
+      "state": "UnderRepairs",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 10477373803,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Sol",
+      "system_population": 18320926115,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Service",
+      "system_x": 0.0,
+      "system_y": 0.0,
+      "system_z": 0.0,
+      "type": "Orbis Starport",
+      "updated_at": "2026-10-11T19:48:24Z"
+    },
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Mother Gaia",
+      "controlling_minor_faction_influence": 0.315015,
+      "distance": 0.0,
+      "distance_to_arrival": 504.310525,
+      "economies": [
+        {
+          "name": "Service",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Biowaste"
+        },
+        {
+          "name": "Agronomic Treatment"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128017152",
+      "import_commodities": [
+        {
+          "name": "Silver"
+        },
+        {
+          "name": "Grain"
+        },
+        {
+          "name": "Clothing"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 197051,
+          "sell_price": 1727,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 1842,
+          "sell_price": 3702,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Foods",
+          "commodity": "Animal Meat",
+          "demand": 169704,
+          "sell_price": 1891,
+          "supply": 0
+        }
+      ],
+      "market_id": 128017152,
+      "market_updated_at": "2026-10-11T19:23:34Z",
+      "medium_pads": 13,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 757900,
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 1705290,
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        }
+      ],
+      "name": "M.Gorbachev",
+      "outfitting_updated_at": "2026-10-11T20:18:07Z",
+      "primary_economy": "Service",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Python MkII",
+          "price": 67527360,
+          "symbol": "Python_NX"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T20:11:50Z",
+      "small_pads": 8,
+      "state": "UnderRepairs",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 10477373803,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Sol",
+      "system_population": 18320926115,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Service",
+      "system_x": 0.0,
+      "system_y": 0.0,
+      "system_z": 0.0,
+      "type": "Orbis Starport",
+      "updated_at": "2026-10-11T20:19:04Z"
+    },
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "Federal Congress",
+      "controlling_minor_faction_influence": 0.167812,
+      "controlling_minor_faction_state": "Civil Liberty",
+      "distance": 0.0,
+      "distance_to_arrival": 504.309063,
+      "economies": [
+        {
+          "name": "Service",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Biowaste"
+        },
+        {
+          "name": "Agronomic Treatment"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128017408",
+      "import_commodities": [
+        {
+          "name": "Silver"
+        },
+        {
+          "name": "Grain"
+        },
+        {
+          "name": "Clothing"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 363986,
+          "sell_price": 1673,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 2437,
+          "sell_price": 7403,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Foods",
+          "commodity": "Animal Meat",
+          "demand": 310104,
+          "sell_price": 1836,
+          "supply": 0
+        }
+      ],
+      "market_id": 128017408,
+      "market_updated_at": "2026-10-11T19:34:56Z",
+      "medium_pads": 11,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 757900,
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "DiamondBackXL_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 1705290,
+          "rating": "I",
+          "ship": "Diamondback Explorer"
+        }
+      ],
+      "name": "Li Qing Jao",
+      "outfitting_updated_at": "2026-10-11T19:34:56Z",
+      "primary_economy": "Service",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Python MkII",
+          "price": 67527360,
+          "symbol": "Python_NX"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T19:34:56Z",
+      "small_pads": 6,
+      "state": "UnderRepairs",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 10477373803,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Sol",
+      "system_population": 18320926115,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Service",
+      "system_x": 0.0,
+      "system_y": 0.0,
+      "system_z": 0.0,
+      "type": "Orbis Starport",
+      "updated_at": "2026-10-11T19:34:56Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "distance": {
+        "max": 100,
+        "min": 0
+      },
+      "ships": [
+        {
+          "name": {
+            "value": [
+              "Python MkII"
+            ]
+          }
+        }
+      ]
+    },
+    "page": 1,
+    "reference_system": "Sol",
+    "reference_system_details": {
+      "id64": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "FBDE03FC-C5B7-11F1-A8CC-E887BF4D7316",
+  "size": 3
+}

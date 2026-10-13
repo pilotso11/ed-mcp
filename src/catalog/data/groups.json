@@ -1,0 +1,329 @@
+{
+  "abl": [
+    "Abrasion Blaster",
+    "Far-Reaching Abrasion Blaster"
+  ],
+  "advmc": [
+    "Advanced Multi-Cannon"
+  ],
+  "am": [
+    "Auto Field-Maintenance Unit"
+  ],
+  "amr": [
+    "Advanced Missile Rack"
+  ],
+  "axmc": [
+    "AX Multi-Cannon"
+  ],
+  "axmce": [
+    "Enhanced AX Multi-Cannon"
+  ],
+  "axmr": [
+    "AX Missile Rack"
+  ],
+  "axmre": [
+    "Enhanced AX Missile Rack"
+  ],
+  "bl": [
+    "Beam Laser",
+    "Overloaded Beam Laser",
+    "Retributor Beam Laser"
+  ],
+  "bsg": [
+    "Bi-Weave Shield Generator"
+  ],
+  "c": [
+    "Cannon",
+    "Concord Cannon",
+    "Force Impact Cannon"
+  ],
+  "cc": [
+    "Collector Limpet Controller"
+  ],
+  "ch": [
+    "Chaff Launcher"
+  ],
+  "cr": [
+    "Cargo Rack",
+    "Corrosion Resistant",
+    "Corrosion Resistant Cargo Rack",
+    "Extended Cargo Rack"
+  ],
+  "crl": [
+    "Mk II Cargo Rack"
+  ],
+  "cs": [
+    "Cargo Scanner"
+  ],
+  "csl": [
+    "Caustic Sink Launcher"
+  ],
+  "dc": [
+    "Advanced Docking Computer",
+    "Standard Docking Computer"
+  ],
+  "dtl": [
+    "Decontamination Limpet Controller"
+  ],
+  "ec": [
+    "Electronic Countermeasure"
+  ],
+  "ews": [
+    "Experimental Weapon Stabiliser"
+  ],
+  "fc": [
+    "Double Screaming Fragment Cannon",
+    "Fragment Cannon",
+    "Pacifier Frag-Cannon"
+  ],
+  "fh": [
+    "Vessel Hangar"
+  ],
+  "fhmkii": [
+    "Mk II Vessel Hangar"
+  ],
+  "fi": [
+    "Frame Shift Drive Interdictor"
+  ],
+  "fs": [
+    "Fuel Scoop"
+  ],
+  "fsd": [
+    "Frame Shift Drive",
+    "Frame Shift Drive (SCO)",
+    "Mk II Supercharge Optimised Frame Shift Drive (SCO)",
+    "Unrecognised Frame Shift Drive"
+  ],
+  "ft": [
+    "Fuel Tank"
+  ],
+  "fx": [
+    "Fuel Transfer Limpet Controller"
+  ],
+  "gfsb": [
+    "Guardian FSD Booster"
+  ],
+  "ggc": [
+    "Guardian Gauss Cannon"
+  ],
+  "ghrp": [
+    "Guardian Hull Reinforcement"
+  ],
+  "gmrp": [
+    "Guardian Module Reinforcement"
+  ],
+  "gpc": [
+    "Guardian Plasma Charger"
+  ],
+  "gsc": [
+    "Guardian Shard Cannon"
+  ],
+  "gsrp": [
+    "Guardian Shield Reinforcement"
+  ],
+  "hb": [
+    "Hatch Breaker Limpet Controller"
+  ],
+  "hr": [
+    "Hull Reinforcement Package"
+  ],
+  "hs": [
+    "Heat Sink Launcher"
+  ],
+  "kw": [
+    "Kill Warrant Scanner"
+  ],
+  "ls": [
+    "Life Support"
+  ],
+  "mahr": [
+    "Meta Alloy Hull Reinforcement"
+  ],
+  "mc": [
+    "Enforcer Cannon",
+    "Multi-Cannon",
+    "Rapid Phase Multi-Cannon"
+  ],
+  "mh": [
+    "Unrecognised Utility",
+    "Unrecognised Weapon"
+  ],
+  "ml": [
+    "Long Range Mining Laser",
+    "Mining Lance",
+    "Mining Laser"
+  ],
+  "mlc": [
+    "Mining Multi Limpet Controller",
+    "Mk II Mining Multi-Limpet Controller",
+    "Operations Multi Limpet Controller",
+    "Rescue Multi Limpet Controller",
+    "Universal Multi Limpet Controller",
+    "Xeno Multi Limpet Controller"
+  ],
+  "mm": [
+    "Unrecognised Module"
+  ],
+  "mr": [
+    "Exposing Missiles",
+    "Lockdown Seeker Missile Rack",
+    "Missile Rack",
+    "Pack-Hound Missile Rack",
+    "Rocket Propelled FSD Disruptor",
+    "Seeker Missile Rack"
+  ],
+  "mrp": [
+    "Heavy Duty Module Reinforcement Package",
+    "Module Reinforcement Package"
+  ],
+  "mvr": [
+    "Mining Volley Repeater"
+  ],
+  "nl": [
+    "Mine Launcher",
+    "Shock Mine Launcher"
+  ],
+  "ntp": [
+    "Guardian Nanite Torpedo Pylon"
+  ],
+  "pa": [
+    "Advanced Plasma Accelerator",
+    "Mk II Plasma Shock Accelerator",
+    "Plasma Accelerator"
+  ],
+  "pas": [
+    "Advanced Planetary Approach Suite",
+    "Planetary Approach Suite"
+  ],
+  "pc": [
+    "Prospector Limpet Controller"
+  ],
+  "pce": [
+    "Economy Class Passenger Cabin"
+  ],
+  "pcemkii": [
+    "MkII Economy Class Passenger Cabin"
+  ],
+  "pci": [
+    "Business Class Passenger Cabin"
+  ],
+  "pcimkii": [
+    "MkII Business Class Passenger Cabin"
+  ],
+  "pcm": [
+    "First Class Passenger Cabin"
+  ],
+  "pcq": [
+    "Luxury Class Passenger Cabin"
+  ],
+  "pd": [
+    "Balanced Power Distributor",
+    "Guardian Hybrid Power Distributor",
+    "Power Distributor",
+    "Support Focused Power Distributor",
+    "Unrecognised Power Distributor"
+  ],
+  "pl": [
+    "Pulse Disruptor Laser",
+    "Pulse Laser"
+  ],
+  "po": [
+    "Point Defence"
+  ],
+  "pp": [
+    "Guardian Hybrid Power Plant",
+    "Power Plant",
+    "Unrecognised Power Plant"
+  ],
+  "psg": [
+    "Prismatic Shield Generator"
+  ],
+  "pv": [
+    "Large Planetary Vehicle Hangar",
+    "Mk II Large Planetary Vehicle Hangar",
+    "Planetary Vehicle Hangar"
+  ],
+  "pwa": [
+    "Pulse Wave Analyser"
+  ],
+  "rcpl": [
+    "Recon Limpet Controller"
+  ],
+  "rf": [
+    "Refinery"
+  ],
+  "rfl": [
+    "Remote Release Flak Launcher"
+  ],
+  "rg": [
+    "Enduring Feedback Rail Gun",
+    "Imperial Hammer Rail Gun",
+    "Rail Gun"
+  ],
+  "rpl": [
+    "Repair Limpet Controller"
+  ],
+  "rsl": [
+    "Research Limpet Controller"
+  ],
+  "s": [
+    "Sensors"
+  ],
+  "sb": [
+    "Shield Booster"
+  ],
+  "scb": [
+    "Shield Cell Bank"
+  ],
+  "scl": [
+    "Seismic Charge Launcher"
+  ],
+  "sdm": [
+    "Sub-Surface Displacement Missile",
+    "Sub-Surface Extraction Missile"
+  ],
+  "sfn": [
+    "Shutdown Field Neutraliser",
+    "Thargoid Pulse Neutraliser"
+  ],
+  "sg": [
+    "Shield Generator"
+  ],
+  "ss": [
+    "Long Range Detailed Surface Scanner"
+  ],
+  "sua": [
+    "Supercruise Assist"
+  ],
+  "t": [
+    "Enhanced Performance Thrusters",
+    "Mk II Agile Boost Thrusters",
+    "Mk II Gravity Optimised Thrusters",
+    "Thrusters"
+  ],
+  "tbem": [
+    "High-Yield Enzyme Missile Rack"
+  ],
+  "tbrfl": [
+    "Remote Release Flechette Launcher"
+  ],
+  "tbsc": [
+    "Shock Cannon"
+  ],
+  "tp": [
+    "Torpedo Pylon"
+  ],
+  "ul": [
+    "Burst Laser",
+    "Cytoscrambler Burst Laser",
+    "Regenerative Burst Laser"
+  ],
+  "ws": [
+    "Frame Shift Wake Scanner"
+  ],
+  "xs": [
+    "Enhanced Xeno Scanner",
+    "Pulse Wave Xeno Scanner",
+    "Xeno Scanner"
+  ]
+}

@@ -1,0 +1,519 @@
+{
+  "count": 2013,
+  "from": 0,
+  "results": [
+    {
+      "allegiance": "Federation",
+      "controlling_minor_faction": "LTT 4846 Universal & Co",
+      "controlling_minor_faction_influence": 0.687437,
+      "controlling_minor_faction_state": "Boom",
+      "distance": 27.655420185291,
+      "distance_to_arrival": 147.91877,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 80.0
+        },
+        {
+          "name": "Refinery",
+          "share": 20.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Marine Equipment"
+        },
+        {
+          "name": "Geological Equipment"
+        },
+        {
+          "name": "Hydrogen Fuel"
+        }
+      ],
+      "government": "Corporate",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228808960",
+      "import_commodities": [
+        {
+          "name": "Synthetic Fabrics"
+        },
+        {
+          "name": "Leather"
+        },
+        {
+          "name": "Ceramic Composites"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 9,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 137776,
+          "sell_price": 3495,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 35451,
+          "sell_price": 1705,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 239,
+          "sell_price": 6394,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228808960,
+      "market_updated_at": "2026-10-11T06:20:49Z",
+      "medium_pads": 18,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Asp_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Asp Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Asp_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 2664460,
+          "rating": "I",
+          "ship": "Asp Explorer"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Asp_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 5995040,
+          "rating": "I",
+          "ship": "Asp Explorer"
+        }
+      ],
+      "name": "Mullane Port",
+      "outfitting_updated_at": "2026-10-11T06:20:50Z",
+      "primary_economy": "Industrial",
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Technology Broker"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Asp Explorer",
+          "price": 6661150,
+          "symbol": "Asp"
+        },
+        {
+          "name": "Cobra MkIII",
+          "price": 349720,
+          "symbol": "CobraMkIII"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T06:20:50Z",
+      "small_pads": 17,
+      "system_controlling_power": "Edmund Mahon",
+      "system_id64": 7268561069489,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "LTT 4846",
+      "system_population": 15282448,
+      "system_power": [
+        "A. Lavigny-Duval",
+        "Aisling Duval",
+        "Denton Patreus"
+      ],
+      "system_power_state": "Exploited",
+      "system_primary_economy": "Industrial",
+      "system_secondary_economy": "Refinery",
+      "system_x": 47.84375,
+      "system_y": -8.75,
+      "system_z": 30.125,
+      "technology_broker": "Human",
+      "type": "Ocellus Starport",
+      "updated_at": "2026-10-11T06:20:50Z"
+    },
+    {
+      "controlling_minor_faction": "Sidewinder Syndicate",
+      "controlling_minor_faction_influence": 0.554,
+      "distance": 28.2794025639687,
+      "distance_to_arrival": 3834.418041,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 80.0
+        },
+        {
+          "name": "Refinery",
+          "share": 20.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Food Cartridges"
+        },
+        {
+          "name": "Marine Equipment"
+        },
+        {
+          "name": "Geological Equipment"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228498688",
+      "import_commodities": [
+        {
+          "name": "Synthetic Fabrics"
+        },
+        {
+          "name": "Leather"
+        },
+        {
+          "name": "Polymers"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 9,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 115155,
+          "sell_price": 3546,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 29520,
+          "sell_price": 1761,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 278,
+          "sell_price": 3552,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228498688,
+      "market_updated_at": "2026-10-08T02:37:50Z",
+      "medium_pads": 18,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Anaconda_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Anaconda"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Anaconda_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 58787780,
+          "rating": "I",
+          "ship": "Anaconda"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Anaconda_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 132272510,
+          "rating": "I",
+          "ship": "Anaconda"
+        }
+      ],
+      "name": "Pogue Hub",
+      "outfitting_updated_at": "2026-10-09T11:15:31Z",
+      "primary_economy": "Industrial",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Technology Broker"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Anaconda",
+          "price": 146969450,
+          "symbol": "Anaconda"
+        },
+        {
+          "name": "Asp Explorer",
+          "price": 6661150,
+          "symbol": "Asp"
+        },
+        {
+          "name": "Cobra MkIII",
+          "price": 349720,
+          "symbol": "CobraMkIII"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-08T02:37:50Z",
+      "small_pads": 17,
+      "system_controlling_power": "Felicia Winters",
+      "system_id64": 4442900400491,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Kokoto",
+      "system_population": 17354128,
+      "system_power": [
+        "Edmund Mahon",
+        "Felicia Winters",
+        "Yuri Grom"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Industrial",
+      "system_secondary_economy": "Refinery",
+      "system_x": 39.15625,
+      "system_y": 40.5,
+      "system_z": 28.0,
+      "technology_broker": "Human",
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-09T11:15:31Z"
+    },
+    {
+      "allegiance": "Empire",
+      "controlling_minor_faction": "Imperial Enforcement Division",
+      "controlling_minor_faction_influence": 0.619335,
+      "controlling_minor_faction_state": "Election",
+      "distance": 30.5088038011162,
+      "distance_to_arrival": 341.348405,
+      "economies": [
+        {
+          "name": "Extraction",
+          "share": 23.0
+        },
+        {
+          "name": "Industrial",
+          "share": 77.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Food Cartridges"
+        },
+        {
+          "name": "Water Purifiers"
+        },
+        {
+          "name": "Crop Harvesters"
+        }
+      ],
+      "government": "Patronage",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3228620544",
+      "import_commodities": [
+        {
+          "name": "Algae"
+        },
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Semiconductors"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 9,
+      "market": [
+        {
+          "buy_price": 1912,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 0,
+          "sell_price": 1902,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 20958,
+          "sell_price": 1774,
+          "supply": 0
+        },
+        {
+          "buy_price": 2135,
+          "category": "Foods",
+          "commodity": "Aepyornis Egg",
+          "demand": 0,
+          "is_rare": true,
+          "sell_price": 2124,
+          "supply": 0
+        }
+      ],
+      "market_id": 3228620544,
+      "market_updated_at": "2026-10-11T12:10:04Z",
+      "medium_pads": 18,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Sturckow Orbital",
+      "outfitting_updated_at": "2026-10-11T12:07:03Z",
+      "primary_economy": "Industrial",
+      "secondary_economy": "Extraction",
+      "services": [
+        {
+          "name": "Technology Broker"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkIII",
+          "price": 349720,
+          "symbol": "CobraMkIII"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T12:07:03Z",
+      "small_pads": 17,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Felicia Winters",
+      "system_id64": 7505690235610,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Lesheima",
+      "system_population": 19275935,
+      "system_power": [
+        "A. Lavigny-Duval",
+        "Aisling Duval",
+        "Denton Patreus"
+      ],
+      "system_power_state": "Fortified",
+      "system_primary_economy": "Industrial",
+      "system_secondary_economy": "Extraction",
+      "system_x": 81.625,
+      "system_y": 3.15625,
+      "system_z": 20.0,
+      "technology_broker": "Human",
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-11T12:10:04Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "technology_broker": {
+        "value": [
+          "Human"
+        ]
+      }
+    },
+    "page": 0,
+    "reference_coords": {
+      "x": 55.71875,
+      "y": 17.59375,
+      "z": 27.15625
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "5813EA2E-C5B8-11F1-A8CC-E887BF4D7316",
+  "size": 3
+}

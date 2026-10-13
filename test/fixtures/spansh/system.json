@@ -1,0 +1,176 @@
+{
+  "record": {
+    "allegiance": "Pilots Federation",
+    "bodies": [
+      {
+        "distance_to_arrival": 0.0,
+        "estimated_mapping_value": 4591,
+        "estimated_scan_value": 1211,
+        "id": 36032729296442074,
+        "id64": 36032729296442074,
+        "is_main_star": true,
+        "name": "Shinrarta Dezhra",
+        "subtype": "K (Yellow-Orange) Star",
+        "type": "Star"
+      },
+      {
+        "distance_to_arrival": 1477.48616,
+        "estimated_mapping_value": 4578,
+        "estimated_scan_value": 1207,
+        "id": 72061526315406042,
+        "id64": 72061526315406042,
+        "is_main_star": null,
+        "name": "LTT 4550",
+        "subtype": "M (Red dwarf) Star",
+        "type": "Star"
+      },
+      {
+        "distance_to_arrival": 40.453042,
+        "estimated_mapping_value": 53947,
+        "estimated_scan_value": 14848,
+        "id": 396320699486081754,
+        "id64": 396320699486081754,
+        "is_main_star": null,
+        "landmark_value": 0,
+        "landmarks": [
+          {
+            "count": 1,
+            "subtype": "Crater Outpost",
+            "type": "Surface Station",
+            "value": 0
+          },
+          {
+            "count": 3,
+            "subtype": "Surface Station",
+            "type": "Surface Station",
+            "value": 0
+          },
+          {
+            "count": 1,
+            "subtype": "Tourist Beacon",
+            "type": "Tourist Beacon",
+            "value": 0
+          }
+        ],
+        "name": "Shinrarta Dezhra A 1",
+        "subtype": "High metal content world",
+        "terraforming_state": "Not terraformable",
+        "type": "Planet"
+      }
+    ],
+    "body_count": 39,
+    "controlling_minor_faction": "Pilots' Federation Local Branch",
+    "estimated_mapping_value": 1360945,
+    "estimated_scan_value": 371303,
+    "government": "Democracy",
+    "id64": 3932277478106,
+    "is_being_colonised": false,
+    "is_colonised": false,
+    "known_permit": true,
+    "landmark_value": 4000000,
+    "minor_faction_presences": [
+      {
+        "active_states": [
+          "Boom",
+          "Civil Liberty"
+        ],
+        "allegiance": "Federation",
+        "government": "Democracy",
+        "influence": 0.313686,
+        "name": "Future of Arro Naga",
+        "state": "Boom"
+      },
+      {
+        "allegiance": "Federation",
+        "government": "Corporate",
+        "influence": 0.185814,
+        "name": "LTT 4487 Industry",
+        "state": "None"
+      },
+      {
+        "active_states": [
+          "Boom"
+        ],
+        "allegiance": "Independent",
+        "government": "Prison Colony",
+        "influence": 0.210789,
+        "name": "Los Chupacabras",
+        "state": "Boom"
+      }
+    ],
+    "name": "Shinrarta Dezhra",
+    "needs_permit": true,
+    "population": 85287324,
+    "primary_economy": "High Tech",
+    "region": "Inner Orion Spur",
+    "secondary_economy": "Industrial",
+    "security": "High",
+    "stations": [
+      {
+        "controlling_minor_faction": "Pilots' Federation Local Branch",
+        "distance_to_arrival": 331.085779,
+        "has_large_pad": true,
+        "has_market": true,
+        "has_outfitting": true,
+        "has_shipyard": true,
+        "large_pads": 9,
+        "market_id": 128666762,
+        "medium_pads": 18,
+        "name": "Jameson Memorial",
+        "services": [
+          "Dock",
+          "Autodock",
+          "Market"
+        ],
+        "small_pads": 17,
+        "type": "Orbis Starport"
+      },
+      {
+        "controlling_minor_faction": "Lori Jameson",
+        "distance_to_arrival": 40.450694,
+        "has_large_pad": true,
+        "has_market": true,
+        "has_outfitting": true,
+        "large_pads": 3,
+        "market_id": 128679815,
+        "medium_pads": 3,
+        "name": "Jameson Base",
+        "services": [
+          "Dock",
+          "Autodock",
+          "Market"
+        ],
+        "small_pads": 2,
+        "type": "Planetary Outpost"
+      },
+      {
+        "controlling_minor_faction": "The Dark Wheel",
+        "distance_to_arrival": 40.453042,
+        "has_large_pad": false,
+        "market_id": 3534249216,
+        "name": "Nixon Enterprise"
+      }
+    ],
+    "synthesis_recipes": [
+      {
+        "level": "Premium",
+        "name": "AFM Refill"
+      },
+      {
+        "level": "Standard",
+        "name": "AFM Refill"
+      },
+      {
+        "level": "Basic",
+        "name": "AFM Refill"
+      }
+    ],
+    "thargoid_war_failure_state": "None",
+    "thargoid_war_state": "None",
+    "thargoid_war_success_state": "None",
+    "updated_at": "2026-10-11T21:09:48Z",
+    "x": 55.71875,
+    "y": 17.59375,
+    "z": 27.15625
+  }
+}

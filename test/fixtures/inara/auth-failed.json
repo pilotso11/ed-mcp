@@ -1,0 +1,4 @@
+{
+  "header": { "eventStatus": 400, "eventStatusText": "Invalid API key." },
+  "events": []
+}

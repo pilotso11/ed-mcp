@@ -1,4 +1,4 @@
-# inara-mcp design
+# ed-mcp design
 
 Date: 2026-10-11
 Status: draft, awaiting review
@@ -15,16 +15,16 @@ Paths come from `env-paths` (with `suffix: ''`) so they follow each OS:
 
 | Data | Source | macOS | Windows |
 |---|---|---|---|
-| Plans | `envPaths('inara-mcp').config` | `~/Library/Preferences/inara-mcp` | `%AppData%\inara-mcp\Config` |
-| Catalog cache | `envPaths('inara-mcp').cache` | `~/Library/Caches/inara-mcp` | `%LocalAppData%\inara-mcp\Cache` |
-| CAPI refresh token | `@napi-rs/keyring` | Keychain | Credential Manager |
+| Plans | `envPaths('ed-mcp').config` | `~/Library/Preferences/ed-mcp` | `%AppData%\ed-mcp\Config` |
+| Catalog cache | `envPaths('ed-mcp').cache` | `~/Library/Caches/ed-mcp` | `%LocalAppData%\ed-mcp\Cache` |
+| CAPI refresh token | `capi-token.json` in `envPaths('ed-mcp').config`, mode 0600 | `~/Library/Preferences/ed-mcp` | `%AppData%\ed-mcp\Config` |
 
 ## Distribution
 
 | Channel | For | How |
 |---|---|---|
-| npm package `inara-mcp` | Claude Code and other MCP clients | `npx -y inara-mcp` in the client's MCP config. Needs Node 20 or later |
-| Claude Desktop extension (`inara-mcp.mcpb`) | Claude Desktop users | Built in CI and attached to each GitHub Release. Claude Desktop runs it with its bundled Node, so users install nothing else |
+| npm package `ed-mcp` | Claude Code and other MCP clients | `npx -y ed-mcp` in the client's MCP config. Needs Node 22 or later |
+| Claude Desktop extension (`ed-mcp.mcpb`) | Claude Desktop users | Built in CI and attached to each GitHub Release. Claude Desktop runs it with its bundled Node, so users install nothing else |
 
 The `.mcpb` manifest declares the config below as `user_config` fields. API
 keys are marked `sensitive`, so Claude Desktop stores them in the OS keychain
@@ -85,7 +85,7 @@ Out of scope:
 
 ## Architecture
 
-Stack: TypeScript (strict), ESM, Node 20 or later,
+Stack: TypeScript (strict), ESM, Node 22 or later (Node 20 reached end of life in April 2026),
 `@modelcontextprotocol/sdk` with stdio transport, `zod` for tool input
 schemas, built-in `fetch` for HTTP, `vitest` for tests, `tsup` to bundle.
 
@@ -97,7 +97,7 @@ src/inara/            inAPI v1 client
 src/edsm/             EDSM client
 src/capi/             Frontier CAPI client and OAuth login
 src/spansh/           Spansh client
-src/catalog/          bundled data, disk cache, refresh, lookups
+src/catalog/          committed engineer and group tables, disk cache, refresh, lookups
 src/slef/             SLEF parser
 src/plans/            local plan store
 src/tools/            MCP tool handlers, one file per group
@@ -116,12 +116,14 @@ tool.
 | | `inara_community_goals` | Inara | active community goals |
 | | `edsm_commander_location` | EDSM | current system, coordinates, last seen time |
 | | `edsm_commander_materials` | EDSM | raw, manufactured and encoded materials, and cargo, with counts |
-| | `capi_login` | CAPI | starts the browser login and reports success |
+| | `capi_login` | CAPI | starts the browser login, returns the login URL at once and reports the state when called again |
 | | `capi_profile` | CAPI | current system and station, current ship with modules and engineering, ship list |
+| | `capi_logout` | CAPI | deletes the stored Frontier login |
 | Builds | `build_parse_slef` | local | SLEF JSON → ship type and slots, each with module, blueprint, grade and experimental |
 | Catalog | `catalog_blueprint` | catalog | materials per grade for a blueprint on a module type |
 | | `catalog_engineers` | catalog | engineers for a blueprint with max grade, system, unlock requirements |
 | | `catalog_material` | catalog | grade, category, trade group, typical sources |
+| | `catalog_module` | catalog | outfitting module by symbol or name: class, rating, mount and engineering group. Returns the total and at most 20 matches |
 | Market | `spansh_find_stations` | Spansh | stations near a reference system that sell a module or ship, or have a service (material trader by type, tech broker, interstellar factors) |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
@@ -147,7 +149,7 @@ argument up to 50).
   "items": [
     {
       "id": "pd-fsd",
-      "kind": "buy | engineer | experimental | unlock_engineer | gather | trade",
+      "kind": "buy | engineer | experimental | unlock_engineer | gather | trade | refit",
       "description": "5A FSD, Increased Range G5, Mass Manager",
       "status": "todo | in_progress | done | skipped",
       "station": "optional station and system",
@@ -170,25 +172,37 @@ writes within the process.
 
 | Service | Method | Config |
 |---|---|---|
-| Inara | personal API key | `INARA_API_KEY` (required), `INARA_CMDR` (required), `INARA_APP_NAME` (default `inara-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
+| Inara | personal API key | `INARA_API_KEY` and `INARA_CMDR` (optional; Inara tools return "Inara not configured" without them), `INARA_APP_NAME` (default `ed-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
 | EDSM | API key | `EDSM_API_KEY` and `EDSM_CMDR` (optional; EDSM tools return "EDSM not configured" without them) |
 | Frontier CAPI | OAuth2 authorisation code with PKCE in the browser | `CAPI_CLIENT_ID` (optional; CAPI tools return "CAPI not configured" without it) |
 | Spansh | none | none |
 
-Other config: `INARA_MCP_PLANS` overrides the plan file path.
+Other config: `ED_MCP_PLANS` overrides the plan file path.
 
 CAPI login flow:
 
-1. `capi_login` starts a listener on `127.0.0.1` with a random port.
-2. It opens `https://auth.frontierstore.net/auth` in the default browser with
-   the PKCE challenge and `scope=auth capi`.
-3. The callback receives the code. The server exchanges it at
-   `https://auth.frontierstore.net/token` with the PKCE verifier. No client
-   secret is stored.
-4. The refresh token is stored through `@napi-rs/keyring` (macOS Keychain,
-   Windows Credential Manager). It ships prebuilt binaries, so users need no
-   compiler. Access tokens stay in memory and refresh automatically.
-5. The listener closes after one callback or 5 minutes.
+1. `capi_login` starts listeners on `127.0.0.1` and `::1` on a random port.
+   The redirect URI is `http://localhost:<port>/auth`. It opens
+   `https://auth.frontierstore.net/auth` in the default browser with the PKCE
+   challenge, `audience=frontier,steam,epic` and `scope=auth capi`.
+2. `capi_login` returns at once with the login URL. MCP clients time out long
+   tool calls, so the callback completes in the background. Calling
+   `capi_login` again reports the state (logged in, or the last failure once).
+   Pass `force: true` to log in again.
+3. The callback receives the code. The server checks `state` and exchanges the
+   code at `https://auth.frontierstore.net/token` with the PKCE verifier. No
+   client secret is stored.
+4. Tokens are stored in `capi-token.json` in the config directory, mode 0600.
+   The bundle has no native keychain module. Access tokens last 4 hours.
+   Refresh tokens rotate, so the server saves the new one on every refresh.
+   Tokens are cleared only when Frontier rejects a refresh with HTTP 4xx. A 5xx
+   or network error keeps them. If another process rotated the token first, the
+   server uses the newer stored one.
+5. Logins expire 25 days after approval. After that, `capi_login` is needed
+   again. `capi_logout` deletes the stored tokens.
+6. The listeners close after one callback or 5 minutes.
+
+CAPI requests use `User-Agent: EDCD-EdMcp-<version>`.
 
 `capi_profile` calls `https://companion.orerve.net/profile`. When no token is
 stored, it returns an error telling Claude to call `capi_login`.
@@ -204,7 +218,7 @@ One-time setup steps for the user (documented in the README):
 
 All caches can be cleared with `cache_refresh`.
 
-- Shared client: 15 s timeout, `User-Agent: inara-mcp/<version>`.
+- Shared client: 15 s timeout, `User-Agent: ed-mcp/<version>`.
 - In-memory TTL cache keyed by request: Inara and EDSM commander data 60 s,
   CAPI profile 60 s, Spansh 5 min.
 - Inara: one request in flight at a time. Multiple events from one tool call
@@ -218,8 +232,10 @@ All caches can be cleared with `cache_refresh`.
 
 - Inara returns a status for the whole request and for each event. Both are
   checked. A failure becomes a tool error that includes Inara's status text.
-- Missing optional config produces a tool error naming the missing variable.
-  Missing required config stops the server at startup with a message.
+- All service config is optional, so plans, catalog and Spansh work with no
+  keys. A tool whose service is not configured returns an error naming the
+  missing variables. Invalid values (for example a non-boolean
+  `INARA_DEV_MODE`) stop the server at startup with a message.
 - Unknown blueprint, material, module or engineer names produce a tool error
   that lists up to 5 closest catalog matches.
 - Errors are never swallowed. A partial result is never returned as success.
@@ -227,24 +243,21 @@ All caches can be cleared with `cache_refresh`.
 ## Static catalog
 
 Game data (modules, blueprints, engineers, materials) changes only with game
-releases. The catalog is fetched from upstream open-data files and cached on
-disk, with a bundled copy as a fallback.
+releases. coriolis-data and FDevIDs grant no open licence for their data, so
+it is never committed or bundled. The server downloads five upstream files to
+the user's cache on first catalog use and refreshes them with ETags.
+Engineer locations and requirements (from EliteDangerousCore, Apache-2.0) and
+module group names are small committed tables. See
+`src/catalog/data/SOURCES.md`.
 
-Sources: candidates are coriolis-data (modules, blueprints) and EDEngineer data
-(engineers, recipes). Only sources whose licence allows redistribution are
-used, because a snapshot is bundled in the package.
-`src/catalog/data/SOURCES.md` records each file's URL, version and licence.
-
-Load order at startup:
-
-1. Disk cache, if present and valid.
-2. Otherwise the bundled snapshot.
+Load order: disk cache if present and valid, otherwise download. With no
+network on first use, catalog tools return an error explaining how to retry.
 
 Refresh:
 
 - At most once every 7 days, on first catalog use after the interval, the
-  server checks each upstream file with a conditional GET (`If-None-Match` /
-  `If-Modified-Since`). An unchanged file costs one 304 response.
+  server checks each upstream file with a conditional GET (`If-None-Match`;
+  GitHub raw does not send Last-Modified). An unchanged file costs one 304 response.
 - `cache_refresh` with `source: catalog` forces the check immediately.
 - A changed file is downloaded, parsed and validated (same checks as the
   catalog tests) before it replaces the disk cache. If validation fails, the
@@ -254,20 +267,18 @@ Refresh:
 - Offline or upstream errors keep the current catalog and are reported in
   `cache_status`.
 
-`npm run catalog:update` updates the bundled snapshot before a release.
-
 ## Testing
 
 All tests use vitest.
 
-- Source clients: table-driven tests with HTTP mocked by undici `MockAgent`
-  and recorded JSON fixtures. No live calls in `npm test`.
+- Source clients: table-driven tests. Each client takes an injected `fetch`
+  function; tests pass a fake that serves recorded JSON fixtures. No live calls in `npm test`.
 - CAPI OAuth: test the PKCE exchange and token refresh against a fake token
   server. The keyring is behind an interface with an in-memory test double.
 - SLEF: real EDSY and Inara exports as fixtures.
 - Catalog: lookups, fuzzy matching, and a check that every engineer blueprint
   refers to a known blueprint. Refresh: 304 path, changed-file path, invalid
-  upstream data keeps the old catalog, offline fallback to bundled data.
+  upstream data keeps the old catalog, first-use download failure gives a retry message.
 - Cache: `cache_refresh` per source and `all`.
 - Paths: tests inject base directories. CI runs the full suite on
   `macos-latest` and `windows-latest`.
@@ -276,13 +287,13 @@ All tests use vitest.
   transport, list tools, call one tool per group.
 - Packaging: CI builds the `.mcpb` and checks the manifest with the `mcpb`
   CLI.
-- `npm run smoke`: opt-in live check of Inara, EDSM, CAPI and Spansh response
-  shapes with real keys.
+- Live check: before a release, someone checks the Inara, EDSM, CAPI and
+  Spansh response shapes by hand with real keys. There is no automated live test.
 
 ## Build stages
 
 1. Skeleton, config, `http` wrapper and cache tools, plans, SLEF, catalog
-   with bundled data. CI on macOS and Windows. npm package and `.mcpb` build.
+   with downloaded game data. CI on macOS and Windows. npm package and `.mcpb` build.
 2. Catalog upstream refresh.
 3. Inara and EDSM clients and tools.
 4. Spansh client and tools.

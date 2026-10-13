@@ -1,0 +1,36 @@
+[
+  {
+    "Name": "Datamined Wake Exceptions",
+    "Rarity": "VeryRare",
+    "FormattedName": "dataminedwakeexceptions",
+    "Kind": "Data",
+    "OriginDetails": [
+      "High wake scanning",
+      "Mission reward"
+    ],
+    "Group": "WakeScans"
+  },
+  {
+    "Name": "Heat Exchangers",
+    "Rarity": "Standard",
+    "FormattedName": "heatexchangers",
+    "Kind": "Material",
+    "Subkind": "Manufactured",
+    "OriginDetails": [
+      "Ship salvage (transport ships)",
+      "Signal source (anarchy)"
+    ],
+    "Group": "Heat"
+  },
+  {
+    "Name": "Tellurium",
+    "Rarity": "Rare",
+    "FormattedName": "tellurium",
+    "Kind": "Material",
+    "Subkind": "Raw",
+    "OriginDetails": [
+      "Surface prospecting"
+    ],
+    "Group": "Category5"
+  }
+]

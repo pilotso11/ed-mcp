@@ -1,0 +1,2482 @@
+{
+  "id": 27,
+  "id64": 10477373803,
+  "name": "Sol",
+  "url": "https://www.edsm.net/en/system/stations/id/27/name/Sol",
+  "stations": [
+    {
+      "id": 375,
+      "marketId": 128016384,
+      "type": "Orbis Starport",
+      "name": "Daedalus",
+      "body": {
+        "id": 7497,
+        "name": "Earth",
+        "latitude": -82.8005,
+        "longitude": -22.5624
+      },
+      "distanceToArrival": 504,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Refinery",
+      "secondEconomy": "Refinery",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-11 15:59:19",
+        "market": "2026-10-11 15:59:31",
+        "shipyard": "2026-10-11 15:59:31",
+        "outfitting": "2026-10-11 17:20:46"
+      }
+    },
+    {
+      "id": 2747,
+      "marketId": 3534390016,
+      "type": "Planetary Port",
+      "name": "Ehrlich City",
+      "body": {
+        "id": 11236,
+        "name": "Mercury",
+        "latitude": -53.8109,
+        "longitude": -123.2
+      },
+      "distanceToArrival": 230,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Industrial",
+      "secondEconomy": "Industrial",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-11 14:01:18",
+        "shipyard": "2026-10-11 17:08:20",
+        "outfitting": "2026-10-11 17:04:11"
+      }
+    },
+    {
+      "id": 3250,
+      "marketId": 3534389760,
+      "type": "Planetary Outpost",
+      "name": "Walz Depot",
+      "body": {
+        "id": 11236,
+        "name": "Mercury",
+        "latitude": -50.5409,
+        "longitude": -41.7654
+      },
+      "distanceToArrival": 230,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Industrial",
+      "secondEconomy": "Industrial",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-09 13:42:58",
+        "shipyard": "2026-10-09 13:42:58",
+        "outfitting": "2026-10-09 13:42:58"
+      }
+    },
+    {
+      "id": 10461,
+      "marketId": 3534391808,
+      "type": "Planetary Outpost",
+      "name": "Furukawa Enterprise",
+      "body": {
+        "id": 11236,
+        "name": "Mercury",
+        "latitude": -7.70397,
+        "longitude": -73.2029
+      },
+      "distanceToArrival": 230,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Industrial",
+      "secondEconomy": "Industrial",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-08 22:41:04",
+        "shipyard": "2026-10-08 22:41:00",
+        "outfitting": "2026-10-08 22:41:00"
+      }
+    },
+    {
+      "id": 6898,
+      "marketId": 3228719104,
+      "type": "Outpost",
+      "name": "Burnell Station",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": -0.10087,
+        "longitude": 33.3794
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Refinery",
+      "secondEconomy": "Refinery",
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Pioneer Supplies"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-11 16:24:40",
+        "shipyard": null,
+        "outfitting": "2026-10-11 16:25:02"
+      }
+    },
+    {
+      "id": 81728,
+      "marketId": 128977009,
+      "type": "Mega ship",
+      "name": "Rescue Ship - Li Qing Jao",
+      "distanceToArrival": 495.853502,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Rescue",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Black Market",
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Tuning",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2021-03-25 06:24:50",
+        "market": "2021-03-25 06:58:59",
+        "shipyard": null,
+        "outfitting": "2021-03-25 06:51:41"
+      }
+    },
+    {
+      "id": 560,
+      "marketId": 128016640,
+      "type": "Ocellus Starport",
+      "name": "Galileo",
+      "body": {
+        "id": 7497,
+        "name": "Earth"
+      },
+      "distanceToArrival": 504,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Refinery",
+      "secondEconomy": "Refinery",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-11 16:09:53",
+        "market": "2026-10-11 16:10:01",
+        "shipyard": "2026-10-11 16:10:01",
+        "outfitting": "2026-10-11 16:10:01"
+      }
+    },
+    {
+      "id": 1213,
+      "marketId": 128017408,
+      "type": "Orbis Starport",
+      "name": "Li Qing Jao",
+      "body": {
+        "id": 7497,
+        "name": "Earth"
+      },
+      "distanceToArrival": 504,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Service",
+      "secondEconomy": "Service",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-10-11 16:11:44",
+        "shipyard": "2026-10-11 16:27:09",
+        "outfitting": "2026-10-11 17:05:45"
+      }
+    },
+    {
+      "id": 887,
+      "marketId": 128017152,
+      "type": "Orbis Starport",
+      "name": "M.Gorbachev",
+      "body": {
+        "id": 7497,
+        "name": "Earth",
+        "latitude": -79.3267,
+        "longitude": -153.857
+      },
+      "distanceToArrival": 504,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Service",
+      "secondEconomy": "Service",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-11 16:03:01",
+        "market": "2026-10-11 16:03:10",
+        "shipyard": "2026-10-11 16:03:10",
+        "outfitting": "2026-10-11 16:03:10"
+      }
+    },
+    {
+      "id": 341,
+      "marketId": 128016896,
+      "type": "Orbis Starport",
+      "name": "Abraham Lincoln",
+      "body": {
+        "id": 7497,
+        "name": "Earth",
+        "latitude": 39.9584,
+        "longitude": 34.6956
+      },
+      "distanceToArrival": 504,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Service",
+      "secondEconomy": "Service",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-11 16:52:52",
+        "market": "2026-10-11 16:52:59",
+        "shipyard": "2026-10-11 16:52:59",
+        "outfitting": "2026-10-11 17:21:48"
+      }
+    },
+    {
+      "id": 1822,
+      "marketId": 128017664,
+      "type": "Orbis Starport",
+      "name": "Mars High",
+      "body": {
+        "id": 7497,
+        "name": "Earth",
+        "latitude": -16.4601,
+        "longitude": -77.4277
+      },
+      "distanceToArrival": 504,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Service",
+      "secondEconomy": "Service",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:03:50",
+        "market": "2026-10-11 16:19:12",
+        "shipyard": "2026-10-11 17:04:06",
+        "outfitting": "2026-10-11 16:19:12"
+      }
+    },
+    {
+      "id": 8023,
+      "marketId": 3534390784,
+      "type": "Planetary Outpost",
+      "name": "Durrance Camp",
+      "body": {
+        "id": 11998,
+        "name": "Ganymede",
+        "latitude": 73.641,
+        "longitude": -154.807
+      },
+      "distanceToArrival": 2618,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Colony",
+      "secondEconomy": "Colony",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-09-17 23:49:01",
+        "shipyard": "2026-09-17 23:49:01",
+        "outfitting": "2026-09-17 23:49:01"
+      }
+    },
+    {
+      "id": 86114,
+      "marketId": 3802403584,
+      "type": "Odyssey Settlement",
+      "name": "Fraser Industrial Moulding",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": 16.7201,
+        "longitude": 58.2019
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Industrial",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 33141,
+        "name": "Sol Constitution Party"
+      },
+      "updateTime": {
+        "information": "2026-10-02 17:28:30",
+        "market": "2026-09-24 17:01:05",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88998,
+      "marketId": 3802402816,
+      "type": "Odyssey Settlement",
+      "name": "Majoro Entertainment Complex",
+      "body": {
+        "id": 6371,
+        "name": "Europa",
+        "latitude": -7.51839,
+        "longitude": -114.566
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 33141,
+        "name": "Sol Constitution Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 12:35:33",
+        "market": "2026-10-11 12:35:43",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88187,
+      "marketId": 3802408960,
+      "type": "Odyssey Settlement",
+      "name": "Grebby Prospecting",
+      "body": {
+        "id": 11998,
+        "name": "Ganymede",
+        "latitude": 42.0837,
+        "longitude": -2.3584
+      },
+      "distanceToArrival": 2618,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-23 06:17:57",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 1,
+      "marketId": 128017920,
+      "type": "Ocellus Starport",
+      "name": "Columbus",
+      "body": {
+        "id": 48,
+        "name": "Jupiter",
+        "latitude": -82.8005,
+        "longitude": -22.5623
+      },
+      "distanceToArrival": 2619,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Refinery",
+      "secondEconomy": "Refinery",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:04:20",
+        "market": "2026-10-11 17:04:26",
+        "shipyard": "2026-10-11 16:45:08",
+        "outfitting": "2026-10-11 17:04:26"
+      }
+    },
+    {
+      "id": 88172,
+      "marketId": 3802408704,
+      "type": "Odyssey Settlement",
+      "name": "Kvitka Dredging Enterprise",
+      "body": {
+        "id": 11998,
+        "name": "Ganymede",
+        "latitude": -42.3159,
+        "longitude": -75.8252
+      },
+      "distanceToArrival": 2618,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 21:19:22",
+        "market": "2026-09-18 02:23:14",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 86198,
+      "marketId": 3802403072,
+      "type": "Odyssey Settlement",
+      "name": "Hidalgo's Slumber",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": -26.7623,
+        "longitude": 40.2503
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-10-01 03:14:42",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 10772,
+      "marketId": 3534390272,
+      "type": "Planetary Outpost",
+      "name": "Haberlandt Survey",
+      "body": {
+        "id": 6371,
+        "name": "Europa",
+        "latitude": 4.17122,
+        "longitude": 45.1134
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Military",
+      "secondEconomy": "Military",
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-08 23:11:07",
+        "shipyard": null,
+        "outfitting": "2026-10-08 23:11:07"
+      }
+    },
+    {
+      "id": 85539,
+      "marketId": 3802403328,
+      "type": "Odyssey Settlement",
+      "name": "Alasa Industries",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": 55.7718,
+        "longitude": 138.028
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Industrial",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-08-19 18:19:25",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 90220,
+      "marketId": 3802409472,
+      "type": "Odyssey Settlement",
+      "name": "Malins's Camp",
+      "body": {
+        "id": 11998,
+        "name": "Ganymede",
+        "latitude": 32.1998,
+        "longitude": 96.8159
+      },
+      "distanceToArrival": 2618,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Military",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-09-17 22:11:30",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88257,
+      "marketId": 3802409216,
+      "type": "Odyssey Settlement",
+      "name": "Bruno's Encampment",
+      "body": {
+        "id": 11998,
+        "name": "Ganymede",
+        "latitude": -40.3722,
+        "longitude": -148.251
+      },
+      "distanceToArrival": 2618,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Military",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-17 22:40:28",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 87644,
+      "marketId": 3802403840,
+      "type": "Odyssey Settlement",
+      "name": "Bourne Mining Installation",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": -7.06443,
+        "longitude": 124.148
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-08 22:20:08",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 10819,
+      "marketId": 3534391296,
+      "type": "Planetary Outpost",
+      "name": "Schottky Reformatory",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": 4.91254,
+        "longitude": -132.56
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Colony",
+      "secondEconomy": "Colony",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-05 17:57:54",
+        "shipyard": "2026-10-05 17:57:54",
+        "outfitting": "2026-10-05 18:04:09"
+      }
+    },
+    {
+      "id": 85083,
+      "marketId": 3802404352,
+      "type": "Odyssey Settlement",
+      "name": "Dewsnap Prospecting Station",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": 13.9018,
+        "longitude": -156.883
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 33141,
+        "name": "Sol Constitution Party"
+      },
+      "updateTime": {
+        "information": "2026-10-05 21:29:12",
+        "market": "2026-09-27 18:50:25",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88106,
+      "marketId": 3802404096,
+      "type": "Odyssey Settlement",
+      "name": "Vadamootoo Mining Base",
+      "body": {
+        "id": 12912,
+        "name": "Callisto",
+        "latitude": 21.6644,
+        "longitude": 44.6535
+      },
+      "distanceToArrival": 2615,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-08-09 17:26:45",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 91392,
+      "marketId": 3802407680,
+      "type": "Odyssey Settlement",
+      "name": "Aithal Garrison",
+      "body": {
+        "id": 1621,
+        "name": "Iapetus",
+        "latitude": -18.4072,
+        "longitude": 98.8358
+      },
+      "distanceToArrival": 4711,
+      "allegiance": "Independent",
+      "government": "Cooperative",
+      "economy": "Military",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 79985,
+        "name": "Aegis Core"
+      },
+      "updateTime": {
+        "information": "2026-10-08 22:46:57",
+        "market": "2026-10-08 22:47:04",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 266,
+      "marketId": 128677511,
+      "type": "Planetary Outpost",
+      "name": "Dekker's Yard",
+      "body": {
+        "id": 1621,
+        "name": "Iapetus",
+        "latitude": -23.4455,
+        "longitude": -68.303
+      },
+      "distanceToArrival": 4711,
+      "allegiance": "Federation",
+      "government": "Workshop (Engineer)",
+      "economy": "Colony",
+      "secondEconomy": "Colony",
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Tuning",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": null,
+        "name": "Colonel Bris Dekker"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:10:21",
+        "market": "2026-10-11 17:10:27",
+        "shipyard": null,
+        "outfitting": "2026-10-11 17:10:27"
+      }
+    },
+    {
+      "id": 90703,
+      "marketId": 3802407936,
+      "type": "Odyssey Settlement",
+      "name": "Banyard Command Outpost",
+      "body": {
+        "id": 1621,
+        "name": "Iapetus",
+        "latitude": -14.8948,
+        "longitude": 124.061
+      },
+      "distanceToArrival": 4711,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Military",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-09-21 19:27:39",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 85281,
+      "marketId": 3802407168,
+      "type": "Odyssey Settlement",
+      "name": "Mendy Excavation Site",
+      "body": {
+        "id": 1621,
+        "name": "Iapetus",
+        "latitude": 15.8766,
+        "longitude": -77.0226
+      },
+      "distanceToArrival": 4711,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-10-01 02:47:17",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 86783,
+      "marketId": 3802402560,
+      "type": "Odyssey Settlement",
+      "name": "Ndiaye Hospitality Complex",
+      "body": {
+        "id": 4955,
+        "name": "Dione",
+        "latitude": -4.78401,
+        "longitude": 123.678
+      },
+      "distanceToArrival": 4719,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-11 14:54:20",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 86095,
+      "marketId": 3908612352,
+      "type": "Odyssey Settlement",
+      "name": "Ikeda Tourist Zone",
+      "body": {
+        "id": 6847,
+        "name": "Enceladus",
+        "latitude": -0.566916,
+        "longitude": -42.0255
+      },
+      "distanceToArrival": 4718,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-08 16:17:43",
+        "market": "2026-10-08 16:17:50",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 1132,
+      "marketId": 128018176,
+      "type": "Orbis Starport",
+      "name": "Titan City",
+      "body": {
+        "id": 13971,
+        "name": "Io",
+        "latitude": 12.2042,
+        "longitude": 152.398
+      },
+      "distanceToArrival": 2614,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Refinery",
+      "secondEconomy": "Refinery",
+      "haveMarket": true,
+      "haveShipyard": true,
+      "haveOutfitting": true,
+      "otherServices": [
+        "Restock",
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Universal Cartographics",
+        "Missions",
+        "Crew Lounge",
+        "Tuning",
+        "Search and Rescue",
+        "Bartender",
+        "Apex Interstellar Transport",
+        "Frontline Solutions",
+        "Pioneer Supplies",
+        "Vista Genomics"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-11 16:32:55",
+        "market": "2026-10-11 16:33:03",
+        "shipyard": "2026-10-11 16:33:03",
+        "outfitting": "2026-10-11 16:33:03"
+      }
+    },
+    {
+      "id": 94669,
+      "marketId": 3802405120,
+      "type": "Odyssey Settlement",
+      "name": "Kvitka's Origin",
+      "body": {
+        "id": 7393,
+        "name": "Tethys",
+        "latitude": 15.981,
+        "longitude": 105.305
+      },
+      "distanceToArrival": 4719,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-24 17:05:52",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 90765,
+      "marketId": 3802407424,
+      "type": "Odyssey Settlement",
+      "name": "Mathibeli Excavation Station",
+      "body": {
+        "id": 1621,
+        "name": "Iapetus",
+        "latitude": 64.2948,
+        "longitude": 43.0486
+      },
+      "distanceToArrival": 4711,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 33141,
+        "name": "Sol Constitution Party"
+      },
+      "updateTime": {
+        "information": "2026-10-02 17:28:30",
+        "market": "2026-09-18 08:07:10",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88209,
+      "marketId": 3802404608,
+      "type": "Odyssey Settlement",
+      "name": "Bibeau's Wandering",
+      "body": {
+        "id": 10450,
+        "name": "Rhea",
+        "latitude": 5.57302,
+        "longitude": -137.178
+      },
+      "distanceToArrival": 4719,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-04 22:33:07",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 85967,
+      "marketId": 3802400768,
+      "type": "Odyssey Settlement",
+      "name": "Indongo Bay",
+      "body": {
+        "id": 158,
+        "name": "Oberon",
+        "latitude": 42.8842,
+        "longitude": 83.2841
+      },
+      "distanceToArrival": 9141,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-08-08 18:25:11",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88029,
+      "marketId": 3802402048,
+      "type": "Odyssey Settlement",
+      "name": "Pavlenko's Reception",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": 11.0889,
+        "longitude": 128.414
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-09 08:46:32",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88071,
+      "marketId": 3802401280,
+      "type": "Odyssey Settlement",
+      "name": "Deshpande Mining Exchange",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": -72.6804,
+        "longitude": 71.5925
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Independent",
+      "government": "Cooperative",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 79985,
+        "name": "Aegis Core"
+      },
+      "updateTime": {
+        "information": "2026-09-17 01:55:42",
+        "market": "2026-09-17 01:55:54",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88993,
+      "marketId": 3802401024,
+      "type": "Odyssey Settlement",
+      "name": "Lamar's Prospect",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": 30.2851,
+        "longitude": -53.5851
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Independent",
+      "government": "Cooperative",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 79985,
+        "name": "Aegis Core"
+      },
+      "updateTime": {
+        "information": "2026-09-09 17:19:55",
+        "market": "2026-08-23 16:18:10",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 100100,
+      "marketId": 3802404864,
+      "type": "Odyssey Settlement",
+      "name": "Correa Entertainment Complex",
+      "body": {
+        "id": 8425,
+        "name": "Umbriel",
+        "latitude": 42.1106,
+        "longitude": -165.312
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-04 22:33:07",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 85209,
+      "marketId": 3802401536,
+      "type": "Odyssey Settlement",
+      "name": "Abimbola Metallurgic Reserve",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": -9.21612,
+        "longitude": 141.241
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-26 09:03:40",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 89515,
+      "marketId": 3802400000,
+      "type": "Odyssey Settlement",
+      "name": "Navarrete's Prospect",
+      "body": {
+        "id": 158,
+        "name": "Oberon",
+        "latitude": -39.7569,
+        "longitude": 142.566
+      },
+      "distanceToArrival": 9141,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 33141,
+        "name": "Sol Constitution Party"
+      },
+      "updateTime": {
+        "information": "2026-10-02 17:28:30",
+        "market": "2026-09-27 19:04:57",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 88045,
+      "marketId": 3802401792,
+      "type": "Odyssey Settlement",
+      "name": "Hirano Mineralogic Territory",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": -32.9736,
+        "longitude": 53.1972
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-10-03 20:15:39",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 85190,
+      "marketId": 3802402304,
+      "type": "Odyssey Settlement",
+      "name": "Avery Manufacturing Hub",
+      "body": {
+        "id": 5094,
+        "name": "Ariel",
+        "latitude": -11.7794,
+        "longitude": 45.0136
+      },
+      "distanceToArrival": 9143,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Industrial",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-04 08:57:08",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 89503,
+      "marketId": 3802400256,
+      "type": "Odyssey Settlement",
+      "name": "Amos Mining Hub",
+      "body": {
+        "id": 158,
+        "name": "Oberon",
+        "latitude": -37.7894,
+        "longitude": -45.1795
+      },
+      "distanceToArrival": 9141,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-08-04 22:33:05",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 89183,
+      "marketId": 3802408448,
+      "type": "Odyssey Settlement",
+      "name": "Oshpak's House",
+      "body": {
+        "id": 910,
+        "name": "Titania",
+        "latitude": 59.0981,
+        "longitude": -115.87
+      },
+      "distanceToArrival": 9141,
+      "allegiance": "Independent",
+      "government": "Cooperative",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 79985,
+        "name": "Aegis Core"
+      },
+      "updateTime": {
+        "information": "2026-09-02 05:30:11",
+        "market": "2026-08-04 22:33:08",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 90478,
+      "marketId": 3802400512,
+      "type": "Odyssey Settlement",
+      "name": "Shen Extraction Rigs",
+      "body": {
+        "id": 158,
+        "name": "Oberon",
+        "latitude": -13.7213,
+        "longitude": 127.215
+      },
+      "distanceToArrival": 9141,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-29 13:10:52",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 106867,
+      "marketId": 3807125248,
+      "type": "Odyssey Settlement",
+      "name": "Uutoni Extraction Platform",
+      "body": {
+        "id": 8136010,
+        "name": "Vanth",
+        "latitude": 22.6137,
+        "longitude": 51.2438
+      },
+      "distanceToArrival": 16035,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-04 22:33:07",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 84954,
+      "marketId": 3802406400,
+      "type": "Odyssey Settlement",
+      "name": "Tsarenko Prospecting Exchange",
+      "body": {
+        "id": 3200642,
+        "name": "90482 Orcus",
+        "latitude": 21.0033,
+        "longitude": 100.762
+      },
+      "distanceToArrival": 16035,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 963,
+        "name": "Federal Congress"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:17:10",
+        "market": "2026-09-16 22:18:38",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 98865,
+      "marketId": 3807124992,
+      "type": "Odyssey Settlement",
+      "name": "Walachnia's Gate",
+      "body": {
+        "id": 8136010,
+        "name": "Vanth",
+        "latitude": 45.7987,
+        "longitude": -86.3002
+      },
+      "distanceToArrival": 16035,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-09-23 08:51:19",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 85065,
+      "marketId": 3802406144,
+      "type": "Odyssey Settlement",
+      "name": "Sakurai Tourism Complex",
+      "body": {
+        "id": 3200642,
+        "name": "90482 Orcus",
+        "latitude": -16.2082,
+        "longitude": -147.486
+      },
+      "distanceToArrival": 16035,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-09-23 08:36:54",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 87869,
+      "marketId": 3807124736,
+      "type": "Odyssey Settlement",
+      "name": "Awolowo Mineralogic Base",
+      "body": {
+        "id": 3198149,
+        "name": "Actaea",
+        "latitude": -52.3875,
+        "longitude": -16.2487
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-09-24 23:29:27",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 87953,
+      "marketId": 3807123712,
+      "type": "Odyssey Settlement",
+      "name": "Seidel's Globe",
+      "body": {
+        "id": 3198149,
+        "name": "Actaea",
+        "latitude": -22.4633,
+        "longitude": -69.6161
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-10-03 21:03:06",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 104412,
+      "marketId": 3802406912,
+      "type": "Odyssey Settlement",
+      "name": "Avery Excavation Hub",
+      "body": {
+        "id": 3204253,
+        "name": "Salacia",
+        "latitude": -17.5154,
+        "longitude": -167.744
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-04 22:33:07",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 99913,
+      "marketId": 3807123968,
+      "type": "Odyssey Settlement",
+      "name": "Fincham Drilling Hub",
+      "body": {
+        "id": 3198149,
+        "name": "Actaea",
+        "latitude": 32.8889,
+        "longitude": -68.2502
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-19 19:21:48",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 89319,
+      "marketId": 3807124480,
+      "type": "Odyssey Settlement",
+      "name": "Florianz Mining Prospect",
+      "body": {
+        "id": 3198149,
+        "name": "Actaea",
+        "latitude": -29.1671,
+        "longitude": -141.193
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-19 19:29:59",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 92889,
+      "marketId": 3807124224,
+      "type": "Odyssey Settlement",
+      "name": "Yamashita Excavation Territory",
+      "body": {
+        "id": 3198149,
+        "name": "Actaea",
+        "latitude": -53.2919,
+        "longitude": 152.605
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 6768,
+        "name": "Sol Nationalists"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-08-19 19:40:53",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 87859,
+      "marketId": 3802406656,
+      "type": "Odyssey Settlement",
+      "name": "Ji's Slumber",
+      "body": {
+        "id": 3204253,
+        "name": "Salacia",
+        "latitude": 82.4882,
+        "longitude": -74.534
+      },
+      "distanceToArrival": 18617,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-08-04 22:33:04",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 89383,
+      "marketId": 3802405376,
+      "type": "Odyssey Settlement",
+      "name": "Beauchene's Horizon",
+      "body": {
+        "id": 8136013,
+        "name": "(307261) 2002 MS4",
+        "latitude": -55.0767,
+        "longitude": 155.917
+      },
+      "distanceToArrival": 18848,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-05 17:07:13",
+        "market": "2026-08-08 20:31:19",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 86601,
+      "marketId": 3802405888,
+      "type": "Odyssey Settlement",
+      "name": "Ponomarenko's Drilling",
+      "body": {
+        "id": 8136008,
+        "name": "Quaoar",
+        "latitude": -26.9199,
+        "longitude": -131.354
+      },
+      "distanceToArrival": 21083,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Extraction",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 1,
+        "name": "Mother Gaia"
+      },
+      "updateTime": {
+        "information": "2026-10-09 00:31:38",
+        "market": "2026-10-09 00:31:50",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 87984,
+      "marketId": 3802408192,
+      "type": "Odyssey Settlement",
+      "name": "Hao's Steal",
+      "body": {
+        "id": 8136006,
+        "name": "Haumea",
+        "latitude": -37.3487,
+        "longitude": -109.585
+      },
+      "distanceToArrival": 25200,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-09-18 22:37:15",
+        "shipyard": null,
+        "outfitting": null
+      }
+    },
+    {
+      "id": 89408,
+      "marketId": 3802405632,
+      "type": "Odyssey Settlement",
+      "name": "Adebisi Hospitality Zone",
+      "body": {
+        "id": 8136007,
+        "name": "Makemake",
+        "latitude": -68.8938,
+        "longitude": -136.679
+      },
+      "distanceToArrival": 25377,
+      "allegiance": "Federation",
+      "government": "Democracy",
+      "economy": "Tourism",
+      "secondEconomy": null,
+      "haveMarket": true,
+      "haveShipyard": false,
+      "haveOutfitting": false,
+      "otherServices": [
+        "Refuel",
+        "Repair",
+        "Contacts",
+        "Missions",
+        "Crew Lounge",
+        "Search and Rescue"
+      ],
+      "controllingFaction": {
+        "id": 223,
+        "name": "Sol Workers' Party"
+      },
+      "updateTime": {
+        "information": "2026-10-11 17:26:27",
+        "market": "2026-09-23 09:40:25",
+        "shipyard": null,
+        "outfitting": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,648 @@
+[
+  {
+    "name": "Baltanos",
+    "system": "DERISO",
+    "base": "The Divine Apparatus",
+    "coords": {
+      "x": -9520.3125,
+      "y": -909.5,
+      "z": 19808.75
+    },
+    "planet": "3 A",
+    "discovery": "Common knowledge",
+    "invite": "Reach Friendly reputation with the Colonia Council.",
+    "unlock": "Provide 10 Faction Associates data.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Bill Turner",
+    "system": "Alioth",
+    "base": "Turner Metallics Inc",
+    "coords": {
+      "x": -33.65625,
+      "y": 72.46875,
+      "z": -20.65625
+    },
+    "planet": "4 A",
+    "discovery": "Common knowledge",
+    "invite": "Gain Friendly status with Alliance. You will also need Allied status with Alioth Independents to get a permit to access the Alioth starsystem.",
+    "unlock": "Provide 50 units of Bromellite.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Turner Metallics Inc.",
+    "permit": true,
+    "odyssey": false
+  },
+  {
+    "name": "Broo Tarquin",
+    "system": "Muang",
+    "base": "Broo's Legacy",
+    "coords": {
+      "x": 17.03125,
+      "y": -172.78125,
+      "z": -3.46875
+    },
+    "planet": "5 A",
+    "discovery": "From Hera Tani (grade 3-4).",
+    "invite": "Gain combat rank Competent or higher.",
+    "unlock": "Provide 50 units of Fujin Tea.",
+    "reputation": "Craft modules for a major increase. Hand in bounty vouchers to Broo's Legacy.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Chloe Sedesi",
+    "system": "Shenve",
+    "base": "Cinder Dock",
+    "coords": {
+      "x": 351.96875,
+      "y": -373.46875,
+      "z": -711.09375
+    },
+    "planet": "A 6",
+    "discovery": "From Marco Qwent (grade 3-4).",
+    "invite": "Attain a maximum distance from your career start location of at least 5,000 light years.",
+    "unlock": "Provide 25 units of Sensor Fragments.",
+    "reputation": "Craft modules for a major increase. Sell exploration data to Cinder Dock.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Colonel Bris Dekker",
+    "system": "Sol",
+    "base": "Dekker's Yard",
+    "coords": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "planet": "Iapetus",
+    "discovery": "From Juri Ishmaak (grade 3-4).",
+    "invite": "Friendly with the Federation.",
+    "unlock": "Provide 1,000,000 or 10,000,000 credits worth of federal combat bonds.",
+    "reputation": "Craft modules for a major increase. Hand in bounty vouchers to Dekker's Yard.",
+    "permit": true,
+    "odyssey": false
+  },
+  {
+    "name": "Didi Vatermann",
+    "system": "Leesti",
+    "base": "Vatermann LLC",
+    "coords": {
+      "x": 72.75,
+      "y": 48.75,
+      "z": 68.25
+    },
+    "planet": "1 A",
+    "discovery": "From Selene Jean (grade 3-4).",
+    "invite": "Gain trade rank Merchant or higher.",
+    "unlock": "Provide 50 units of Lavian Brandy.",
+    "reputation": "Craft modules for a major increase.Sell commodities to Vatermann LLC.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Domino Green",
+    "system": "Orishis",
+    "base": "The Jackrabbit",
+    "coords": {
+      "x": -31,
+      "y": 93.96875,
+      "z": -3.5625
+    },
+    "planet": "4",
+    "discovery": "Common knowledge.",
+    "invite": "Travel at least 100 light years in shuttles.",
+    "unlock": "Provide 5 doses of Push.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Eleanor Bresa",
+    "system": "Desy",
+    "base": "Bresa Modifications",
+    "coords": {
+      "x": -9534.21875,
+      "y": -912.21875,
+      "z": 19792.375
+    },
+    "planet": "7 A",
+    "discovery": "Common knowledge.",
+    "invite": "Visit 5 settlements in the Colonia system.",
+    "unlock": "Provide 10 Digital Designs.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Elvira Martuuk",
+    "system": "Khun",
+    "base": "Long Sight Base",
+    "coords": {
+      "x": -171.59375,
+      "y": 19.96875,
+      "z": -56.96875
+    },
+    "planet": "5",
+    "discovery": "Public knowledge",
+    "invite": "Attain a maximum distance from your career start location of at least 300 light years.",
+    "unlock": "Provide 3 units of Soontill Relics.",
+    "reputation": "Craft modules for a major increase. Sell exploration data at Long Sight Base.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Etienne Dorn",
+    "system": "Los",
+    "base": "Kraken's Retreat",
+    "coords": {
+      "x": -9509.34375,
+      "y": -886.3125,
+      "z": 19820.125
+    },
+    "planet": "A 2 B",
+    "discovery": "From Liz Ryder (grade 3-4).",
+    "invite": "Gain trade rank Dealer or higher.",
+    "unlock": "Provide 25 units of Occupied Escape Pods.",
+    "reputation": "Craft modules for a major increase.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Felicity Farseer",
+    "system": "Deciat",
+    "base": "Farseer Inc",
+    "coords": {
+      "x": 122.625,
+      "y": -0.8125,
+      "z": -47.28125
+    },
+    "planet": "6 A",
+    "discovery": "Public data sources.",
+    "invite": "Gain exploration rank Scout or higher.",
+    "unlock": "Provide 1 unit of Meta Alloys.",
+    "reputation": "Craft modules for a major increase. Sell exploration data at Farseer Inc.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Hera Tani",
+    "system": "Kuwemaki",
+    "base": "The Jet's Hole",
+    "coords": {
+      "x": 134.65625,
+      "y": -226.90625,
+      "z": -7.8125
+    },
+    "planet": "A 3 A",
+    "discovery": "From Liz Ryder (grade 3-4).",
+    "invite": "Gain rank Outsider or higher with the Empire.",
+    "unlock": "Provide 50 units of Kamitra Cigars.",
+    "reputation": "Craft modules for a major increase. Sell commodities to The Jet's Hole.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Hero Ferrari",
+    "system": "Siris",
+    "base": "Nevermore Terrace",
+    "coords": {
+      "x": 131.0625,
+      "y": -73.59375,
+      "z": -11.25
+    },
+    "planet": "5 C",
+    "discovery": "Common knowledge.",
+    "invite": "Complete 10 surface conflict zones.",
+    "unlock": "Provide 15 Settlement Defence Plans.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Jude Navarro",
+    "system": "Aurai",
+    "base": "Marshall's Drift",
+    "coords": {
+      "x": 0.9375,
+      "y": -47.8125,
+      "z": 46.28125
+    },
+    "planet": "1 A",
+    "discovery": "Common knowledge.",
+    "invite": "Complete 10 Restore or Reactivation missions.",
+    "unlock": "Provide 5 units of Genetic Repair Meds.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Juri Ishmaak",
+    "system": "Giryak",
+    "base": "Pater's Memorial",
+    "coords": {
+      "x": 14.6875,
+      "y": 27.65625,
+      "z": 108.65625
+    },
+    "planet": "2 A",
+    "discovery": "From Felicity Farseer (grade 3-4).",
+    "invite": "Earn more than 50 combat bonds.",
+    "unlock": "Provide 100,000 or 1,000,000 credits worth of combat bonds.",
+    "reputation": "Craft modules for a major increase. Hand in bounty vouchers or combat bonds to Pater's Memorial.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Kit Fowler",
+    "system": "Capoya",
+    "base": "The Last Call",
+    "coords": {
+      "x": -60.65625,
+      "y": 82.4375,
+      "z": -45.0625
+    },
+    "planet": "2",
+    "discovery": "From Domino Green",
+    "invite": "Sell 10 Opinion polls to bartenders.",
+    "unlock": "Provide 5 units of Surveillance equipment.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Lei Cheung",
+    "system": "Laksak",
+    "base": "Trader's Rest",
+    "coords": {
+      "x": -21.53125,
+      "y": -6.3125,
+      "z": 116.03125
+    },
+    "planet": "A 1",
+    "discovery": "From The Dweller (grade 3-4).",
+    "invite": "You have traded in over 50 markets.",
+    "unlock": "Provide 200 units of Gold.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Trader's Rest.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Liz Ryder",
+    "system": "Eurybia",
+    "base": "Demolition Unlimited",
+    "coords": {
+      "x": 51.40625,
+      "y": -54.40625,
+      "z": -30.5
+    },
+    "planet": "Makalu",
+    "discovery": "Public sources.",
+    "invite": "Gain Cordial or Friendly status with Eurybia Blue Mafia.",
+    "unlock": "Provide 200 units of Landmines.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Demolition Unlimited.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Lori Jameson",
+    "system": "Shinrarta Dezhra",
+    "base": "Jameson Base",
+    "coords": {
+      "x": 55.71875,
+      "y": 17.59375,
+      "z": 27.15625
+    },
+    "planet": "A 1",
+    "discovery": "From Marco Qwent (grade 3-4).",
+    "invite": "Gain combat rank Dangerous or higher.",
+    "unlock": "Provide 25 units of Kongga Ale.",
+    "reputation": "Craft modules for a major increase. Sell exploration data to Jameson Base.",
+    "permit": true,
+    "odyssey": false
+  },
+  {
+    "name": "Marco Qwent",
+    "system": "Sirius",
+    "base": "Qwent Research Base",
+    "coords": {
+      "x": 6.25,
+      "y": -1.28125,
+      "z": -5.75
+    },
+    "planet": "Lucifer",
+    "discovery": "From Elvira Martuuk (grade 3-4).",
+    "invite": "Gain invitation from Sirius Corporation.",
+    "unlock": "Provide 25 units of Modular Terminals.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Qwent Research Base.",
+    "permit": true,
+    "odyssey": false
+  },
+  {
+    "name": "Marsha Hicks",
+    "system": "Tir",
+    "base": "The Watchtower",
+    "coords": {
+      "x": -9532.9375,
+      "y": -923.4375,
+      "z": 19799.125
+    },
+    "planet": "A 2",
+    "discovery": "From The Dweller (grade 3-4).",
+    "invite": "Gain exploration rank Surveyor or higher.",
+    "unlock": "Mine 10 units of Osmium.",
+    "reputation": "Craft modules for a major increase.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Mel Brandon",
+    "system": "Luchtaine",
+    "base": "The Brig",
+    "coords": {
+      "x": -9523.3125,
+      "y": -914.46875,
+      "z": 19825.90625
+    },
+    "planet": "A 1 C",
+    "discovery": "From Elvira Martuuk (grade 3-4).",
+    "invite": "Gain invitation from Colonia Council.",
+    "unlock": "Provide 100,000 credits worth of bounty vouchers.",
+    "reputation": "Craft modules for a major increase.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Oden Geiger",
+    "system": "Candiaei",
+    "base": "Ankh's Promise",
+    "coords": {
+      "x": -113.5,
+      "y": -4.9375,
+      "z": 66.84375
+    },
+    "planet": "9 C",
+    "discovery": "From Terra Velasquez",
+    "invite": "Sell a total of 20 Biological sample, Employee genetic data and Genetic research to bartenders.",
+    "unlock": "",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Petra Olmanova",
+    "system": "Asura",
+    "base": "Sanctuary",
+    "coords": {
+      "x": -9550.28125,
+      "y": -916.65625,
+      "z": 19816.1875
+    },
+    "planet": "1 A",
+    "discovery": "From Tod McQuinn (grade 3-4).",
+    "invite": "Gain combat rank Expert or higher.",
+    "unlock": "Provide 200 units of Progenitor Cells.",
+    "reputation": "Craft modules for a major increase.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Professor Palin",
+    "system": "Arque",
+    "base": "Abel Laboratory",
+    "coords": {
+      "x": 66.5,
+      "y": 38.0625,
+      "z": 61.125
+    },
+    "planet": "4 E",
+    "discovery": "From Marco Qwent (grade 3-4).",
+    "invite": "Attain a maximum distance from your career start location of at least 5,000 light years.",
+    "unlock": "Provide 25 units of Sensor Fragments.",
+    "reputation": "Craft modules for a major increase. Sell exploration data to Abel Laboratory.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Ram Tah",
+    "system": "Meene",
+    "base": "Phoenix Base",
+    "coords": {
+      "x": 118.78125,
+      "y": -56.4375,
+      "z": -97.1875
+    },
+    "planet": "AB 5 D",
+    "discovery": "From Lei Cheung (grade 3-4).",
+    "invite": "Gain exploration rank Surveyor or higher.",
+    "unlock": "Provide 50 units of Classified Scan Databanks.",
+    "reputation": "Craft modules for a major increase. Sell exploration data to Phoenix Base.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Rosa Dayette",
+    "system": "Kojeara",
+    "base": "Rosa's Shop",
+    "coords": {
+      "x": -9513.09375,
+      "y": -908.84375,
+      "z": 19814.28125
+    },
+    "planet": "4 B",
+    "discovery": "Common knowledge.",
+    "invite": "Sell a total of 10 Culinary Recipes or Cocktail Recipes to stations in Colonia.",
+    "unlock": "Provide 10 units of Manufacturing Instructions data.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Selene Jean",
+    "system": "Kuk",
+    "base": "Prospector's Rest",
+    "coords": {
+      "x": -21.28125,
+      "y": 69.09375,
+      "z": -16.3125
+    },
+    "planet": "B 3",
+    "discovery": "From Tod McQuinn (grade 3-4).",
+    "invite": "Mine at least 500 tons of ore.",
+    "unlock": "Provide 10 units of Painite.",
+    "reputation": "Craft modules for a major increase. Sell commodities and exploration data to Prospector's Rest.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Terra Velasquez",
+    "system": "Shou Xing",
+    "base": "Rascal's Choice",
+    "coords": {
+      "x": -16.28125,
+      "y": -44.53125,
+      "z": 94.375
+    },
+    "planet": "1",
+    "discovery": "From Jude Navarro",
+    "invite": "Complete 6 Covert theft and Covert heist missions.",
+    "unlock": "Provide 15 Financial projections.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "The Dweller",
+    "system": "Wyrd",
+    "base": "Black Hide",
+    "coords": {
+      "x": -11.625,
+      "y": 31.53125,
+      "z": -3.9375
+    },
+    "planet": "A 2",
+    "discovery": "Common knowledge",
+    "invite": "Deal with at least 5 black markets.",
+    "unlock": "Pay 500,000 credits.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Black Hide.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "The Sarge",
+    "system": "Beta-3 Tucani",
+    "base": "The Beach",
+    "coords": {
+      "x": 32.25,
+      "y": -55.1875,
+      "z": 23.875
+    },
+    "planet": "2 B A",
+    "discovery": "From Juri Ishmaak (grade 3-4).",
+    "invite": "Gain rank Midshipman or higher with the Federal Navy.",
+    "unlock": "Provide 50 units of Aberrant Shield Pattern Analysis.",
+    "reputation": "Craft modules for a major increase. Sell exploration data and hand in bounty vouchers to The Beach.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Tiana Fortune",
+    "system": "Achenar",
+    "base": "Fortune's Loss",
+    "coords": {
+      "x": 67.5,
+      "y": -119.46875,
+      "z": 24.84375
+    },
+    "planet": "4 A",
+    "discovery": "From Hera Tani (grade 3-4).",
+    "invite": "Friendly with the Empire.",
+    "unlock": "Provide 50 units of Decoded Emission Data.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Fortune's Loss.",
+    "permit": true,
+    "odyssey": false
+  },
+  {
+    "name": "Tod 'The Blaster' McQuinn",
+    "system": "Wolf 397",
+    "base": "Trophy Camp",
+    "coords": {
+      "x": 40,
+      "y": 79.21875,
+      "z": -10.40625
+    },
+    "planet": "Trus Madi",
+    "discovery": "Common knowledge.",
+    "invite": "Earn more than 15 bounty vouchers.",
+    "unlock": "Provide 100,000 credits worth of bounty vouchers.",
+    "reputation": "Craft modules for a major increase. Hand in Alliance bounty vouchers to Trophy Camp.",
+    "permit": false,
+    "odyssey": false
+  },
+  {
+    "name": "Uma Laszlo",
+    "system": "Xuane",
+    "base": "Laszlo's Resolve",
+    "coords": {
+      "x": 93.875,
+      "y": -9.25,
+      "z": -32.53125
+    },
+    "planet": "A 3",
+    "discovery": "From Wellington Beck",
+    "invite": "Reach Unfriendly reputation or lower with Sirius Corporation.",
+    "unlock": "",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Wellington Beck",
+    "system": "Jolapa",
+    "base": "Beck Facility",
+    "coords": {
+      "x": 100.1875,
+      "y": -41.34375,
+      "z": -78
+    },
+    "planet": "6 A",
+    "discovery": "From Hero Ferrari",
+    "invite": "Sell a total of 25 Multimedia Entertainment, Classic Entertainment and Cat media to bartenders.",
+    "unlock": "Provide 5 units of Insight Entertainment suites.",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Yarden Bond",
+    "system": "Bayan",
+    "base": "Salamander Bank",
+    "coords": {
+      "x": -19.96875,
+      "y": 117.625,
+      "z": -90.46875
+    },
+    "planet": "7 B",
+    "discovery": "From Kit Fowler",
+    "invite": "Sell 8 Smear campaign plans to bartenders.",
+    "unlock": "",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Yi Shen",
+    "system": "Einheriar",
+    "base": "Eidolon Hold",
+    "coords": {
+      "x": -9557.8125,
+      "y": -880.1875,
+      "z": 19801.5625
+    },
+    "planet": "1 A",
+    "discovery": "From Baltanos, Eleanor Bresa and Rosa Dayette",
+    "invite": "Complete referral tasks for Baltanos, Eleanor Bresa and Rosa Dayette.",
+    "unlock": "",
+    "reputation": "",
+    "permit": false,
+    "odyssey": true
+  },
+  {
+    "name": "Zacariah Nemo",
+    "system": "Yoru",
+    "base": "Nemo Cyber Party Base",
+    "coords": {
+      "x": 97.875,
+      "y": -86.90625,
+      "z": 64.125
+    },
+    "planet": "4",
+    "discovery": "From Elvira Martuuk (grade 3-4).",
+    "invite": "Gain invitation from Party of Yoru.",
+    "unlock": "Provide 25 units of Xihe Companions.",
+    "reputation": "Craft modules for a major increase. Sell commodities to Nemo Cyber Party Base.",
+    "permit": false,
+    "odyssey": false
+  }
+]

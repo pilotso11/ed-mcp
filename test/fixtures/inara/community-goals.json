@@ -1,0 +1,26 @@
+{
+  "header": { "eventStatus": 200 },
+  "events": [
+    {
+      "eventCustomID": 1,
+      "eventStatus": 200,
+      "eventData": [
+        {
+          "communitygoalName": "Operation Andronicus",
+          "starsystemName": "Pleiades Sector IR-W d1-55",
+          "stationName": "The Oracle",
+          "goalExpiry": "2017-11-09T16:00:00Z",
+          "tierReached": 4,
+          "tierMax": 0,
+          "contributorsNum": 408,
+          "contributionsTotal": 2838230000,
+          "isCompleted": false,
+          "lastUpdate": "2017-11-08T14:10:05Z",
+          "goalObjectiveText": "Hand in Pilots Federation Combat Bonds",
+          "goalRewardText": "",
+          "goalDescriptionText": "With Thargoid attacks becoming a regular occurrence in the Pleiades Nebula, Aegis has leveraged its considerable reserves to fund a military operation."
+        }
+      ]
+    }
+  ]
+}

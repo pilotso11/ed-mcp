@@ -1,0 +1,206 @@
+import { randomUUID } from "node:crypto";
+import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { z } from "zod";
+import { UserError } from "../errors.js";
+import {
+  PlanFileSchema,
+  PlanInputSchema,
+  type Plan,
+  type PlanFile,
+  type PlanInput,
+  type PlanItem,
+} from "./schema.js";
+
+export interface PlanSummary {
+  id: string;
+  name: string;
+  items: number;
+  done: number;
+  updated_at: string;
+}
+
+const LOCK_TIMEOUT_MS = 5000;
+const LOCK_RETRY_MS = 50;
+const LOCK_STALE_MS = 30_000;
+
+export class PlanStore {
+  private queue: Promise<unknown> = Promise.resolve();
+
+  private readonly lockTimeoutMs: number;
+
+  constructor(
+    readonly file: string,
+    private readonly now: () => Date = () => new Date(),
+    opts: { lockTimeoutMs?: number } = {},
+  ) {
+    this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
+  }
+
+  async list(): Promise<PlanSummary[]> {
+    const { plans } = await this.read();
+    return plans.map((p) => ({
+      id: p.id,
+      name: p.name,
+      items: p.items.length,
+      done: p.items.filter((i) => i.status === "done" || i.status === "skipped").length,
+      updated_at: p.updated_at,
+    }));
+  }
+
+  async get(id: string): Promise<Plan> {
+    const plan = (await this.read()).plans.find((p) => p.id === id);
+    if (!plan) throw new UserError(`Plan "${id}" not found`);
+    return plan;
+  }
+
+  upsert(input: PlanInput): Promise<Plan> {
+    return this.mutate((data) => {
+      const parsed = PlanInputSchema.safeParse(input);
+      if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+      const stamp = this.now().toISOString();
+      const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
+      const plan: Plan = {
+        ...parsed.data,
+        created_at: idx >= 0 ? data.plans[idx]!.created_at : stamp,
+        updated_at: stamp,
+      };
+      if (idx >= 0) data.plans[idx] = plan;
+      else data.plans.push(plan);
+      return plan;
+    });
+  }
+
+  updateItem(
+    planId: string,
+    itemId: string,
+    patch: { status?: PlanItem["status"]; notes?: string },
+  ): Promise<Plan> {
+    return this.mutate((data) => {
+      const plan = data.plans.find((p) => p.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      const item = plan.items.find((i) => i.id === itemId);
+      if (!item) throw new UserError(`Item "${itemId}" not found in plan "${planId}"`);
+      if (patch.status !== undefined) item.status = patch.status;
+      if (patch.notes !== undefined) item.notes = patch.notes;
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.mutate((data) => {
+      const idx = data.plans.findIndex((p) => p.id === id);
+      if (idx < 0) throw new UserError(`Plan "${id}" not found`);
+      data.plans.splice(idx, 1);
+    });
+  }
+
+  private async read(): Promise<PlanFile> {
+    let raw: string;
+    try {
+      raw = await readFile(this.file, "utf8");
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return { version: 1, plans: [] };
+      throw err;
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      throw new UserError(`Plan file ${this.file} is invalid: not JSON`);
+    }
+    const parsed = PlanFileSchema.safeParse(json);
+    if (!parsed.success) {
+      throw new UserError(`Plan file ${this.file} is invalid: ${z.prettifyError(parsed.error)}`);
+    }
+    return parsed.data;
+  }
+
+  // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
+  // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
+  private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
+    const run = this.queue.then(async () => {
+      await mkdir(path.dirname(this.file), { recursive: true });
+      const release = await this.acquireLock();
+      try {
+        const data = await this.read();
+        const result = fn(data);
+        const tmp = `${this.file}.${process.pid}.tmp`;
+        try {
+          await writeFile(tmp, JSON.stringify(data, null, 2));
+          await rename(tmp, this.file);
+        } catch (err) {
+          await unlink(tmp).catch(() => undefined);
+          throw err;
+        }
+        return result;
+      } finally {
+        await release();
+      }
+    });
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async acquireLock(): Promise<() => Promise<void>> {
+    const lock = `${this.file}.lock`;
+    const deadline = Date.now() + this.lockTimeoutMs;
+    for (;;) {
+      try {
+        const handle = await open(lock, "wx");
+        const token = randomUUID();
+        try {
+          await handle.writeFile(token);
+        } catch (err) {
+          await handle.close().catch(() => undefined);
+          await unlink(lock).catch(() => undefined);
+          throw err;
+        }
+        await handle.close();
+        // If we stalled past LOCK_STALE_MS, another process may have broken our lock and
+        // taken a fresh one. Only remove the lock while it still holds our token.
+        return async () => {
+          const held = await readFile(lock, "utf8").catch(() => undefined);
+          if (held === token) await unlink(lock).catch(() => undefined);
+        };
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      }
+      try {
+        if (Date.now() - (await stat(lock)).mtimeMs > LOCK_STALE_MS) {
+          if (await this.breakStaleLock(lock)) continue;
+        }
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw err;
+      }
+      if (Date.now() >= deadline) {
+        throw new UserError("Plan file is locked by another process; try again");
+      }
+      await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+    }
+  }
+
+  // Renaming the lock aside is atomic, so only one process wins the break. A plain unlink
+  // could delete the fresh lock another process just created after breaking the same one.
+  // The lock may have been replaced between our stat and rename; if the file we moved is
+  // fresh, put it back and wait for its owner instead.
+  private async breakStaleLock(lock: string): Promise<boolean> {
+    const aside = `${lock}.${process.pid}.${Date.now()}.stale`;
+    try {
+      await rename(lock, aside);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return true;
+      throw err;
+    }
+    const moved = await stat(aside).catch(() => undefined);
+    if (moved && Date.now() - moved.mtimeMs <= LOCK_STALE_MS) {
+      await link(aside, lock).catch(() => undefined);
+      await unlink(aside).catch(() => undefined);
+      return false;
+    }
+    await unlink(aside).catch(() => undefined);
+    return true;
+  }
+}

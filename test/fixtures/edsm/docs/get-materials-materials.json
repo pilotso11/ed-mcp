@@ -1,0 +1,16 @@
+{
+  "msgnum": 100,
+  "msg": "OK",
+  "materials": [
+    {
+      "type": "antimony",
+      "name": "Antimony",
+      "qty": 3
+    },
+    {
+      "type": "arsenic",
+      "name": "Arsenic",
+      "qty": 2
+    }
+  ]
+}

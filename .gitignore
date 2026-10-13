@@ -1,3 +1,6 @@
 .playwright-mcp/
 /bin/
 /coverage/
+node_modules/
+dist/
+*.mcpb

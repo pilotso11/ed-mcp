@@ -1,0 +1,459 @@
+{
+  "count": 10000,
+  "from": 0,
+  "reference": {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "results": [
+    {
+      "allegiance": "Federation",
+      "body_gravity": 0.13896125216682,
+      "body_has_atmosphere": false,
+      "body_has_rings": false,
+      "body_id64": 288248639292253609,
+      "body_name": "Cooke",
+      "body_subtype": "Rocky body",
+      "body_type": "Planet",
+      "controlling_minor_faction": "Barnard's Star Advanced Corp.",
+      "controlling_minor_faction_influence": 0.150101,
+      "controlling_minor_faction_state": "Pirate Attack",
+      "distance": 5.95466269510709,
+      "distance_to_arrival": 37.425386,
+      "economies": [
+        {
+          "name": "Extraction",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Water"
+        },
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Bauxite"
+        }
+      ],
+      "government": "Corporate",
+      "has_large_pad": true,
+      "has_market": true,
+      "id": "3878718208",
+      "import_commodities": [
+        {
+          "name": "Bioreducing Lichen"
+        },
+        {
+          "name": "Explosives"
+        },
+        {
+          "name": "H.E. Suits"
+        }
+      ],
+      "is_planetary": true,
+      "large_pads": 1,
+      "latitude": 39.553665,
+      "longitude": -33.27776,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 131,
+          "sell_price": 1685,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 2,
+          "sell_price": 3658,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Foods",
+          "commodity": "Animal Meat",
+          "demand": 84,
+          "sell_price": 1849,
+          "supply": 0
+        }
+      ],
+      "market_id": 3878718208,
+      "market_updated_at": "2026-09-03T01:31:52Z",
+      "medium_pads": 0,
+      "name": "Mohanty Drilling Base",
+      "primary_economy": "Extraction",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Bootleg Liquor"
+        },
+        {
+          "name": "Combat Stabilisers"
+        }
+      ],
+      "services": [
+        {
+          "name": "Interstellar Factors Contact"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "small_pads": 1,
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 18263140541865,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Barnard's Star",
+      "system_population": 1256069,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Colony",
+      "system_x": -3.03125,
+      "system_y": 1.375,
+      "system_z": 4.9375,
+      "type": "Settlement",
+      "updated_at": "2026-09-29T02:38:11Z"
+    },
+    {
+      "allegiance": "Federation",
+      "body_gravity": 0.427393698378709,
+      "body_has_atmosphere": false,
+      "body_has_rings": false,
+      "body_id64": 324277436311217577,
+      "body_name": "Birmingham World",
+      "body_subtype": "Rocky body",
+      "body_type": "Planet",
+      "controlling_minor_faction": "Barnard's Star Advanced Corp.",
+      "controlling_minor_faction_influence": 0.150101,
+      "distance": 5.95466269510709,
+      "distance_to_arrival": 61.876633,
+      "economies": [
+        {
+          "name": "Industrial",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Water Purifiers"
+        },
+        {
+          "name": "Hydrogen Fuel"
+        },
+        {
+          "name": "Building Fabricators"
+        }
+      ],
+      "government": "Corporate",
+      "has_large_pad": true,
+      "has_market": true,
+      "id": "3878719232",
+      "import_commodities": [
+        {
+          "name": "Leather"
+        },
+        {
+          "name": "Ceramic Composites"
+        },
+        {
+          "name": "Polymers"
+        }
+      ],
+      "is_planetary": true,
+      "large_pads": 1,
+      "latitude": 31.481142,
+      "longitude": -67.45282,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 138,
+          "sell_price": 1696,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 2,
+          "sell_price": 3674,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Foods",
+          "commodity": "Algae",
+          "demand": 1074,
+          "sell_price": 736,
+          "supply": 0
+        }
+      ],
+      "market_id": 3878719232,
+      "market_updated_at": "2026-10-03T21:29:59Z",
+      "medium_pads": 0,
+      "name": "Kuharenko Synthetics Silo",
+      "primary_economy": "Industrial",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "services": [
+        {
+          "name": "Interstellar Factors Contact"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "small_pads": 0,
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 18263140541865,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Barnard's Star",
+      "system_population": 1256069,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Colony",
+      "system_x": -3.03125,
+      "system_y": 1.375,
+      "system_z": 4.9375,
+      "type": "Settlement",
+      "updated_at": "2026-10-03T21:29:59Z"
+    },
+    {
+      "controlling_minor_faction": "Hutton Orbital Truckers Co-Operative",
+      "controlling_minor_faction_influence": 0.380325,
+      "controlling_minor_faction_state": "Investment",
+      "distance": 5.95466269510709,
+      "distance_to_arrival": 37.262787,
+      "economies": [
+        {
+          "name": "Refinery",
+          "share": 100.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Synthetic Fabrics"
+        },
+        {
+          "name": "Lithium"
+        }
+      ],
+      "government": "Cooperative",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "128147960",
+      "import_commodities": [
+        {
+          "name": "Methane Clathrate"
+        },
+        {
+          "name": "Lepidolite"
+        },
+        {
+          "name": "Mineral Oil"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 7,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 112641,
+          "sell_price": 3704,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 5859,
+          "sell_price": 1882,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Chemicals",
+          "commodity": "Agronomic Treatment",
+          "demand": 0,
+          "sell_price": 13447,
+          "supply": 0
+        }
+      ],
+      "market_id": 128147960,
+      "market_updated_at": "2026-10-11T10:19:33Z",
+      "medium_pads": 16,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Miller Depot",
+      "outfitting_updated_at": "2026-10-11T10:19:33Z",
+      "primary_economy": "Refinery",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Slaves"
+        }
+      ],
+      "services": [
+        {
+          "name": "Interstellar Factors Contact"
+        },
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkV",
+          "price": 1989461,
+          "symbol": "CobraMkV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-11T13:04:12Z",
+      "small_pads": 13,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Jerome Archer",
+      "system_id64": 18263140541865,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Barnard's Star",
+      "system_population": 1256069,
+      "system_power": [
+        "Aisling Duval",
+        "Edmund Mahon",
+        "Li Yong-Rui"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Refinery",
+      "system_secondary_economy": "Colony",
+      "system_x": -3.03125,
+      "system_y": 1.375,
+      "system_z": 4.9375,
+      "type": "Orbis Starport",
+      "updated_at": "2026-10-11T20:06:48Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "has_large_pad": {
+        "value": true
+      },
+      "services": [
+        {
+          "name": {
+            "value": [
+              "Interstellar Factors Contact"
+            ]
+          }
+        }
+      ]
+    },
+    "page": 0,
+    "reference_system": "Sol",
+    "reference_system_details": {
+      "id64": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "size": 3,
+    "sort": [
+      {
+        "distance": {
+          "direction": "asc"
+        }
+      }
+    ]
+  },
+  "search_reference": "0B85404A-C5B8-11F1-A8CC-E887BF4D7316",
+  "size": 3
+}

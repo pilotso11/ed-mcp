@@ -1,0 +1,57 @@
+{
+  "name": "ed-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Elite Dangerous build planning: Inara, EDSM, Frontier CAPI and Spansh tools for Claude",
+  "license": "MIT",
+  "author": "Seth Osher",
+  "type": "module",
+  "bin": {
+    "ed-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "LICENSES",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pilotso11/ed-mcp.git"
+  },
+  "homepage": "https://github.com/pilotso11/ed-mcp",
+  "keywords": [
+    "mcp",
+    "elite-dangerous",
+    "inara",
+    "edsm",
+    "spansh",
+    "claude"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "catalog:statics": "node scripts/catalog-statics.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run format:check && npm test",
+    "pack:mcpb": "node scripts/pack-mcpb.mjs",
+    "prepublishOnly": "npm run check && npm run build"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@types/node": "^22.20.5",
+    "env-paths": "^4.0.0",
+    "fastest-levenshtein": "^1.0.16",
+    "prettier": "^3.9.10",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "zod": "^4.6.6"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "min_max": {
+    "price": {
+      "max": 301348586.0,
+      "min": 25600.0
+    }
+  },
+  "values": {
+    "name": [
+      "Sidewinder",
+      "Hauler",
+      "Cobra MkIII",
+      "Type-6 Transporter",
+      "Adder",
+      "Eagle",
+      "Krait MkII",
+      "Panther Clipper MkII",
+      "Cobra MkV",
+      "Viper MkIII",
+      "Krait Phantom",
+      "Asp Explorer",
+      "Type-8 Transporter",
+      "Type-7 Transporter",
+      "Mandalay",
+      "Dolphin",
+      "Type-9 Heavy",
+      "Viper MkIV",
+      "Diamondback Explorer",
+      "Python",
+      "Vulture",
+      "Keelback",
+      "Caspian Explorer",
+      "Anaconda",
+      "Type-11 Prospector",
+      "Asp Scout",
+      "Diamondback Scout",
+      "Python MkII",
+      "Beluga Liner",
+      "Lynx Highliner",
+      "Mamba",
+      "Orca",
+      "Corsair",
+      "Kestrel Mk II",
+      "Fer-de-Lance",
+      "Cobra MkIV",
+      "Type-10 Defender",
+      "Alliance Chieftain",
+      "Alliance Challenger",
+      "Imperial Courier",
+      "Imperial Eagle",
+      "Alliance Crusader",
+      "Imperial Clipper",
+      "Federal Corvette",
+      "Imperial Cutter",
+      "Federal Dropship",
+      "Federal Assault Ship",
+      "Federal Gunship"
+    ],
+    "price": []
+  }
+}

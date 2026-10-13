@@ -1,0 +1,28 @@
+{
+  "msgnum": 100,
+  "msg": "OK",
+  "ranks": {
+    "Combat": 3,
+    "Trade": 3,
+    "Explore": 7,
+    "CQC": 0,
+    "Federation": 0,
+    "Empire": 0
+  },
+  "progress": {
+    "Combat": 91,
+    "Trade": 1,
+    "Explore": 7,
+    "CQC": 0,
+    "Federation": 56,
+    "Empire": 0
+  },
+  "ranksVerbose": {
+    "Combat": "Competent",
+    "Trade": "Dealer",
+    "Explore": "Pioneer",
+    "CQC": "Helpless",
+    "Federation": "None",
+    "Empire": "None"
+  }
+}
