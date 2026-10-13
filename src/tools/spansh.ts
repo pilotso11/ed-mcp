@@ -35,10 +35,13 @@ export function registerSpanshTools(
         "(material trader, tech broker, interstellar factors). Give exactly one of module, ship, service. " +
         "Module names are generic (e.g. 'Frame Shift Drive') with class 1-8 and rating A-I. " +
         "Applies the commander's stored travel preferences (arrival distance, station types, pad size " +
-        "from the current ship, discounts); override any of them for this call with `preferences` " +
+        "from the current ship, travel-time model); override any of them for this call with `preferences` " +
         "(same shape as prefs_set's patch) or ignore them with use_preferences=false. Returns " +
-        "total (Spansh matches before preferences; 10000 means 10000 or more), matched (matches after preferences among the nearest 50), discount_pct per station, a recommended station with the reason, any relaxed rules, and the " +
-        "applied preferences. Cached 5 min.",
+        "total (Spansh matches before preferences; 10000 means 10000 or more), matched (matches after preferences among the nearest 50). " +
+        "Stations are ranked by estimated travel time (jumps plus supercruise, docking and planetary time) " +
+        "and, for purchases, by effective cost = price + travel time × the commander's credits_per_hour. " +
+        "Each station has jumps, travel_min, effective_cost and discount_pct (versus the median price); " +
+        "recommended explains the trade-off. Also returns any relaxed rules and the applied preferences. Cached 5 min.",
       inputSchema: {
         near: z.string().describe("Exact reference system name"),
         module: z

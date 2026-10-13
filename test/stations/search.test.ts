@@ -39,7 +39,7 @@ describe("searchStations", () => {
     const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
     expect(sp.calls[0]).toMatchObject({ limit: 50, maxArrivalLs: 1000 });
     expect(r.stations.map((s) => s.name)).toEqual(["a"]);
-    expect(r).toMatchObject({ relaxed: [], recommended: { name: "a", reason: "nearest" } });
+    expect(r).toMatchObject({ relaxed: [], recommended: { name: "a" } });
     expect(r.applied_preferences).toMatchObject({ min_pad: "M (auto: current ship Corsair)" });
   });
 
@@ -88,23 +88,43 @@ describe("searchStations", () => {
   });
 });
 
-describe("recommended station in the page", () => {
-  const cheap = hit({ name: "cheap", distance_ly: 10, price: 50 });
-  const dear = (n: string, d: number) => hit({ name: n, distance_ly: d, price: 100 });
+describe("ranking and recommendation", () => {
+  const query = { near: "Sol", service: "material_trader_raw" } as const;
 
-  it("swaps it in for the last entry when limit is 1", async () => {
-    const sp = fakeSpansh([[dear("near", 1), cheap, dear("x", 11)]]);
-    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 1);
+  it("recommends the first returned station", async () => {
+    const sp = fakeSpansh([
+      [
+        hit({ name: "near", distance_ly: 1, price: 100_000_000 }),
+        hit({ name: "b", distance_ly: 2, price: 100_000_000 }),
+        hit({ name: "cheap", distance_ly: 40, price: 50_000_000 }),
+      ],
+    ]);
+    const r = await searchStations(sp, query, rules, 1);
     expect(r.recommended?.name).toBe("cheap");
     expect(r.stations.map((s) => s.name)).toEqual(["cheap"]);
   });
 
-  it("keeps the nearest and replaces the last entry", async () => {
+  it("puts a cheaper further station first when the saving beats the time", async () => {
     const sp = fakeSpansh([
-      [dear("near", 1), dear("b", 2), dear("c", 3), dear("d", 4), { ...cheap, distance_ly: 5 }],
+      [
+        hit({ name: "near", distance_ly: 1, price: 10_000_000 }),
+        hit({ name: "far", distance_ly: 45, price: 9_000_000 }),
+      ],
     ]);
-    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 2);
-    expect(r.stations.map((s) => s.name)).toEqual(["near", "cheap"]);
+    const r = await searchStations(sp, query, rules, 10);
+    expect(r.stations.map((s) => s.name)).toEqual(["far", "near"]);
+    expect(r.recommended).toMatchObject({ name: "far" });
+    expect(r.stations[0]).toMatchObject({ jumps: 2 });
+  });
+
+  it("orders unpriced results by travel_s", async () => {
+    const sp = fakeSpansh([
+      [hit({ name: "slow", distance_ly: 60 }), hit({ name: "fast", distance_ly: 1 })],
+    ]);
+    const r = await searchStations(sp, query, rules, 10);
+    expect(r.stations.map((s) => s.name)).toEqual(["fast", "slow"]);
+    expect(r.stations[0]!.travel_s).toBeLessThan(r.stations[1]!.travel_s);
+    expect(r.recommended).toMatchObject({ name: "fast" });
   });
 
   it("makes one Spansh call for hard and off arrival modes with no results", async () => {

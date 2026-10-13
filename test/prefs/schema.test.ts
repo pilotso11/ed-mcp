@@ -13,7 +13,18 @@ describe("prefs schema", () => {
         megaships: "allow",
         min_pad: "auto",
       },
-      discounts: { enabled: true, min_pct: 10, max_extra_ly: 30 },
+      travel: {
+        jump_range_ly: 30,
+        seconds_per_jump: 60,
+        refuel_every_jumps: 0,
+        refuel_s: 120,
+        supercruise: { base_s: 20, coeff: 8.9, exponent: 0.33, speed_factor: 1 },
+        occlusion: { chance: 0.5, seconds: 40 },
+        near_star: { within_ls: 50, seconds: 30 },
+        dock_s: 60,
+        planetary_extra_s: 90,
+        credits_per_hour: 20_000_000,
+      },
     });
   });
 
@@ -25,22 +36,23 @@ describe("prefs schema", () => {
       megaships: "allow",
       min_pad: "none",
     });
-    expect(OFF_PREFS.discounts.enabled).toBe(false);
+    expect(OFF_PREFS.travel).toEqual(DEFAULT_PREFS.travel);
   });
 
   it("deep-merges a partial patch", () => {
     const p = applyPatch(DEFAULT_PREFS, {
       stations: { max_arrival_ls: { value: 2000 } },
-      discounts: { max_extra_ly: 50 },
+      travel: { credits_per_hour: 50_000_000, supercruise: { speed_factor: 2 } },
     });
     expect(p.stations.max_arrival_ls).toEqual({ value: 2000, mode: "soft" });
-    expect(p.discounts).toEqual({ enabled: true, min_pct: 10, max_extra_ly: 50 });
+    expect(p.travel.credits_per_hour).toBe(50_000_000);
+    expect(p.travel.supercruise).toEqual({ ...DEFAULT_PREFS.travel.supercruise, speed_factor: 2 });
     expect(p.stations.planetary).toBe("avoid");
   });
 
   it("rejects unknown keys and bad values", () => {
     expect(() => parsePatch({ stations: { max_arival_ls: { value: 1 } } })).toThrow(UserError);
     expect(() => parsePatch({ stations: { planetary: "never" } })).toThrow(/Invalid preferences/);
-    expect(() => parsePatch({ discounts: { min_pct: 150 } })).toThrow(UserError);
+    expect(() => parsePatch({ travel: { occlusion: { chance: 2 } } })).toThrow(UserError);
   });
 });

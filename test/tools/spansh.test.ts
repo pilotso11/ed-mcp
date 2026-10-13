@@ -50,6 +50,13 @@ describe("spansh tools", () => {
     });
     expect(r.isError).toBe(false);
     expect(r.json).toMatchObject({ near: "Sol", total: 28 });
+    const stations = (r.json as { stations: Array<{ jumps: number; travel_min: number }> })
+      .stations;
+    expect(stations.length).toBeGreaterThan(0);
+    for (const s of stations) {
+      expect(typeof s.jumps).toBe("number");
+      expect(typeof s.travel_min).toBe("number");
+    }
     expect(JSON.parse(String(f.calls[0]!.init!.body)).size).toBe(50);
   });
 
@@ -74,7 +81,7 @@ describe("spansh tools", () => {
 
   it("accepts per-call preference overrides without saving them", async () => {
     const { client, f, prefs } = await setup();
-    await prefs.set({ discounts: { max_extra_ly: 7 } });
+    await prefs.set({ travel: { credits_per_hour: 7 } });
     await callTool(client, "spansh_find_stations", {
       near: "Sol",
       service: "material_trader_raw",
@@ -82,7 +89,7 @@ describe("spansh tools", () => {
     });
     expect(JSON.parse(String(f.calls[0]!.init!.body)).filters.distance_to_arrival).toBeUndefined();
     expect((await prefs.get()).stations.max_arrival_ls.mode).toBe("soft");
-    expect((await prefs.get()).discounts.max_extra_ly).toBe(7);
+    expect((await prefs.get()).travel.credits_per_hour).toBe(7);
   });
 
   it("ignores stored preferences when use_preferences is false", async () => {

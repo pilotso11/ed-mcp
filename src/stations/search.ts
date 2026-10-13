@@ -3,12 +3,11 @@ import type { SpanshClient, StationQuery } from "../spansh/client.js";
 import {
   applyRules,
   describeRules,
-  recommend,
   withDiscounts,
   type PadResolution,
-  type PricedHit,
   type Rules,
 } from "./filter.js";
+import { rankStations, recommendStation, type RankedHit } from "./travel.js";
 
 const FETCH_SIZE = 50;
 
@@ -17,7 +16,7 @@ export interface StationSearchResult {
   total: number;
   matched: number;
   total_capped: boolean;
-  stations: PricedHit[];
+  stations: RankedHit[];
   recommended: { name: string; system: string; reason: string } | null;
   relaxed: string[];
   relax_attempted: boolean;
@@ -90,19 +89,14 @@ export async function searchStations(
     outcome = applyRules(wider.stations, rules, true);
     source = wider;
   }
-  // Discounts and the recommendation use every filtered hit, not just the page returned.
-  const priced = withDiscounts(outcome.stations);
-  const recommended = recommend(priced, rules);
-  const page = priced.slice(0, limit);
-  const pick = recommended
-    ? priced.find((h) => h.name === recommended.name && h.system === recommended.system)
-    : undefined;
-  // The recommended station must be in the page so its price, arrival and pad are visible.
-  if (pick && !page.includes(pick)) page[page.length - 1] = pick;
+  const ranked = rankStations(withDiscounts(outcome.stations), rules.prefs.travel);
+  const recommended = recommendStation(ranked, rules.prefs.travel);
+  // Ranking puts the recommended station first, so it is always in the page.
+  const page = ranked.slice(0, limit);
   return {
     near: source.near,
     total: source.total,
-    matched: priced.length,
+    matched: ranked.length,
     total_capped: source.total_capped,
     stations: page,
     recommended,

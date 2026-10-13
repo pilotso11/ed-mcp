@@ -96,73 +96,12 @@ function medianPrice(hits: StationHit[]): number | null {
   return prices.length % 2 ? prices[mid]! : (prices[mid - 1]! + prices[mid]!) / 2;
 }
 
-function exactDiscount(price: number | null, median: number | null): number | null {
-  return median && price ? Math.max(0, ((median - price) / median) * 100) : null;
-}
-
 export function withDiscounts(hits: StationHit[]): PricedHit[] {
   const median = medianPrice(hits);
   return hits.map((h) => {
-    const d = exactDiscount(h.price, median);
+    const d = median && h.price ? Math.max(0, ((median - h.price) / median) * 100) : null;
     return { ...h, discount_pct: d === null ? null : Math.round(d) };
   });
-}
-
-// `hits` must be sorted nearest first (searchStations passes Spansh's distance-sorted list).
-// The detour is judged against the nearest station's price, since that is what the
-// commander gives up. Percentages are exact; discount_pct is rounded for display only.
-export function recommend(
-  hits: PricedHit[],
-  rules: Rules,
-): { name: string; system: string; reason: string } | null {
-  const nearest = hits[0];
-  if (!nearest) return null;
-  const d = rules.prefs.discounts;
-  if (d.enabled) {
-    const extraLy = (h: PricedHit) => h.distance_ly - nearest.distance_ly;
-    const cheapest = (a: PricedHit, b: PricedHit) =>
-      (a.price ?? 0) - (b.price ?? 0) || a.distance_ly - b.distance_ly;
-    if (nearest.price) {
-      const np = nearest.price;
-      const best = hits
-        .filter(
-          (h) =>
-            h !== nearest &&
-            h.price &&
-            ((np - h.price) / np) * 100 >= d.min_pct &&
-            extraLy(h) <= d.max_extra_ly,
-        )
-        .sort(cheapest)[0];
-      if (best) {
-        const pct = Math.round(((np - best.price!) / np) * 100);
-        return {
-          name: best.name,
-          system: best.system,
-          reason: `${pct}% cheaper than the nearest (${nearest.name}), ${extraLy(best).toFixed(1)} LY further`,
-        };
-      }
-    } else {
-      const median = medianPrice(hits);
-      const best = hits
-        .filter(
-          (h) =>
-            h !== nearest &&
-            (exactDiscount(h.price, median) ?? 0) >= d.min_pct &&
-            extraLy(h) <= d.max_extra_ly,
-        )
-        .sort(
-          (a, b) => (b.discount_pct ?? 0) - (a.discount_pct ?? 0) || a.distance_ly - b.distance_ly,
-        )[0];
-      if (best) {
-        return {
-          name: best.name,
-          system: best.system,
-          reason: `${best.discount_pct}% cheaper than typical, ${extraLy(best).toFixed(1)} LY further than the nearest`,
-        };
-      }
-    }
-  }
-  return { name: nearest.name, system: nearest.system, reason: "nearest" };
 }
 
 export function describeRules(rules: Rules): Record<string, unknown> {
@@ -180,8 +119,8 @@ export function describeRules(rules: Rules): Record<string, unknown> {
       : rules.pad.source === "none"
         ? "none"
         : `none (${rules.pad.source})`,
-    discounts: rules.prefs.discounts.enabled
-      ? `>= ${rules.prefs.discounts.min_pct}% within ${rules.prefs.discounts.max_extra_ly} extra LY`
-      : "off",
+    travel:
+      `range ${rules.prefs.travel.jump_range_ly} LY, ${rules.prefs.travel.seconds_per_jump} s per jump, ` +
+      `time valued at ${rules.prefs.travel.credits_per_hour.toLocaleString("en-US")} cr/h`,
   };
 }

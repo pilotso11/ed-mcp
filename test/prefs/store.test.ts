@@ -27,12 +27,12 @@ describe("PreferencesStore", () => {
     const s = new PreferencesStore(file);
     await Promise.all([
       s.set({ stations: { min_pad: "M" } }),
-      s.set({ discounts: { min_pct: 25 } }),
+      s.set({ travel: { seconds_per_jump: 45 } }),
       s.set({ stations: { planetary: "exclude" } }),
     ]);
     const p = await s.get();
     expect(p.stations.min_pad).toBe("M");
-    expect(p.discounts.min_pct).toBe(25);
+    expect(p.travel.seconds_per_jump).toBe(45);
     expect(p.stations.planetary).toBe("exclude");
   });
 
@@ -47,7 +47,7 @@ describe("PreferencesStore", () => {
     await s.set({});
     await writeFile(file, '{"version":1,"stations":{}}');
     await expect(s.get()).rejects.toThrow(/Preferences file .* is invalid/);
-    await expect(s.set({ discounts: { enabled: false } })).rejects.toThrow(/is invalid/);
+    await expect(s.set({ travel: { refuel_s: 90 } })).rejects.toThrow(/is invalid/);
     expect(await readFile(file, "utf8")).toBe('{"version":1,"stations":{}}');
   });
 });
