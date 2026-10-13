@@ -15,7 +15,10 @@ import { PreferencesStore } from "./prefs/store.js";
 import type { ServerDeps } from "./server.js";
 import { VERSION } from "./version.js";
 
-export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): ServerDeps {
+export function buildDeps(
+  config: Config,
+  opts: { fetchFn?: FetchFn; journal?: JournalService } = {},
+): ServerDeps {
   const caches = new CacheRegistry();
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
@@ -38,7 +41,7 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     { onSessionChange: () => void capiCache.clear() },
   );
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);
-  const journal = new JournalService(config.journalDir);
+  const journal = opts.journal ?? new JournalService(config.journalDir);
   return {
     caches,
     refreshables: [catalog],
