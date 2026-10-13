@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { link, open, readFile, rename, stat, unlink } from "node:fs/promises";
+import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { UserError } from "../errors.js";
 
 const LOCK_RETRY_MS = 50;
@@ -45,6 +46,31 @@ export async function acquireLock(
     }
     if (Date.now() >= deadline) throw new UserError(lockedMessage);
     await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+  }
+}
+
+// Holds the lock while `update` re-reads the file and builds its new content, then
+// replaces the file atomically. The temp name is unique so concurrent writers never share it.
+export async function lockedWrite<T>(
+  file: string,
+  opts: { timeoutMs: number; lockedMessage: string },
+  update: () => Promise<{ content: string; result: T }>,
+): Promise<T> {
+  await mkdir(path.dirname(file), { recursive: true });
+  const release = await acquireLock(file, opts.timeoutMs, opts.lockedMessage);
+  try {
+    const { content, result } = await update();
+    const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(tmp, content);
+      await rename(tmp, file);
+    } catch (err) {
+      await unlink(tmp).catch(() => undefined);
+      throw err;
+    }
+    return result;
+  } finally {
+    await release();
   }
 }
 

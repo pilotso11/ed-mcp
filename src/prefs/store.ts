@@ -1,9 +1,7 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { UserError } from "../errors.js";
-import { acquireLock } from "../fs/lock.js";
+import { lockedWrite } from "../fs/lock.js";
 import { applyPatch, DEFAULT_PREFS, parsePatch, PrefsSchema, type Prefs } from "./schema.js";
 
 const LOCK_TIMEOUT_MS = 5000;
@@ -51,25 +49,16 @@ export class PreferencesStore {
 
   private async write(patch: unknown): Promise<Prefs> {
     const parsed = parsePatch(patch);
-    await mkdir(path.dirname(this.file), { recursive: true });
-    const release = await acquireLock(
+    return lockedWrite(
       this.file,
-      this.lockTimeoutMs,
-      "Preferences file is locked by another process; try again",
+      {
+        timeoutMs: this.lockTimeoutMs,
+        lockedMessage: "Preferences file is locked by another process; try again",
+      },
+      async () => {
+        const next = applyPatch(await this.get(), parsed);
+        return { content: JSON.stringify(next, null, 2), result: next };
+      },
     );
-    try {
-      const next = applyPatch(await this.get(), parsed);
-      const tmp = `${this.file}.${randomUUID()}.tmp`;
-      try {
-        await writeFile(tmp, JSON.stringify(next, null, 2));
-        await rename(tmp, this.file);
-      } catch (err) {
-        await unlink(tmp).catch(() => undefined);
-        throw err;
-      }
-      return next;
-    } finally {
-      await release();
-    }
   }
 }

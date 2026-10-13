@@ -1,8 +1,7 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { UserError } from "../errors.js";
-import { acquireLock } from "../fs/lock.js";
+import { lockedWrite } from "../fs/lock.js";
 import {
   PlanFileSchema,
   PlanInputSchema,
@@ -118,29 +117,20 @@ export class PlanStore {
   // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
   // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
   private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
-    const run = this.queue.then(async () => {
-      await mkdir(path.dirname(this.file), { recursive: true });
-      const release = await acquireLock(
+    const run = this.queue.then(() =>
+      lockedWrite(
         this.file,
-        this.lockTimeoutMs,
-        "Plan file is locked by another process; try again",
-      );
-      try {
-        const data = await this.read();
-        const result = fn(data);
-        const tmp = `${this.file}.${process.pid}.tmp`;
-        try {
-          await writeFile(tmp, JSON.stringify(data, null, 2));
-          await rename(tmp, this.file);
-        } catch (err) {
-          await unlink(tmp).catch(() => undefined);
-          throw err;
-        }
-        return result;
-      } finally {
-        await release();
-      }
-    });
+        {
+          timeoutMs: this.lockTimeoutMs,
+          lockedMessage: "Plan file is locked by another process; try again",
+        },
+        async () => {
+          const data = await this.read();
+          const result = fn(data);
+          return { content: JSON.stringify(data, null, 2), result };
+        },
+      ),
+    );
     this.queue = run.catch(() => undefined);
     return run;
   }
