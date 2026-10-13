@@ -20,6 +20,14 @@ describe("loadConfig", () => {
     );
   });
 
+  it("reads ED_JOURNAL_DIR and the Windows default", () => {
+    expect(loadConfig({ ED_JOURNAL_DIR: "/j" }, dirs).journalDir).toBe("/j");
+    expect(loadConfig({}, dirs, "darwin").journalDir).toBeUndefined();
+    expect(loadConfig({}, dirs, "win32").journalDir).toMatch(
+      /Saved Games.Frontier Developments.Elite Dangerous$/,
+    );
+  });
+
   it("reads Inara config with defaults", () => {
     const c = loadConfig({ INARA_API_KEY: "k", INARA_CMDR: "Jameson" }, dirs);
     expect(c.inara).toEqual({ apiKey: "k", cmdr: "Jameson", appName: "ed-mcp", devMode: true });

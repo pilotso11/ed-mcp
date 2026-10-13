@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import envPaths from "env-paths";
 import { resolveUserPath } from "./paths.js";
@@ -24,6 +25,7 @@ export interface Config {
   inara?: InaraConfig;
   edsm?: EdsmConfig;
   capi?: CapiConfig;
+  journalDir?: string;
   plansFile: string;
   cacheDir: string;
   configDir: string;
@@ -63,7 +65,11 @@ function userPath(env: Env, key: string): string | undefined {
   }
 }
 
-export function loadConfig(env: Env, dirs: { config: string; cache: string }): Config {
+export function loadConfig(
+  env: Env,
+  dirs: { config: string; cache: string },
+  platform: NodeJS.Platform = process.platform,
+): Config {
   const devMode = bool(env, "INARA_DEV_MODE", true);
   const inaraKey = get(env, "INARA_API_KEY");
   const inaraCmdr = get(env, "INARA_CMDR");
@@ -83,6 +89,11 @@ export function loadConfig(env: Env, dirs: { config: string; cache: string }): C
         : undefined,
     edsm: edsmKey && edsmCmdr ? { apiKey: edsmKey, cmdr: edsmCmdr } : undefined,
     capi: capiClientId ? { clientId: capiClientId } : undefined,
+    journalDir:
+      get(env, "ED_JOURNAL_DIR") ??
+      (platform === "win32"
+        ? path.join(os.homedir(), "Saved Games", "Frontier Developments", "Elite Dangerous")
+        : undefined),
     plansFile: userPath(env, "ED_MCP_PLANS") ?? path.join(dirs.config, "plans.json"),
     cacheDir: dirs.cache,
     configDir: dirs.config,

@@ -6,6 +6,7 @@ import { CatalogService } from "./catalog/service.js";
 import type { Config } from "./config.js";
 import { CacheRegistry, TtlCache } from "./http/cache.js";
 import { HttpClient, type FetchFn } from "./http/client.js";
+import { JournalService } from "./journal/service.js";
 import { InaraClient } from "./inara/client.js";
 import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
@@ -47,6 +48,7 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     capiAuth,
     capi,
     currentShip: async () => (await capi.profile()).ship?.type ?? null,
+    journal: new JournalService(config.journalDir),
     plans: new PlanStore(config.plansFile),
     prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
   };
