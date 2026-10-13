@@ -255,4 +255,10 @@ describe("spansh tools", () => {
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(names).toEqual(["spansh_find_stations", "spansh_route", "spansh_system"]);
   });
+
+  it("states the 24 h system cache in the spansh_system description", async () => {
+    const { client } = await setup();
+    const tool = (await client.listTools()).tools.find((t) => t.name === "spansh_system");
+    expect(tool?.description).toContain("Cached 24 h.");
+  });
 });

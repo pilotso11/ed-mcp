@@ -98,7 +98,7 @@ export function registerSpanshTools(
     {
       description:
         "Look up a system by exact name: coordinates, allegiance, permit, and its stations " +
-        "sorted by distance from arrival (limit applies to stations). Cached 5 min.",
+        "sorted by distance from arrival (limit applies to stations). Cached 24 h.",
       inputSchema: { name: z.string(), limit: Limit },
     },
     wrap(async (a: { name: string; limit: number }) => spansh.system(a.name, a.limit)),
