@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildCatalog } from "../../src/catalog/build.js";
-import type { Catalog } from "../../src/catalog/catalog.js";
+import { Catalog } from "../../src/catalog/catalog.js";
 import { rawFixture, SMALL, staticsFixture } from "../helpers/catalogFixture.js";
 
 let cat: Catalog;
@@ -35,6 +35,43 @@ describe("Catalog.blueprint", () => {
   it("suggests close names for unknown blueprints", () => {
     expect(() => cat.blueprint("Incresed rang")).toThrow(
       /Unknown blueprint "Incresed rang"\. Closest: .*Increased range/,
+    );
+  });
+});
+
+describe("Catalog.blueprint with a shared name", () => {
+  const shared = new Catalog({
+    blueprints: [
+      { id: "FSD_LightWeight", name: "Lightweight", modules: ["FSD"], grades: {} },
+      { id: "Sensor_LightWeight", name: "Lightweight", modules: ["Sensors"], grades: {} },
+    ],
+    experimentals: [],
+    groups: [
+      {
+        id: "fsd",
+        names: ["Frame Shift Drive"],
+        blueprints: { FSD_LightWeight: {} },
+        experimentals: [],
+      },
+      {
+        id: "sensors",
+        names: ["Sensors"],
+        blueprints: { Sensor_LightWeight: {} },
+        experimentals: [],
+      },
+    ],
+    materials: [],
+    outfitting: [],
+    engineers: [],
+  });
+
+  it("picks the blueprint for the given module", () => {
+    expect(shared.blueprint("Lightweight", "Frame Shift Drive").id).toBe("FSD_LightWeight");
+  });
+
+  it("reports a module that matches none of the blueprints", () => {
+    expect(() => shared.blueprint("Lightweight", "Thrusters")).toThrow(
+      'Module "Thrusters" does not match blueprint "Lightweight". It applies to: Frame Shift Drive, Sensors',
     );
   });
 });

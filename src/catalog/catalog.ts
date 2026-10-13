@@ -92,11 +92,20 @@ export class Catalog {
     let hits = this.d.blueprints.filter((b) => normKey(b.id) === k || normKey(b.name) === k);
     if (hits.length > 1 && module) {
       const mk = normKey(module);
+      const all = hits;
       hits = hits.filter(
         (b) =>
           b.modules.some((m) => normKey(m) === mk) ||
           this.groupsFor(b.id).some((g) => g.names.some((n) => normKey(n) === mk)),
       );
+      if (hits.length === 0) {
+        const applies = [
+          ...new Set(all.flatMap((b) => this.groupsFor(b.id).map((g) => g.names[0] ?? g.id))),
+        ].join(", ");
+        throw new UserError(
+          `Module "${module}" does not match blueprint "${name}". It applies to: ${applies}`,
+        );
+      }
     }
     if (hits.length === 0) {
       const options = this.d.blueprints.flatMap((b) => [b.id, b.name]);
