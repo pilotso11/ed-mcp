@@ -53,6 +53,16 @@ describe("searchStations", () => {
     expect(r.relax_attempted).toBe(true);
   });
 
+  it("keeps the distance, pad and limit when it drops the soft arrival limit", async () => {
+    const sp = fakeSpansh([[], [hit({ name: "far", arrival_ls: 4000 })]]);
+    const L = resolveRules(DEFAULT_PREFS, { stations: { min_pad: "L" } }, true, AUTO);
+    const query = { near: "Sol", service: "material_trader_raw", maxDistanceLy: 20 } as const;
+    await searchStations(sp, query, L, 10);
+    expect(sp.calls).toHaveLength(2);
+    expect(sp.calls[1]).toMatchObject({ maxDistanceLy: 20, largePad: true, limit: 50 });
+    expect(sp.calls[1]?.maxArrivalLs).toBeUndefined();
+  });
+
   it("sets relax_attempted with an empty relaxed list when nothing matches at all", async () => {
     const sp = fakeSpansh([[], []]);
     const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 10);
