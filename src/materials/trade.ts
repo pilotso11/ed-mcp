@@ -45,10 +45,16 @@ export function planTrades(
   inventory: Array<MatInfo & { count: number }>,
 ): { trades: Trade[]; still_short: Array<{ name: string; count: number }> } {
   const needBy = new Map(needs.map((n) => [key(n), n.count]));
-  const surplus = new Map<string, MatInfo & { spare: number }>();
+  const have = new Map<string, MatInfo & { count: number }>();
   for (const i of inventory) {
-    const spare = i.count - (needBy.get(key(i)) ?? 0);
-    if (spare > 0) surplus.set(key(i), { ...i, spare });
+    const prev = have.get(key(i));
+    if (prev) prev.count += i.count;
+    else have.set(key(i), { ...i });
+  }
+  const surplus = new Map<string, MatInfo & { spare: number }>();
+  for (const [k, i] of have) {
+    const spare = i.count - (needBy.get(k) ?? 0);
+    if (spare > 0) surplus.set(k, { ...i, spare });
   }
   const trades: Trade[] = [];
   const still_short: Array<{ name: string; count: number }> = [];

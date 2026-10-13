@@ -14,7 +14,7 @@ describe("computeNeeds", () => {
     const r = computeNeeds(cat, { blueprints: [fsd()] });
     expect(count(r, "Datamined Wake Exceptions")).toBe(5);
     expect(count(r, "Atypical Disrupted Wake Echoes")).toBe(3);
-    expect(r.unknown).toEqual([]);
+    expect(r.unknown).toContain("Atypical Disrupted Wake Echoes");
   });
 
   it("counts only grades above from_grade", () => {
@@ -37,12 +37,42 @@ describe("computeNeeds", () => {
     expect(count(r, "Atypical Disrupted Wake Echoes")).toBe(6 + 10);
     expect(count(r, "Galvanising Alloys")).toBe(6);
     expect(count(r, "Eccentric Hyperspace Trajectories")).toBe(8 + 2);
+    // The fixture catalog lacks these recipe materials, so they are reported once each.
+    expect(r.unknown).toContain("Galvanising Alloys");
+    expect(r.unknown.filter((u) => u === "Atypical Disrupted Wake Echoes")).toHaveLength(1);
   });
 
   it("rejects an experimental the blueprint does not offer", () => {
     expect(() =>
       computeNeeds(cat, { blueprints: [fsd({ experimental: "special_nope" })] }),
     ).toThrow(UserError);
+  });
+
+  it("allows an experimental-only request", () => {
+    const r = computeNeeds(cat, {
+      blueprints: [
+        {
+          blueprint: "FSD_LongRange",
+          from_grade: 0,
+          to_grade: 0,
+          experimental: "special_fsd_heavy",
+        },
+      ],
+    });
+    expect(r.needs.map((n) => [n.name, n.count]).sort()).toEqual([
+      ["Atypical Disrupted Wake Echoes", 5],
+      ["Eccentric Hyperspace Trajectories", 1],
+      ["Galvanising Alloys", 3],
+    ]);
+  });
+
+  it("rejects negative or fractional counts and rolls", () => {
+    expect(() => computeNeeds(cat, { blueprints: [fsd({ count: -1 })] })).toThrow(UserError);
+    expect(() => computeNeeds(cat, { blueprints: [fsd({ count: 1.5 })] })).toThrow(UserError);
+    expect(() => computeNeeds(cat, { blueprints: [fsd()], rolls_per_grade: [1, -2] })).toThrow(
+      UserError,
+    );
+    expect(() => computeNeeds(cat, { needs: [{ name: "Iron", count: -4 }] })).toThrow(UserError);
   });
 
   it("uses custom rolls per grade", () => {

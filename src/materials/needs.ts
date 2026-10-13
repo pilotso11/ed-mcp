@@ -22,6 +22,13 @@ export function computeNeeds(
   },
 ): { needs: Array<MatInfo & { count: number }>; unknown: string[] } {
   const rolls = req.rolls_per_grade ?? DEFAULT_ROLLS;
+  const whole = (v: number, what: string) => {
+    if (!Number.isInteger(v) || v < 0) {
+      throw new UserError(`${what} must be a whole number of 0 or more (got ${v}).`);
+    }
+  };
+  rolls.forEach((r) => whole(r, "rolls_per_grade entries"));
+  (req.needs ?? []).forEach((n) => whole(n.count, `Count for ${n.name}`));
   const merged = new Map<string, MatInfo & { count: number }>();
   const unknown: string[] = [];
   const blank = (name: string): MatInfo => ({
@@ -42,6 +49,9 @@ export function computeNeeds(
     }
   };
   const add = (info: MatInfo, count: number) => {
+    if (info.symbol === null && !unknown.some((u) => u.toLowerCase() === info.name.toLowerCase())) {
+      unknown.push(info.name);
+    }
     const k = (info.symbol ?? info.name).toLowerCase();
     const prev = merged.get(k);
     if (prev) prev.count += count;
@@ -51,6 +61,7 @@ export function computeNeeds(
   for (const b of req.blueprints ?? []) {
     const from = b.from_grade ?? 0;
     const count = b.count ?? 1;
+    whole(count, "count");
     // to_grade 0 with from_grade 0 is allowed so a request can be experimental-only.
     const bothZero = from === 0 && b.to_grade === 0;
     if (
@@ -91,7 +102,6 @@ export function computeNeeds(
       add(catalog.material(n.name), n.count);
     } catch (e) {
       if (!(e instanceof UserError)) throw e;
-      unknown.push(n.name);
       add(blank(n.name), n.count);
     }
   }

@@ -20,15 +20,15 @@ const guardian = m("Guardian Wreckage Components", "Manufactured", 1, null);
 
 describe("tradeRate (Alioth matrix)", () => {
   it.each([
-    [wake4, wake5, "6:1"], // same group, one up
-    [wake5, wake4, "1:3"], // same group, one down
-    [wake5, wake1, "1:81"], // same group, four down
-    [enc5, wake5, "6:1"], // other group, same grade
-    [enc5, wake4, "2:1"], // other group, one down
-    [enc5, m("x", "Encoded", 3, "Wake Scans"), "2:3"], // other group, two down
-    [enc5, wake1, "2:27"], // other group, four down
-    [enc3, wake5, "216:1"], // other group, two up
-  ])("%s -> %s is %s", (from, to, rate) => {
+    ["same group, one up", wake4, wake5, "6:1"],
+    ["same group, one down", wake5, wake4, "1:3"],
+    ["same group, four down", wake5, wake1, "1:81"],
+    ["other group, same grade", enc5, wake5, "6:1"],
+    ["other group, one down", enc5, wake4, "2:1"],
+    ["other group, two down", enc5, m("x", "Encoded", 3, "Wake Scans"), "2:3"],
+    ["other group, four down", enc5, wake1, "2:27"],
+    ["other group, two up", enc3, wake5, "216:1"],
+  ])("%s", (_label, from, to, rate) => {
     const r = tradeRate(from, to);
     expect(r && `${r.give}:${r.get}`).toBe(rate);
   });
@@ -117,10 +117,10 @@ describe("planTrades", () => {
 
   it("splits a shortfall across sources and reports what is left", () => {
     const { trades, still_short } = planTrades(
-      [need(sel, 3, 0)],
+      [need(sel, 4, 0)],
       [
         { ...ant, count: 12 },
-        { ...iron, count: 0 },
+        { ...iron, count: 216 },
       ],
     );
     expect(trades).toEqual([
@@ -130,8 +130,70 @@ describe("planTrades", () => {
         rate: "6:1",
         trader: "raw",
       },
+      {
+        give: { name: iron.name, count: 216 },
+        get: { name: sel.name, count: 1 },
+        rate: "216:1",
+        trader: "raw",
+      },
     ]);
     expect(still_short).toEqual([{ name: sel.name, count: 1 }]);
+  });
+
+  it("shares one source's spare between shortfalls", () => {
+    const { trades, still_short } = planTrades(
+      [need(wake4, 3, 0), need(wake1, 5, 0)],
+      [{ ...enc5, count: 5 }],
+    );
+    expect(trades).toEqual([
+      {
+        give: { name: enc5.name, count: 4 },
+        get: { name: wake4.name, count: 2 },
+        rate: "2:1",
+        trader: "encoded",
+      },
+    ]);
+    expect(still_short).toEqual([
+      { name: wake4.name, count: 1 },
+      { name: wake1.name, count: 5 },
+    ]);
+  });
+
+  it("sums duplicate inventory entries", () => {
+    const { trades } = planTrades(
+      [need(wake5, 1, 0)],
+      [
+        { ...enc5, count: 3 },
+        { ...enc5, count: 3 },
+      ],
+    );
+    expect(trades).toEqual([
+      {
+        give: { name: enc5.name, count: 6 },
+        get: { name: wake5.name, count: 1 },
+        rate: "6:1",
+        trader: "encoded",
+      },
+    ]);
+  });
+
+  it("ignores materials without metadata", () => {
+    const blank = (name: string): MatInfo => ({
+      name,
+      symbol: null,
+      kind: null,
+      grade: null,
+      trade_group: null,
+    });
+    const { trades, still_short } = planTrades(
+      [need(blank("Mystery"), 2, 0)],
+      [
+        { ...blank("Other"), count: 10 },
+        { ...enc5, count: 50 },
+      ],
+    );
+    expect(trades).toEqual([]);
+    expect(still_short).toEqual([{ name: "Mystery", count: 2 }]);
   });
 
   it("never trades untradable materials", () => {
