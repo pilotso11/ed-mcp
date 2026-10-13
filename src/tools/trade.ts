@@ -18,6 +18,9 @@ const DAY_S = 86_400;
 // station record, so the fetch stays small.
 const SPARE_STATIONS = 10;
 const MAX_FETCH = 30;
+// A pending route left this long is taken as abandoned, so a bare call starts afresh.
+const PENDING_TTL_MS = 15 * 60_000;
+const MAX_PENDING = 20;
 
 export function registerTradeTools(
   server: McpServer,
@@ -43,10 +46,10 @@ export function registerTradeTools(
     }
   };
 
-  let pending: {
-    optionsKey: string;
-    start: { system: string; station: string; cargo: number; capital: number };
-  } | null = null;
+  const pending = new Map<
+    string,
+    { at: number; start: { system: string; station: string; cargo: number; capital: number } }
+  >();
 
   server.registerTool(
     "trade_route",
@@ -118,7 +121,8 @@ export function registerTradeTools(
         // A bare repeat call would re-read the journal, and drifted credits would change the
         // form and submit a second Spansh job, so it reuses the pending job's start inputs.
         const bare = !a.from_system && a.cargo === undefined && a.capital === undefined;
-        const resume = bare && pending?.optionsKey === optionsKey ? pending.start : null;
+        for (const [k, p] of pending) if (now() - p.at > PENDING_TTL_MS) pending.delete(k);
+        const resume = bare ? pending.get(optionsKey)?.start : undefined;
         let system: string | undefined;
         let station: string | undefined;
         let cargo: number;
@@ -182,7 +186,10 @@ export function registerTradeTools(
 
         const job = await spansh.tradeRoute(form);
         if (job.status === "pending") {
-          pending = { optionsKey, start: { system, station, cargo, capital } };
+          // Delete first so the refreshed entry moves to the end and the oldest is evicted.
+          pending.delete(optionsKey);
+          pending.set(optionsKey, { at: now(), start: { system, station, cargo, capital } });
+          if (pending.size > MAX_PENDING) pending.delete(pending.keys().next().value!);
           return {
             status: "pending",
             message:
@@ -193,7 +200,7 @@ export function registerTradeTools(
             notes,
           };
         }
-        pending = null;
+        pending.delete(optionsKey);
         const mapped = mapTradeRoute(job.hops, rules.travel, now());
         notes.push(
           "Travel time covers each hop only, not the way to the start station.",

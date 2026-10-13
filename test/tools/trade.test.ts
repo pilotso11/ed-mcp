@@ -291,6 +291,70 @@ describe("trade_route", () => {
     expect(j.notes.join(" ")).not.toContain("Resumed");
   });
 
+  function pendingSetup() {
+    const journal = { credits: 5_000_000, system: "Lave", station: "Lave Station" };
+    let clock = NOW;
+    const forms: TradeForm[] = [];
+    const spansh = {
+      tradeRoute: async (form: TradeForm) => {
+        forms.push(form);
+        return { status: "pending", job: "J1" };
+      },
+    } as unknown as SpanshClient;
+    const server = new McpServer({ name: "t", version: "0" });
+    registerTradeTools(server, {
+      spansh,
+      journal: {
+        state: async () => ({
+          credits: journal.credits,
+          location: { system: journal.system, station: journal.station, docked: true },
+          ship: { cargo_capacity: 192 },
+        }),
+      } as unknown as JournalService,
+      now: () => clock,
+    });
+    const client = connectTestClient(server);
+    const call = async (args: Record<string, unknown> = {}) =>
+      (await callTool(await client, "trade_route", args)).json as Record<string, any>;
+    const advance = (ms: number) => {
+      clock += ms;
+    };
+    return { journal, forms, call, advance };
+  }
+
+  it("does not resume a pending route abandoned for more than 15 minutes", async () => {
+    const { journal, forms, call, advance } = pendingSetup();
+    await call();
+    advance(14 * 60_000);
+    journal.credits = 6_000_000;
+    expect((await call()).notes.join(" ")).toContain("Resumed");
+    expect(forms[1]).toMatchObject({ station: "Lave Station", starting_capital: 5_000_000 });
+
+    advance(15 * 60_000 + 1);
+    Object.assign(journal, { system: "Diso", station: "Shifnalport" });
+    const j = await call();
+    expect(j.notes.join(" ")).not.toContain("Resumed");
+    expect(forms[2]).toMatchObject({
+      system: "Diso",
+      station: "Shifnalport",
+      starting_capital: 6_000_000,
+    });
+  });
+
+  it("resumes each of two interleaved pending routes with its own inputs", async () => {
+    const { journal, forms, call } = pendingSetup();
+    await call();
+    journal.credits = 6_000_000;
+    await call({ max_hops: 3 });
+    journal.credits = 7_000_000;
+    const a = await call();
+    const b = await call({ max_hops: 3 });
+    expect(a.notes.join(" ")).toContain("Resumed");
+    expect(b.notes.join(" ")).toContain("Resumed");
+    expect(forms[2]).toMatchObject({ max_hops: 5, starting_capital: 5_000_000 });
+    expect(forms[3]).toMatchObject({ max_hops: 3, starting_capital: 6_000_000 });
+  });
+
   it("says so when there is no profitable route", async () => {
     const { j } = await trade({}, { job: { status: "ok", hops: [] } });
     expect(j).toMatchObject({
