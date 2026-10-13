@@ -126,7 +126,7 @@ Defaults:
 | `stations.fleet_carriers`       | `exclude`                            |
 | `stations.megaships`            | `allow`                              |
 | `stations.min_pad`              | `auto`                               |
-| `discounts`                     | enabled, `min_pct` 10, `max_extra_ly` 30 |
+| `travel`                        | See the travel model below           |
 
 - `max_arrival_ls` mode is `soft`, `hard` or `off`.
 - `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
@@ -142,11 +142,57 @@ Each result has these fields:
 
 - `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
 - `matched`: how many stations match your preferences among the nearest 50 that the server fetched.
+- `jumps`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
 - `discount_pct` on each station: how far its price is below the median price of the filtered results.
-- `recommended`: the station to use, with a reason. It is the nearest station, unless a station at least `min_pct` cheaper than the nearest station is no more than `max_extra_ly` further away. Then the cheapest such station wins. If the nearest has no price, the comparison is against the median price instead. The recommended station is always in the returned page.
+- `recommended`: the first station in the ranking, with a reason. The reason names the cheaper station you pay extra minutes for, or says the station is the fastest. The recommended station is always in the returned page.
 - `relaxed`: the rules the search dropped.
 - `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
 - `applied_preferences`: the rules in effect, including the pad source.
+
+## Travel model
+
+The server ranks stations by estimated travel time. For purchases it also ranks by cost. The `travel` settings tune the estimate. All of them can be set with `prefs_set`.
+
+| Setting                | Default                                                      |
+| ---------------------- | ------------------------------------------------------------ |
+| `jump_range_ly`        | 30                                                           |
+| `seconds_per_jump`     | 60                                                           |
+| `refuel_every_jumps`   | 0 (no refuel stops)                                          |
+| `refuel_s`             | 120                                                          |
+| `supercruise`          | `base_s` 20, `coeff` 8.9, `exponent` 0.33, `speed_factor` 1  |
+| `occlusion`            | `chance` 0.5, `seconds` 40                                   |
+| `near_star`            | `within_ls` 50, `seconds` 30                                 |
+| `dock_s`               | 60                                                           |
+| `planetary_extra_s`    | 90                                                           |
+| `credits_per_hour`     | 20,000,000                                                   |
+
+The server estimates travel time like this:
+
+- Jumps: `ceil(distance_ly / jump_range_ly)`. Each jump takes `seconds_per_jump`. A station in the same system needs no jumps.
+- Refuel: one stop of `refuel_s` for every `refuel_every_jumps` jumps. Zero turns this off.
+- Supercruise: `base_s + coeff * ls^exponent / speed_factor`, where `ls` is the arrival distance. Use a `speed_factor` above 1 to model a faster ship or Supercruise Overcharge.
+- Occlusion: `chance * seconds`. This is the expected time lost when the star hides the station.
+- Near star: `near_star.seconds` extra when the station is within `within_ls` of the star.
+- Docking: `dock_s`, plus `planetary_extra_s` for planetary stations.
+
+When Spansh gives no arrival distance, the server assumes 1000 ls and sets `arrival_assumed: true`.
+
+The occlusion, near-star, docking and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
+
+For purchases, `effective_cost = price + travel time in hours * credits_per_hour`. It is `null` when the station has no price. `credits_per_hour` is what an hour of your time is worth. For example, ask Claude "my time is worth 50M cr an hour". Claude calls `prefs_set` with `{"travel":{"credits_per_hour":50000000}}`.
+
+Ranking:
+
+- If any station has an effective cost, stations sort by effective cost. Stations without a price come last. Ties sort by travel time.
+- Otherwise, stations sort by travel time.
+- The page holds the first `limit` stations. The recommendation is the first station.
+
+Each station has these fields:
+
+- `jumps`: the estimated number of jumps.
+- `travel_min`: the estimated travel time in minutes, to one decimal place.
+- `effective_cost`: price plus the value of the travel time, in credits.
+- `arrival_assumed`: `true` when the arrival distance was missing.
 
 ## Development
 

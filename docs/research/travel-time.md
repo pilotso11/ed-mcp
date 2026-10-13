@@ -329,7 +329,7 @@ t_sc(d) = SC_BASE_SECONDS + SC_COEFF · d ^ SC_EXPONENT
 
 | Constant | Default | Range to allow | Basis |
 | --- | --- | --- | --- |
-| `JUMP_SECONDS` | 50 | 44-75 | Measured: 43.6 s floor (2017), 52 s human median (2026). Spansh and EDDA use 60 s as a conservative value. |
+| `JUMP_SECONDS` | 50 | 44-75 | Measured: 43.6 s floor (2017), 52 s human median (2026). Spansh and EDDA use 60 s as a conservative value. ed-mcp ships with 60 s. |
 | `SC_COEFF` | 8.9 | 4.5-9 | Measured fit (Fuel Rats formula A). 4.6 with exponent 0.386 matches table B. |
 | `SC_EXPONENT` | 0.33 | 0.30-0.40 | Measured fit (Fuel Rats formula A) |
 | `SC_BASE_SECONDS` | 20 | 0-60 | Inferred. Covers turning away from the star after arrival, lining up, and the drop. EDDA's real-pilot medians (100-146 s) suggest more overhead in practice. |

@@ -141,7 +141,9 @@ tool.
 Tool output is compact JSON. Lists are capped (default 10 results, `limit`
 argument up to 50).
 
-`spansh_find_stations` applies the commander's travel preferences. See
+`spansh_find_stations` applies the commander's travel preferences. It ranks
+stations by estimated travel time and, for purchases, by effective cost
+(price plus the value of the travel time). See
 `2026-10-12-travel-preferences-design.md`.
 
 ## Plan model
