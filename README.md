@@ -148,7 +148,7 @@ Freshness rules:
 The game runs on the PC, so a Mac cannot read the journal directly. Syncthing copies the folder to the Mac.
 
 1. Install Syncthing on the PC and the Mac (syncthing.net). On the PC, use the official Syncthing installer for Windows.
-2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set Folder Type to **Send Only**. The Mac must never write to the live journal folder. If Windows moves Saved Games somewhere else (for example into OneDrive), share the real folder instead. If the server also runs on the PC, set `ED_JOURNAL_DIR` there to the real folder too.
+2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set Folder Type to **Send Only**. Do not use `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous`: that folder has the same name but holds only settings. The Mac must never write to the live journal folder. If Windows moves Saved Games somewhere else (for example into OneDrive), share the real folder instead. If the server also runs on the PC, set `ED_JOURNAL_DIR` there to the real folder too.
 3. Pair the devices. Add the Mac's device ID on the PC, then accept the PC on the Mac. Share the folder with the Mac. On the Mac, accept the folder into a local folder, for example `~/EliteJournal`, and set Folder Type to **Receive Only**.
 4. Set `ED_JOURNAL_DIR` to that folder in the MCP config, or in the Desktop extension's Journal folder field.
 5. Ask Claude to run `journal_status`. While you play, it should show the newest journal and an age of a few minutes. If it warns that the journal is old, check that Syncthing is running on the PC.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chmod, mkdtemp } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { JournalReader } from "../../src/journal/reader.js";
@@ -69,6 +69,15 @@ describe("JournalService.status", () => {
   it("warns when the folder has no journals", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jempty-"));
     expect((await new JournalService(dir).status()).warnings[0]).toMatch(/No journal files/);
+  });
+
+  it("says when the folder is the game's settings folder, not the journal folder", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jappdata-"));
+    await mkdir(path.join(dir, "Options"));
+    const w = (await new JournalService(dir).status()).warnings[0];
+    expect(w).toMatch(/No journal files/);
+    expect(w).toMatch(/settings folder/);
+    expect(w).toMatch(/Saved Games/);
   });
 
   it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(

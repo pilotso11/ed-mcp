@@ -99,7 +99,11 @@ export class JournalService {
     const newest = found.files.at(-1);
     if (!newest) {
       base.warnings.push(
-        `No journal files in ${dir}. Play the game once, or check that Syncthing has synced the folder.`,
+        (await isSettingsFolder(dir))
+          ? `No journal files in ${dir}. This looks like the game's settings folder ` +
+              `(AppData\\Local\\Frontier Developments\\Elite Dangerous). The journal is in ` +
+              `%USERPROFILE%\\Saved Games\\Frontier Developments\\Elite Dangerous; sync that folder instead.`
+          : `No journal files in ${dir}. Play the game once, or check that Syncthing has synced the folder.`,
       );
       return base;
     }
@@ -212,4 +216,13 @@ export class JournalService {
       return null;
     }
   }
+}
+
+// The game keeps settings in AppData and the journal in Saved Games; both folders are named
+// "Elite Dangerous", so syncing the wrong one is an easy mistake.
+async function isSettingsFolder(dir: string): Promise<boolean> {
+  return stat(path.join(dir, "Options")).then(
+    (s) => s.isDirectory(),
+    () => false,
+  );
 }
