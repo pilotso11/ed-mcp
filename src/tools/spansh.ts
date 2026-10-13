@@ -1,10 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { SpanshClient, StationService } from "../spansh/client.js";
-import { DEFAULT_PREFS, PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
+import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import { resolveRules, type PadResolution } from "../stations/filter.js";
-import { autoPad, searchStations } from "../stations/search.js";
+import { resolveSearchRules } from "../stations/rules.js";
+import { searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
 const Service = z.enum([
@@ -76,29 +76,7 @@ export function registerSpanshTools(
         use_preferences: boolean;
         limit: number;
       }) => {
-        const stored = deps.prefs && a.use_preferences ? await deps.prefs.get() : DEFAULT_PREFS;
-        const override: PrefsPatch = a.large_pad
-          ? { ...a.preferences, stations: { ...a.preferences?.stations, min_pad: "L" } }
-          : (a.preferences ?? {});
-        // Only look up the ship and jump range when the rules ask for "auto".
-        let pad = { size: null, source: "none" } as PadResolution;
-        let jump: { ly: number | null; source: string } | undefined;
-        const first = resolveRules(stored, override, a.use_preferences, pad);
-        if (first.prefs.stations.min_pad === "auto") {
-          pad = await autoPad(deps.currentShip ?? (async () => null));
-        }
-        if (first.prefs.travel.jump_range_ly === "auto") {
-          const max = await deps.jumpRange?.().catch(() => null);
-          const factor = first.prefs.travel.auto_range_factor;
-          // Without a journal value, resolveRules applies the default range and its label.
-          if (max) {
-            jump = {
-              ly: Math.round(max * factor * 10) / 10,
-              source: `auto: journal, ${Math.round(factor * 100)}% of unladen max ${max} LY`,
-            };
-          }
-        }
-        const rules = resolveRules(stored, override, a.use_preferences, pad, jump);
+        const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences, a.large_pad);
         return searchStations(
           spansh,
           {
