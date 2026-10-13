@@ -142,9 +142,9 @@ Each result has these fields:
 
 - `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
 - `matched`: how many stations match your preferences among the nearest 50 that the server fetched.
-- `jumps`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
+- `jumps`, `travel_s`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
 - `discount_pct` on each station: how far its price is below the median price of the filtered results.
-- `recommended`: the first station in the ranking, with a reason. The reason names the cheaper station you pay extra minutes for, or says the station is the fastest. The recommended station is always in the returned page.
+- `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page.
 - `relaxed`: the rules the search dropped.
 - `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
 - `applied_preferences`: the rules in effect, including the pad source.
@@ -179,6 +179,8 @@ When Spansh gives no arrival distance, the server assumes 1000 ls and sets `arri
 
 The occlusion, near-star, docking and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
 
+For module searches, give both class and rating. Without them the server does not compare prices, and stations rank by travel time.
+
 For purchases, `effective_cost = price + travel time in hours * credits_per_hour`. It is `null` when the station has no price. `credits_per_hour` is what an hour of your time is worth. For example, ask Claude "my time is worth 50M cr an hour". Claude calls `prefs_set` with `{"travel":{"credits_per_hour":50000000}}`.
 
 Ranking:
@@ -190,6 +192,7 @@ Ranking:
 Each station has these fields:
 
 - `jumps`: the estimated number of jumps.
+- `travel_s`: the estimated travel time in seconds.
 - `travel_min`: the estimated travel time in minutes, to one decimal place.
 - `effective_cost`: price plus the value of the travel time, in credits.
 - `arrival_assumed`: `true` when the arrival distance was missing.

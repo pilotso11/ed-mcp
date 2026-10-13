@@ -160,8 +160,10 @@ Result additions:
   `travel_s`. Ties go to the shorter travel time. The page is the top `limit`.
 - `recommended`: the first station in that order, with a reason. For priced
   searches the reason compares it with the fastest station when they differ,
-  for example "6.2M cr cheaper than Bright Sentinel for 4.1 more minutes at
-  20M cr/h"; otherwise "fastest, about 2.3 min".
+  for example "6.2M cr cheaper than Bright Sentinel (Sol) for 4.1 more minutes at
+  20M cr/h"; when the recommended station is the fastest, or the fastest
+  has no price, "lowest cost including travel time, about 2.3 min";
+  unpriced searches give "fastest, about 2.3 min".
 - `relaxed`: list of relaxed rules, empty when none. `relax_attempted` is
   `true` when the strict pass found nothing and the relaxed pass ran.
 - `applied_preferences`: the effective rules after overrides, including the
