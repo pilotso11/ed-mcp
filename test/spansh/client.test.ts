@@ -233,6 +233,23 @@ describe("SpanshClient.system", () => {
     expect(shortCache.stats().entries).toBe(0);
   });
 
+  it("returns as many stations as each call asks for from one cached lookup", async () => {
+    const search = await raw("search-systems.json");
+    const detail = await raw("system.json");
+    const { client, f } = make([
+      { match: (u) => u.includes("/search/systems?"), respond: () => text(search) },
+      { match: (u) => u.includes("/system/3932277478106"), respond: () => text(detail) },
+    ]);
+    const small = await client.system("shinrarta dezhra", 1);
+    const large = await client.system("shinrarta dezhra", 500);
+    const again = await client.system("shinrarta dezhra", 2);
+    expect(small.stations).toHaveLength(1);
+    expect(large.stations).toHaveLength(3);
+    expect(large.station_count).toBe(3);
+    expect(again.stations).toEqual(large.stations.slice(0, 2));
+    expect(f.calls).toHaveLength(2);
+  });
+
   it("reports an unknown system", async () => {
     const { client } = make([
       { match: () => true, respond: () => text('{"count":0,"query":"Nowhere","results":[]}') },
