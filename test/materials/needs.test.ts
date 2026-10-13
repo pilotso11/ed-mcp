@@ -66,6 +66,25 @@ describe("computeNeeds", () => {
     ]);
   });
 
+  it("allows an experimental on a module already at to_grade", () => {
+    const r = computeNeeds(cat, {
+      blueprints: [fsd({ from_grade: 5, experimental: "special_fsd_heavy" })],
+    });
+    expect(count(r, "Galvanising Alloys")).toBe(3);
+    expect(count(r, "Datamined Wake Exceptions")).toBeUndefined();
+  });
+
+  it.each([{ to_grade: 0 }, { from_grade: 0, to_grade: 0 }, { from_grade: 3, to_grade: 3 }])(
+    "rejects a blueprint that adds no materials %j",
+    (g) => {
+      expect(() =>
+        computeNeeds(cat, { blueprints: [{ blueprint: "FSD_LongRange", ...g }] }),
+      ).toThrow(
+        "FSD_LongRange adds no materials: to_grade must be above from_grade, or give an experimental.",
+      );
+    },
+  );
+
   it("rejects negative or fractional counts and rolls", () => {
     expect(() => computeNeeds(cat, { blueprints: [fsd({ count: -1 })] })).toThrow(UserError);
     expect(() => computeNeeds(cat, { blueprints: [fsd({ count: 1.5 })] })).toThrow(UserError);

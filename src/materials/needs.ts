@@ -65,8 +65,6 @@ export function computeNeeds(
     const from = b.from_grade ?? 0;
     const count = b.count ?? 1;
     whole(count, "count");
-    // to_grade 0 with from_grade 0 is allowed so a request can be experimental-only.
-    const bothZero = from === 0 && b.to_grade === 0;
     if (
       !Number.isInteger(from) ||
       !Number.isInteger(b.to_grade) ||
@@ -78,8 +76,14 @@ export function computeNeeds(
         `Grades must be whole numbers from 0 to 5 (got ${from} to ${b.to_grade}).`,
       );
     }
-    if (from >= b.to_grade && !bothZero) {
+    if (from > b.to_grade) {
       throw new UserError(`from_grade (${from}) must be below to_grade (${b.to_grade}).`);
+    }
+    // Equal grades are allowed so a request can be experimental-only.
+    if (from === b.to_grade && !b.experimental) {
+      throw new UserError(
+        `${b.blueprint} adds no materials: to_grade must be above from_grade, or give an experimental.`,
+      );
     }
     const bp = catalog.blueprint(b.blueprint, b.module);
     for (let g = from + 1; g <= b.to_grade; g++) {
