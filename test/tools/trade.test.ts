@@ -161,6 +161,28 @@ describe("trade_route", () => {
     expect(none.j.notes).not.toContain(note);
   });
 
+  it("notes that an avoid planetary rule excludes surface stations", async () => {
+    const note =
+      "Spansh cannot prefer surface stations less; the avoid rule excludes them from trade routes.";
+    const avoid = await trade({ preferences: { stations: { planetary: "avoid" } } });
+    expect(avoid.forms[0]!.allow_planetary).toBe(false);
+    expect(avoid.j.notes).toContain(note);
+    for (const planetary of ["allow", "exclude"]) {
+      const { j } = await trade({ preferences: { stations: { planetary } } });
+      expect(j.notes).not.toContain(note);
+    }
+  });
+
+  it("notes that a megaships rule other than allow is not applied", async () => {
+    const note = "Spansh trade routes cannot filter megaships; the megaships rule is not applied.";
+    for (const megaships of ["avoid", "exclude"]) {
+      const { j } = await trade({ preferences: { stations: { megaships } } });
+      expect(j.notes).toContain(note);
+    }
+    const allow = await trade({ preferences: { stations: { megaships: "allow" } } });
+    expect(allow.j.notes).not.toContain(note);
+  });
+
   it("treats a journal cargo capacity of 0 as unknown and refuses a given cargo of 0", async () => {
     const { forms, j } = await trade({}, { cargo: 0 });
     expect(forms[0]!.max_cargo).toBe(7);

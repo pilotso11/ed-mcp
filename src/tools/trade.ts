@@ -165,6 +165,16 @@ export function registerTradeTools(
             "Spansh cannot require a medium pad; hops may include small-pad outposts. Check each station's pads.",
           );
         }
+        if (s.planetary === "avoid") {
+          notes.push(
+            "Spansh cannot prefer surface stations less; the avoid rule excludes them from trade routes.",
+          );
+        }
+        if (s.megaships !== "allow") {
+          notes.push(
+            "Spansh trade routes cannot filter megaships; the megaships rule is not applied.",
+          );
+        }
         if (s.max_arrival_ls.mode === "soft") {
           notes.push(
             `The soft arrival limit (${s.max_arrival_ls.value} ls) is not enforced for trade routes; set its mode to hard to apply it.`,
