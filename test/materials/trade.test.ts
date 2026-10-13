@@ -16,6 +16,11 @@ const enc3 = m("Open Symmetric Keys", "Encoded", 3, "Encryption Files");
 const sel = m("Selenium", "Raw", 4, "4");
 const ant = m("Antimony", "Raw", 4, "7");
 const iron = m("Iron", "Raw", 1, "4");
+const zinc = m("Zinc", "Raw", 2, "4");
+const tellurium = m("Tellurium", "Raw", 4, "5");
+const heat1 = m("Heat Conduction Wiring", "Manufactured", 1, "Heat");
+const heat2 = m("Heat Dispersion Plate", "Manufactured", 2, "Heat");
+const heat5 = m("Proto Heat Radiators", "Manufactured", 5, "Heat");
 const guardian = m("Guardian Wreckage Components", "Manufactured", 1, null);
 
 describe("tradeRate (Alioth matrix)", () => {
@@ -194,6 +199,47 @@ describe("planTrades", () => {
     );
     expect(trades).toEqual([]);
     expect(still_short).toEqual([{ name: "Mystery", count: 2 }]);
+  });
+
+  it("prefers the nearest grade when value costs tie", () => {
+    const { trades } = planTrades(
+      [need(iron, 1, 0)],
+      [
+        { ...zinc, count: 50 },
+        { ...sel, count: 50 },
+      ],
+    );
+    expect(trades).toEqual([
+      {
+        give: { name: zinc.name, count: 1 },
+        get: { name: iron.name, count: 3 },
+        rate: "1:3",
+        trader: "raw",
+      },
+    ]);
+  });
+
+  it("prefers a same-group source over a cheaper-looking cross-group ratio", () => {
+    const { trades } = planTrades(
+      [need(iron, 1, 0)],
+      [
+        { ...zinc, count: 10 },
+        { ...tellurium, count: 10 },
+      ],
+    );
+    expect(trades.map((t) => t.give.name)).toEqual([zinc.name]);
+  });
+
+  it("does not spend a grade 5 material when a grade 2 one in the group will do", () => {
+    const { trades } = planTrades(
+      [need(heat1, 3, 0)],
+      [
+        { ...heat2, count: 10 },
+        { ...heat5, count: 10 },
+      ],
+    );
+    expect(trades.map((t) => t.give.name)).toEqual([heat2.name]);
+    expect(trades[0]!.get.count).toBe(3);
   });
 
   it("never trades untradable materials", () => {

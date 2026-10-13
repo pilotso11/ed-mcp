@@ -40,6 +40,11 @@ export function tradeRate(from: MatInfo, to: MatInfo): Rate | null {
   return { give, get };
 }
 
+// Material value is 3^grade, so this is the value given per value received. Raw
+// give:get ratios would favour a high-grade source just because it yields more.
+const valueCost = (from: MatInfo, to: MatInfo, r: Rate) =>
+  (r.give * 3 ** from.grade!) / (r.get * 3 ** to.grade!);
+
 export function planTrades(
   needs: NeedLine[],
   inventory: Array<MatInfo & { count: number }>,
@@ -68,7 +73,8 @@ export function planTrades(
       .filter((o): o is { s: MatInfo & { spare: number }; r: Rate } => o.r !== null)
       .sort(
         (a, b) =>
-          a.r.give / a.r.get - b.r.give / b.r.get ||
+          valueCost(a.s, n, a.r) - valueCost(b.s, n, b.r) ||
+          a.s.grade! - b.s.grade! ||
           b.s.spare - a.s.spare ||
           a.s.name.localeCompare(b.s.name),
       );

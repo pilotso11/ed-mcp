@@ -82,8 +82,10 @@ From the Alioth wiki material trader matrix (already the source for
    Only surplus is ever given away, so a trade never consumes a material the
    plan needs.
 3. Process shortfalls from highest grade to lowest (scarcest first). For each,
-   try sources of the same kind with surplus, cheapest first by give-per-get,
-   ties to the source with more surplus. Use as many batches as the source
+   try sources of the same kind with surplus, cheapest by material value
+   (3^grade) first: `(give * 3^source grade) / (get * 3^target grade)`. Ties go
+   to the nearest grade (lowest source grade, least overshoot), then to the
+   source with more surplus, then by name. Use as many batches as the source
    surplus allows; continue to the next source until covered.
 4. Whatever remains is `still_short`.
 
