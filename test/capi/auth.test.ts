@@ -305,6 +305,15 @@ describe("CapiAuth tokens", () => {
     expect(f.calls).toHaveLength(1);
   });
 
+  it("keeps tokens when the refresh is rate limited", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    const { auth } = make([
+      { match: () => true, respond: () => new Response("", { status: 429 }) },
+    ]);
+    await expect(auth.accessToken()).rejects.toThrow(/Could not reach Frontier/);
+    expect(await tokens.load()).toMatchObject({ refresh_token: "R" });
+  });
+
   it("uses tokens rotated by another process instead of clearing", async () => {
     await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
     const { auth, f } = make([

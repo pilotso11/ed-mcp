@@ -276,7 +276,10 @@ export class CapiAuth {
         err instanceof HttpError &&
         err.status !== undefined &&
         err.status >= 400 &&
-        err.status < 500;
+        err.status < 500 &&
+        // Rate limits and request timeouts are transient, so the refresh token is still good.
+        err.status !== 408 &&
+        err.status !== 429;
       if (!rejected) {
         throw new UserError("Could not reach Frontier to refresh the login; try again shortly.");
       }
