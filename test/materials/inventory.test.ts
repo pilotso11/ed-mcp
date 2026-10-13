@@ -8,11 +8,12 @@ import { rawFixture, SMALL, staticsFixture } from "../helpers/catalogFixture.js"
 
 const { catalog } = buildCatalog(await rawFixture(), staticsFixture, SMALL);
 
-const journal = (age: number | null, warnings: string[] = []) =>
+const T0 = "2026-10-13T08:00:00Z";
+const journal = (age: number | null, warnings: string[] = [], asOf: string | null = T0) =>
   ({
     dir: "/j",
     state: async () => ({
-      as_of: "2026-10-13T08:00:00Z",
+      as_of: asOf,
       age_minutes: age,
       warnings,
       materials: {
@@ -42,6 +43,11 @@ const unconfiguredEdsm = {
 } as unknown as EdsmClient;
 
 describe("loadInventory", () => {
+  it("labels a journal with no readable events instead of printing null", async () => {
+    const r = await loadInventory("journal", { journal: journal(null, [], null), catalog });
+    expect(r.source).toBe("journal (no readable events)");
+  });
+
   it("auto uses a fresh journal and adds catalog kind and grade", async () => {
     const r = await loadInventory("auto", { journal: journal(30), edsm: edsm(), catalog });
     expect(r.source).toBe("journal (as of 2026-10-13T08:00:00Z)");

@@ -34,7 +34,7 @@ async function fromJournal(journal: JournalService, catalog: Catalog) {
   const all = [...s.materials.raw, ...s.materials.manufactured, ...s.materials.encoded];
   return {
     items: all.map((m) => describe(catalog, m)),
-    source: `journal (as of ${s.as_of})`,
+    source: s.as_of ? `journal (as of ${s.as_of})` : "journal (no readable events)",
     warnings: s.warnings,
     age: s.age_minutes,
   };
