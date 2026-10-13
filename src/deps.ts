@@ -38,6 +38,7 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     { onSessionChange: () => void capiCache.clear() },
   );
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);
+  const journal = new JournalService(config.journalDir);
   return {
     caches,
     refreshables: [catalog],
@@ -47,8 +48,13 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     spansh,
     capiAuth,
     capi,
-    currentShip: async () => (await capi.profile()).ship?.type ?? null,
-    journal: new JournalService(config.journalDir),
+    currentShip: async () => {
+      const j = await journal.freshShip();
+      if (j) return { type: j.type, source: "journal" };
+      return (await capi.profile()).ship?.type ?? null;
+    },
+    jumpRange: async () => (await journal.freshShip())?.max_jump_range ?? null,
+    journal,
     plans: new PlanStore(config.plansFile),
     prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
   };

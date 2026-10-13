@@ -19,6 +19,7 @@ async function setup(
     prefsFile?: string;
     currentShip?: () => Promise<string | null>;
     stations?: string;
+    jumpRange?: () => Promise<number | null>;
   } = {},
 ) {
   const stations = opts.stations ?? (await raw("stations-search-material-trader.json"));
@@ -37,6 +38,7 @@ async function setup(
     spansh,
     prefs,
     currentShip: opts.currentShip ?? (async () => opts.ship ?? "Corsair"),
+    jumpRange: opts.jumpRange,
   });
   return { client: await connectTestClient(server), f, prefs };
 }
@@ -179,6 +181,36 @@ describe("spansh tools", () => {
     expect(names.length).toBeGreaterThan(0);
     expect(names).not.toContain(planetary);
     expect(r.json).toMatchObject({ applied_preferences: { min_pad: "L (request)" } });
+  });
+
+  it("uses the journal jump range when travel.jump_range_ly is auto", async () => {
+    const jumpRange = vi.fn(async () => 24.5);
+    const { client } = await setup({ jumpRange });
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+    });
+    expect(jumpRange).toHaveBeenCalledTimes(1);
+    const json = r.json as {
+      applied_preferences: { travel: string };
+      stations: Array<{ distance_ly: number; jumps: number }>;
+    };
+    expect(json.applied_preferences.travel).toContain("24.5 LY (auto: journal)");
+    for (const s of json.stations) expect(s.jumps).toBe(Math.ceil(s.distance_ly / 24.5));
+  });
+
+  it("does not look up the jump range when the request sets a number", async () => {
+    const jumpRange = vi.fn(async () => 24.5);
+    const { client } = await setup({ jumpRange });
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      preferences: { travel: { jump_range_ly: 20 } },
+    });
+    expect(jumpRange).not.toHaveBeenCalled();
+    expect(
+      (r.json as { applied_preferences: { travel: string } }).applied_preferences.travel,
+    ).toContain("20 LY (request)");
   });
 
   it("caps limit at 50", async () => {

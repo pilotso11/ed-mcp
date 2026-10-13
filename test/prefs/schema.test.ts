@@ -14,7 +14,7 @@ describe("prefs schema", () => {
         min_pad: "auto",
       },
       travel: {
-        jump_range_ly: 30,
+        jump_range_ly: "auto",
         seconds_per_jump: 60,
         refuel_every_jumps: 0,
         refuel_s: 15,
@@ -61,5 +61,16 @@ describe("prefs schema", () => {
     const huge = JSON.parse("1e400") as number;
     expect(() => parsePatch({ stations: { max_arrival_ls: { value: huge } } })).toThrow(UserError);
     expect(() => parsePatch({ travel: { credits_per_hour: huge } })).toThrow(UserError);
+  });
+
+  it("accepts a numeric or auto jump range and rejects others", () => {
+    expect(
+      applyPatch(DEFAULT_PREFS, { travel: { jump_range_ly: 24.5 } }).travel.jump_range_ly,
+    ).toBe(24.5);
+    expect(parsePatch({ travel: { jump_range_ly: "auto" } })).toEqual({
+      travel: { jump_range_ly: "auto" },
+    });
+    expect(() => parsePatch({ travel: { jump_range_ly: 0 } })).toThrow(UserError);
+    expect(() => parsePatch({ travel: { jump_range_ly: "far" } })).toThrow(UserError);
   });
 });

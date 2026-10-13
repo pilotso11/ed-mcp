@@ -33,7 +33,8 @@ export interface ServerDeps {
   capiAuth?: CapiAuth;
   capi?: CapiClient;
   journal?: JournalService;
-  currentShip?: () => Promise<string | null>;
+  currentShip?: () => Promise<string | { type: string; source: string } | null>;
+  jumpRange?: () => Promise<number | null>;
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -51,6 +52,7 @@ export function createServer(deps: ServerDeps): McpServer {
       spansh: deps.spansh,
       prefs: deps.prefs,
       currentShip: deps.currentShip,
+      jumpRange: deps.jumpRange,
     });
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });

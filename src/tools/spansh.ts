@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SpanshClient, StationService } from "../spansh/client.js";
 import { DEFAULT_PREFS, PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import { resolveRules } from "../stations/filter.js";
+import { resolveRules, type PadResolution } from "../stations/filter.js";
 import { autoPad, searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
@@ -22,7 +22,8 @@ export function registerSpanshTools(
   deps: {
     spansh: SpanshClient;
     prefs?: PreferencesStore;
-    currentShip?: () => Promise<string | null>;
+    currentShip?: () => Promise<string | { type: string; source: string } | null>;
+    jumpRange?: () => Promise<number | null>;
   },
 ): void {
   const { spansh } = deps;
@@ -79,15 +80,18 @@ export function registerSpanshTools(
         const override: PrefsPatch = a.large_pad
           ? { ...a.preferences, stations: { ...a.preferences?.stations, min_pad: "L" } }
           : (a.preferences ?? {});
-        // Only ask CAPI for the current ship when the pad requirement needs it.
-        let rules = resolveRules(stored, override, a.use_preferences, {
-          size: null,
-          source: "none",
-        });
-        if (rules.prefs.stations.min_pad === "auto") {
-          const auto = await autoPad(deps.currentShip ?? (async () => null));
-          rules = resolveRules(stored, override, a.use_preferences, auto);
+        // Only look up the ship and jump range when the rules ask for "auto".
+        let pad = { size: null, source: "none" } as PadResolution;
+        let jump: { ly: number | null; source: string } | undefined;
+        const first = resolveRules(stored, override, a.use_preferences, pad);
+        if (first.prefs.stations.min_pad === "auto") {
+          pad = await autoPad(deps.currentShip ?? (async () => null));
         }
+        if (first.prefs.travel.jump_range_ly === "auto") {
+          const ly = await deps.jumpRange?.().catch(() => null);
+          jump = { ly: ly ?? null, source: ly ? "auto: journal" : "auto: default 30 LY" };
+        }
+        const rules = resolveRules(stored, override, a.use_preferences, pad, jump);
         return searchStations(
           spansh,
           {

@@ -15,7 +15,7 @@ const Supercruise = z.object({
 const Occlusion = z.object({ chance: z.number().min(0).max(1), seconds: z.number().min(0) });
 const NearStar = z.object({ within_ls: z.number().min(0), seconds: z.number().min(0) });
 const Travel = z.object({
-  jump_range_ly: z.number().positive(),
+  jump_range_ly: z.union([z.literal("auto"), z.number().positive()]),
   seconds_per_jump: z.number().min(0),
   refuel_every_jumps: z.number().int().min(0),
   refuel_s: z.number().min(0),
@@ -65,7 +65,7 @@ export const PrefsPatchSchema = z
 export type PrefsPatch = z.infer<typeof PrefsPatchSchema>;
 
 const DEFAULT_TRAVEL = {
-  jump_range_ly: 30,
+  jump_range_ly: "auto" as const,
   seconds_per_jump: 60,
   refuel_every_jumps: 0,
   refuel_s: 15,
