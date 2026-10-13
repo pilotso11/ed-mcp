@@ -132,6 +132,65 @@ describe("SpanshClient.tradeRoute", () => {
     expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(2);
   });
 
+  it("keeps the job when a poll throws and polls the same job next call", async () => {
+    const submit = await raw("trade-route-submit.json");
+    const done = await raw("trade-results-ok.json");
+    let polls = 0;
+    const { client, f } = make([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      {
+        match: () => true,
+        respond: () => {
+          // Two failures, because the HTTP client retries a failed GET once.
+          if (polls++ < 2) throw new Error("socket hang up");
+          return text(done);
+        },
+      },
+    ]);
+    await expect(client.tradeRoute(form)).rejects.toThrow("socket hang up");
+    const r = await client.tradeRoute(form);
+    expect(r.status).toBe("ok");
+    expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
+    expect(f.calls.at(-1)!.url).toMatch(new RegExp(`/results/${JOB}$`));
+  });
+
+  it("keeps the job on a 5xx poll", async () => {
+    const submit = await raw("trade-route-submit.json");
+    const done = await raw("trade-results-ok.json");
+    let down = true;
+    const { client, f } = make([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => (down ? text("", 503) : text(done)) },
+    ]);
+    await expect(client.tradeRoute(form)).rejects.toThrow("HTTP 503");
+    down = false;
+    expect((await client.tradeRoute(form)).status).toBe("ok");
+    expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
+  });
+
+  it("stops after the resubmitted job is also gone", async () => {
+    const submit = await raw("trade-route-submit.json");
+    const { client, f } = make([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => text('{"error":"Job not found"}', 404) },
+    ]);
+    await expect(client.tradeRoute(form)).rejects.toThrow("Spansh: Job not found");
+    expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(2);
+  });
+
+  it("shares one submit between concurrent identical calls", async () => {
+    const submit = await raw("trade-route-submit.json");
+    const done = await raw("trade-results-ok.json");
+    const { client, f } = make([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => text(done) },
+    ]);
+    const [a, b] = await Promise.all([client.tradeRoute(form), client.tradeRoute(form)]);
+    expect(a.status).toBe("ok");
+    expect(b.status).toBe("ok");
+    expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
+  });
+
   it("raises the Spansh error for an unknown station", async () => {
     const body = await raw("trade-route-error-station.json");
     const { client } = make([{ match: () => true, respond: () => text(body, 400) }]);

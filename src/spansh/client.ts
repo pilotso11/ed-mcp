@@ -220,6 +220,7 @@ export class SpanshClient {
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
+  private readonly tradeSubmits = new Map<string, Promise<string>>();
   private gate: Promise<void> = Promise.resolve();
   private lastStart = 0;
 
@@ -432,49 +433,56 @@ export class SpanshClient {
     const deadline = this.now() + (opts.budgetMs ?? this.routeTimeoutMs);
     let resubmitted = false;
     for (;;) {
-      let job = this.tradeJobs.get(key);
-      if (!job) {
-        // A retry after Spansh accepted the job would submit a second one and lose the first id.
-        const submitted = (await this.post(
-          "/trade/route",
-          key,
-          "application/x-www-form-urlencoded",
-          {
-            retry: false,
-          },
-        )) as { job: string };
-        job = submitted.job;
-        this.tradeJobs.set(key, job);
-      }
+      const job = this.tradeJobs.get(key) ?? (await this.submitTrade(key));
       let delay = 2000;
       for (;;) {
         const left = deadline - this.now();
         if (left <= 0) return { status: "pending", job };
         await this.sleep(Math.min(delay, left));
         delay = Math.min(delay * 2, 10_000);
-        let res: { status: number; body: unknown };
-        try {
-          res = await this.raw(`/results/${job}`);
-        } catch (err) {
-          this.tradeJobs.delete(key);
-          throw err;
-        }
+        // A failed poll says nothing about the job, so keep its id for the next call.
+        const res = await this.raw(`/results/${job}`);
         if (res.status === 202) continue;
+        const b = res.body as
+          { status?: string; error?: string; result?: RawTradeHop[] } | undefined;
+        const failed = new UserError(
+          `Spansh: ${b?.error ?? `trade route failed (HTTP ${res.status})`}`,
+        );
+        if (res.status >= 500) throw failed;
         this.tradeJobs.delete(key);
         // Spansh drops old jobs; the remembered id may be gone, so submit afresh once.
         if (res.status === 404 && !resubmitted) {
           resubmitted = true;
           break;
         }
-        const b = res.body as { status?: string; error?: string; result?: RawTradeHop[] };
-        if (res.status === 200 && b.status === "ok") {
+        if (res.status === 200 && b?.status === "ok") {
           const ok: TradeJob = { status: "ok", hops: b.result ?? [] };
           this.cache.set(cacheKey, ok);
           return ok;
         }
-        throw new UserError(`Spansh: ${b.error ?? `trade route failed (HTTP ${res.status})`}`);
+        throw failed;
       }
     }
+  }
+
+  // Concurrent identical calls share one submit, so Spansh runs the job once.
+  private submitTrade(key: string): Promise<string> {
+    let pending = this.tradeSubmits.get(key);
+    if (!pending) {
+      pending = (async () => {
+        // A retry after Spansh accepted the job would submit a second one and lose the first id.
+        const submitted = (await this.post(
+          "/trade/route",
+          key,
+          "application/x-www-form-urlencoded",
+          { retry: false },
+        )) as { job: string };
+        this.tradeJobs.set(key, submitted.job);
+        return submitted.job;
+      })().finally(() => this.tradeSubmits.delete(key));
+      this.tradeSubmits.set(key, pending);
+    }
+    return pending;
   }
 
   async commodityStations(
