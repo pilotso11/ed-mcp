@@ -416,8 +416,9 @@ at full throttle with manual drops, set a lower bound:
 | Station | Arrival | Supercruise | Docking | Curve |
 | --- | --- | --- | --- | --- |
 | Reed's Rest (Merope) | 4,042 ls | 244 s (about 215 s without a 25-30 s search and overshoot) | 70 s | 283 s |
+| Ostwald Depot (Pleiades Sector UJ-Q b5-2) | 18,784 ls | 364 s, with a detour around a gravity well | not timed | 490 s |
 
-A pilot who flies like this can set `speed_factor` to about 1.4.
+Both runs give a distance-term ratio of about 1.4: (490 - 63) / (364 - 63) = 1.42 at Ostwald, and (283 - 63) / (215 - 63) = 1.45 at Reed's Rest without the lost time. A pilot who flies like this can set `speed_factor` to about 1.4.
 
 ## Sources
 
