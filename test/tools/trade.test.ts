@@ -19,6 +19,8 @@ const fixture = (name: string) =>
   readFileSync(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
 const hops = (JSON.parse(fixture("trade-results-ok.json")) as { result: RawTradeHop[] }).result;
 const NOW = (1791878886 + 3600) * 1000;
+const json = (body: string, status = 200) =>
+  new Response(body, { status, headers: { "content-type": "application/json" } });
 const PENDING = "Spansh is still calculating; call again with the same inputs (shown in inputs)";
 
 interface Opts {
@@ -183,6 +185,98 @@ describe("trade_route", () => {
       capital: 5_000_000,
     });
     expect(j.hops).toBeUndefined();
+  });
+
+  it("resumes a pending job with the first call's inputs after the journal credits drift", async () => {
+    let credits = 5_000_000;
+    let ready = false;
+    let clock = NOW;
+    const isSubmit = (u: string, i?: RequestInit) =>
+      u.endsWith("/api/trade/route") && i?.method === "POST";
+    const f = fakeFetch([
+      {
+        match: isSubmit,
+        respond: () => json(fixture("trade-route-submit.json"), 202),
+      },
+      {
+        match: () => true,
+        respond: () =>
+          ready
+            ? json(fixture("trade-results-ok.json"))
+            : json(fixture("trade-results-pending.json"), 202),
+      },
+    ]);
+    const spansh = new SpanshClient(
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
+      new TtlCache("spansh", 300_000, () => clock),
+      {
+        minIntervalMs: 0,
+        routeTimeoutMs: 3_000,
+        now: () => clock,
+        sleep: async (ms) => {
+          clock += ms;
+        },
+      },
+    );
+    const journal = {
+      state: async () => ({
+        credits,
+        location: { system: "Lave", station: "Lave Station", docked: true },
+        ship: { cargo_capacity: 192 },
+      }),
+    } as unknown as JournalService;
+    const server = new McpServer({ name: "t", version: "0" });
+    registerTradeTools(server, { spansh, journal, now: () => NOW });
+    const client = await connectTestClient(server);
+    const submits = () => f.calls.filter((c) => isSubmit(c.url, c.init)).length;
+    const resumed = "Resumed the pending trade route with the inputs from the first call";
+
+    const first = (await callTool(client, "trade_route", {})).json as Record<string, any>;
+    expect(first.status).toBe("pending");
+    credits = 5_123_456;
+    const second = (await callTool(client, "trade_route", {})).json as Record<string, any>;
+    expect(second.status).toBe("pending");
+    expect(second.inputs.capital).toBe(5_000_000);
+    expect(second.notes).toContain(resumed);
+    expect(submits()).toBe(1);
+
+    ready = true;
+    const done = (await callTool(client, "trade_route", {})).json as Record<string, any>;
+    expect(done.status).toBe("ok");
+    expect(done.inputs.capital).toBe(5_000_000);
+    expect(submits()).toBe(1);
+
+    // The finished job is forgotten, so the next bare call reads the journal again.
+    const next = (await callTool(client, "trade_route", {})).json as Record<string, any>;
+    expect(next.inputs.capital).toBe(5_123_456);
+    expect(next.notes).not.toContain(resumed);
+    expect(submits()).toBe(2);
+  });
+
+  it("does not resume a pending job when other options change", async () => {
+    let credits = 5_000_000;
+    const forms: TradeForm[] = [];
+    const spansh = {
+      tradeRoute: async (form: TradeForm) => {
+        forms.push(form);
+        return { status: "pending", job: "J1" };
+      },
+    } as unknown as SpanshClient;
+    const journal = {
+      state: async () => ({
+        credits,
+        location: { system: "Lave", station: "Lave Station", docked: true },
+        ship: { cargo_capacity: 192 },
+      }),
+    } as unknown as JournalService;
+    const server = new McpServer({ name: "t", version: "0" });
+    registerTradeTools(server, { spansh, journal, now: () => NOW });
+    const client = await connectTestClient(server);
+    await callTool(client, "trade_route", {});
+    credits = 6_000_000;
+    const j = (await callTool(client, "trade_route", { max_hops: 3 })).json as Record<string, any>;
+    expect(forms[1]).toMatchObject({ max_hops: 3, starting_capital: 6_000_000 });
+    expect(j.notes.join(" ")).not.toContain("Resumed");
   });
 
   it("says so when there is no profitable route", async () => {

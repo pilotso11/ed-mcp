@@ -43,6 +43,11 @@ export function registerTradeTools(
     }
   };
 
+  let pending: {
+    optionsKey: string;
+    start: { system: string; station: string; cargo: number; capital: number };
+  } | null = null;
+
   server.registerTool(
     "trade_route",
     {
@@ -94,36 +99,11 @@ export function registerTradeTools(
         if (!a.from_system !== !a.from_station) {
           throw new UserError("Give both from_system and from_station");
         }
-        let system = a.from_system;
-        let station = a.from_station;
-        if (!system && !station && state?.location.docked) {
-          system = state.location.system ?? undefined;
-          station = state.location.station ?? undefined;
-          if (system && station) notes.push(`Start ${station} (${system}) is from the journal.`);
-        }
-        if (!system || !station) {
-          const why = notes.length ? ` (${notes.join(" ")})` : "";
-          throw new UserError(`Give from_system and from_station, or dock first${why}`);
-        }
-
-        // A capacity of 0 means the journal has not seen the hold, and Spansh rejects max_cargo=0.
-        const cargo = a.cargo ?? (state?.ship.cargo_capacity || DEFAULT_CARGO);
-        const capital = a.capital ?? state?.credits ?? DEFAULT_CAPITAL;
-        if (a.cargo === undefined && !state?.ship.cargo_capacity) {
-          notes.push(`Cargo defaulted to ${DEFAULT_CARGO} t; give cargo for a real hold.`);
-        }
-        if (a.capital === undefined && state?.credits == null) {
-          notes.push(`Capital defaulted to ${DEFAULT_CAPITAL} cr; give capital to buy more.`);
-        }
 
         const s = rules.prefs.stations;
-        const form: TradeForm = {
-          system,
-          station,
+        const options: Omit<TradeForm, "system" | "station" | "max_cargo" | "starting_capital"> = {
           max_hops: a.max_hops,
           max_hop_distance: a.max_hop_distance,
-          max_cargo: cargo,
-          starting_capital: capital,
           max_price_age: Math.round(a.max_price_age_days * DAY_S),
           requires_large_pad: rules.pad.size === "L",
           allow_prohibited: a.allow_prohibited,
@@ -132,7 +112,50 @@ export function registerTradeTools(
           unique: a.unique,
         };
         // Spansh has only a hard cut-off; a soft limit would be relaxed if nothing met it.
-        if (s.max_arrival_ls.mode === "hard") form.max_system_distance = s.max_arrival_ls.value;
+        if (s.max_arrival_ls.mode === "hard") options.max_system_distance = s.max_arrival_ls.value;
+        const optionsKey = JSON.stringify(options);
+
+        // A bare repeat call would re-read the journal, and drifted credits would change the
+        // form and submit a second Spansh job, so it reuses the pending job's start inputs.
+        const bare = !a.from_system && a.cargo === undefined && a.capital === undefined;
+        const resume = bare && pending?.optionsKey === optionsKey ? pending.start : null;
+        let system: string | undefined;
+        let station: string | undefined;
+        let cargo: number;
+        let capital: number;
+        if (resume) {
+          ({ system, station, cargo, capital } = resume);
+          notes.push("Resumed the pending trade route with the inputs from the first call");
+        } else {
+          system = a.from_system;
+          station = a.from_station;
+          if (!system && !station && state?.location.docked) {
+            system = state.location.system ?? undefined;
+            station = state.location.station ?? undefined;
+            if (system && station) notes.push(`Start ${station} (${system}) is from the journal.`);
+          }
+          if (!system || !station) {
+            const why = notes.length ? ` (${notes.join(" ")})` : "";
+            throw new UserError(`Give from_system and from_station, or dock first${why}`);
+          }
+
+          // A capacity of 0 means the journal has not seen the hold, and Spansh rejects max_cargo=0.
+          cargo = a.cargo ?? (state?.ship.cargo_capacity || DEFAULT_CARGO);
+          capital = a.capital ?? state?.credits ?? DEFAULT_CAPITAL;
+          if (a.cargo === undefined && !state?.ship.cargo_capacity) {
+            notes.push(`Cargo defaulted to ${DEFAULT_CARGO} t; give cargo for a real hold.`);
+          }
+          if (a.capital === undefined && state?.credits == null) {
+            notes.push(`Capital defaulted to ${DEFAULT_CAPITAL} cr; give capital to buy more.`);
+          }
+        }
+        const form: TradeForm = {
+          system,
+          station,
+          max_cargo: cargo,
+          starting_capital: capital,
+          ...options,
+        };
         if (s.max_arrival_ls.mode === "soft") {
           notes.push(
             `The soft arrival limit (${s.max_arrival_ls.value} ls) is not enforced for trade routes; set its mode to hard to apply it.`,
@@ -154,6 +177,7 @@ export function registerTradeTools(
 
         const job = await spansh.tradeRoute(form);
         if (job.status === "pending") {
+          pending = { optionsKey, start: { system, station, cargo, capital } };
           return {
             status: "pending",
             message:
@@ -164,6 +188,7 @@ export function registerTradeTools(
             notes,
           };
         }
+        pending = null;
         const mapped = mapTradeRoute(job.hops, rules.travel, now());
         notes.push(
           "Travel time covers each hop only, not the way to the start station.",
