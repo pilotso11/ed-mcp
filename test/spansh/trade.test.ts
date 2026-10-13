@@ -192,6 +192,28 @@ describe("SpanshClient.tradeRoute", () => {
     expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
   });
 
+  it("keeps job ids for only the 100 most recent unfinished trade routes", async () => {
+    const submit = await raw("trade-route-submit.json");
+    const pending = await raw("trade-results-pending.json");
+    const done = await raw("trade-results-ok.json");
+    let ready = false;
+    const { client, f } = make([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => (ready ? text(done) : text(pending, 202)) },
+    ]);
+    const q = (i: number) => ({ ...form, station: `Station ${i}` });
+    for (let i = 0; i <= 100; i++) {
+      expect((await client.tradeRoute(q(i), { budgetMs: 1_000 })).status).toBe("pending");
+    }
+    ready = true;
+    const submits = () => f.calls.filter((c) => isSubmit(c.url, c.init)).length;
+    expect(submits()).toBe(101);
+    await client.tradeRoute(q(1));
+    expect(submits()).toBe(101);
+    await client.tradeRoute(q(0));
+    expect(submits()).toBe(102);
+  });
+
   it("raises the Spansh error for an unknown station", async () => {
     const body = await raw("trade-route-error-station.json");
     const { client } = make([{ match: () => true, respond: () => text(body, 400) }]);
