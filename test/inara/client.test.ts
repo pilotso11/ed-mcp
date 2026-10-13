@@ -107,6 +107,13 @@ describe("InaraClient", () => {
     );
   });
 
+  it("explains an auth failure when the status text is not a string", async () => {
+    const { client } = make({ header: { eventStatus: 400, eventStatusText: 42 } });
+    await expect(client.profile()).rejects.toThrow(
+      /Inara rejected the request: 42\. Check INARA_API_KEY/,
+    );
+  });
+
   it("maps community goals", async () => {
     const { client, f } = make(await fixture("inara/community-goals.json"));
     const goals = await client.communityGoals();

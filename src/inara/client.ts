@@ -175,7 +175,7 @@ export class InaraClient {
       });
       if (res.header?.eventStatus === 400) {
         throw new UserError(
-          `Inara rejected the request: ${(res.header.eventStatusText ?? "error").replace(/\.+$/, "")}. Check INARA_API_KEY, ` +
+          `Inara rejected the request: ${String(res.header.eventStatusText ?? "error").replace(/\.+$/, "")}. Check INARA_API_KEY, ` +
             `and that the app name "${cfg.appName}" has been whitelisted by Inara.`,
         );
       }

@@ -138,7 +138,7 @@ function mapShip(s: RawShip): NonNullable<CapiProfile["ship"]> {
           specials && !Array.isArray(specials) ? (Object.keys(specials)[0] ?? null) : null;
         return {
           slot,
-          item: (m.module?.name ?? "").toLowerCase(),
+          item: String(m.module?.name ?? "").toLowerCase(),
           name: m.module?.locName ?? null,
           on: m.module?.on ?? null,
           engineering: m.engineer?.recipeName

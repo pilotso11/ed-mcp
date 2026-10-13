@@ -43,6 +43,19 @@ describe("CapiClient", () => {
     );
   });
 
+  it("tolerates a module name that is not a string", async () => {
+    const body = await fixture<{ ship: { modules: Record<string, unknown> } }>("capi/profile.json");
+    body.ship.modules.Odd = { module: { name: 123, locName: "Odd" } };
+    const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
+    const c = new CapiClient(
+      new HttpClient({ userAgent: "EDCD-EdMcp-0.1.0", fetchFn: f }),
+      fakeAuth(["A"]).auth,
+      new TtlCache("capi", 60_000),
+    );
+    const odd = (await c.profile()).ship!.modules.find((m) => m.slot === "Odd");
+    expect(odd?.item).toBe("123");
+  });
+
   it("maps the profile", async () => {
     const body = await fixture("capi/profile.json");
     const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
