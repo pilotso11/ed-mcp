@@ -61,7 +61,9 @@ export function rankStations(hits: PricedHit[], t: Travel): RankedHit[] {
 }
 
 function credits(n: number): string {
-  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  const trim = (v: number) => v.toFixed(1).replace(/\.0$/, "");
+  // 999,500 rounds to 1000k, so it reads as 1M.
+  if (Math.abs(n) >= 1e6 || Math.round(Math.abs(n) / 1e3) >= 1000) return `${trim(n / 1e6)}M`;
   if (Math.abs(n) >= 1e3) return `${Math.round(n / 1e3)}k`;
   return String(Math.round(n));
 }
@@ -79,10 +81,11 @@ export function recommendStation(
   } else {
     const fastest = [...ranked].sort((a, b) => a.travel_s - b.travel_s)[0]!;
     if (fastest !== best && fastest.price && best.price && fastest.price > best.price) {
-      const minutes = ((best.travel_s - fastest.travel_s) / 60).toFixed(1);
+      const extra = best.travel_s - fastest.travel_s;
+      const more = extra < 60 ? `${extra} more seconds` : `${(extra / 60).toFixed(1)} more minutes`;
       reason =
-        `${credits(fastest.price - best.price)} cr cheaper than ${fastest.name} for ${minutes} ` +
-        `more minutes at ${credits(t.credits_per_hour)} cr/h`;
+        `${credits(fastest.price - best.price)} cr cheaper than ${fastest.name} ` +
+        `(${fastest.system}) for ${more} at ${credits(t.credits_per_hour)} cr/h`;
     } else {
       reason = `lowest cost including travel time, about ${best.travel_min} min`;
     }

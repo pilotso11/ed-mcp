@@ -83,8 +83,37 @@ describe("ranking and recommendation", () => {
     expect(recommendStation(ranked, T)).toEqual({
       name: "Far",
       system: "Sys",
-      reason: "1.0M cr cheaper than Near for 2.6 more minutes at 20.0M cr/h",
+      reason: "1M cr cheaper than Near (Sys) for 2.6 more minutes at 20M cr/h",
     });
+  });
+
+  it("says seconds when the extra time is under a minute", () => {
+    const a = hit({ name: "A", price: 10_000_000 });
+    const b = hit({ name: "B", arrival_ls: 1000, price: 9_000_000 });
+    const ranked = rankStations(withDiscounts([a, b]), T);
+    expect(recommendStation(ranked, T)?.reason).toMatch(
+      /^1M cr cheaper than A \(Sys\) for \d+ more seconds at 20M cr\/h$/,
+    );
+  });
+
+  it("formats credits without a trailing .0 and rolls 999,500 up to 1M", () => {
+    const cheap = hit({ name: "Far", distance_ly: 45, arrival_ls: 1000, price: 1_000_000 });
+    const dear = (price: number) => hit({ name: "Near", price });
+    const reason = (diff: number, cph: number) => {
+      const t = { ...T, credits_per_hour: cph };
+      return recommendStation(rankStations(withDiscounts([dear(1_000_000 + diff), cheap]), t), t)
+        ?.reason;
+    };
+    expect(reason(1_500_000, 20_000_000)).toMatch(/^1\.5M cr cheaper .* at 20M cr\/h$/);
+    expect(reason(999_500, 1_500_000)).toMatch(/^1M cr cheaper .* at 1\.5M cr\/h$/);
+    expect(reason(999_400, 20_000_000)).toMatch(/^999k cr cheaper/);
+  });
+
+  it("reports the lowest cost form when the fastest station is unpriced", () => {
+    const ranked = rankStations(withDiscounts([hit({ name: "free" }), far]), T);
+    expect(recommendStation(ranked, T)?.reason).toBe(
+      "lowest cost including travel time, about 5.1 min",
+    );
   });
 
   it("prefers the faster station when time is worth more", () => {
