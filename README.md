@@ -111,6 +111,8 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `missions_route`           | Best stop order for accepted missions, with deadlines        |
+| `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
+| `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
@@ -157,6 +159,54 @@ With up to 12 stops and up to 24 missions with an expiry, the search is exact. I
 The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
 Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+
+## Trading
+
+`trade_route` plans a multi-hop trade run with the Spansh trade planner. `commodity_prices` finds the best stations near a system to sell or buy one commodity.
+
+### trade_route
+
+Inputs:
+
+- `from_system` and `from_station`: the start. Without both, the tool uses the docked station from the journal. If you are not docked, it asks for them.
+- `max_hops`: 1 to 50. The default is 5.
+- `max_hop_distance`: the longest single hop in LY. The default is 50. Set it to your laden jump range.
+- `cargo`: tonnes, at least 1. The default is the journal ship's cargo capacity, then 7 t (also when the journal shows 0).
+- `capital`: credits. The default is your journal credits, then 1000 cr.
+- `max_price_age_days`: the oldest market data to use. The default is 2.
+- `allow_prohibited`: allow commodities that are illegal at the destination. The default is `false`.
+- `unique`: never visit the same station twice. The default is `false`.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+Your travel preferences set the rest. A pad size of L (`min_pad`) sets Spansh's large pad option. The planetary setting `allow` lets the route use planetary stations. Spansh cannot rank planetary stations lower, so `avoid` excludes them like `exclude`, and a note says so. Spansh cannot filter megaships, so a `megaships` setting other than `allow` is not applied and a note says so. Fleet carriers are excluded by default; the `fleet_carriers` setting `allow` lets the route use them. A `hard` arrival distance limit sets the longest distance from the star. Spansh has no soft limit, so a `soft` limit is not applied and a note says so. When a default applies or the journal cannot be read, the result `notes` say so.
+
+The result lists the `hops` in order. Each hop has the `from` and `to` stations, `distance_ly`, `jumps`, `travel_min`, the `commodities` to buy and sell (with `amount`, `buy_price`, `sell_price`, `profit_per_unit` and `total_profit`), `profit` and `cumulative_profit`. Each station has `market_age_hours`. The result also has `total_profit`, `total_travel_min`, `profit_per_hour`, the resolved `inputs`, `applied_preferences` and `notes`. If Spansh finds no route, the message is "No profitable route found".
+
+Spansh takes one to several minutes. While it works, the tool returns `status: "pending"` with the Spansh `job` id and the resolved `inputs`. Call it again with those inputs to resume the same job, even if your journal has changed since. A call without a start, cargo or capital resumes the pending job with the same options if it was last returned within 15 minutes. Finished routes are cached for 5 minutes.
+
+`profit_per_hour` is `total_profit` ÷ `total_travel_min` × 60, from the travel model. It is a one-way figure. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover market and loading time, the way to the start station or the return trip. It does not add time for planetary landings, because Spansh gives no station type.
+
+### commodity_prices
+
+Inputs:
+
+- `commodity`: the exact English name, for example Gold.
+- `mode`: `sell` (where to sell it) or `buy` (where to buy it).
+- `near`: the reference system. The default is the journal's current system.
+- `amount`: tonnes. Optional.
+- `limit`: 1 to 30. The default is 10.
+- `max_distance_ly`: the search radius around `near`. The default is 75.
+- `max_price_age_days`: the oldest market data to use. The default is 2.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). A station must have a demand (sell) or supply (buy) of at least `amount`, or at least 1 without `amount`. Each station shows its price, its demand or supply, `market_age_hours` and `travel_min`. If Spansh finds no station, a note asks you to check the commodity name.
+
+With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
+
+### Limits
+
+- The tool plans a route from a start to the last hop. It does not plan loops back to the start.
+- Market data can be old. Check `market_age_hours`. `max_price_age_days` sets the oldest prices both tools use. Prices can change before you arrive.
 
 ## Game journal
 

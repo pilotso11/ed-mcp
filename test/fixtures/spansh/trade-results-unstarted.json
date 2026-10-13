@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-13T08:34:01",
+  "job": "D7BC7B96-C6E0-11F1-A2B0-91BD61CACEFC",
+  "parameters": {
+    "max_cargo": "100",
+    "max_hop_distance": "1",
+    "max_hops": "2",
+    "starting_capital": "1000000",
+    "starting_station_id": 30400,
+    "unique": 1
+  },
+  "state": "unstarted",
+  "status": "queued",
+  "updated_at": "2026-10-13T08:34:01"
+}

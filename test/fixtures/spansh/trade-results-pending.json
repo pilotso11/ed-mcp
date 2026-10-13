@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-10-13T08:31:08",
+  "job": "70103C76-C6E0-11F1-9B5B-E8C19EAD94A7",
+  "parameters": {
+    "max_cargo": "100",
+    "max_hop_distance": "30",
+    "max_hops": "3",
+    "max_price_age": "2592000",
+    "max_system_distance": "10000000",
+    "requires_large_pad": 1,
+    "starting_capital": "1000000",
+    "starting_station_id": 30400
+  },
+  "state": "started",
+  "status": "queued",
+  "updated_at": "2026-10-13T08:31:08"
+}

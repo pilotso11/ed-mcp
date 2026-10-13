@@ -1,0 +1,160 @@
+{
+  "created_at": "2026-10-13T08:31:08",
+  "job": "70103C76-C6E0-11F1-9B5B-E8C19EAD94A7",
+  "parameters": {
+    "max_cargo": "100",
+    "max_hop_distance": "30",
+    "max_hops": "3",
+    "max_price_age": "2592000",
+    "max_system_distance": "10000000",
+    "requires_large_pad": 1,
+    "starting_capital": "1000000",
+    "starting_station_id": 30400
+  },
+  "result": [
+    {
+      "commodities": [
+        {
+          "amount": 100,
+          "destination_commodity": {
+            "buy_price": 0,
+            "demand": 9293,
+            "sell_price": 2177,
+            "supply": 0
+          },
+          "name": "Tea",
+          "profit": 989,
+          "source_commodity": {
+            "buy_price": 1188,
+            "demand": 1,
+            "sell_price": 1145,
+            "supply": 138064
+          },
+          "total_profit": 98900
+        }
+      ],
+      "cumulative_profit": 98900,
+      "destination": {
+        "distance_to_arrival": 310,
+        "market_id": 3230852864,
+        "market_updated_at": 1791878987,
+        "station": "Martin Gateway",
+        "system": "LP 547-159",
+        "system_id64": 671759934913,
+        "x": 55.4375,
+        "y": 38.28125,
+        "z": 56.1875
+      },
+      "distance": 27.097209986685,
+      "source": {
+        "distance_to_arrival": 278,
+        "market_id": 128106744,
+        "market_updated_at": 1791878886,
+        "station": "Lave Station",
+        "system": "Lave",
+        "system_id64": 633742594786,
+        "x": 75.75,
+        "y": 48.75,
+        "z": 70.75
+      },
+      "total_profit": 98900
+    },
+    {
+      "commodities": [
+        {
+          "amount": 100,
+          "destination_commodity": {
+            "buy_price": 0,
+            "demand": 188686,
+            "sell_price": 14166,
+            "supply": 0
+          },
+          "name": "Bauxite",
+          "profit": 11324,
+          "source_commodity": {
+            "buy_price": 2842,
+            "demand": 1,
+            "sell_price": 2712,
+            "supply": 38457
+          },
+          "total_profit": 1132400
+        }
+      ],
+      "cumulative_profit": 1231300,
+      "destination": {
+        "distance_to_arrival": 259,
+        "market_id": 128102392,
+        "market_updated_at": 1791879215,
+        "station": "ELWireCraft",
+        "system": "Solati",
+        "system_id64": 1458376315610,
+        "x": 66.53125,
+        "y": 29.1875,
+        "z": 34.6875
+      },
+      "distance": 25.8460360234408,
+      "source": {
+        "distance_to_arrival": 310,
+        "market_id": 3230852864,
+        "market_updated_at": 1791878987,
+        "station": "Martin Gateway",
+        "system": "LP 547-159",
+        "system_id64": 671759934913,
+        "x": 55.4375,
+        "y": 38.28125,
+        "z": 56.1875
+      },
+      "total_profit": 1132400
+    },
+    {
+      "commodities": [
+        {
+          "amount": 100,
+          "destination_commodity": {
+            "buy_price": 0,
+            "demand": 4276965,
+            "sell_price": 14530,
+            "supply": 0
+          },
+          "name": "Military Grade Fabrics",
+          "profit": 11235,
+          "source_commodity": {
+            "buy_price": 3295,
+            "demand": 1,
+            "sell_price": 3149,
+            "supply": 1135
+          },
+          "total_profit": 1123500
+        }
+      ],
+      "cumulative_profit": 2354800,
+      "destination": {
+        "distance_to_arrival": 2,
+        "market_id": 4326908419,
+        "market_updated_at": 1791858068,
+        "station": "Beacon Light Of The Avali",
+        "system": "Crucis Sector DB-X b1-6",
+        "system_id64": 13865630901681,
+        "x": 50.0625,
+        "y": 7.25,
+        "z": 26.9375
+      },
+      "distance": 28.5050194318913,
+      "source": {
+        "distance_to_arrival": 259,
+        "market_id": 128102392,
+        "market_updated_at": 1791879215,
+        "station": "ELWireCraft",
+        "system": "Solati",
+        "system_id64": 1458376315610,
+        "x": 66.53125,
+        "y": 29.1875,
+        "z": 34.6875
+      },
+      "total_profit": 1123500
+    }
+  ],
+  "state": "completed",
+  "status": "ok",
+  "updated_at": "2026-10-13T08:32:16"
+}

@@ -1,0 +1,539 @@
+{
+  "count": 8,
+  "from": 0,
+  "reference": {
+    "id64": 633742594786,
+    "name": "Lave",
+    "x": 75.75,
+    "y": 48.75,
+    "z": 70.75
+  },
+  "results": [
+    {
+      "controlling_minor_faction": "The Silverbacks",
+      "controlling_minor_faction_influence": 0.841476,
+      "controlling_minor_faction_state": "Expansion",
+      "distance": 13.8207342537399,
+      "distance_to_arrival": 2287.431638,
+      "economies": [
+        {
+          "name": "High Tech",
+          "share": 80.0
+        },
+        {
+          "name": "Refinery",
+          "share": 20.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Advanced Catalysers"
+        },
+        {
+          "name": "Synthetic Meat"
+        },
+        {
+          "name": "Pesticides"
+        }
+      ],
+      "government": "Democracy",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "3230844160",
+      "import_commodities": [
+        {
+          "name": "Cobalt"
+        },
+        {
+          "name": "Pyrophyllite"
+        },
+        {
+          "name": "Rutile"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 6,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Minerals",
+          "commodity": "Bauxite",
+          "demand": 323432,
+          "sell_price": 14184,
+          "supply": 0
+        },
+        {
+          "buy_price": 2819,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 1,
+          "sell_price": 2736,
+          "supply": 334375
+        },
+        {
+          "buy_price": 1391,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 1,
+          "sell_price": 1327,
+          "supply": 11
+        }
+      ],
+      "market_id": 3230844160,
+      "market_updated_at": "2026-10-13T05:35:18Z",
+      "material_trader": "Encoded",
+      "medium_pads": 13,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Anaconda_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Anaconda"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Anaconda_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 58787780,
+          "rating": "I",
+          "ship": "Anaconda"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Anaconda_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 132272510,
+          "rating": "I",
+          "ship": "Anaconda"
+        }
+      ],
+      "name": "Janes Horizons",
+      "outfitting_updated_at": "2026-10-13T05:35:18Z",
+      "primary_economy": "High Tech",
+      "prohibited_commodities": [
+        {
+          "name": "Narcotics"
+        },
+        {
+          "name": "Battle Weapons"
+        },
+        {
+          "name": "Bootleg Liquor"
+        }
+      ],
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Black Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Anaconda",
+          "price": 146969450,
+          "symbol": "Anaconda"
+        },
+        {
+          "name": "Beluga Liner",
+          "price": 84532780,
+          "symbol": "BelugaLiner"
+        },
+        {
+          "name": "Cobra MkIV",
+          "price": 764720,
+          "symbol": "CobraMkIV"
+        }
+      ],
+      "shipyard_updated_at": "2026-10-13T05:35:18Z",
+      "small_pads": 9,
+      "state": "DamagedHuman",
+      "system_controlling_power": "Edmund Mahon",
+      "system_id64": 908620501730,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Arexe",
+      "system_population": 5143953,
+      "system_power": [
+        "Edmund Mahon",
+        "Nakato Kaine"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "High Tech",
+      "system_secondary_economy": "Refinery",
+      "system_x": 69.375,
+      "system_y": 38.90625,
+      "system_z": 78.0625,
+      "type": "Coriolis Starport",
+      "updated_at": "2026-10-13T05:35:18Z"
+    },
+    {
+      "allegiance": "Federation",
+      "body_gravity": 0.0457083715713266,
+      "body_has_atmosphere": false,
+      "body_has_rings": false,
+      "body_id64": 936751280381006562,
+      "body_name": "Placet 8 c",
+      "body_subtype": "Icy body",
+      "body_type": "Planet",
+      "controlling_minor_faction": "Terra-EX Astro Corp",
+      "controlling_minor_faction_influence": 0.630151,
+      "controlling_minor_faction_state": "Expansion",
+      "distance": 17.4835581243493,
+      "distance_to_arrival": 386.961698,
+      "economies": [
+        {
+          "name": "Agriculture",
+          "share": 65.0
+        },
+        {
+          "name": "Extraction",
+          "share": 30.0
+        },
+        {
+          "name": "High Tech",
+          "share": 45.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Food Cartridges"
+        },
+        {
+          "name": "Water Purifiers"
+        },
+        {
+          "name": "Hydrogen Fuel"
+        }
+      ],
+      "government": "Corporate",
+      "has_large_pad": true,
+      "has_market": true,
+      "has_outfitting": true,
+      "has_shipyard": true,
+      "id": "4280534787",
+      "import_commodities": [
+        {
+          "name": "Polymers"
+        },
+        {
+          "name": "Natural Fabrics"
+        },
+        {
+          "name": "Semiconductors"
+        }
+      ],
+      "is_planetary": true,
+      "large_pads": 2,
+      "latitude": -0.470157,
+      "longitude": 85.342842,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Minerals",
+          "commodity": "Bauxite",
+          "demand": 1330870,
+          "sell_price": 12914,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 1230599,
+          "sell_price": 3370,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 943793,
+          "sell_price": 1675,
+          "supply": 0
+        }
+      ],
+      "market_id": 4280534787,
+      "market_updated_at": "2026-07-31T01:00:20Z",
+      "medium_pads": 4,
+      "modules": [
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade1",
+          "name": "Lightweight Alloy",
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade2",
+          "name": "Reinforced Alloy",
+          "price": 35120,
+          "rating": "I",
+          "ship": "Adder"
+        },
+        {
+          "category": "standard",
+          "class": 1,
+          "ed_symbol": "Adder_Armour_Grade3",
+          "name": "Military Grade Composite",
+          "price": 79030,
+          "rating": "I",
+          "ship": "Adder"
+        }
+      ],
+      "name": "Ferraro Control",
+      "outfitting_updated_at": "2026-06-03T02:26:52Z",
+      "primary_economy": "Industrial",
+      "secondary_economy": "Agriculture",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Market"
+        }
+      ],
+      "ships": [
+        {
+          "name": "Adder",
+          "price": 87810,
+          "symbol": "Adder"
+        },
+        {
+          "name": "Anaconda",
+          "price": 146969450,
+          "symbol": "Anaconda"
+        },
+        {
+          "name": "Asp Explorer",
+          "price": 6661150,
+          "symbol": "Asp"
+        }
+      ],
+      "shipyard_updated_at": "2026-07-31T01:00:12Z",
+      "small_pads": 4,
+      "system_controlling_power": "Nakato Kaine",
+      "system_id64": 2557887943394,
+      "system_is_colonised": true,
+      "system_name": "Placet",
+      "system_population": 2476188566,
+      "system_power": [
+        "Edmund Mahon",
+        "Nakato Kaine"
+      ],
+      "system_power_state": "Stronghold",
+      "system_primary_economy": "Tourism",
+      "system_secondary_economy": "Agriculture",
+      "system_x": 58.28125,
+      "system_y": 49.34375,
+      "system_z": 70.34375,
+      "type": "Planetary Outpost",
+      "updated_at": "2026-07-31T01:00:20Z"
+    },
+    {
+      "allegiance": "Alliance",
+      "controlling_minor_faction": "Alliance Rapid-reaction Corps",
+      "controlling_minor_faction_influence": 0.399399,
+      "controlling_minor_faction_state": "Civil Unrest",
+      "distance": 9.69001983357103,
+      "distance_to_arrival": 606.010729,
+      "economies": [
+        {
+          "name": "Extraction",
+          "share": 83.0
+        },
+        {
+          "name": "Refinery",
+          "share": 17.0
+        }
+      ],
+      "export_commodities": [
+        {
+          "name": "Bertrandite"
+        },
+        {
+          "name": "Gallite"
+        },
+        {
+          "name": "Hydrogen Fuel"
+        }
+      ],
+      "government": "Cooperative",
+      "has_large_pad": false,
+      "has_market": true,
+      "has_outfitting": true,
+      "id": "3230910720",
+      "import_commodities": [
+        {
+          "name": "Mineral Extractors"
+        },
+        {
+          "name": "Explosives"
+        },
+        {
+          "name": "Mineral Oil"
+        }
+      ],
+      "is_planetary": false,
+      "large_pads": 0,
+      "market": [
+        {
+          "buy_price": 0,
+          "category": "Minerals",
+          "commodity": "Bauxite",
+          "demand": 2542,
+          "sell_price": 5109,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Technology",
+          "commodity": "Advanced Catalysers",
+          "demand": 1897,
+          "sell_price": 3686,
+          "supply": 0
+        },
+        {
+          "buy_price": 0,
+          "category": "Medicines",
+          "commodity": "Advanced Medicines",
+          "demand": 613,
+          "sell_price": 1869,
+          "supply": 0
+        }
+      ],
+      "market_id": 3230910720,
+      "market_updated_at": "2026-08-27T19:31:49Z",
+      "medium_pads": 1,
+      "modules": [
+        {
+          "category": "mercgear",
+          "class": 2,
+          "ed_symbol": "Hpt_BasicMissileRack_Fixed_Medium",
+          "name": "Lockdown Seeker Missile Rack",
+          "price": 512400,
+          "rating": "B",
+          "weapon_mode": "Fixed"
+        },
+        {
+          "category": "mercgear",
+          "class": 4,
+          "ed_symbol": "Hpt_BeamLaser_Fixed_Huge",
+          "name": "Overloaded Beam Laser",
+          "price": 2396160,
+          "rating": "A",
+          "weapon_mode": "Fixed"
+        },
+        {
+          "category": "hardpoint",
+          "class": 1,
+          "ed_symbol": "Hpt_BeamLaser_Fixed_Small_Heat",
+          "name": "Retributor Beam Laser",
+          "price": 56150,
+          "rating": "E",
+          "weapon_mode": "Fixed"
+        }
+      ],
+      "name": "Gardner Settlement",
+      "outfitting_updated_at": "2026-06-15T21:21:26Z",
+      "primary_economy": "Extraction",
+      "secondary_economy": "Refinery",
+      "services": [
+        {
+          "name": "Dock"
+        },
+        {
+          "name": "Autodock"
+        },
+        {
+          "name": "Black Market"
+        }
+      ],
+      "small_pads": 2,
+      "system_controlling_power": "Nakato Kaine",
+      "system_id64": 9468121392585,
+      "system_is_being_colonised": false,
+      "system_is_colonised": false,
+      "system_name": "Neganhot",
+      "system_population": 67885,
+      "system_power": [
+        "Edmund Mahon",
+        "Nakato Kaine"
+      ],
+      "system_power_state": "Exploited",
+      "system_primary_economy": "Agriculture",
+      "system_secondary_economy": "High Tech",
+      "system_x": 77.78125,
+      "system_y": 50.9375,
+      "system_z": 79.96875,
+      "type": "Outpost",
+      "updated_at": "2026-10-13T02:40:13Z"
+    }
+  ],
+  "search": {
+    "filters": {
+      "distance": {
+        "max": 30,
+        "min": 0
+      },
+      "market": [
+        {
+          "demand": {
+            "comparison": "<=>",
+            "value": [
+              1000,
+              1000000000
+            ]
+          },
+          "name": "Bauxite",
+          "sell_price": {
+            "comparison": "<=>",
+            "value": [
+              5000,
+              1000000000
+            ]
+          }
+        }
+      ]
+    },
+    "page": 0,
+    "reference_system": "Lave",
+    "reference_system_details": {
+      "id64": 633742594786,
+      "name": "Lave",
+      "x": 75.75,
+      "y": 48.75,
+      "z": 70.75
+    },
+    "size": 3,
+    "sort": [
+      {
+        "market_sell_price": [
+          {
+            "direction": "desc",
+            "name": "Bauxite"
+          }
+        ]
+      }
+    ]
+  },
+  "search_reference": "B6118F90-C6E0-11F1-839D-BF5CEA6F3A75",
+  "size": 3
+}

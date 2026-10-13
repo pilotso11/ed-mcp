@@ -136,6 +136,8 @@ The journal tools read the local game journal (`ED_JOURNAL_DIR`). See `2026-10-1
 | | `missions_route` | journal, Spansh | best stop order for accepted missions with deadlines, exact up to 12 stops; see `2026-10-13-mission-route-design.md` |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
+| | `trade_route` | journal, Spansh | multi-hop trade run ranked by profit per hour from the travel model; Spansh takes minutes, so the tool returns `pending` until you call again; see `2026-10-13-commodity-trade-design.md` |
+| | `commodity_prices` | journal, Spansh | best stations near a system to sell or buy one commodity, ranked by price or by value after travel cost |
 | Preferences | `prefs_get` | local | stored travel preferences |
 | | `prefs_set` | local | applies a strict partial patch to the stored travel preferences and returns them |
 | Cache | `cache_refresh` | all | clears cached data. Optional `source`: `inara`, `edsm`, `capi`, `spansh`, `catalog` or `all` (default). For `catalog` it forces an upstream check |
