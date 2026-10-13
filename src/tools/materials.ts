@@ -54,6 +54,7 @@ export function registerMaterialsTools(
         needs: z.array(z.object({ name: z.string(), count: z.number().int().min(0) })).optional(),
         rolls_per_grade: z
           .array(z.number().int().min(0))
+          .length(5)
           .optional()
           .describe("Rolls for grades 1-5, default [1, 2, 3, 4, 5]"),
         inventory: z.enum(["auto", "journal", "edsm", "none"]).default("auto"),
@@ -94,7 +95,7 @@ export function registerMaterialsTools(
         if (types.length) {
           const near = a.near ?? (await locate(deps));
           if (!near) {
-            notes.push("Give near to find traders");
+            notes.push("No location known; give near to find traders.");
           } else {
             // Trader lookup is a bonus; the plan must survive a Spansh or rules failure.
             const rules = await resolveSearchRules(deps, a.preferences, true).catch(

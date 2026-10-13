@@ -79,8 +79,8 @@ describe("materials_plan", () => {
     ]);
     expect(j.trades).toEqual([
       {
-        give: { name: "Adaptive Encryptors Capture", count: 6 },
-        get: { name: "Datamined Wake Exceptions", count: 1 },
+        give: { name: "Adaptive Encryptors Capture", count: 6, grade: 5 },
+        get: { name: "Datamined Wake Exceptions", count: 1, grade: 5 },
         rate: "6:1",
         trader: "encoded",
       },
@@ -97,6 +97,12 @@ describe("materials_plan", () => {
     expect(queries[0]).toMatchObject({ near: "Atlas", service: "material_trader_encoded" });
   });
 
+  it("rejects rolls_per_grade without exactly five entries", async () => {
+    const { client } = setup({ system: "Atlas" });
+    const r = await callTool(await client, "materials_plan", { ...need, rolls_per_grade: [1, 2] });
+    expect(r.isError).toBe(true);
+  });
+
   it("uses near over the journal location", async () => {
     const { client, queries } = setup({ system: "Atlas" });
     await callTool(await client, "materials_plan", { ...need, near: "Sol" });
@@ -108,7 +114,7 @@ describe("materials_plan", () => {
     const r = await callTool(await client, "materials_plan", need);
     const j = r.json as Record<string, any>;
     expect(j.traders).toEqual([]);
-    expect(j.notes).toContain("Give near to find traders");
+    expect(j.notes).toContain("No location known; give near to find traders.");
     expect(queries).toEqual([]);
   });
 
