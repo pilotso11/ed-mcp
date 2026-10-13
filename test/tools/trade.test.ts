@@ -149,6 +149,18 @@ describe("trade_route", () => {
     expect(j.notes.join(" ")).not.toContain("arrival limit");
   });
 
+  it("warns that Spansh cannot require a medium pad", async () => {
+    const note =
+      "Spansh cannot require a medium pad; hops may include small-pad outposts. Check each station's pads.";
+    const m = await trade({ preferences: { stations: { min_pad: "M" } } });
+    expect(m.forms[0]!.requires_large_pad).toBe(false);
+    expect(m.j.notes).toContain(note);
+    const l = await trade({ preferences: { stations: { min_pad: "L" } } });
+    expect(l.j.notes).not.toContain(note);
+    const none = await trade();
+    expect(none.j.notes).not.toContain(note);
+  });
+
   it("treats a journal cargo capacity of 0 as unknown and refuses a given cargo of 0", async () => {
     const { forms, j } = await trade({}, { cargo: 0 });
     expect(forms[0]!.max_cargo).toBe(7);
