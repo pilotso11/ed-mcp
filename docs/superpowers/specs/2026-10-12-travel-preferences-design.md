@@ -59,11 +59,11 @@ file and is never overwritten.
     "jump_range_ly": 30,
     "seconds_per_jump": 60,
     "refuel_every_jumps": 0,
-    "refuel_s": 120,
-    "supercruise": { "base_s": 20, "coeff": 8.9, "exponent": 0.33, "speed_factor": 1 },
+    "refuel_s": 15,
+    "supercruise": { "base_s": 43, "coeff": 6.2, "exponent": 0.43, "speed_factor": 1 },
     "occlusion": { "chance": 0.5, "seconds": 40 },
-    "near_star": { "within_ls": 50, "seconds": 30 },
-    "dock_s": 60,
+    "near_star": { "within_ls": 50, "seconds": 0 },
+    "dock_s": 80,
     "planetary_extra_s": 90,
     "credits_per_hour": 20000000
   }
@@ -91,11 +91,10 @@ The JSON above is the default.
 | `travel.planetary_extra_s` | >= 0 | Extra time for a ground station (glide and descent) |
 | `travel.credits_per_hour` | >= 0 | Value of the commander's time, used to weigh price against travel time |
 
-Default sources: 60 s per jump and 120 s per refuel stop follow Spansh's route
-plotter and the owner's experience. The supercruise curve uses the Fuel Rats
-fit (`8.9 * ls^0.33`, measured) plus a 20 s start. Occlusion, near-star,
-docking and planetary times are estimates, not measurements, and exist to be
-tuned. See `docs/research/travel-time.md`.
+Default sources: 60 s per jump follows Spansh's route plotter. The
+supercruise curve, docking time, refuel time and the zero near-star penalty
+come from the owner's journals (section 6 of `docs/research/travel-time.md`).
+Occlusion and planetary times are estimates and exist to be tuned.
 
 ## Tools
 

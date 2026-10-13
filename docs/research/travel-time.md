@@ -13,7 +13,7 @@ Collected 2026-10-13. Each claim is labelled:
 
 | Quantity | Recommended default | Confidence |
 | --- | --- | --- |
-| Supercruise, arrival star to station drop | `t_sc(d) = 20 + 8.9 · d^0.33` seconds, `d` in ls | Medium. The shape is measured. The 20 s overhead is inferred. |
+| Supercruise, arrival star to station drop | `t_sc(d) = 63 + 6.2 · d^0.43` seconds, `d` in ls (ed-mcp: `base_s` 43 plus 20 s expected occlusion) | Medium-high up to 20,000 ls. Fitted to one commander's journals (section 6). Overestimates beyond about 20,000 ls. |
 | Seconds per hyperspace jump, chained, no scooping | 50 s | High. Measured minimum is 43.6 s. Measured median for a human pilot is 52 s. |
 | Extra per refuel stop (scooping) | 120 s flat, or `30 s + tonnes / scoop rate` | Medium. Spansh uses 120 s. One journal fit gives about 36 s plus fill time. |
 | SCO (Supercruise Overcharge) | Optional multiplier on `t_sc`, default 1.0 | Low. Large savings are measured. No short-range curve exists. |
@@ -380,6 +380,44 @@ pilots. Use 50 s by default. Use 60 s for a cautious estimate, and 44 s as the
 floor. Add scooping separately.
 
 ---
+
+## 6. Journal benchmark (2026-10-13)
+
+Timings from one commander's journals (796 files from 2018 to 2026). Only
+files from October 2024 onward are used, so the numbers reflect supercruise
+assist, SCO-era ships and current docking. Medians include normal human
+delays: finding the target, overshooting, waiting for docking permission.
+**Measured.**
+
+| Quantity | Median | n |
+| --- | --- | --- |
+| Jump cycle (FSDJump to FSDJump), no scooping | 52 s | 245 |
+| Jump cycle with scooping | 64 s | 906 |
+| SupercruiseExit to Docked: Coriolis / Orbis / Ocellus / Outpost | 87 / 78 / 83 / 54 s | 414 / 231 / 66 / 203 |
+| FSDJump to SupercruiseExit at a station, 0-50 ls | 89 s | 81 |
+| Same, 200-500 ls | 138 s | 102 |
+| Same, 1,000-2,000 ls | 200 s | 81 |
+| Same, 2,000-5,000 ls | 319 s | 21 |
+
+A fit on the medians of equal-count bins gives `63 + 6.21 · ls^0.43`, with a
+mean error of 10 s per bin. Stations near the star show no extra time beyond
+the curve, so the near-star penalty is 0. Scooping adds about 12 s per jump,
+because the FSD charges while scooping. Older journals (all years) show that
+the curve overestimates far stations: 492 s measured against 643 s fitted at
+38,000 ls. That is acceptable, because far stations should rank last.
+
+ed-mcp defaults from this benchmark: `supercruise` `base_s` 43, `coeff` 6.2,
+`exponent` 0.43 (43 plus 20 s expected occlusion gives the fitted 63);
+`near_star.seconds` 0; `dock_s` 80; `refuel_s` 15.
+
+Test flights by the same commander in an AX ship with no supercruise assist,
+at full throttle with manual drops, set a lower bound:
+
+| Station | Arrival | Supercruise | Docking | Curve |
+| --- | --- | --- | --- | --- |
+| Reed's Rest (Merope) | 4,042 ls | 244 s (about 215 s without a 25-30 s search and overshoot) | 70 s | 283 s |
+
+A pilot who flies like this can set `speed_factor` to about 1.4.
 
 ## Sources
 

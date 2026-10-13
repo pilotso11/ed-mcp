@@ -158,11 +158,11 @@ The server ranks stations by estimated travel time. For purchases it also ranks 
 | `jump_range_ly`        | 30                                                           |
 | `seconds_per_jump`     | 60                                                           |
 | `refuel_every_jumps`   | 0 (no refuel stops)                                          |
-| `refuel_s`             | 120                                                          |
-| `supercruise`          | `base_s` 20, `coeff` 8.9, `exponent` 0.33, `speed_factor` 1  |
+| `refuel_s`             | 15                                                           |
+| `supercruise`          | `base_s` 43, `coeff` 6.2, `exponent` 0.43, `speed_factor` 1  |
 | `occlusion`            | `chance` 0.5, `seconds` 40                                   |
-| `near_star`            | `within_ls` 50, `seconds` 30                                 |
-| `dock_s`               | 60                                                           |
+| `near_star`            | `within_ls` 50, `seconds` 0                                  |
+| `dock_s`               | 80                                                           |
 | `planetary_extra_s`    | 90                                                           |
 | `credits_per_hour`     | 20,000,000                                                   |
 
@@ -177,7 +177,7 @@ The server estimates travel time like this:
 
 When Spansh gives no arrival distance, the server assumes 1000 ls and sets `arrival_assumed: true`.
 
-The occlusion, near-star, docking and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
+The supercruise, docking and refuel defaults come from about 1,300 timed legs in one commander's journals, flown with supercruise assist. They are medians, so they include normal human delays. A pilot who flies faster can raise `speed_factor`. The occlusion and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
 
 For module searches, give both class and rating. Without them the server does not compare prices, and stations rank by travel time.
 
