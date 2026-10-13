@@ -312,6 +312,24 @@ describe("SpanshClient.route", () => {
     expect(f.calls.at(-1)!.url).toMatch(new RegExp(`/results/${job}$`));
   });
 
+  it.each([
+    ["a network error", () => Promise.reject(new TypeError("fetch failed"))],
+    ["a server error", () => text("", 503)],
+  ])("keeps the job after %s while polling", async (_name, fail) => {
+    const submit = await raw("route-submit.json");
+    const done = await raw("results-route-ok.json");
+    let broken = true;
+    const { client, f } = makeTimed([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => (broken ? fail() : text(done)) },
+    ]);
+    const q = { from: "Sol", to: "Colonia", rangeLy: 50 };
+    await expect(client.route(q)).rejects.toThrow();
+    broken = false;
+    expect(await client.route(q)).toMatchObject({ total_jumps: 128 });
+    expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
+  });
+
   it("forgets the job after a 404 and submits again next time", async () => {
     const submit = await raw("route-submit.json");
     const done = await raw("results-route-ok.json");

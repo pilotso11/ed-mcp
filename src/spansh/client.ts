@@ -299,14 +299,10 @@ export class SpanshClient {
         }
         await this.sleep(Math.min(delay, left));
         delay = Math.min(delay * 2, 16_000);
-        let res: { status: number; body: unknown };
-        try {
-          res = await this.raw(`/results/${job}`);
-        } catch (err) {
-          this.routeJobs.delete(key);
-          throw err;
-        }
+        // Network and server errors say nothing about the job, so keep its id for the next call.
+        const res = await this.raw(`/results/${job}`);
         if (res.status === 202) continue;
+        if (res.status >= 500) throw new SpanshError(res.status, res.body);
         this.routeJobs.delete(key);
         const b = res.body as { status?: string; error?: string; result?: RawRoute };
         if (res.status === 200 && b.status === "ok" && b.result) return mapRoute(b.result);
