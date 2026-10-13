@@ -19,6 +19,7 @@ export interface StationQuery {
   service?: StationService;
   largePad?: boolean;
   maxDistanceLy?: number;
+  maxArrivalLs?: number;
   limit: number;
 }
 
@@ -196,6 +197,9 @@ export class SpanshClient {
     }
     if (q.largePad) filters.has_large_pad = { value: true };
     if (q.maxDistanceLy !== undefined) filters.distance = { min: 0, max: q.maxDistanceLy };
+    if (q.maxArrivalLs !== undefined) {
+      filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
+    }
 
     const body = {
       filters,
@@ -319,12 +323,12 @@ export class SpanshClient {
 
   private hit(s: RawStation, q: StationQuery, shipName?: string): StationHit {
     let price: number | null = null;
-    if (q.module) {
+    // Without class and rating the first same-name module can differ per station,
+    // so its price is not comparable; leave it null and rank by time.
+    if (q.module && q.module.class !== undefined && q.module.rating !== undefined) {
+      const { name, class: cls, rating } = q.module;
       const m = (s.modules ?? []).find(
-        (x) =>
-          x.name === q.module!.name &&
-          (q.module!.class === undefined || x.class === q.module!.class) &&
-          (q.module!.rating === undefined || x.rating === q.module!.rating.toUpperCase()),
+        (x) => x.name === name && x.class === cls && x.rating === rating.toUpperCase(),
       );
       price = m?.price ?? null;
     } else if (shipName) {

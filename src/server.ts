@@ -7,6 +7,7 @@ import type { CapiAuth } from "./capi/auth.js";
 import type { CapiClient } from "./capi/client.js";
 import type { SpanshClient } from "./spansh/client.js";
 import type { PlanStore } from "./plans/store.js";
+import type { PreferencesStore } from "./prefs/store.js";
 import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
 import { registerCapiTools } from "./tools/capi.js";
@@ -14,6 +15,7 @@ import { registerCatalogTools } from "./tools/catalog.js";
 import { registerInaraTools } from "./tools/inara.js";
 import { registerEdsmTools } from "./tools/edsm.js";
 import { registerPlanTools } from "./tools/plans.js";
+import { registerPrefsTools } from "./tools/prefs.js";
 import { registerSpanshTools } from "./tools/spansh.js";
 import { VERSION } from "./version.js";
 
@@ -21,12 +23,14 @@ export interface ServerDeps {
   caches?: CacheRegistry;
   refreshables?: Refreshable[];
   plans?: PlanStore;
+  prefs?: PreferencesStore;
   catalog?: CatalogService;
   inara?: InaraClient;
   edsm?: EdsmClient;
   spansh?: SpanshClient;
   capiAuth?: CapiAuth;
   capi?: CapiClient;
+  currentShip?: () => Promise<string | null>;
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -35,10 +39,16 @@ export function createServer(deps: ServerDeps): McpServer {
     registerCacheTools(server, { caches: deps.caches, refreshables: deps.refreshables });
   }
   if (deps.plans) registerPlanTools(server, { plans: deps.plans });
+  if (deps.prefs) registerPrefsTools(server, { prefs: deps.prefs });
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
   if (deps.inara) registerInaraTools(server, { inara: deps.inara });
   if (deps.edsm) registerEdsmTools(server, { edsm: deps.edsm });
-  if (deps.spansh) registerSpanshTools(server, { spansh: deps.spansh });
+  if (deps.spansh)
+    registerSpanshTools(server, {
+      spansh: deps.spansh,
+      prefs: deps.prefs,
+      currentShip: deps.currentShip,
+    });
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }

@@ -93,6 +93,22 @@ describe("SpanshClient.findStations", () => {
     expect(JSON.stringify(r)).not.toContain("export_commodities");
   });
 
+  it("returns no price for a module search without class and rating", async () => {
+    const body = await raw("stations-search-module.json");
+    const { client } = make([
+      { match: (u) => u.endsWith("/stations/search"), respond: () => text(body) },
+    ]);
+    for (const module of [
+      { name: "Frame Shift Drive" },
+      { name: "Frame Shift Drive", class: 5 },
+      { name: "Frame Shift Drive", rating: "A" },
+    ]) {
+      const r = await client.findStations({ near: "Sol", module, limit: 3 });
+      expect(r.stations.length).toBeGreaterThan(0);
+      expect(r.stations.map((s) => s.price)).toEqual(r.stations.map(() => null));
+    }
+  });
+
   it("resolves the ship name before searching", async () => {
     const body = await raw("stations-search-ship.json");
     const { client, f } = make([
@@ -153,6 +169,21 @@ describe("SpanshClient.findStations", () => {
     await expect(
       client.findStations({ near: "Sol", service: "tech_broker_human", limit: 3 }),
     ).rejects.toThrow(/Unknown module.*module, ship or service filter/);
+  });
+
+  it("sends the arrival distance limit", async () => {
+    const body = await raw("stations-search-material-trader.json");
+    const { client, f } = make([
+      { match: (u) => u.endsWith("/stations/search"), respond: () => text(body) },
+    ]);
+    await client.findStations({
+      near: "Sol",
+      service: "material_trader_raw",
+      maxArrivalLs: 1000,
+      limit: 3,
+    });
+    const sent = JSON.parse(String(f.calls[0]!.init!.body));
+    expect(sent.filters.distance_to_arrival).toEqual({ comparison: "<=>", value: [0, 1000] });
   });
 });
 

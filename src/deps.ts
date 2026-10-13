@@ -10,6 +10,7 @@ import { InaraClient } from "./inara/client.js";
 import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
 import { PlanStore } from "./plans/store.js";
+import { PreferencesStore } from "./prefs/store.js";
 import type { ServerDeps } from "./server.js";
 import { VERSION } from "./version.js";
 
@@ -45,6 +46,8 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     spansh,
     capiAuth,
     capi,
+    currentShip: async () => (await capi.profile()).ship?.type ?? null,
     plans: new PlanStore(config.plansFile),
+    prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
   };
 }

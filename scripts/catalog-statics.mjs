@@ -1,4 +1,4 @@
-// Regenerates src/catalog/data/{engineers,groups}.json from upstream.
+// Regenerates src/catalog/data/{engineers,groups,ships}.json from upstream.
 // Run when Frontier adds engineers or module types: npm run catalog:statics
 import { writeFile } from "node:fs/promises";
 
@@ -12,6 +12,8 @@ const get = async (url) => {
 const ENGINEERS_CS =
   "https://raw.githubusercontent.com/EDDiscovery/EliteDangerousCore/master/EliteDangerous/FrontierData/Items/Engineers.cs";
 const OUTFITTING = "https://raw.githubusercontent.com/EDCD/FDevIDs/master/outfitting.csv";
+const SHIPYARD = "https://raw.githubusercontent.com/EDCD/FDevIDs/master/shipyard.csv";
+const PAD = { 1: "S", 2: "M", 3: "L" };
 const CORIOLIS_TREE =
   "https://api.github.com/repos/EDCD/coriolis-data/git/trees/develop?recursive=1";
 const CORIOLIS_RAW = "https://raw.githubusercontent.com/EDCD/coriolis-data/develop/";
@@ -57,11 +59,10 @@ function parseCsv(text) {
   });
 }
 
-async function buildGroups() {
+async function buildGroups(tree) {
   const names = new Map(
     parseCsv(await get(OUTFITTING)).map((r) => [r.symbol.toLowerCase(), r.name]),
   );
-  const tree = JSON.parse(await get(CORIOLIS_TREE));
   const files = tree.tree.filter((t) => /^modules\/.+\.json$/.test(t.path)).map((t) => t.path);
   const groups = {};
   for (const path of files) {
@@ -82,8 +83,35 @@ async function buildGroups() {
   );
 }
 
+// coriolis-data has pad class per ship; FDevIDs shipyard.csv maps its edID to the
+// journal/CAPI symbol, which is what CAPI reports as the current ship type.
+async function buildShips(tree) {
+  const byId = new Map(parseCsv(await get(SHIPYARD)).map((r) => [String(r.id), r]));
+  const byName = new Map([...byId.values()].map((r) => [r.name.toLowerCase(), r]));
+  const files = tree.tree.filter((t) => /^ships\/.+\.json$/.test(t.path)).map((t) => t.path);
+  const ships = {};
+  for (const path of files) {
+    const data = JSON.parse(await get(CORIOLIS_RAW + path));
+    for (const v of Object.values(data)) {
+      const pad = PAD[v?.properties?.class];
+      if (!pad) continue;
+      const row = byId.get(String(v.edID)) ?? byName.get(String(v.properties.name).toLowerCase());
+      if (!row) continue;
+      ships[row.symbol.toLowerCase()] = { name: row.name, pad };
+    }
+  }
+  if (Object.keys(ships).length < 40)
+    throw new Error(`expected at least 40 ships, got ${Object.keys(ships).length}`);
+  return Object.fromEntries(Object.entries(ships).sort(([a], [b]) => a.localeCompare(b)));
+}
+
 const engineers = parseEngineers(await get(ENGINEERS_CS));
-const groups = await buildGroups();
+const tree = JSON.parse(await get(CORIOLIS_TREE));
+const groups = await buildGroups(tree);
+const ships = await buildShips(tree);
 await writeFile("src/catalog/data/engineers.json", JSON.stringify(engineers, null, 2) + "\n");
 await writeFile("src/catalog/data/groups.json", JSON.stringify(groups, null, 2) + "\n");
-console.log(`engineers: ${engineers.length}, groups: ${Object.keys(groups).length}`);
+await writeFile("src/catalog/data/ships.json", JSON.stringify(ships, null, 2) + "\n");
+console.log(
+  `engineers: ${engineers.length}, groups: ${Object.keys(groups).length}, ships: ${Object.keys(ships).length}`,
+);

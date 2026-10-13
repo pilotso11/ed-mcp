@@ -27,6 +27,8 @@
     }
   },
   "tools": [
+    { "name": "prefs_get", "description": "Stored travel preferences" },
+    { "name": "prefs_set", "description": "Change stored travel preferences" },
     {
       "name": "inara_commander_profile",
       "description": "Ranks, squadron, main ship and Inara URL"
@@ -53,7 +55,7 @@
     { "name": "catalog_module", "description": "Outfitting module by symbol or name" },
     {
       "name": "spansh_find_stations",
-      "description": "Nearest stations selling a module or ship, or with a service"
+      "description": "Best stations near a system, ranked by travel time and cost"
     },
     { "name": "spansh_system", "description": "System coordinates and stations" },
     { "name": "spansh_route", "description": "Neutron route between systems" },

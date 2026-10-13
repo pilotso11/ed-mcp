@@ -72,6 +72,7 @@ The server keeps these files on your machine.
 | Data                                      | Location                                                   |
 | ----------------------------------------- | ---------------------------------------------------------- |
 | Plans (`plans.json`)                      | Config directory, or the path in `ED_MCP_PLANS`            |
+| Travel preferences (`preferences.json`)   | Config directory                                           |
 | Frontier login (`capi-token.json`)        | Config directory, with `0600` permissions                  |
 | Game data (catalog) and request cache     | Cache directory                                            |
 
@@ -99,9 +100,11 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
 | `catalog_material`         | Material grade, trade group and trade rules                  |
 | `catalog_module`           | Outfitting module by symbol or name                          |
-| `spansh_find_stations`     | Nearest stations selling a module or ship, or with a service |
+| `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
+| `prefs_get`                | Get your stored travel preferences                           |
+| `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
 | `cache_status`             | Cache and game data status                                   |
 | `plan_list`                | List saved plans                                             |
@@ -110,6 +113,90 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `plan_update_item`         | Update one plan item                                         |
 | `plan_delete`              | Delete a plan                                                |
 | `plan_export`              | Export a plan as Markdown                                    |
+
+## Travel preferences
+
+`spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json` in the config folder. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
+
+Defaults:
+
+| Preference                      | Default                              |
+| ------------------------------- | ------------------------------------ |
+| `stations.max_arrival_ls`       | 1000 ls, `soft`                      |
+| `stations.planetary`            | `avoid`                              |
+| `stations.fleet_carriers`       | `exclude`                            |
+| `stations.megaships`            | `allow`                              |
+| `stations.min_pad`              | `auto`                               |
+| `travel`                        | See the travel model below           |
+
+- `max_arrival_ls` mode is `soft`, `hard` or `off`.
+- `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
+- `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
+
+A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
+
+To change your preferences, ask Claude, for example "from now on ignore stations over 2,000 ls". Claude calls `prefs_set` with a patch such as `{"stations":{"max_arrival_ls":{"value":2000}}}`. The patch is strict: unknown keys are errors. The change applies to future sessions.
+
+For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. `large_pad: true` is the same as `min_pad: "L"`.
+
+Each result has these fields:
+
+- `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
+- `matched`: how many stations match your preferences among those the server fetched. That is the nearest 50, or up to 100 when the search relaxed the arrival limit and fetched a second page.
+- `jumps`, `travel_s`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
+- `discount_pct` on each station: how far its price is below the median price of the filtered results.
+- `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page.
+- `relaxed`: the rules the search dropped.
+- `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
+- `applied_preferences`: the rules in effect, including the pad source.
+
+## Travel model
+
+The server ranks stations by estimated travel time. For purchases it also ranks by cost. The `travel` settings tune the estimate. All of them can be set with `prefs_set`.
+
+| Setting                | Default                                                      |
+| ---------------------- | ------------------------------------------------------------ |
+| `jump_range_ly`        | 30                                                           |
+| `seconds_per_jump`     | 60                                                           |
+| `refuel_every_jumps`   | 0 (no refuel stops)                                          |
+| `refuel_s`             | 15                                                           |
+| `supercruise`          | `base_s` 43, `coeff` 6.2, `exponent` 0.43, `speed_factor` 1  |
+| `occlusion`            | `chance` 0.5, `seconds` 40                                   |
+| `near_star`            | `within_ls` 50, `seconds` 0                                  |
+| `dock_s`               | 80                                                           |
+| `planetary_extra_s`    | 90                                                           |
+| `credits_per_hour`     | 20,000,000                                                   |
+
+The server estimates travel time like this:
+
+- Jumps: `ceil(distance_ly / jump_range_ly)`. Each jump takes `seconds_per_jump`. A station in the same system needs no jumps.
+- Refuel: one stop of `refuel_s` for every `refuel_every_jumps` jumps. Zero turns this off.
+- Supercruise: `base_s + coeff * ls^exponent / speed_factor`, where `ls` is the arrival distance. Use a `speed_factor` above 1 to model a faster ship or Supercruise Overcharge.
+- Occlusion: `chance * seconds`. This is the expected time lost when the star hides the station.
+- Near star: `near_star.seconds` extra when the station is within `within_ls` of the star.
+- Docking: `dock_s`, plus `planetary_extra_s` for planetary stations.
+
+When Spansh gives no arrival distance, the server assumes 1000 ls and sets `arrival_assumed: true`.
+
+The supercruise, docking and refuel defaults come from about 1,300 timed legs in one commander's journals, flown with supercruise assist. They are medians, so they include normal human delays. A pilot who flies faster can raise `speed_factor`. The occlusion and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
+
+For module searches, give both class and rating. Without them the server does not compare prices, and stations rank by travel time.
+
+For purchases, `effective_cost = price + travel time in hours * credits_per_hour`. It is `null` when the station has no price. `credits_per_hour` is what an hour of your time is worth. For example, ask Claude "my time is worth 50M cr an hour". Claude calls `prefs_set` with `{"travel":{"credits_per_hour":50000000}}`.
+
+Ranking:
+
+- If any station has an effective cost, stations sort by effective cost. Stations without a price come last. Ties sort by travel time.
+- Otherwise, stations sort by travel time.
+- The page holds the first `limit` stations. The recommendation is the first station.
+
+Each station has these fields:
+
+- `jumps`: the estimated number of jumps.
+- `travel_s`: the estimated travel time in seconds.
+- `travel_min`: the estimated travel time in minutes, to one decimal place.
+- `effective_cost`: price plus the value of the travel time, in credits.
+- `arrival_assumed`: `true` when the arrival distance was missing.
 
 ## Development
 

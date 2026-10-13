@@ -127,6 +127,8 @@ tool.
 | Market | `spansh_find_stations` | Spansh | stations near a reference system that sell a module or ship, or have a service (material trader by type, tech broker, interstellar factors) |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
+| Preferences | `prefs_get` | local | stored travel preferences |
+| | `prefs_set` | local | applies a strict partial patch to the stored travel preferences and returns them |
 | Cache | `cache_refresh` | all | clears cached data. Optional `source`: `inara`, `edsm`, `capi`, `spansh`, `catalog` or `all` (default). For `catalog` it forces an upstream check |
 | | `cache_status` | all | per source: entries cached, age, catalog version and last check time |
 | Plans | `plan_list` | local | plan IDs, names, progress |
@@ -138,6 +140,11 @@ tool.
 
 Tool output is compact JSON. Lists are capped (default 10 results, `limit`
 argument up to 50).
+
+`spansh_find_stations` applies the commander's travel preferences. It ranks
+stations by estimated travel time and, for purchases, by effective cost
+(price plus the value of the travel time). See
+`2026-10-12-travel-preferences-design.md`.
 
 ## Plan model
 
