@@ -94,7 +94,9 @@ export function registerJournalTools(
     {
       description:
         "Active missions from the local game journal: destination, expiry, reward and passenger or " +
-        "cargo details, soonest expiry first. expired is true once the expiry has passed. " +
+        "cargo details, soonest expiry first. status is active or complete (objectives met, not handed in). " +
+        "origin_system and origin_station are where the mission was accepted (station is null when not docked). " +
+        "expired is true once the expiry has passed. " +
         "details_missing marks missions accepted before the 14-day journal window (name and expiry only). " +
         FRESHNESS_TEXT,
     },

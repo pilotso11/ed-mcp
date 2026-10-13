@@ -289,6 +289,42 @@ describe("buildState", () => {
     expect(s.missions.map((m) => m.id)).toEqual([1]);
   });
 
+  it("records mission origin and completion status", () => {
+    const events = [
+      ev(T(0), "Docked", {
+        StarSystem: "Shinrarta Dezhra",
+        StationName: "Jameson Memorial",
+        StationType: "Orbis",
+      }),
+      ev(T(1), "MissionAccepted", { MissionID: 1, Name: "a" }),
+      ev(T(2), "Undocked", {}),
+      ev(T(3), "FSDJump", { StarSystem: "Maia" }),
+      ev(T(4), "MissionAccepted", { MissionID: 2, Name: "b" }),
+    ];
+    const accepted = buildState(events).missions;
+    expect(accepted[0]).toMatchObject({
+      id: 1,
+      status: "active",
+      origin_system: "Shinrarta Dezhra",
+      origin_station: "Jameson Memorial",
+    });
+    expect(accepted[1]).toMatchObject({
+      id: 2,
+      status: "active",
+      origin_system: "Maia",
+      origin_station: null,
+    });
+    const listed = buildState([
+      ...events,
+      ev(T(5), "Missions", { Active: [{ MissionID: 2 }], Complete: [{ MissionID: 1 }] }),
+    ]).missions;
+    expect(listed.find((m) => m.id === 1)).toMatchObject({
+      status: "complete",
+      origin_station: "Jameson Memorial",
+    });
+    expect(listed.find((m) => m.id === 2)!.status).toBe("active");
+  });
+
   it("adds a stub for a listed mission accepted before the window", () => {
     const s = buildState([
       ev("2026-10-12T10:00:00Z", "Missions", {
@@ -314,9 +350,19 @@ describe("buildState", () => {
         kill_count: null,
         target_faction: null,
         accepted: null,
+        status: "active",
+        origin_system: null,
+        origin_station: null,
         details_missing: true,
       },
-      expect.objectContaining({ id: 6, expires: null, details_missing: true }),
+      expect.objectContaining({
+        id: 6,
+        expires: null,
+        status: "complete",
+        origin_system: null,
+        origin_station: null,
+        details_missing: true,
+      }),
     ]);
   });
 

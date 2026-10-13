@@ -23,6 +23,11 @@ export interface Mission {
   kill_count: number | null;
   target_faction: string | null;
   accepted: string | null;
+  // complete: objectives met, not handed in yet.
+  status: "active" | "complete";
+  // Where the commander was when accepting, which is usually where the reward is collected.
+  origin_system: string | null;
+  origin_station: string | null;
   // Set on missions listed by a Missions event but accepted before the journal window.
   details_missing?: boolean;
 }
@@ -320,6 +325,9 @@ export function buildState(events: JournalEvent[]): JournalState {
           kill_count: num(e.KillCount),
           target_faction: str(e.TargetFaction),
           accepted: e.timestamp,
+          status: "active",
+          origin_system: location.system,
+          origin_station: location.docked ? location.station : null,
         });
         break;
       }
@@ -338,9 +346,12 @@ export function buildState(events: JournalEvent[]): JournalState {
       case "Missions": {
         // The game's own list is authoritative at this point. Complete means the objectives are
         // met but the mission is not handed in yet, so it still matters to the commander.
-        const listed = [...objs(e.Active), ...objs(e.Complete)];
+        const complete = objs(e.Complete);
+        const listed = [...objs(e.Active), ...complete];
         const ids = new Set(listed.map((m) => num(m.MissionID)));
         for (const id of missions.keys()) if (!ids.has(id)) missions.delete(id);
+        const completeIds = new Set(complete.map((m) => num(m.MissionID)));
+        for (const [id, m] of missions) m.status = completeIds.has(id) ? "complete" : "active";
         const at = Date.parse(e.timestamp);
         for (const m of listed) {
           const id = num(m.MissionID);
@@ -367,6 +378,9 @@ export function buildState(events: JournalEvent[]): JournalState {
             kill_count: null,
             target_faction: null,
             accepted: null,
+            status: completeIds.has(id) ? "complete" : "active",
+            origin_system: null,
+            origin_station: null,
             details_missing: true,
           });
         }
