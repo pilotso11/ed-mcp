@@ -133,6 +133,55 @@ describe("optimiseRoute", () => {
     });
   });
 
+  it("searches exactly at 12 stops and 24 tight deadlines within 2 s", () => {
+    // Each stop's two deadlines are its arrival times on two random tours, so many orders
+    // trade late missions against time and the Pareto fronts grow. Of the instances tried
+    // (random tours, tight line deadlines, hill-climbed leg matrices), this kind gave the
+    // largest fronts.
+    const rand = mulberry32(8);
+    const pts = Array.from({ length: 13 }, () => [rand() * 1000, rand() * 1000] as const);
+    const leg = (a: number, b: number) =>
+      Math.hypot(pts[a]![0] - pts[b]![0], pts[a]![1] - pts[b]![1]);
+    const tour = () => {
+      const order = Array.from({ length: 12 }, (_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const k = Math.floor(rand() * (i + 1));
+        [order[i], order[k]] = [order[k]!, order[i]!];
+      }
+      const arrive: number[] = [];
+      let at = 12;
+      let t = 0;
+      for (const i of order) {
+        t += leg(at, i);
+        arrive[i] = t;
+        at = i;
+      }
+      return arrive;
+    };
+    const [a, b] = [tour(), tour()];
+    const p: RouteProblem = {
+      n: 12,
+      deadlines: a.map((d, i) => [d, b[i]!]),
+      start: 12,
+      legSeconds: leg,
+    };
+    expect(p.deadlines.flat().filter(Number.isFinite)).toHaveLength(24);
+
+    const t0 = performance.now();
+    const r = optimiseRoute(p);
+    expect(performance.now() - t0).toBeLessThan(2000);
+
+    // One more deadline that can never be missed forces the heuristic on the same route.
+    // The exact result beats it, so the call above took the exact path.
+    const h = optimiseRoute({
+      ...p,
+      deadlines: [[...p.deadlines[0]!, 1e12], ...p.deadlines.slice(1)],
+    });
+    expect(
+      r.late.length < h.late.length || (r.late.length === h.late.length && r.total < h.total),
+    ).toBe(true);
+  });
+
   describe("more than 12 stops", () => {
     const rand = mulberry32(42);
 
