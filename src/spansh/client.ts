@@ -141,6 +141,7 @@ export class SpanshClient {
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly routeTimeoutMs: number;
   private readonly now: () => number;
+  private readonly systemCache: TtlCache<unknown>;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private gate: Promise<void> = Promise.resolve();
@@ -155,6 +156,8 @@ export class SpanshClient {
       sleep?: (ms: number) => Promise<void>;
       routeTimeoutMs?: number;
       now?: () => number;
+      // System lookups change rarely and cost two rate-limited calls, so they outlive the station cache.
+      systemCache?: TtlCache<unknown>;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
@@ -163,6 +166,7 @@ export class SpanshClient {
     // MCP clients often give up on a tool call near 60 s.
     this.routeTimeoutMs = opts.routeTimeoutMs ?? 50_000;
     this.now = opts.now ?? Date.now;
+    this.systemCache = opts.systemCache ?? cache;
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -231,7 +235,7 @@ export class SpanshClient {
   }
 
   async system(name: string, stationLimit: number): Promise<SystemInfo> {
-    const found = (await this.cached(`search:${name.toLowerCase()}`, () =>
+    const found = (await this.systemCache.getOrLoad(`search:${name.toLowerCase()}`, () =>
       this.get(`/search/systems?${new URLSearchParams({ q: name })}`),
     )) as { results?: Array<{ id64: number | string; name: string }> };
     const results = found.results ?? [];
@@ -245,7 +249,7 @@ export class SpanshClient {
         : "";
       throw new UserError(`System "${name}" not found on Spansh.${hint}`);
     }
-    const detail = (await this.cached(`system:${match.id64}`, () =>
+    const detail = (await this.systemCache.getOrLoad(`system:${match.id64}`, () =>
       this.get(`/system/${match.id64}`),
     )) as { record: Record<string, unknown> & { stations?: RawStation[] } };
     const r = detail.record;

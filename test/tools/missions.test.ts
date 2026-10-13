@@ -264,4 +264,10 @@ describe("missions_route", () => {
     const { j } = await route({ include: [4] });
     expect(j.stops[0].missions[0]).toMatchObject({ expires: at(8), reward: null });
   });
+
+  it("warns in the description that new systems are slow to look up", async () => {
+    const { client } = setup();
+    const tool = (await (await client).listTools()).tools.find((t) => t.name === "missions_route");
+    expect(tool?.description).toContain("tens of seconds");
+  });
 });

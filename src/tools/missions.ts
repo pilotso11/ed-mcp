@@ -51,7 +51,8 @@ export function registerMissionTools(
         "time while meeting deadlines; lists late and unroutable missions. The order is exact up to 12 " +
         "stops; above that it is a nearest-first heuristic and deadline handling is best-effort. " +
         "Planetary stations are inferred from the Spansh station type. `from` and `return_to` must be " +
-        "systems Spansh knows.",
+        "systems Spansh knows. The first call for systems not seen in the last day can take tens of " +
+        "seconds, because Spansh lookups are rate limited.",
       inputSchema: {
         from: z.string().optional().describe("Start system; default the journal location"),
         include: z.array(z.number().int()).optional().describe("Only these mission ids"),
