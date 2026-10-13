@@ -55,6 +55,10 @@
     { "name": "catalog_material", "description": "Material grade, trade group and trade rules" },
     { "name": "catalog_module", "description": "Outfitting module by symbol or name" },
     {
+      "name": "materials_plan",
+      "description": "Plan material needs, trades and traders for engineering"
+    },
+    {
       "name": "spansh_find_stations",
       "description": "Best stations near a system, ranked by travel time and cost"
     },

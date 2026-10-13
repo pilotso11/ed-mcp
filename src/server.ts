@@ -13,6 +13,7 @@ import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
 import { registerCapiTools } from "./tools/capi.js";
 import { registerCatalogTools } from "./tools/catalog.js";
+import { registerMaterialsTools } from "./tools/materials.js";
 import { registerJournalTools } from "./tools/journal.js";
 import { registerInaraTools } from "./tools/inara.js";
 import { registerEdsmTools } from "./tools/edsm.js";
@@ -54,6 +55,18 @@ export function createServer(deps: ServerDeps): McpServer {
       currentShip: deps.currentShip,
       jumpRange: deps.jumpRange,
     });
+  if (deps.catalog && deps.spansh) {
+    registerMaterialsTools(server, {
+      catalog: deps.catalog,
+      spansh: deps.spansh,
+      journal: deps.journal,
+      edsm: deps.edsm,
+      capi: deps.capi,
+      prefs: deps.prefs,
+      currentShip: deps.currentShip,
+      jumpRange: deps.jumpRange,
+    });
+  }
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }

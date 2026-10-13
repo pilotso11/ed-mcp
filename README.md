@@ -107,6 +107,7 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `catalog_material`         | Material grade, trade group and trade rules                  |
 | `catalog_module`           | Outfitting module by symbol or name                          |
 | `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
+| `materials_plan`           | Material needs, trades from surplus and traders to use       |
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `prefs_get`                | Get your stored travel preferences                           |
@@ -119,6 +120,23 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `plan_update_item`         | Update one plan item                                         |
 | `plan_delete`              | Delete a plan                                                |
 | `plan_export`              | Export a plan as Markdown                                    |
+
+## Material planning
+
+`materials_plan` turns blueprints and extra materials into a checked shopping list.
+
+Inputs:
+
+- `blueprints`: each entry has `blueprint`, optional `module`, `from_grade` (default 0), `to_grade`, `count` (modules, default 1) and `experimental`. It adds the materials for grades `from_grade + 1` to `to_grade`, and the experimental once per module.
+- `needs`: extra materials by name or symbol, with counts.
+- `rolls_per_grade`: rolls for grades 1 to 5. The default is `[1, 2, 3, 4, 5]`, a cautious estimate. Fewer rolls are usual at high engineer reputation.
+- `inventory`: `auto` (default), `journal`, `edsm` or `none`. `auto` uses the journal when its newest event is less than 24 hours old, and EDSM otherwise. `none` plans the needs only.
+- `near`: the system to search for traders. Without it, the tool uses the journal location, then the Frontier profile system. If it finds none, it omits traders and adds a note.
+- `preferences`: a travel preferences override, as for `spansh_find_stations`.
+
+The tool trades only surplus (what you hold above what the plan needs). Trades stay inside one kind (raw, manufactured or encoded). Guardian and Thargoid materials have no trade group, so it never trades them. The rate is an exact give:get ratio. A trade gives `6^up` (times 6 more for another trade group) and gets `3^down`, where `up` and `down` are grade steps, reduced by their common divisor. For example, trading 2 of a grade 5 material in one group for a grade 1 material in another group gives 27 of the grade 1 material (2:27). Trades use whole batches, so a trade can return more than you need.
+
+The result lists `needs` (with `have` and `short`), `trades`, `still_short`, the best `traders` of each type used, the `inventory_source`, `warnings`, `notes` and `unknown` names. The tool does not check storage caps (300, 250, 200, 150 and 100 for grades 1 to 5). A trade can give more than a cap allows.
 
 ## Game journal
 

@@ -132,6 +132,7 @@ The journal tools read the local game journal (`ED_JOURNAL_DIR`). See `2026-10-1
 | | `catalog_material` | catalog | grade, category, trade group, typical sources |
 | | `catalog_module` | catalog | outfitting module by symbol or name: class, rating, mount and engineering group. Returns the total and at most 20 matches |
 | Market | `spansh_find_stations` | Spansh | stations near a reference system that sell a module or ship, or have a service (material trader by type, tech broker, interstellar factors) |
+| | `materials_plan` | catalog, journal or EDSM, Spansh | material needs for blueprints, trades from surplus at exact trader rates, what is still short and the best trader of each type; see `2026-10-13-material-trades-design.md` |
 | | `spansh_system` | Spansh | system coordinates and station list |
 | | `spansh_route` | Spansh | jump route between systems for a given jump range |
 | Preferences | `prefs_get` | local | stored travel preferences |
