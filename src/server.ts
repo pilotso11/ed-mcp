@@ -50,14 +50,13 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
   if (deps.inara) registerInaraTools(server, { inara: deps.inara });
   if (deps.edsm) registerEdsmTools(server, { edsm: deps.edsm });
-  if (deps.spansh)
+  if (deps.spansh) {
     registerSpanshTools(server, {
       spansh: deps.spansh,
       prefs: deps.prefs,
       currentShip: deps.currentShip,
       jumpRange: deps.jumpRange,
     });
-  if (deps.spansh) {
     registerTradeTools(server, {
       spansh: deps.spansh,
       journal: deps.journal,
