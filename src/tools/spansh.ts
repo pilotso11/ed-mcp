@@ -90,12 +90,13 @@ export function registerSpanshTools(
         if (first.prefs.travel.jump_range_ly === "auto") {
           const max = await deps.jumpRange?.().catch(() => null);
           const factor = first.prefs.travel.auto_range_factor;
-          jump = max
-            ? {
-                ly: Math.round(max * factor * 10) / 10,
-                source: `auto: journal, ${Math.round(factor * 100)}% of unladen max ${max} LY`,
-              }
-            : { ly: null, source: "auto: default 30 LY" };
+          // Without a journal value, resolveRules applies the default range and its label.
+          if (max) {
+            jump = {
+              ly: Math.round(max * factor * 10) / 10,
+              source: `auto: journal, ${Math.round(factor * 100)}% of unladen max ${max} LY`,
+            };
+          }
         }
         const rules = resolveRules(stored, override, a.use_preferences, pad, jump);
         return searchStations(
