@@ -59,10 +59,12 @@ export function missionsToStops(
       unroutable.push({
         id: m.id,
         name: m.name,
-        reason: m.details_missing
-          ? "accepted before the journal window; destination unknown"
-          : complete
-            ? "origin unknown"
+        reason: complete
+          ? m.details_missing
+            ? "accepted before the journal window; origin unknown"
+            : "origin unknown"
+          : m.details_missing
+            ? "accepted before the journal window; destination unknown"
             : "no destination",
       });
       continue;

@@ -205,6 +205,30 @@ describe("missionsToStops", () => {
     ]);
   });
 
+  it("explains a complete stub mission by its unknown origin", () => {
+    const { unroutable } = missionsToStops(
+      [
+        mission({
+          id: 8,
+          status: "complete",
+          destination_system: null,
+          origin_system: null,
+          origin_station: null,
+          details_missing: true,
+        }),
+      ],
+      undefined,
+      NOW,
+    );
+    expect(unroutable).toEqual([
+      {
+        id: 8,
+        name: "Mission_Courier",
+        reason: "accepted before the journal window; origin unknown",
+      },
+    ]);
+  });
+
   it("reports include ids that match no mission", () => {
     const { stops, unroutable } = missionsToStops([mission({ id: 1 })], [1, 99], NOW);
     expect(stops).toHaveLength(1);
