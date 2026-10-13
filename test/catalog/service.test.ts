@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -130,9 +130,9 @@ describe("CatalogService", () => {
     await s.get();
     t += 8 * DAY;
     await s.get();
-    await new Promise((r) => setTimeout(r, 20));
+    // The refresh runs in the background; a slow CI runner needs more than a fixed delay.
+    await vi.waitFor(() => expect(s.status().checked_at).toBe(new Date(t).toISOString()));
     expect(f.calls.length).toBe(10);
-    expect(s.status().checked_at).toBe(new Date(t).toISOString());
   });
 
   it("ignores a corrupt disk cache and downloads again", async () => {
