@@ -161,6 +161,26 @@ describe("buildState", () => {
       ]);
     });
 
+    it("takes TechnologyBroker costs from Materials, the live journal format", () => {
+      // From a real 4.4 journal: Materials with Category, no ItemsPaid.
+      const s = buildState([
+        snapshot,
+        ev(T(1), "TechnologyBroker", {
+          BrokerType: "guardian",
+          ItemsUnlocked: [{ Name: "Hpt_Guardian_GaussCannon_Fixed_Medium" }],
+          Commodities: [{ Name: "magneticemittercoil", Count: 6 }],
+          Materials: [
+            { Name: "iron", Count: 4, Category: "Raw" },
+            { Name: "heatexchangers", Count: 1, Category: "Manufactured" },
+          ],
+        }),
+      ]);
+      expect(s.materials.raw).toEqual([{ symbol: "iron", name: "iron", count: 6 }]);
+      expect(s.materials.manufactured).toEqual([
+        { symbol: "heatexchangers", name: "Heat Exchangers", count: 3 },
+      ]);
+    });
+
     it("never goes below zero and drops empty entries", () => {
       const s = buildState([
         snapshot,
