@@ -181,7 +181,8 @@ export class JournalService {
     }
     this.reader.retain(found.files.map((f) => f.path));
     const state = buildState(events);
-    const cargo = await this.readCargoFile(dir);
+    const cargoEvent = events.findLast((e) => e.event === "Cargo")?.timestamp;
+    const cargo = await this.readCargoFile(dir, cargoEvent);
     if (cargo) state.cargo = cargo;
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
@@ -189,14 +190,22 @@ export class JournalService {
     return { ...state, age_minutes: ageMinutes, warnings };
   }
 
-  // Newer game builds keep the cargo list here instead of in the Cargo event.
-  private async readCargoFile(dir: string): Promise<JournalState["cargo"] | null> {
+  // Newer game builds keep the cargo list here instead of in the Cargo event. Syncthing can
+  // deliver the logs before this file, so a file older than the newest Cargo event is ignored.
+  private async readCargoFile(
+    dir: string,
+    newestCargoEvent: string | undefined,
+  ): Promise<JournalState["cargo"] | null> {
     try {
       const j = JSON.parse(await readFile(path.join(dir, "Cargo.json"), "utf8")) as {
+        timestamp?: unknown;
         Vessel?: unknown;
         Inventory?: unknown;
       };
       if (!Array.isArray(j.Inventory) || (j.Vessel !== undefined && j.Vessel !== "Ship")) {
+        return null;
+      }
+      if (newestCargoEvent && typeof j.timestamp === "string" && j.timestamp < newestCargoEvent) {
         return null;
       }
       return mapCargo(j.Inventory);

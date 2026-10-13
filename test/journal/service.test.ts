@@ -50,6 +50,20 @@ describe("JournalService.state", () => {
     expect(s.warnings).toEqual([]);
   });
 
+  it("ignores a Cargo.json older than the newest Cargo event", async () => {
+    // Syncthing can deliver the logs before Cargo.json.
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "Cargo", {
+        Vessel: "Ship",
+        Count: 1,
+        Inventory: [{ Name: "silver", Name_Localised: "Silver", Count: 1, Stolen: 0 }],
+      }),
+    ]);
+    const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
+    expect(s.cargo).toEqual([{ name: "Silver", count: 1, stolen: false, mission_id: null }]);
+  });
+
   it("works without Cargo.json", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jnocargo-"));
     await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
