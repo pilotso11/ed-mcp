@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCatalog } from "../../src/catalog/build.js";
 import type { CatalogService } from "../../src/catalog/service.js";
+import type { EdsmClient } from "../../src/edsm/client.js";
 import type { JournalService } from "../../src/journal/service.js";
 import type { SpanshClient, StationHit } from "../../src/spansh/client.js";
 import { registerMaterialsTools } from "../../src/tools/materials.js";
@@ -25,7 +26,14 @@ const hit: StationHit = {
 };
 
 function setup(
-  opts: { system?: string | null; fail?: boolean; empty?: boolean; tellurium?: number } = {},
+  opts: {
+    system?: string | null;
+    fail?: boolean;
+    empty?: boolean;
+    tellurium?: number;
+    age?: number;
+    edsm?: { system: string | null } | "down";
+  } = {},
 ) {
   const queries: Array<Record<string, unknown>> = [];
   const spansh = {
@@ -44,7 +52,7 @@ function setup(
     dir: "/j",
     state: async () => ({
       as_of: "2026-10-13T08:00:00Z",
-      age_minutes: 10,
+      age_minutes: opts.age ?? 10,
       warnings: [],
       location: { system: opts.system ?? null },
       materials: {
@@ -56,11 +64,24 @@ function setup(
       },
     }),
   } as unknown as JournalService;
+  const edsm =
+    opts.edsm &&
+    ({
+      position: async () => {
+        if (opts.edsm === "down") throw new Error("EDSM is down");
+        return { system: (opts.edsm as { system: string | null }).system };
+      },
+      inventory: async () => ({
+        materials: [],
+        data: [{ symbol: "AdaptiveEncryptors", name: "Adaptive Encryptors Capture", count: 8 }],
+      }),
+    } as unknown as EdsmClient);
   const server = new McpServer({ name: "t", version: "0" });
   registerMaterialsTools(server, {
     catalog: { get: async () => catalog } as unknown as CatalogService,
     spansh,
     journal,
+    edsm,
     currentShip: async () => "Corsair",
   });
   return { client: connectTestClient(server), queries };
@@ -131,6 +152,24 @@ describe("materials_plan", () => {
     const { client, queries } = setup({ system: "Atlas" });
     await callTool(await client, "materials_plan", { ...need, near: "Sol" });
     expect(queries[0]).toMatchObject({ near: "Sol" });
+  });
+
+  it("searches near the EDSM position when the journal is stale", async () => {
+    const { client, queries } = setup({ system: "Atlas", age: 2000, edsm: { system: "Sol" } });
+    const r = await callTool(await client, "materials_plan", need);
+    const j = r.json as Record<string, any>;
+    expect(j.inventory_source).toBe("edsm");
+    expect(queries[0]).toMatchObject({ near: "Sol" });
+  });
+
+  it("notes a stale journal location when EDSM has no position", async () => {
+    const { client, queries } = setup({ system: "Atlas", age: 2000, edsm: "down" });
+    const r = await callTool(await client, "materials_plan", { ...need, inventory: "journal" });
+    const j = r.json as Record<string, any>;
+    expect(queries[0]).toMatchObject({ near: "Atlas" });
+    expect(j.notes).toContain(
+      "Traders are searched near Atlas, the journal location from 2000 minutes ago.",
+    );
   });
 
   it("omits traders with a note when no location is known", async () => {

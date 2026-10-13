@@ -5,7 +5,7 @@ import type { CatalogService } from "../catalog/service.js";
 import type { EdsmClient } from "../edsm/client.js";
 import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
-import { loadInventory } from "../materials/inventory.js";
+import { FRESH_MINUTES, loadInventory } from "../materials/inventory.js";
 import { computeNeeds, type BlueprintRequest } from "../materials/needs.js";
 import { planTrades, type NeedLine } from "../materials/trade.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
@@ -93,7 +93,9 @@ export function registerMaterialsTools(
         const traders: unknown[] = [];
         const types = [...new Set(trades.map((t) => t.trader))];
         if (types.length) {
-          const near = a.near ?? (await locate(deps));
+          const here = a.near ? { system: a.near } : await locate(deps);
+          if (here.note) notes.push(here.note);
+          const near = here.system;
           if (!near) {
             notes.push("No location known; give near to find traders.");
           } else {
@@ -146,17 +148,37 @@ export function registerMaterialsTools(
   );
 }
 
-// Journal first (current), then the Frontier profile; either may be unavailable.
-async function locate(deps: { journal?: JournalService; capi?: Pick<CapiClient, "profile"> }) {
-  const fromJournal = await deps.journal?.state().then(
-    (s) => s.location.system,
+// A fresh journal is current. A stale one may predate travel on another PC or console,
+// so EDSM's position wins over it. The Frontier profile is the last resort.
+async function locate(deps: {
+  journal?: JournalService;
+  edsm?: EdsmClient;
+  capi?: Pick<CapiClient, "profile">;
+}): Promise<{ system: string | null; note?: string }> {
+  const journal = await deps.journal?.state().then(
+    (s) => ({ system: s.location.system, age: s.age_minutes }),
     () => null,
   );
-  if (fromJournal) return fromJournal;
-  return (
-    (await deps.capi?.profile().then(
-      (p) => p.system,
-      () => null,
-    )) ?? null
+  if (journal?.system && journal.age !== null && journal.age < FRESH_MINUTES) {
+    return { system: journal.system };
+  }
+  const fromEdsm = await deps.edsm?.position().then(
+    (p) => p.system,
+    () => null,
   );
+  if (fromEdsm) return { system: fromEdsm };
+  if (journal?.system) {
+    const age = journal.age === null ? "of unknown age" : `from ${journal.age} minutes ago`;
+    return {
+      system: journal.system,
+      note: `Traders are searched near ${journal.system}, the journal location ${age}.`,
+    };
+  }
+  return {
+    system:
+      (await deps.capi?.profile().then(
+        (p) => p.system,
+        () => null,
+      )) ?? null,
+  };
 }

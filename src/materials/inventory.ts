@@ -7,7 +7,7 @@ import type { MatInfo } from "./trade.js";
 export type InventorySource = "auto" | "journal" | "edsm" | "none";
 export type InventoryItem = MatInfo & { count: number };
 
-const FRESH_MINUTES = 1440;
+export const FRESH_MINUTES = 1440;
 
 function describe(
   catalog: Catalog,

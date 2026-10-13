@@ -41,8 +41,10 @@ Input (all optional except one of `blueprints` / `needs`):
   maximum engineer reputation fewer rolls are usual).
 - `inventory`: `"auto"` (journal when configured and less than 24 hours old,
   else EDSM), `"journal"`, `"edsm"` or `"none"` (plan needs only).
-- `near`: reference system for traders. Default: journal location, else the
-  Frontier profile system. Without any, traders are omitted with a note.
+- `near`: reference system for traders. Default: journal location when the
+  journal is less than 24 hours old, else the EDSM position, else the stale
+  journal location (with a note), else the Frontier profile system. Without
+  any, traders are omitted with a note.
 - `preferences`: per-call travel preferences override, as for
   `spansh_find_stations`.
 
