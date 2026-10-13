@@ -52,6 +52,8 @@ interface Opts {
   down?: string[];
   noJournal?: boolean;
   ghost?: boolean;
+  extra?: Mission[];
+  systemCalls?: string[];
 }
 
 function setup(opts: Opts = {}) {
@@ -91,6 +93,7 @@ function setup(opts: Opts = {}) {
       ? [mission(6, { destination_system: "Alpha", destination_station: "Ghost" })]
       : []),
     mission(5, { destination_system: "Nowhere", destination_station: "Void" }),
+    ...(opts.extra ?? []),
   ];
   const journal = {
     state: async () => {
@@ -232,5 +235,33 @@ describe("missions_route", () => {
   it("notes a stale journal location", async () => {
     const { j } = await route({}, { age: 45 });
     expect(j.notes).toEqual([expect.stringContaining("journal 45 minutes old")]);
+  });
+
+  it("gives a completed mission no deadline, even with a past expiry", async () => {
+    const { j } = await route(
+      { include: [7] },
+      {
+        extra: [
+          mission(7, {
+            status: "complete",
+            origin_system: "Alpha",
+            origin_station: "Alpha Port",
+            expires: at(-60),
+            reward: 1000,
+          }),
+        ],
+      },
+    );
+    expect(j.late).toEqual([]);
+    const m = j.stops[0].missions[0];
+    expect(m).not.toHaveProperty("expires");
+    expect(m).not.toHaveProperty("late_min");
+    expect(m).not.toHaveProperty("slack_min");
+    expect(m.reward).toBe(1000);
+  });
+
+  it("reports expires and reward for an active mission", async () => {
+    const { j } = await route({ include: [4] });
+    expect(j.stops[0].missions[0]).toMatchObject({ expires: at(8), reward: null });
   });
 });

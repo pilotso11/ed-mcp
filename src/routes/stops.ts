@@ -7,6 +7,7 @@ export interface StopMission {
   passengers: number | null;
   status: "active" | "complete";
   expires: string | null;
+  reward: number | null;
 }
 
 export interface Stop {
@@ -59,6 +60,7 @@ export function missionsToStops(
       passengers: m.passengers,
       status: m.status,
       expires: m.expires,
+      reward: m.reward,
     });
   }
   const stops = [...byKey.values()].sort(

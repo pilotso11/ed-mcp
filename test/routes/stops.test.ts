@@ -50,6 +50,7 @@ describe("missionsToStops", () => {
             passengers: 4,
             status: "active",
             expires: "2026-10-14T00:00:00Z",
+            reward: null,
           },
           {
             id: 2,
@@ -58,6 +59,7 @@ describe("missionsToStops", () => {
             passengers: null,
             status: "active",
             expires: null,
+            reward: null,
           },
         ],
       },
@@ -78,6 +80,7 @@ describe("missionsToStops", () => {
             passengers: null,
             status: "complete",
             expires: null,
+            reward: null,
           },
         ],
       },

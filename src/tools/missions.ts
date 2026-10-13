@@ -3,7 +3,7 @@ import { z } from "zod";
 import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
 import { optimiseRoute } from "../routes/optimise.js";
-import { missionsToStops, type Stop, type Unroutable } from "../routes/stops.js";
+import { missionsToStops, type Stop, type StopMission, type Unroutable } from "../routes/stops.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient, SystemInfo } from "../spansh/client.js";
@@ -170,14 +170,15 @@ export function registerMissionTools(
         };
 
         const nowMs = now();
-        const deadlineOf = (expires: string | null) => {
-          const ms = expires ? Date.parse(expires) : NaN;
+        // A completed mission only needs handing in; its expiry no longer matters.
+        const deadlineOf = (m: StopMission) => {
+          const ms = m.status === "active" && m.expires ? Date.parse(m.expires) : NaN;
           return Number.isNaN(ms) ? Infinity : (ms - nowMs) / 1000;
         };
         const solution = optimiseRoute({
           legSeconds: (f, t) => leg(f, t).seconds,
           n,
-          deadlines: stops.map((s) => s.missions.map((m) => deadlineOf(m.expires))),
+          deadlines: stops.map((s) => s.missions.map((m) => deadlineOf(m))),
           start: n,
           finish: returnPlace ? n + 1 : undefined,
         });
@@ -197,10 +198,12 @@ export function registerMissionTools(
             leg_min: min(l.seconds),
             jumps: l.jumps,
             missions: stop.missions.map((m) => {
-              const slack = deadlineOf(m.expires) - arrive;
+              const slack = deadlineOf(m) - arrive;
               if (slack < 0) lateIds.push(m.id);
+              const { expires, ...rest } = m;
               return {
-                ...m,
+                ...rest,
+                ...(m.status === "active" && { expires }),
                 ...(slack === Infinity
                   ? {}
                   : slack >= 0
