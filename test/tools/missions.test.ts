@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
 import type { JournalService } from "../../src/journal/service.js";
 import type { Mission } from "../../src/journal/state.js";
+import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
 import type { SpanshClient, SystemInfo } from "../../src/spansh/client.js";
 import { registerMissionTools } from "../../src/tools/missions.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
@@ -274,6 +275,22 @@ describe("missions_route", () => {
       leg_min: 0,
       arrive_min: 0,
       jumps: 0,
+    });
+  });
+
+  it("counts only jumps and docking for a stop with no station", async () => {
+    const { j } = await route(
+      { include: [11] },
+      { extra: [mission(11, { destination_system: "Alpha", destination_station: null })] },
+    );
+    // Sol to Alpha is 10 LY: one jump at the 20 LY range, then dock, with no supercruise.
+    const t = DEFAULT_PREFS.travel;
+    expect(j.stops[0]).toMatchObject({
+      system: "Alpha",
+      station: null,
+      station_unknown: true,
+      jumps: 1,
+      leg_min: Math.round((t.seconds_per_jump + t.dock_s) / 6) / 10,
     });
   });
 

@@ -5,6 +5,7 @@ import { withDiscounts } from "../../src/stations/filter.js";
 import {
   effectiveCost,
   estimateTravel,
+  legSeconds,
   rankStations,
   recommendStation,
   type ResolvedTravel,
@@ -62,6 +63,15 @@ describe("estimateTravel", () => {
     const sco = { ...T, supercruise: { ...T.supercruise, speed_factor: 2 } };
     // 2*60 + 43 + 120.89/2 + 20 + 80 = 323.44
     expect(estimateTravel(hit({ distance_ly: 45, arrival_ls: 1000 }), sco).travel_s).toBe(323);
+  });
+});
+
+describe("legSeconds", () => {
+  it("counts only jumps and docking when the station is unknown", () => {
+    // 2*60 + 80; arrival distance, planetary time and supercruise are ignored.
+    const leg = { distanceLy: 45, arrivalLs: 1000, planetary: true, stationKnown: false };
+    expect(legSeconds(leg, T)).toEqual({ jumps: 2, seconds: 200 });
+    expect(legSeconds({ ...leg, distanceLy: 0 }, T)).toEqual({ jumps: 0, seconds: 80 });
   });
 });
 
