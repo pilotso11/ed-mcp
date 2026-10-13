@@ -39,7 +39,7 @@ All settings are optional. A tool for a service you did not configure returns a 
 | `EDSM_API_KEY`   | edsm.net, Settings, API Key                                | EDSM tools are off                                        |
 | `EDSM_CMDR`      | Your commander name on EDSM                                | EDSM tools are off                                        |
 | `CAPI_CLIENT_ID` | Frontier developer portal (user.frontierstore.net/developer) | Frontier login tools are off                            |
-| `ED_JOURNAL_DIR` | The Elite Dangerous journal folder. On Windows it defaults to `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. On a Mac, set it to your Syncthing copy | Journal tools are off on a Mac; the Windows default applies on the gaming PC |
+| `ED_JOURNAL_DIR` | The Elite Dangerous journal folder. On Windows it defaults to `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. On a Mac, set it to your Syncthing copy. Use an absolute path or one starting with `~` | Journal tools are off on a Mac; the Windows default applies on the gaming PC |
 | `ED_MCP_PLANS`   | An absolute file path, or one starting with `~`            | Plans go to `plans.json` in the config directory          |
 
 Inara needs both `INARA_API_KEY` and `INARA_CMDR`. EDSM needs both `EDSM_API_KEY` and `EDSM_CMDR`. An invalid `INARA_DEV_MODE` value stops the server at startup.
@@ -133,22 +133,22 @@ Tools:
 - `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems. Run it first when journal data looks wrong.
 - `journal_commander`: commander name, credits, location, ship and cargo.
 - `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
-- `journal_missions`: active missions with destination, expiry, reward and passenger or cargo details.
+- `journal_missions`: active missions with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
 - `journal_engineers`: engineers with progress, rank and rank progress.
 
-Most results include `as_of`, the time of the newest journal event.
+`journal_commander`, `journal_materials`, `journal_missions` and `journal_engineers` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.
 
 Freshness rules:
 
-- `journal_status` warns when the newest event is more than 30 minutes old. The game is not running, or sync has stopped.
+- The journal tools warn when the newest event is more than 30 minutes old. The game is not running, or sync has stopped.
 - `min_pad: "auto"` and `jump_range_ly: "auto"` use the journal ship and its jump range only when the newest event is less than 24 hours old. Otherwise they fall back (see the travel preferences).
 
 ### Using the journal from a Mac (Syncthing)
 
 The game runs on the PC, so a Mac cannot read the journal directly. Syncthing copies the folder to the Mac.
 
-1. Install Syncthing on the PC and the Mac (syncthing.net). On the PC, use SyncTrayzor or the Windows installer.
-2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set Folder Type to **Send Only**. The Mac must never write to the live journal folder.
+1. Install Syncthing on the PC and the Mac (syncthing.net). On the PC, use the official Syncthing installer for Windows.
+2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set Folder Type to **Send Only**. The Mac must never write to the live journal folder. If Windows moves Saved Games somewhere else (for example into OneDrive), share the real folder instead. If the server also runs on the PC, set `ED_JOURNAL_DIR` there to the real folder too.
 3. Pair the devices. Add the Mac's device ID on the PC, then accept the PC on the Mac. Share the folder with the Mac. On the Mac, accept the folder into a local folder, for example `~/EliteJournal`, and set Folder Type to **Receive Only**.
 4. Set `ED_JOURNAL_DIR` to that folder in the MCP config, or in the Desktop extension's Journal folder field.
 5. Ask Claude to run `journal_status`. While you play, it should show the newest journal and an age of a few minutes. If it warns that the journal is old, check that Syncthing is running on the PC.

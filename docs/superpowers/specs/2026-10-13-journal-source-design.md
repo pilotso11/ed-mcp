@@ -40,7 +40,10 @@ undefined, journal tools return `NotConfiguredError("Journal",
 - Lines that are not valid JSON are skipped (the game may be mid-write).
 
 Parsed files are cached in memory keyed by path, size and modification time,
-so repeated calls re-read only files that changed.
+so repeated calls re-read only files that changed. The cache keeps only the
+events the state uses (plus `Fileheader` and each file's last event, which
+dates it) and drops files that leave the 14-day window. A state is reused for
+one second, so one search that asks for the ship and the jump range reads once.
 
 ## State reconstruction
 
@@ -50,18 +53,18 @@ so repeated calls re-read only files that changed.
 |---|---|
 | Commander, credits | `Commander`, `LoadGame` (`Commander`, `Credits`, `Ship`, `ShipName`, `ShipIdent`) |
 | Location | `Location`, `FSDJump`, `CarrierJump` (`StarSystem`, `StarPos`), `Docked` (`StationName`, `StationType`, `DistFromStarLS`), `Undocked` |
-| Ship | `LoadGame`, `Loadout` (`Ship`, `ShipName`, `ShipIdent`, `MaxJumpRange`, `CargoCapacity`, `FuelCapacity`), `ShipyardSwap` |
+| Ship | `LoadGame`, `Loadout` (`Ship`, `ShipName`, `ShipIdent`, `MaxJumpRange`, `CargoCapacity`, `FuelCapacity`), `ShipyardSwap`. A `LoadGame` with a different ship clears the `Loadout` values; one that names a suit, taxi, fighter or SRV is ignored |
 | Cargo | `Cargo.json`, else the last `Cargo` event with `Inventory` |
 | Materials | last `Materials` snapshot, then deltas: `MaterialCollected` (+), `MaterialDiscarded` (−), `MaterialTrade` (Paid −, Received +), `EngineerCraft` `Ingredients` (−), `Synthesis` `Materials` (−), `TechnologyBroker` `Materials` (−), `ScientificResearch` (−), `EngineerContribution` with `Type: "Materials"` (−), `MissionCompleted` `MaterialsReward` (+) |
-| Missions | `MissionAccepted` (details), `MissionRedirected` (new destination), removed by `MissionCompleted`, `MissionFailed`, `MissionAbandoned`; the latest `Missions` event's `Active` list keeps only missions still active |
+| Missions | `MissionAccepted` (details), `MissionRedirected` (new destination), removed by `MissionCompleted`, `MissionFailed`, `MissionAbandoned`; the latest `Missions` event's `Active` and `Complete` lists keep only missions still open (`Complete` means the objectives are met but the mission is not handed in). A listed mission accepted before the window gets a stub: ID, name, expiry from `Expires` and `details_missing: true` |
 | Engineers | last `EngineerProgress` snapshot (`Engineers` list), then single-engineer `EngineerProgress` updates |
 | Freshness | timestamp of the newest event |
 
-Scope of files: the current state comes from the newest journal back to and
-including the last file that contains a `LoadGame`. Materials need the last
+Scope of files: the state is built from every journal in the 14 days before
+the newest journal, by name time, including the newest. Materials need the last
 `Materials` snapshot and engineers the last `EngineerProgress` snapshot, both
-written at login, so they are in that range. Missions last up to several days,
-so mission details come from journals of the last 14 days.
+written at login, and missions last up to several days, so the whole window is
+read.
 
 ## Tools
 
@@ -73,7 +76,7 @@ so mission details come from journals of the last 14 days.
 - `journal_commander()`: commander name, credits, location (system, station,
   docked, station distance from the star), ship (type, name, ident, max jump
   range, cargo capacity, fuel capacity), cargo (name, count, stolen, mission
-  ID), `as_of` (newest event time).
+  ID).
 - `journal_materials({ kinds? })`: raw, manufactured and encoded materials as
   `{ symbol, name, count }`. `name` uses `Name_Localised` when present, else
   the catalog name, else the symbol. `kinds` filters as in
@@ -81,9 +84,15 @@ so mission details come from journals of the last 14 days.
 - `journal_missions()`: active missions with ID, name, faction, destination
   system and station, expiry (ISO), reward, passenger count and type, VIPs,
   wanted, commodity and count, kill count and target faction (when present),
-  sorted by expiry.
+  sorted by expiry. `expired: true` marks missions whose expiry has passed;
+  they stay listed.
 - `journal_engineers()`: engineers with progress (`Known`, `Invited`,
   `Acquainted`, `Unlocked`, `Barred`), rank and rank progress.
+
+`journal_commander`, `journal_materials`, `journal_missions` and
+`journal_engineers` all include `as_of` (newest event time), `age_minutes` (its
+age, never negative) and `warnings` (unreadable files; newest event older than
+30 minutes).
 
 ## Integration with travel preferences
 
