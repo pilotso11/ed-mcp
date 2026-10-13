@@ -21,7 +21,8 @@ describe("loadConfig", () => {
   });
 
   it("reads ED_JOURNAL_DIR and the Windows default", () => {
-    expect(loadConfig({ ED_JOURNAL_DIR: "/j" }, dirs).journalDir).toBe("/j");
+    // An absolute POSIX path resolves against the current drive on Windows.
+    expect(loadConfig({ ED_JOURNAL_DIR: "/j" }, dirs).journalDir).toBe(path.resolve("/j"));
     expect(loadConfig({}, dirs, "darwin").journalDir).toBeUndefined();
     expect(loadConfig({}, dirs, "win32").journalDir).toMatch(
       /Saved Games.Frontier Developments.Elite Dangerous$/,
