@@ -47,7 +47,7 @@ export function registerSpanshTools(
         module: z
           .object({
             name: z.string(),
-            class: z.number().int().min(0).max(8).optional(),
+            class: z.number().int().min(1).max(8).optional(),
             rating: z.string().length(1).optional(),
           })
           .optional(),

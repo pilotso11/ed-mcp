@@ -169,6 +169,17 @@ describe("spansh tools", () => {
     expect(r.isError).toBe(true);
   });
 
+  it("rejects module class 0", async () => {
+    const { client } = await setup();
+    const r = await client
+      .callTool({
+        name: "spansh_find_stations",
+        arguments: { near: "Sol", module: { name: "Frame Shift Drive", class: 0 } },
+      })
+      .catch(() => ({ isError: true }));
+    expect(r.isError).toBe(true);
+  });
+
   it("lists the tools", async () => {
     const { client } = await setup();
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
