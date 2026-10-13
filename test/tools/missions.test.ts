@@ -55,6 +55,7 @@ interface Opts {
   extra?: Mission[];
   systemCalls?: string[];
   now?: () => number;
+  location?: { system: string | null; station: string | null; docked: boolean };
 }
 
 function setup(opts: Opts = {}) {
@@ -104,7 +105,7 @@ function setup(opts: Opts = {}) {
         age_minutes: opts.age ?? 5,
         warnings: opts.warnings ?? [],
         missions,
-        location: { system: "Sol", station: "Abraham Lincoln", docked: true },
+        location: opts.location ?? { system: "Sol", station: "Abraham Lincoln", docked: true },
       };
     },
   } as unknown as JournalService;
@@ -231,6 +232,34 @@ describe("missions_route", () => {
     const { r } = await route({ from: "Atlantis" });
     expect(r.isError).toBe(true);
     expect(r.text).toContain('Cannot use from "Atlantis"');
+  });
+
+  it("gives a stop at the docked station a zero-length first leg", async () => {
+    const { j } = await route(
+      { include: [9] },
+      {
+        extra: [
+          mission(9, {
+            status: "complete",
+            origin_system: "Sol",
+            origin_station: "Abraham Lincoln",
+          }),
+        ],
+      },
+    );
+    expect(j.stops[0]).toMatchObject({
+      system: "Sol",
+      station: "Abraham Lincoln",
+      leg_min: 0,
+      arrive_min: 0,
+      jumps: 0,
+    });
+  });
+
+  it("asks for from when the journal has no location", async () => {
+    const { r } = await route({}, { location: { system: null, station: null, docked: false } });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("The journal has no location; give from.");
   });
 
   it("notes a stale journal location", async () => {
