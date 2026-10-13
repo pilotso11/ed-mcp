@@ -142,7 +142,7 @@ For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use
 Each result has these fields:
 
 - `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
-- `matched`: how many stations match your preferences among the nearest 50 that the server fetched.
+- `matched`: how many stations match your preferences among those the server fetched. That is the nearest 50, or up to 100 when the search relaxed the arrival limit and fetched a second page.
 - `jumps`, `travel_s`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
 - `discount_pct` on each station: how far its price is below the median price of the filtered results.
 - `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page.

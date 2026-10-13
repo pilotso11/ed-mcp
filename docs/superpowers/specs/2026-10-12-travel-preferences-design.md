@@ -141,7 +141,8 @@ same logic. It has no MCP or HTTP dependencies.
 Result additions:
 
 - `total`: Spansh's match count before preferences (10000 means "10000 or
-  more"). `matched`: how many of the fetched stations (the nearest 50) pass
+  more"). `matched`: how many of the fetched stations (the nearest 50, or up to
+  100 when a relaxed search fetched a second page) pass
   the rules, counted before the result is cut to `limit`.
 - Each station gets `discount_pct`: how far its price is below the median
   price of the stations in the result (the average of the two middle prices

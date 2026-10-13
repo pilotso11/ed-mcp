@@ -37,7 +37,7 @@ export function registerSpanshTools(
         "Applies the commander's stored travel preferences (arrival distance, station types, pad size " +
         "from the current ship, travel-time model); override any of them for this call with `preferences` " +
         "(same shape as prefs_set's patch) or ignore them with use_preferences=false. Returns " +
-        "total (Spansh matches before preferences; 10000 means 10000 or more), matched (matches after preferences among the nearest 50). " +
+        "total (Spansh matches before preferences; 10000 means 10000 or more), matched (matches after preferences among the stations fetched: the nearest 50, or up to 100 when the arrival limit was relaxed). " +
         "Stations are ranked by estimated travel time (jumps plus supercruise, docking and planetary time) " +
         "and, for purchases, by effective cost = price + travel time × the commander's credits_per_hour. " +
         "Each station has jumps, travel_s, travel_min, arrival_assumed, effective_cost and discount_pct (versus the median price); " +
