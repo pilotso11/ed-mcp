@@ -321,6 +321,41 @@ describe("buildState", () => {
     ]);
   });
 
+  it("reactivates a mission redirected away from where it was accepted", () => {
+    const events = [
+      ev(T(0), "Docked", {
+        StarSystem: "Sol",
+        StationName: "Abraham Lincoln",
+        StationType: "Orbis",
+      }),
+      ev(T(1), "MissionAccepted", {
+        MissionID: 1,
+        Name: "a",
+        DestinationSystem: "Maia",
+        DestinationStation: "Obsidian Orbital",
+      }),
+      ev(T(2), "MissionRedirected", {
+        MissionID: 1,
+        NewDestinationSystem: "Sol",
+        NewDestinationStation: "Abraham Lincoln",
+      }),
+    ];
+    expect(buildState(events).missions[0]!.status).toBe("complete");
+    const s = buildState([
+      ...events,
+      ev(T(3), "MissionRedirected", {
+        MissionID: 1,
+        NewDestinationSystem: "Lave",
+        NewDestinationStation: "Lave Station",
+      }),
+    ]);
+    expect(s.missions[0]).toMatchObject({
+      status: "active",
+      destination_system: "Lave",
+      destination_station: "Lave Station",
+    });
+  });
+
   it("records mission origin and completion status", () => {
     const events = [
       ev(T(0), "Docked", {
