@@ -88,8 +88,14 @@ export function registerSpanshTools(
           pad = await autoPad(deps.currentShip ?? (async () => null));
         }
         if (first.prefs.travel.jump_range_ly === "auto") {
-          const ly = await deps.jumpRange?.().catch(() => null);
-          jump = { ly: ly ?? null, source: ly ? "auto: journal" : "auto: default 30 LY" };
+          const max = await deps.jumpRange?.().catch(() => null);
+          const factor = first.prefs.travel.auto_range_factor;
+          jump = max
+            ? {
+                ly: Math.round(max * factor * 10) / 10,
+                source: `auto: journal, ${Math.round(factor * 100)}% of unladen max ${max} LY`,
+              }
+            : { ly: null, source: "auto: default 30 LY" };
         }
         const rules = resolveRules(stored, override, a.use_preferences, pad, jump);
         return searchStations(

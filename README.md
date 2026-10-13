@@ -196,6 +196,7 @@ The server ranks stations by estimated travel time. For purchases it also ranks 
 | Setting                | Default                                                      |
 | ---------------------- | ------------------------------------------------------------ |
 | `jump_range_ly`        | `auto`                                                       |
+| `auto_range_factor`    | 0.85                                                         |
 | `seconds_per_jump`     | 60                                                           |
 | `refuel_every_jumps`   | 0 (no refuel stops)                                          |
 | `refuel_s`             | 15                                                           |
@@ -206,7 +207,7 @@ The server ranks stations by estimated travel time. For purchases it also ranks 
 | `planetary_extra_s`    | 90                                                           |
 | `credits_per_hour`     | 20,000,000                                                   |
 
-`jump_range_ly` is a number of light years or `"auto"`. `auto` uses the maximum jump range of your current ship from the journal, when the newest journal event is less than 24 hours old. Otherwise it uses 30 ly. `applied_preferences` shows the range and where it came from: `request`, `preferences`, the journal, or the 30 ly default. A number you set always wins.
+`jump_range_ly` is a number of light years or `"auto"`. `auto` uses the maximum jump range of your current ship from the journal, when the newest journal event is less than 24 hours old. Otherwise it uses 30 ly. The journal value (`MaxJumpRange`) is the unladen best case, so `auto` multiplies it by `auto_range_factor` (above 0, up to 1). `applied_preferences` shows the range and where it came from: `request`, `preferences`, the journal (for example `auto: journal, 85% of unladen max 24.5 LY`), or the 30 ly default. A number you set always wins.
 
 The server estimates travel time like this:
 

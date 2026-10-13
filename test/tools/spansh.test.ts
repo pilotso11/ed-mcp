@@ -195,8 +195,22 @@ describe("spansh tools", () => {
       applied_preferences: { travel: string };
       stations: Array<{ distance_ly: number; jumps: number }>;
     };
-    expect(json.applied_preferences.travel).toContain("24.5 LY (auto: journal)");
-    for (const s of json.stations) expect(s.jumps).toBe(Math.ceil(s.distance_ly / 24.5));
+    expect(json.applied_preferences.travel).toContain(
+      "20.8 LY (auto: journal, 85% of unladen max 24.5 LY)",
+    );
+    for (const s of json.stations) expect(s.jumps).toBe(Math.ceil(s.distance_ly / 20.8));
+  });
+
+  it("applies travel.auto_range_factor to the journal jump range", async () => {
+    const { client } = await setup({ jumpRange: async () => 24.5 });
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      preferences: { travel: { auto_range_factor: 1 } },
+    });
+    expect(
+      (r.json as { applied_preferences: { travel: string } }).applied_preferences.travel,
+    ).toContain("24.5 LY (auto: journal, 100% of unladen max 24.5 LY)");
   });
 
   it("does not look up the jump range when the request sets a number", async () => {

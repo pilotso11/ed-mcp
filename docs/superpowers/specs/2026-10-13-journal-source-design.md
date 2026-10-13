@@ -92,8 +92,10 @@ so mission details come from journals of the last 14 days.
   CAPI as now. `applied_preferences` names the source (`auto: journal ship
   Corsair` or `auto: current ship Corsair`).
 - `travel.jump_range_ly` accepts `"auto"` and defaults to it. `auto` uses the
-  journal's last `Loadout.MaxJumpRange` (same freshness rule), else 30 LY.
-  `applied_preferences` shows the value and source.
+  journal's last `Loadout.MaxJumpRange` (same freshness rule) times
+  `travel.auto_range_factor` (default 0.85, because `MaxJumpRange` is the
+  unladen best case), else 30 LY. `applied_preferences` shows the value and
+  source, for example `auto: journal, 85% of unladen max 24.5 LY`.
 
 ## Errors
 
