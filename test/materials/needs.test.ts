@@ -85,6 +85,12 @@ describe("computeNeeds", () => {
     },
   );
 
+  it("rejects a blueprint with count 0", () => {
+    expect(() => computeNeeds(cat, { blueprints: [fsd({ count: 0 })] })).toThrow(
+      "FSD_LongRange adds no materials: count must be at least 1.",
+    );
+  });
+
   it("rejects negative or fractional counts and rolls", () => {
     expect(() => computeNeeds(cat, { blueprints: [fsd({ count: -1 })] })).toThrow(UserError);
     expect(() => computeNeeds(cat, { blueprints: [fsd({ count: 1.5 })] })).toThrow(UserError);

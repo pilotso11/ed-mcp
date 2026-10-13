@@ -65,6 +65,8 @@ export function computeNeeds(
     const from = b.from_grade ?? 0;
     const count = b.count ?? 1;
     whole(count, "count");
+    if (count === 0)
+      throw new UserError(`${b.blueprint} adds no materials: count must be at least 1.`);
     if (
       !Number.isInteger(from) ||
       !Number.isInteger(b.to_grade) ||
