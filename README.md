@@ -190,23 +190,24 @@ Spansh takes one to several minutes. While it works, the tool returns `status: "
 
 Inputs:
 
-- `commodity`: the name, for example Gold.
+- `commodity`: the exact English name, for example Gold.
 - `mode`: `sell` (where to sell it) or `buy` (where to buy it).
 - `near`: the reference system. The default is the journal's current system.
 - `amount`: tonnes. Optional.
-- `limit`: 1 to 50. The default is 10.
+- `limit`: 1 to 30. The default is 10.
+- `max_distance_ly`: the search radius around `near`. The default is 75.
+- `max_price_age_days`: the oldest market data to use. The default is 2.
 - `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
 
-The tool takes up to 50 stations from Spansh, then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). Each station shows its price, its demand (sell) or supply (buy), `market_age_hours` and `travel_min`.
+The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). A station must have a demand (sell) or supply (buy) of at least `amount`, or at least 1 without `amount`. Each station shows its price, its demand or supply, `market_age_hours` and `travel_min`. If Spansh finds no station, a note asks you to check the commodity name.
 
-With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. `relaxed` lists any soft rules the tool dropped because no station met them.
+With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
 
 ### Limits
 
 - The tool plans a route from a start to the last hop. It does not plan loops back to the start.
 - It does not plan for fleet carriers.
-- Market data can be old. Check `market_age_hours`, and set `max_price_age_days` for fresh prices. Prices can change before you arrive.
-- `commodity_prices` does not check that a station has enough supply or demand for your `amount`.
+- Market data can be old. Check `market_age_hours`. `max_price_age_days` sets the oldest prices both tools use. Prices can change before you arrive.
 
 ## Game journal
 

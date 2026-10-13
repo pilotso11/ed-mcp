@@ -11,10 +11,10 @@ const text = (body: string, status = 200) =>
   new Response(body, { status, headers: { "content-type": "application/json" } });
 
 // The clock advances only when the client sleeps, so budgets are deterministic.
-function make(routes: FakeRoute[]) {
+function make(routes: FakeRoute[], start = 0) {
   const f = fakeFetch(routes);
   const sleeps: number[] = [];
-  let clock = 0;
+  let clock = start;
   const client = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
     new TtlCache("spansh", 300_000, () => clock),
@@ -210,20 +210,31 @@ describe("SpanshClient.tradeRoute", () => {
 describe("SpanshClient.commodityStations", () => {
   it("searches for the best sell price and maps the commodity row", async () => {
     const body = await raw("trade-stations-search-market-sell.json");
-    const { client, f } = make([{ match: () => true, respond: () => text(body) }]);
+    const { client, f } = make(
+      [{ match: () => true, respond: () => text(body) }],
+      Date.parse("2026-10-13T12:00:00Z"),
+    );
     const r = await client.commodityStations({
       commodity: "bauxite",
       mode: "sell",
       near: "Lave",
       size: 3,
+      maxDistanceLy: 75,
+      maxAgeDays: 2,
+      minStock: 100,
     });
     expect(JSON.parse(String(f.calls[0]!.init!.body))).toEqual({
       filters: {
+        distance: { min: 0, max: 75 },
+        market_updated_at: {
+          comparison: "<=>",
+          value: ["2026-10-11T12:00:00Z", "2026-10-13T12:00:00Z"],
+        },
         market: [
           {
             name: "bauxite",
             sell_price: { comparison: "<=>", value: [1, 1_000_000_000] },
-            demand: { comparison: "<=>", value: [1, 1_000_000_000] },
+            demand: { comparison: "<=>", value: [100, 1_000_000_000] },
           },
         ],
       },
@@ -258,10 +269,33 @@ describe("SpanshClient.commodityStations", () => {
       mode: "buy",
       near: "Lave",
       size: 5,
+      maxDistanceLy: 75,
+      maxAgeDays: 2,
+      minStock: 1,
     });
     const sent = JSON.parse(String(f.calls[0]!.init!.body));
     expect(sent.sort).toEqual([{ market_buy_price: [{ name: "Bauxite", direction: "asc" }] }]);
     expect(Object.keys(sent.filters.market[0])).toEqual(["name", "buy_price", "supply"]);
+    expect(sent.filters.market[0].supply).toEqual({ comparison: "<=>", value: [1, 1_000_000_000] });
     expect(r).toEqual({ near: "Lave", total: 0, stations: [] });
+  });
+
+  it("explains a rejected search", async () => {
+    const { client } = make([
+      { match: () => true, respond: () => text('{"error":"Invalid commodity"}', 400) },
+    ]);
+    await expect(
+      client.commodityStations({
+        commodity: "Goldd",
+        mode: "sell",
+        near: "Lave",
+        size: 5,
+        maxDistanceLy: 75,
+        maxAgeDays: 2,
+        minStock: 1,
+      }),
+    ).rejects.toThrow(
+      'Spansh rejected the search (Invalid commodity). Check that "Lave" is an exact system name (spansh_system) and that "Goldd" is an exact English commodity name.',
+    );
   });
 });

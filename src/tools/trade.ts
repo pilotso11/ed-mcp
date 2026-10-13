@@ -14,8 +14,10 @@ import { wrap } from "./result.js";
 const DEFAULT_CARGO = 7;
 const DEFAULT_CAPITAL = 1000;
 const DAY_S = 86_400;
-// Spansh returns at most this many stations per search; the rules then thin them out.
-const FETCH_SIZE = 50;
+// A few spare stations for the rules to thin out. Each Spansh result is a ~120 KB
+// station record, so the fetch stays small.
+const SPARE_STATIONS = 10;
+const MAX_FETCH = 30;
 
 export function registerTradeTools(
   server: McpServer,
@@ -164,13 +166,17 @@ export function registerTradeTools(
         "filtered and ranked with the commander's travel preferences. Stations show price, demand (sell) or " +
         "supply (buy), market_age_hours and travel_min. Give amount (tonnes) to rank by value = price × amount " +
         "∓ travel time × credits_per_hour (minus when selling, plus when buying); otherwise ranked by price. " +
-        "near defaults to the journal's current system. recommended names the best station and why. Cached 5 min.",
+        "Searches within max_distance_ly of near (default the journal's current system) and only markets " +
+        "updated within max_price_age_days. Stations must have demand or supply of at least amount (else 1). " +
+        "recommended names the best station and why. Cached 5 min.",
       inputSchema: {
-        commodity: z.string().describe("Commodity name, e.g. Gold"),
+        commodity: z.string().describe("Exact English commodity name, e.g. Gold"),
         mode: z.enum(["sell", "buy"]),
         near: z.string().optional(),
         amount: z.number().positive().optional().describe("Tonnes"),
-        limit: z.number().int().min(1).max(50).default(10),
+        limit: z.number().int().min(1).max(MAX_FETCH).default(10),
+        max_distance_ly: z.number().positive().default(75),
+        max_price_age_days: z.number().positive().default(2),
         preferences: PrefsPatchSchema.optional(),
         use_preferences: z.boolean().default(true),
       },
@@ -182,6 +188,8 @@ export function registerTradeTools(
         near?: string;
         amount?: number;
         limit: number;
+        max_distance_ly: number;
+        max_price_age_days: number;
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
@@ -198,9 +206,22 @@ export function registerTradeTools(
           commodity: a.commodity,
           mode: a.mode,
           near,
-          size: FETCH_SIZE,
+          size: Math.min(a.limit + SPARE_STATIONS, MAX_FETCH),
+          maxDistanceLy: a.max_distance_ly,
+          maxAgeDays: a.max_price_age_days,
+          minStock: a.amount ?? 1,
         });
-        const ranked = rankCommodityStations(found.stations, a.mode, a.amount, rules, now());
+        if (!found.stations.length) {
+          notes.push("No stations found; check the exact English commodity name");
+        }
+        const ranked = rankCommodityStations(
+          found.stations,
+          a.mode,
+          a.amount,
+          rules,
+          now(),
+          a.max_price_age_days * 24,
+        );
         return {
           near: found.near,
           total: found.total,
@@ -208,7 +229,14 @@ export function registerTradeTools(
           stations: ranked.stations.slice(0, a.limit),
           recommended: ranked.recommended,
           relaxed: ranked.relaxed,
-          inputs: { commodity: a.commodity, mode: a.mode, near, amount: a.amount ?? null },
+          inputs: {
+            commodity: a.commodity,
+            mode: a.mode,
+            near,
+            amount: a.amount ?? null,
+            max_distance_ly: a.max_distance_ly,
+            max_price_age_days: a.max_price_age_days,
+          },
           applied_preferences: describeRules(rules),
           notes,
         };

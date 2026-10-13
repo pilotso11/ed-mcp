@@ -90,6 +90,34 @@ describe("rankCommodityStations", () => {
     expect(r.relaxed).toEqual([]);
   });
 
+  it("never recommends a station with prices older than the cutoff", () => {
+    const r = rankCommodityStations(
+      [
+        hit("Stale", { price: 2000, market_updated_at: "2026-10-10T12:00:00Z" }),
+        hit("Fresh", { price: 1000 }),
+      ],
+      "sell",
+      undefined,
+      rules(),
+      NOW,
+      48,
+    );
+    expect(r.stations.map((s) => s.name)).toEqual(["Stale", "Fresh"]);
+    expect(r.recommended!.name).toBe("Fresh");
+  });
+
+  it("says when travel costs more than the trade earns", () => {
+    const r = rankCommodityStations(
+      [hit("Far", { price: 10, distance_ly: 300 })],
+      "sell",
+      1,
+      rules(),
+      NOW,
+    );
+    expect(r.stations[0]!.value).toBeLessThan(0);
+    expect(r.recommended!.reason).toMatch(/^travel costs more than the trade earns: -[\d,]+ cr/);
+  });
+
   it("reports no recommendation for no hits", () => {
     expect(rankCommodityStations([], "sell", undefined, rules(), NOW)).toEqual({
       stations: [],

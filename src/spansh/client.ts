@@ -150,6 +150,10 @@ export interface CommodityQuery {
   mode: "sell" | "buy";
   near: string;
   size: number;
+  maxDistanceLy: number;
+  maxAgeDays: number;
+  /** Least demand (sell) or supply (buy) a station must have. */
+  minStock: number;
 }
 
 export interface CommodityHit extends StationHit {
@@ -490,9 +494,19 @@ export class SpanshClient {
   ): Promise<{ near: string; total: number; stations: CommodityHit[] }> {
     const field = q.mode === "sell" ? "sell_price" : "buy_price";
     const stock = q.mode === "sell" ? "demand" : "supply";
-    const open = { comparison: "<=>", value: [1, 1_000_000_000] };
+    const range = (min: number) => ({ comparison: "<=>", value: [min, 1_000_000_000] });
+    const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const now = this.now();
+    const filters = {
+      distance: { min: 0, max: q.maxDistanceLy },
+      market_updated_at: {
+        comparison: "<=>",
+        value: [iso(now - q.maxAgeDays * 86_400_000), iso(now)],
+      },
+      market: [{ name: q.commodity, [field]: range(1), [stock]: range(q.minStock) }],
+    };
     const body = {
-      filters: { market: [{ name: q.commodity, [field]: open, [stock]: open }] },
+      filters,
       sort: [
         {
           [`market_${field}`]: [
@@ -505,15 +519,26 @@ export class SpanshClient {
       reference_system: q.near,
     };
     // Each result is a full ~120 KB station record, so cache the compact mapping only.
-    return (await this.cached(`commodity:${JSON.stringify(body)}`, async () => {
-      const raw = (await this.post(
-        "/stations/search",
-        JSON.stringify(body),
-        "application/json",
-      )) as {
-        count: number;
-        results?: RawStation[];
-      };
+    // The key leaves out the clock-based age range, so the cache still hits.
+    const key = JSON.stringify({
+      ...body,
+      filters: { ...filters, market_updated_at: q.maxAgeDays },
+    });
+    return (await this.cached(`commodity:${key}`, async () => {
+      let raw: { count: number; results?: RawStation[] };
+      try {
+        raw = (await this.post("/stations/search", JSON.stringify(body), "application/json")) as {
+          count: number;
+          results?: RawStation[];
+        };
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 400) {
+          throw new UserError(
+            `Spansh rejected the search (${err.detail}). Check that "${q.near}" is an exact system name (spansh_system) and that "${q.commodity}" is an exact English commodity name.`,
+          );
+        }
+        throw err;
+      }
       const want = q.commodity.toLowerCase();
       const stations = (raw.results ?? []).map((s): CommodityHit => {
         const row = (s.market ?? []).find((m) => m.commodity.toLowerCase() === want);

@@ -176,12 +176,14 @@ describe("trade_route", () => {
   });
 });
 
-function commodity(opts: { journal?: boolean } = {}) {
+const C_NOW = Date.parse("2026-10-13T06:35:18Z");
+
+function commodity(opts: { journal?: boolean; body?: string } = {}) {
   const f = fakeFetch([
     {
       match: () => true,
       respond: () =>
-        new Response(fixture("trade-stations-search-market-sell.json"), {
+        new Response(opts.body ?? fixture("trade-stations-search-market-sell.json"), {
           status: 200,
           headers: { "content-type": "application/json" },
         }),
@@ -190,7 +192,7 @@ function commodity(opts: { journal?: boolean } = {}) {
   const spansh = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
     new TtlCache("spansh", 300_000),
-    { minIntervalMs: 0 },
+    { minIntervalMs: 0, now: () => C_NOW },
   );
   const journal = {
     state: async () => ({ location: { system: "Lave", station: null, docked: false } }),
@@ -199,7 +201,7 @@ function commodity(opts: { journal?: boolean } = {}) {
   registerTradeTools(server, {
     spansh,
     journal: opts.journal === false ? undefined : journal,
-    now: () => Date.parse("2026-10-13T06:35:18Z"),
+    now: () => C_NOW,
   });
   return { client: connectTestClient(server), f };
 }
@@ -266,6 +268,68 @@ describe("commodity_prices", () => {
     // 14184 * 100 less the travel time at 1,000,000 cr/h.
     expect(j.stations[0].value).toBeGreaterThan(1_000_000);
     expect(j.stations[0].value).toBeLessThan(1_418_400);
+  });
+
+  it("bounds the search by distance, price age and stock, and fetches a few spare stations", async () => {
+    const { client, f } = commodity();
+    await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+    });
+    const sent = JSON.parse(String(f.calls[0]!.init!.body));
+    expect(sent.size).toBe(20);
+    expect(sent.filters.distance).toEqual({ min: 0, max: 75 });
+    expect(sent.filters.market_updated_at).toEqual({
+      comparison: "<=>",
+      value: ["2026-10-11T06:35:18Z", "2026-10-13T06:35:18Z"],
+    });
+    expect(sent.filters.market[0].demand.value[0]).toBe(1);
+
+    const given = commodity();
+    await callTool(await given.client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "buy",
+      near: "Lave",
+      amount: 300,
+      limit: 25,
+      max_distance_ly: 20,
+      max_price_age_days: 1,
+    });
+    const sent2 = JSON.parse(String(given.f.calls[0]!.init!.body));
+    expect(sent2.size).toBe(30);
+    expect(sent2.filters.distance).toEqual({ min: 0, max: 20 });
+    expect(sent2.filters.market_updated_at.value[0]).toBe("2026-10-12T06:35:18Z");
+    expect(sent2.filters.market[0].supply.value[0]).toBe(300);
+  });
+
+  it("does not recommend a station with prices older than max_price_age_days", async () => {
+    const { client } = commodity();
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: {
+        ...open,
+        stations: { max_arrival_ls: { value: 1000, mode: "hard" }, planetary: "allow" },
+      },
+    });
+    const j = r.json as Record<string, any>;
+    // The arrival limit drops Janes Horizons, the one fresh market; the rest are weeks old.
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Ferraro Control", "Gardner Settlement"]);
+    expect(j.recommended).toBeNull();
+  });
+
+  it("notes an empty result", async () => {
+    const { client } = commodity({ body: '{"count":0,"results":[]}' });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxit",
+      mode: "sell",
+      near: "Lave",
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations).toEqual([]);
+    expect(j.notes).toContain("No stations found; check the exact English commodity name");
   });
 
   it("defaults near to the journal system and errors without one", async () => {
