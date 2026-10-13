@@ -336,6 +336,15 @@ export function buildState(events: JournalEvent[]): JournalState {
         if (m) {
           m.destination_system = str(e.NewDestinationSystem) ?? m.destination_system;
           m.destination_station = str(e.NewDestinationStation) ?? m.destination_station;
+          // The game redirects a finished mission back to its giver for the hand-in.
+          if (
+            m.origin_system !== null &&
+            m.origin_station !== null &&
+            m.destination_system === m.origin_system &&
+            m.destination_station === m.origin_station
+          ) {
+            m.status = "complete";
+          }
         }
         break;
       }

@@ -289,6 +289,38 @@ describe("buildState", () => {
     expect(s.missions.map((m) => m.id)).toEqual([1]);
   });
 
+  it("completes a mission redirected back to where it was accepted", () => {
+    const events = [
+      ev(T(0), "Docked", {
+        StarSystem: "Sol",
+        StationName: "Abraham Lincoln",
+        StationType: "Orbis",
+      }),
+      ev(T(1), "MissionAccepted", {
+        MissionID: 1,
+        Name: "a",
+        DestinationSystem: "Maia",
+        DestinationStation: "Obsidian Orbital",
+      }),
+      ev(T(2), "MissionAccepted", { MissionID: 2, Name: "b", DestinationSystem: "Maia" }),
+      ev(T(3), "MissionRedirected", {
+        MissionID: 1,
+        NewDestinationSystem: "Sol",
+        NewDestinationStation: "Abraham Lincoln",
+      }),
+      ev(T(4), "MissionRedirected", {
+        MissionID: 2,
+        NewDestinationSystem: "Lave",
+        NewDestinationStation: "Lave Station",
+      }),
+    ];
+    const s = buildState(events);
+    expect(s.missions.map((m) => [m.id, m.status])).toEqual([
+      [1, "complete"],
+      [2, "active"],
+    ]);
+  });
+
   it("records mission origin and completion status", () => {
     const events = [
       ev(T(0), "Docked", {
