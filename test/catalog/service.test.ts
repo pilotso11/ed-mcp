@@ -5,7 +5,7 @@ import path from "node:path";
 import { CatalogService } from "../../src/catalog/service.js";
 import type { RawSources } from "../../src/catalog/types.js";
 import { HttpClient } from "../../src/http/client.js";
-import { fakeFetch, unreadResponse } from "../helpers/fakeFetch.js";
+import { fakeFetch, stalledBody, unreadResponse } from "../helpers/fakeFetch.js";
 import { rawFixture, SMALL, staticsFixture } from "../helpers/catalogFixture.js";
 
 const SOURCES: Record<keyof RawSources, string> = {
@@ -122,6 +122,15 @@ describe("CatalogService", () => {
     const s = service(fakeFetch([{ match: () => true, respond: () => res }]));
     await expect(s.get()).rejects.toThrow(/HTTP 404/);
     expect(cancelled()).toBe(true);
+  });
+
+  it("reports a stalled body with the host and timeout", async () => {
+    const s = new CatalogService(
+      new HttpClient({ userAgent: "t", fetchFn: stalledBody(), timeoutMs: 20, retryDelayMs: 0 }),
+      dir,
+      { statics: staticsFixture, now: () => t, minimums: SMALL, sources: SOURCES },
+    );
+    await expect(s.get()).rejects.toThrow(/blueprints: raw\.test: timed out after 20 ms/);
   });
 
   it("refreshes in the background when older than 7 days", async () => {

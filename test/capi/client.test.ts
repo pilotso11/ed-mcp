@@ -3,7 +3,13 @@ import { CapiClient } from "../../src/capi/client.js";
 import type { CapiAuth } from "../../src/capi/auth.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
-import { fakeFetch, fixture, jsonResponse, unreadResponse } from "../helpers/fakeFetch.js";
+import {
+  fakeFetch,
+  fixture,
+  jsonResponse,
+  stalledBody,
+  unreadResponse,
+} from "../helpers/fakeFetch.js";
 
 function fakeAuth(tokens: string[]) {
   let invalidated = 0;
@@ -94,6 +100,25 @@ describe("CapiClient", () => {
       system: "Lalande 37120",
       station: "Voss Dock",
     });
+  });
+
+  it("reports a stalled body with the host and timeout", async () => {
+    const c = new CapiClient(
+      new HttpClient({ userAgent: "x", fetchFn: stalledBody(), timeoutMs: 20, retryDelayMs: 0 }),
+      fakeAuth(["A"]).auth,
+      new TtlCache("capi", 60_000),
+    );
+    await expect(c.profile()).rejects.toThrow(/companion\.orerve\.net: timed out after 20 ms/);
+  });
+
+  it("reports invalid JSON", async () => {
+    const f = fakeFetch([{ match: () => true, respond: () => new Response("<html>") }]);
+    const c = new CapiClient(
+      new HttpClient({ userAgent: "x", fetchFn: f }),
+      fakeAuth(["A"]).auth,
+      new TtlCache("capi", 60_000),
+    );
+    await expect(c.profile()).rejects.toThrow(/Frontier CAPI returned invalid JSON/);
   });
 
   it("retries once with a refreshed token after a 401", async () => {

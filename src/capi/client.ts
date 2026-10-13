@@ -101,7 +101,8 @@ export class CapiClient {
   private async get(path: string): Promise<unknown> {
     for (let attempt = 0; attempt < 2; attempt++) {
       const token = await this.auth.accessToken();
-      const res = await this.http.request(`${this.base}${path}`, {
+      const url = `${this.base}${path}`;
+      const res = await this.http.request(url, {
         headers: { authorization: `Bearer ${token}` },
       });
       if (res.status === 401 && attempt === 0) {
@@ -117,7 +118,12 @@ export class CapiClient {
         await res.body?.cancel().catch(() => undefined);
         throw new UserError(`Frontier CAPI returned HTTP ${res.status}`);
       }
-      return res.json();
+      const text = await this.http.readText(url, res);
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new UserError("Frontier CAPI returned invalid JSON");
+      }
     }
     throw new UserError("Frontier CAPI request failed");
   }

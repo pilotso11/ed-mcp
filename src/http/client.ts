@@ -63,7 +63,7 @@ export class HttpClient {
       await res.body?.cancel().catch(() => undefined);
       throw new HttpError(`${host} returned HTTP ${res.status}`, res.status);
     }
-    const text = await this.body(url, res);
+    const text = await this.readText(url, res);
     try {
       return JSON.parse(text) as T;
     } catch {
@@ -78,11 +78,11 @@ export class HttpClient {
     opts: RequestOptions = {},
   ): Promise<{ status: number; text: string }> {
     const res = await this.request(url, init, opts);
-    return { status: res.status, text: await this.body(url, res) };
+    return { status: res.status, text: await this.readText(url, res) };
   }
 
-  // The timeout signal also covers the body, so a stalled body needs the same error message.
-  private async body(url: string, res: Response): Promise<string> {
+  /** Reads the body of a response from request(), reporting a stalled body like a stalled request. */
+  async readText(url: string, res: Response): Promise<string> {
     try {
       return await res.text();
     } catch (err) {
