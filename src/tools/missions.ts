@@ -185,7 +185,7 @@ export function registerMissionTools(
           finish: returnPlace ? n + 1 : undefined,
         });
 
-        const lateIds: number[] = [];
+        const lateKeys = new Set(solution.late.map((l) => `${l.stop}:${l.mission}`));
         let at = n;
         const out = solution.order.map((idx, i) => {
           const stop = stops[idx]!;
@@ -199,18 +199,17 @@ export function registerMissionTools(
             arrive_min: min(arrive),
             leg_min: min(l.seconds),
             jumps: l.jumps,
-            missions: stop.missions.map((m) => {
+            missions: stop.missions.map((m, k) => {
               const slack = deadlineOf(m) - arrive;
-              if (slack < 0) lateIds.push(m.id);
               const { expires, ...rest } = m;
               return {
                 ...rest,
                 ...(m.status === "active" && { expires }),
-                ...(slack === Infinity
-                  ? {}
-                  : slack >= 0
-                    ? { slack_min: min(slack) }
-                    : { late_min: min(-slack) }),
+                ...(lateKeys.has(`${idx}:${k}`)
+                  ? { late_min: min(-slack) }
+                  : slack === Infinity
+                    ? {}
+                    : { slack_min: min(slack) }),
               };
             }),
           };
@@ -232,7 +231,7 @@ export function registerMissionTools(
           start: { system: startPlace.system, station: startPlace.station, source },
           stops: out,
           total_min: min(solution.total),
-          late: lateIds,
+          late: solution.late.map((l) => stops[l.stop]!.missions[l.mission]!.id),
           unroutable,
           notes: [...notes],
           applied_preferences: describeRules(rules),

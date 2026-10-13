@@ -166,6 +166,27 @@ describe("missions_route", () => {
     );
   });
 
+  it("gives late_min to exactly the missions listed as late", async () => {
+    const { j } = await route(
+      {},
+      {
+        betaExpires: at(1),
+        extra: [
+          mission(10, {
+            destination_system: "Alpha",
+            destination_station: "Alpha Dock",
+            expires: at(1),
+          }),
+        ],
+      },
+    );
+    const all = j.stops.flatMap((s: any) => s.missions);
+    const withLate = all.filter((m: any) => "late_min" in m).map((m: any) => m.id);
+    expect(j.late).toHaveLength(2);
+    expect([...j.late].sort()).toEqual([...withLate].sort());
+    expect(all.filter((m: any) => j.late.includes(m.id) && "slack_min" in m)).toEqual([]);
+  });
+
   it("looks each system up once", async () => {
     const { lookups } = await route();
     expect(lookups.filter((n) => n.toLowerCase() === "alpha")).toHaveLength(1);
