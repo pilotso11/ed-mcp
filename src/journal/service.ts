@@ -56,7 +56,9 @@ export class JournalService {
   ): Promise<{ files: JournalFile[]; total: number; error?: string } | { missing: string }> {
     const dir = this.requireDir();
     try {
-      if (!(await stat(dir)).isDirectory()) return { missing: `Journal folder not found: ${dir}` };
+      if (!(await stat(dir)).isDirectory()) {
+        return { missing: `${dir} is not a folder. Set ED_JOURNAL_DIR to the journal folder` };
+      }
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code;
       return {

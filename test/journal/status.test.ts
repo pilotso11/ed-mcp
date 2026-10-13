@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chmod, mkdir, mkdtemp } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { JournalReader } from "../../src/journal/reader.js";
@@ -64,6 +64,28 @@ describe("JournalService.status", () => {
     ]);
     const s = await new JournalService(dir, { now: at("2026-10-12T10:05:00Z") }).status();
     expect(s.commander).toBe("pin72");
+  });
+
+  it("reads the highest part of a session split across files", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jparts-"));
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "Fileheader", { part: 1, gameversion: "4.2.1" }),
+    ]);
+    await writeJournal(dir, "Journal.2026-10-12T100000.02.log", [
+      ev("2026-10-12T12:00:00Z", "Fileheader", { part: 2, gameversion: "4.2.2" }),
+    ]);
+    const s = await new JournalService(dir, { now: at("2026-10-12T12:05:00Z") }).status();
+    expect(s.newest_file).toBe("Journal.2026-10-12T100000.02.log");
+    expect(s.newest_event).toBe("2026-10-12T12:00:00Z");
+    expect(s.game_version).toBe("4.2.2");
+  });
+
+  it("says when the path is a file, not a folder", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jfile-"));
+    const file = path.join(dir, "Journal.log");
+    await writeFile(file, "");
+    const s = await new JournalService(file).status();
+    expect(s.warnings[0]).toMatch(/is not a folder/);
   });
 
   it("warns when the folder has no journals", async () => {
