@@ -22,7 +22,9 @@ export interface Mission {
   count: number | null;
   kill_count: number | null;
   target_faction: string | null;
-  accepted: string;
+  accepted: string | null;
+  // Set on missions listed by a Missions event but accepted before the journal window.
+  details_missing?: boolean;
 }
 export interface EngineerState {
   name: string;
@@ -292,9 +294,40 @@ export function buildState(events: JournalEvent[]): JournalState {
         missions.delete(num(e.MissionID) ?? -1);
         break;
       case "Missions": {
-        // The game's own list of active missions is authoritative at this point.
-        const active = new Set(objs(e.Active).map((m) => num(m.MissionID)));
-        for (const id of missions.keys()) if (!active.has(id)) missions.delete(id);
+        // The game's own list is authoritative at this point. Complete means the objectives are
+        // met but the mission is not handed in yet, so it still matters to the commander.
+        const listed = [...objs(e.Active), ...objs(e.Complete)];
+        const ids = new Set(listed.map((m) => num(m.MissionID)));
+        for (const id of missions.keys()) if (!ids.has(id)) missions.delete(id);
+        const at = Date.parse(e.timestamp);
+        for (const m of listed) {
+          const id = num(m.MissionID);
+          if (id === null || (missions.has(id) && !missions.get(id)!.details_missing)) continue;
+          // Expires is seconds left; Complete entries carry 0, which means no expiry is known.
+          const left = num(m.Expires);
+          missions.set(id, {
+            id,
+            name: str(m.Name) ?? "unknown",
+            faction: null,
+            destination_system: null,
+            destination_station: null,
+            expires:
+              left && left > 0 && !Number.isNaN(at)
+                ? new Date(at + left * 1000).toISOString()
+                : null,
+            reward: null,
+            passengers: null,
+            passenger_type: null,
+            vips: null,
+            wanted: null,
+            commodity: null,
+            count: null,
+            kill_count: null,
+            target_faction: null,
+            accepted: null,
+            details_missing: true,
+          });
+        }
         break;
       }
       case "EngineerProgress":

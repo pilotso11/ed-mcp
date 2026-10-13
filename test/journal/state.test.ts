@@ -195,6 +195,58 @@ describe("buildState", () => {
     expect(s.missions.map((m) => m.id)).toEqual([2]);
   });
 
+  it("keeps a mission accepted between two Missions events only if the second lists it", () => {
+    const base = [
+      ev(T(0), "Missions", { Active: [], Complete: [] }),
+      ev(T(1), "MissionAccepted", { MissionID: 7, Name: "x" }),
+    ];
+    const kept = buildState([...base, ev(T(2), "Missions", { Active: [{ MissionID: 7 }] })]);
+    expect(kept.missions.map((m) => m.id)).toEqual([7]);
+    expect(kept.missions[0]!.details_missing).toBeUndefined();
+    const dropped = buildState([...base, ev(T(2), "Missions", { Active: [], Complete: [] })]);
+    expect(dropped.missions).toEqual([]);
+  });
+
+  it("keeps missions in the Complete list (objectives met, not handed in)", () => {
+    const s = buildState([
+      ev(T(0), "MissionAccepted", { MissionID: 1, Name: "a" }),
+      ev(T(1), "MissionAccepted", { MissionID: 2, Name: "b" }),
+      ev(T(2), "Missions", { Active: [], Complete: [{ MissionID: 1, Expires: 0 }] }),
+    ]);
+    expect(s.missions.map((m) => m.id)).toEqual([1]);
+  });
+
+  it("adds a stub for a listed mission accepted before the window", () => {
+    const s = buildState([
+      ev("2026-10-12T10:00:00Z", "Missions", {
+        Active: [{ MissionID: 5, Name: "Mission_Courier_name", Expires: 3600 }],
+        Complete: [{ MissionID: 6, Name: "Mission_Delivery_name", Expires: 0 }],
+      }),
+    ]);
+    expect(s.missions).toEqual([
+      {
+        id: 5,
+        name: "Mission_Courier_name",
+        faction: null,
+        destination_system: null,
+        destination_station: null,
+        expires: "2026-10-12T11:00:00.000Z",
+        reward: null,
+        passengers: null,
+        passenger_type: null,
+        vips: null,
+        wanted: null,
+        commodity: null,
+        count: null,
+        kill_count: null,
+        target_faction: null,
+        accepted: null,
+        details_missing: true,
+      },
+      expect.objectContaining({ id: 6, expires: null, details_missing: true }),
+    ]);
+  });
+
   it("tracks engineers from a snapshot and single updates", () => {
     const s = buildState([
       ev(T(0), "EngineerProgress", {
