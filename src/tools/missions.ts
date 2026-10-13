@@ -149,6 +149,14 @@ export function registerMissionTools(
         const returnPlace = a.return_to
           ? await endpoint("return_to", a.return_to.system, a.return_to.station ?? null)
           : undefined;
+        // Expiry and deadlines keep the clock from the start of the call, so say when the
+        // lookups made that clock noticeably stale.
+        const lookupMs = now() - nowMs;
+        if (lookupMs > 5000) {
+          notes.add(
+            `Spansh lookups took ${Math.round(lookupMs / 1000)} s; times count from the start of this call.`,
+          );
+        }
 
         const n = stops.length;
         const nodes = [...places, startPlace, ...(returnPlace ? [returnPlace] : [])];

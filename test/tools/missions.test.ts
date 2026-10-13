@@ -56,6 +56,7 @@ interface Opts {
   extra?: Mission[];
   systemCalls?: string[];
   now?: () => number;
+  onLookup?: () => void;
   location?: { system: string | null; station: string | null; docked: boolean };
 }
 
@@ -64,6 +65,7 @@ function setup(opts: Opts = {}) {
   const spansh = {
     system: async (name: string) => {
       lookups.push(name);
+      opts.onLookup?.();
       const key = name.toLowerCase();
       if (opts.down?.includes(key)) throw new Error("Spansh is down");
       const c = coords[key];
@@ -328,7 +330,7 @@ describe("missions_route", () => {
     expect(m.reward).toBe(1000);
   });
 
-  it("reads the clock once for expiry and deadlines", async () => {
+  it("uses one clock reading for expiry and deadlines", async () => {
     // A clock that jumps an hour per read would expire mission 4 between the two uses.
     let t = NOW;
     const { j } = await route(
@@ -344,6 +346,23 @@ describe("missions_route", () => {
     expect(j.unroutable).toEqual([]);
     expect(j.late).toEqual([]);
     expect(j.stops[0].missions[0].slack_min).toBeGreaterThan(0);
+  });
+
+  it("notes slow Spansh lookups and keeps the clock from the start of the call", async () => {
+    // Two lookups (Sol, Beta) at 3 s each.
+    let t = NOW;
+    const slow = { now: () => t, onLookup: () => (t += 3000) };
+    const { j } = await route({ include: [4] }, slow);
+    expect(j.notes).toEqual(["Spansh lookups took 6 s; times count from the start of this call."]);
+    expect(j.stops[0].missions[0].slack_min).toBe(
+      (await route({ include: [4] })).j.stops[0].missions[0].slack_min,
+    );
+  });
+
+  it("does not note Spansh lookups of 5 s or less", async () => {
+    let t = NOW;
+    const { j } = await route({ include: [4] }, { now: () => t, onLookup: () => (t += 2500) });
+    expect(j.notes).toEqual([]);
   });
 
   it("reports expires and reward for an active mission", async () => {
