@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -93,7 +94,8 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         throw new UserError(`${target} exists; pass overwrite: true to replace it`);
       }
       await mkdir(path.dirname(target), { recursive: true });
-      const tmp = `${target}.${process.pid}.tmp`;
+      // Concurrent exports to one path need their own temp files.
+      const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
       try {
         await writeFile(tmp, markdown);
         await rename(tmp, target);

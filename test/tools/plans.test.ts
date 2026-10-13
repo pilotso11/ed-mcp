@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -151,6 +151,20 @@ describe("plan tools", () => {
     const r = await callTool(client, "plan_export", { id: "cutter", path: upper, overwrite: true });
     expect(r).toMatchObject({ isError: true, text: expect.stringContaining("plan store file") });
     expect(await readFile(store, "utf8")).toBe(before);
+  });
+
+  it("lets concurrent exports to one path all succeed", async () => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const target = path.join(dir, "cutter.md");
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        callTool(client, "plan_export", { id: "cutter", path: target, overwrite: true }),
+      ),
+    );
+    expect(results.map((r) => r.isError)).toEqual(Array(8).fill(false));
+    expect(await readFile(target, "utf8")).toMatch(/^# Cutter trade/);
+    expect((await readdir(dir)).filter((f) => f.endsWith(".tmp"))).toEqual([]);
   });
 
   it("refuses to replace an existing file unless overwrite is true", async () => {
