@@ -377,15 +377,14 @@ export class SpanshClient {
     });
     this.gate = turn.catch(() => undefined);
     await turn;
-    const res = await this.http.request(`${this.baseUrl}${path}`, init, opts);
-    const text = await res.text();
+    const { status, text } = await this.http.text(`${this.baseUrl}${path}`, init, opts);
     let body: unknown;
     try {
       body = text ? parseSpanshJson(text) : undefined;
     } catch {
-      throw new UserError(`Spansh returned invalid JSON (HTTP ${res.status})`);
+      throw new UserError(`Spansh returned invalid JSON (HTTP ${status})`);
     }
-    return { status: res.status, body };
+    return { status, body };
   }
 }
 

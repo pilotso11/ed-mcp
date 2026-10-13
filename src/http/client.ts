@@ -63,10 +63,30 @@ export class HttpClient {
       await res.body?.cancel().catch(() => undefined);
       throw new HttpError(`${host} returned HTTP ${res.status}`, res.status);
     }
+    const text = await this.body(url, res);
     try {
-      return (await res.json()) as T;
+      return JSON.parse(text) as T;
     } catch {
       throw new HttpError(`${host} returned invalid JSON`, res.status);
+    }
+  }
+
+  /** Returns the status and body of any response, including errors, for the caller to handle. */
+  async text(
+    url: string,
+    init: RequestInit = {},
+    opts: RequestOptions = {},
+  ): Promise<{ status: number; text: string }> {
+    const res = await this.request(url, init, opts);
+    return { status: res.status, text: await this.body(url, res) };
+  }
+
+  // The timeout signal also covers the body, so a stalled body needs the same error message.
+  private async body(url: string, res: Response): Promise<string> {
+    try {
+      return await res.text();
+    } catch (err) {
+      throw this.wrap(url, err);
     }
   }
 

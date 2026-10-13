@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HttpClient, HttpError } from "../../src/http/client.js";
-import { fakeFetch, jsonResponse, unreadResponse } from "../helpers/fakeFetch.js";
+import { fakeFetch, jsonResponse, stalledBody, unreadResponse } from "../helpers/fakeFetch.js";
 
 const UA = "ed-mcp/0.1.0 (+https://github.com/pilotso11/ed-mcp)";
 const any = () => true;
@@ -111,6 +111,23 @@ describe("HttpClient", () => {
     ]);
     const http = new HttpClient({ userAgent: UA, fetchFn: f, timeoutMs: 20, retryDelayMs: 0 });
     await expect(http.json("https://x.test/a")).rejects.toThrow(/x\.test: timed out after 20 ms/);
+  });
+
+  it("times out while reading the body", async () => {
+    const http = new HttpClient({
+      userAgent: UA,
+      fetchFn: stalledBody(),
+      timeoutMs: 20,
+      retryDelayMs: 0,
+    });
+    await expect(http.json("https://x.test/a")).rejects.toThrow(/x\.test: timed out after 20 ms/);
+    await expect(http.text("https://x.test/a")).rejects.toThrow(/x\.test: timed out after 20 ms/);
+  });
+
+  it("returns the status and body from text()", async () => {
+    const f = fakeFetch([{ match: any, respond: () => new Response("hi", { status: 404 }) }]);
+    const http = new HttpClient({ userAgent: UA, fetchFn: f });
+    expect(await http.text("https://x.test/a")).toEqual({ status: 404, text: "hi" });
   });
 
   it("reports invalid JSON", async () => {

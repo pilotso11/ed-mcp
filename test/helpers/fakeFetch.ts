@@ -49,3 +49,15 @@ export function unreadResponse(status: number): { res: Response; cancelled: () =
   });
   return { res: new Response(body, { status }), cancelled: () => cancelled };
 }
+
+/** A fetch whose response headers arrive but whose body stalls until the request signal aborts. */
+export function stalledBody(): FetchFn {
+  return (async (_input: string | URL | Request, init?: RequestInit) => {
+    const body = new ReadableStream({
+      start(controller) {
+        init?.signal?.addEventListener("abort", () => controller.error(init.signal?.reason));
+      },
+    });
+    return new Response(body, { status: 200 });
+  }) as FetchFn;
+}

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { SpanshClient } from "../../src/spansh/client.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
-import { fakeFetch, type FakeRoute } from "../helpers/fakeFetch.js";
+import { fakeFetch, stalledBody, type FakeRoute } from "../helpers/fakeFetch.js";
 
 const raw = (name: string) =>
   readFile(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
@@ -187,6 +187,19 @@ describe("SpanshClient.system", () => {
     ]);
     await expect(client.system("Nowhere", 10)).rejects.toThrow(
       'System "Nowhere" not found on Spansh',
+    );
+  });
+});
+
+describe("SpanshClient body reads", () => {
+  it("reports a body timeout like a request timeout", async () => {
+    const client = new SpanshClient(
+      new HttpClient({ userAgent: "t", fetchFn: stalledBody(), timeoutMs: 20, retryDelayMs: 0 }),
+      new TtlCache("spansh", 300_000),
+      { minIntervalMs: 0 },
+    );
+    await expect(client.resolveShip("Python")).rejects.toThrow(
+      /spansh\.co\.uk: timed out after 20 ms/,
     );
   });
 });
