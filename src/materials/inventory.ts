@@ -101,6 +101,13 @@ export async function loadInventory(
       }
     }
   }
+  if (stale) {
+    return {
+      items: stale.items,
+      source: stale.source,
+      warnings: [...stale.warnings, `Using the journal although it is ${stale.age} minutes old.`],
+    };
+  }
   throw new UserError(
     'No inventory source: set ED_JOURNAL_DIR or EDSM_API_KEY/EDSM_CMDR, or pass inventory: "none"' +
       (skipped.length ? `. ${skipped.join(" ")}` : ""),

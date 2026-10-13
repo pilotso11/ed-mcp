@@ -115,14 +115,19 @@ describe("loadInventory", () => {
     expect(r.warnings).toEqual(["old"]);
   });
 
-  it("explains a stale journal when nothing else is usable", async () => {
-    const err = await loadInventory("auto", {
+  it("uses the stale journal when EDSM is not configured", async () => {
+    const r = await loadInventory("auto", {
       journal: journal(2000),
       edsm: unconfiguredEdsm,
       catalog,
-    }).catch((e: unknown) => e);
-    expect((err as Error).message).toMatch(/^No inventory source: set ED_JOURNAL_DIR/);
-    expect((err as Error).message).toContain("2000 minutes old");
+    });
+    expect(r.source).toMatch(/^journal/);
+    expect(r.warnings).toEqual(["Using the journal although it is 2000 minutes old."]);
+  });
+
+  it("uses the stale journal when there is no EDSM", async () => {
+    const r = await loadInventory("auto", { journal: journal(2000), catalog });
+    expect(r.warnings).toEqual(["Using the journal although it is 2000 minutes old."]);
   });
 
   it("reports why the journal was skipped when EDSM is used", async () => {
