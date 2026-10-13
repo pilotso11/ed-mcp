@@ -54,6 +54,7 @@ interface Opts {
   ghost?: boolean;
   extra?: Mission[];
   systemCalls?: string[];
+  now?: () => number;
 }
 
 function setup(opts: Opts = {}) {
@@ -108,7 +109,7 @@ function setup(opts: Opts = {}) {
     },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
-  registerMissionTools(server, { journal, spansh, now: () => NOW });
+  registerMissionTools(server, { journal, spansh, now: opts.now ?? (() => NOW) });
   return { client: connectTestClient(server), lookups };
 }
 
@@ -258,6 +259,24 @@ describe("missions_route", () => {
     expect(m).not.toHaveProperty("late_min");
     expect(m).not.toHaveProperty("slack_min");
     expect(m.reward).toBe(1000);
+  });
+
+  it("reads the clock once for expiry and deadlines", async () => {
+    // A clock that jumps an hour per read would expire mission 4 between the two uses.
+    let t = NOW;
+    const { j } = await route(
+      { include: [4] },
+      {
+        now: () => {
+          const v = t;
+          t += 60 * 60_000;
+          return v;
+        },
+      },
+    );
+    expect(j.unroutable).toEqual([]);
+    expect(j.late).toEqual([]);
+    expect(j.stops[0].missions[0].slack_min).toBeGreaterThan(0);
   });
 
   it("reports expires and reward for an active mission", async () => {

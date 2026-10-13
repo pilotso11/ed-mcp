@@ -72,6 +72,7 @@ export function registerMissionTools(
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
+        const nowMs = now();
         const state = await deps.journal.state();
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
         const travel = rules.travel;
@@ -128,7 +129,7 @@ export function registerMissionTools(
           source = "journal";
         }
 
-        const grouped = missionsToStops(state.missions, a.include, now());
+        const grouped = missionsToStops(state.missions, a.include, nowMs);
         const unroutable: Unroutable[] = [...grouped.unroutable];
         const stops: Stop[] = [];
         const places: Place[] = [];
@@ -170,7 +171,6 @@ export function registerMissionTools(
           );
         };
 
-        const nowMs = now();
         // A completed mission only needs handing in; its expiry no longer matters.
         const deadlineOf = (m: StopMission) => {
           const ms = m.status === "active" && m.expires ? Date.parse(m.expires) : NaN;
