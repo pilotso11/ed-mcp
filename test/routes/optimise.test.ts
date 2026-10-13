@@ -101,19 +101,23 @@ describe("optimiseRoute", () => {
   describe("more than 12 stops", () => {
     const rand = mulberry32(42);
 
-    function nearestFirstTotal(p: RouteProblem): number {
+    function nearestFirst(p: RouteProblem): { order: number[]; total: number; late: number } {
       const left = new Set(Array.from({ length: p.n }, (_, i) => i));
+      const order: number[] = [];
       let at = p.start;
       let total = 0;
+      let late = 0;
       while (left.size) {
         let best = -1;
         for (const i of left)
           if (best < 0 || p.legSeconds(at, i) < p.legSeconds(at, best)) best = i;
         total += p.legSeconds(at, best);
+        late += (p.deadlines[best] ?? []).filter((d) => total > d).length;
+        order.push(best);
         left.delete(best);
         at = best;
       }
-      return total;
+      return { order, total, late };
     }
 
     it("returns a permutation no worse than nearest-first on a plane", () => {
@@ -128,7 +132,7 @@ describe("optimiseRoute", () => {
       const r = optimiseRoute(p);
       expect([...r.order].sort((a, b) => a - b)).toEqual(Array.from({ length: 14 }, (_, i) => i));
       expect(r.arrive).toHaveLength(14);
-      expect(r.total).toBeLessThanOrEqual(nearestFirstTotal(p) + 1e-9);
+      expect(r.total).toBeLessThanOrEqual(nearestFirst(p).total + 1e-9);
     });
 
     it("finds the sorted sweep on a line", () => {
@@ -137,6 +141,26 @@ describe("optimiseRoute", () => {
       const sorted = pos.map((x, i) => [x, i] as const).sort((a, b) => a[0] - b[0]);
       expect(r.order).toEqual(sorted.map(([, i]) => i));
       expect(r.total).toBeCloseTo(Math.max(...pos), 9);
+    });
+
+    it("keeps a longer order that meets a deadline nearest-first misses", () => {
+      // Twelve stops at 1..12 lure nearest-first away from stop 12 at -20, due by 20 s.
+      // Going there first meets every deadline, but takes longer than nearest-first,
+      // so 2-opt must not trade the deadline back for time.
+      const pos = [...Array.from({ length: 12 }, (_, i) => i + 1), -20];
+      const deadlines = pos.map((x) => (x === -20 ? [20] : x === 12 ? [60] : [Infinity]));
+      const p = line(pos, deadlines);
+      const greedy = nearestFirst(p);
+      expect(greedy.order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      expect(greedy.late).toBe(1);
+
+      const r = optimiseRoute(p);
+      expect([...r.order].sort((a, b) => a - b)).toEqual(Array.from({ length: 13 }, (_, i) => i));
+      expect(r.late.length).toBeLessThanOrEqual(greedy.late);
+      expect(r.late).toEqual([]);
+      expect(r.order).toEqual([12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+      expect(r.total).toBe(52);
+      expect(r.total).toBeGreaterThan(greedy.total);
     });
   });
 });
