@@ -71,17 +71,21 @@ export function applyRules(
 
   const keepArrival = s.max_arrival_ls.mode === "hard";
   const stations = hits.filter((h) => pass(h, { arrival: keepArrival, avoid: false }));
-  // Report a rule only if a returned station actually breaks it.
+  return { stations, relaxed: brokenRules(stations, rules) };
+}
+
+// Soft rules that at least one of `stations` breaks.
+export function brokenRules(stations: StationHit[], rules: Rules): string[] {
+  const s = rules.prefs.stations;
   const relaxed: string[] = [];
   if (
-    arrivalOn &&
-    !keepArrival &&
+    s.max_arrival_ls.mode === "soft" &&
     stations.some((h) => h.arrival_ls !== null && h.arrival_ls > s.max_arrival_ls.value)
   )
     relaxed.push("max_arrival_ls");
   if (s.planetary === "avoid" && stations.some((h) => h.planetary)) relaxed.push("planetary");
   if (s.megaships === "avoid" && stations.some(isMegaship)) relaxed.push("megaships");
-  return { stations, relaxed: stations.length ? relaxed : [] };
+  return relaxed;
 }
 
 export type PricedHit = StationHit & { discount_pct: number | null };

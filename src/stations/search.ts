@@ -2,6 +2,7 @@ import { shipPad } from "../catalog/ships.js";
 import type { SpanshClient, StationQuery } from "../spansh/client.js";
 import {
   applyRules,
+  brokenRules,
   describeRules,
   withDiscounts,
   type PadResolution,
@@ -100,7 +101,8 @@ export async function searchStations(
     total_capped: source.total_capped,
     stations: page,
     recommended,
-    relaxed: outcome.relaxed,
+    // Only the returned page counts, so every listed rule is broken by a station shown.
+    relaxed: relaxAttempted ? brokenRules(page, rules) : [],
     relax_attempted: relaxAttempted,
     applied_preferences: describeRules(rules),
   };

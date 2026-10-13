@@ -81,6 +81,19 @@ describe("searchStations", () => {
     expect(r.stations).toHaveLength(1);
   });
 
+  it("lists only rules that a returned station breaks", async () => {
+    const sp = fakeSpansh([
+      [],
+      [
+        hit({ name: "ground", planetary: true }),
+        hit({ name: "far", distance_ly: 50, arrival_ls: 4000 }),
+      ],
+    ]);
+    const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 1);
+    expect(r.stations.map((s) => s.name)).toEqual(["ground"]);
+    expect(r.relaxed).toEqual(["planetary"]);
+  });
+
   it("caps results at the limit", async () => {
     const sp = fakeSpansh([[hit({ name: "1" }), hit({ name: "2" }), hit({ name: "3" })]]);
     const r = await searchStations(sp, { near: "Sol", service: "material_trader_raw" }, rules, 2);
