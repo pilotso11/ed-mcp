@@ -16,9 +16,14 @@ done in the least time and before their deadlines.
 
 - Missions come from the journal (`journal_missions`). The mission board is
   not available.
-- Each mission gets a `status`: `complete` when it is in the last `Missions`
-  event's `Complete` list (objectives met, reward not collected), else
-  `active`.
+- Each mission gets a `status` of `complete` (objectives met, reward not
+  collected) or `active`. Two events set it, and the later one wins:
+  - A `Missions` event sets `complete` for each mission in its `Complete`
+    list and `active` for the others.
+  - A `MissionRedirected` event sets `complete` when the new destination is
+    the mission's origin system and station, else `active`. The game writes
+    this event when the objectives are done and it sends the commander back
+    to the mission giver to collect the reward.
 - Each mission gets `origin_system` and `origin_station`: the commander's
   docked location when `MissionAccepted` was written (null if not docked or
   unknown, e.g. for stubs).
@@ -89,7 +94,7 @@ Output:
 ## Testing
 
 - Reducer: `origin_*` captured from the docked location; `status` from the
-  `Missions.Complete` list.
+  `Missions.Complete` list and from a `MissionRedirected` to the origin.
 - Stops: grouping, active vs complete stop, unroutable cases.
 - Optimiser: exact search on small instances (known optimum), deadline
   feasibility, late-minimising fallback, heuristic for > 12 stops or > 24 deadlines with a
