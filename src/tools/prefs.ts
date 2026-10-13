@@ -10,7 +10,7 @@ export function registerPrefsTools(server: McpServer, deps: { prefs: Preferences
       description:
         "Get the commander's stored travel preferences used by station searches: maximum arrival " +
         "distance (soft/hard/off), planetary, fleet carrier and megaship rules, minimum pad " +
-        "(auto = current ship), and the travel-time model (jump range, seconds per jump, supercruise curve, docking, planetary time, value of time in cr/h).",
+        "(auto = current ship), and the travel-time model (jump range and the share of the journal's unladen range that auto uses, seconds per jump, supercruise curve, docking, planetary time, value of time in cr/h).",
     },
     wrap(async () => deps.prefs.get()),
   );

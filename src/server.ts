@@ -6,12 +6,14 @@ import type { EdsmClient } from "./edsm/client.js";
 import type { CapiAuth } from "./capi/auth.js";
 import type { CapiClient } from "./capi/client.js";
 import type { SpanshClient } from "./spansh/client.js";
+import type { JournalService } from "./journal/service.js";
 import type { PlanStore } from "./plans/store.js";
 import type { PreferencesStore } from "./prefs/store.js";
 import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
 import { registerCapiTools } from "./tools/capi.js";
 import { registerCatalogTools } from "./tools/catalog.js";
+import { registerJournalTools } from "./tools/journal.js";
 import { registerInaraTools } from "./tools/inara.js";
 import { registerEdsmTools } from "./tools/edsm.js";
 import { registerPlanTools } from "./tools/plans.js";
@@ -30,7 +32,9 @@ export interface ServerDeps {
   spansh?: SpanshClient;
   capiAuth?: CapiAuth;
   capi?: CapiClient;
-  currentShip?: () => Promise<string | null>;
+  journal?: JournalService;
+  currentShip?: () => Promise<string | { type: string; source: string } | null>;
+  jumpRange?: () => Promise<number | null>;
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -48,10 +52,12 @@ export function createServer(deps: ServerDeps): McpServer {
       spansh: deps.spansh,
       prefs: deps.prefs,
       currentShip: deps.currentShip,
+      jumpRange: deps.jumpRange,
     });
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }
+  if (deps.journal) registerJournalTools(server, { journal: deps.journal, catalog: deps.catalog });
   registerBuildTools(server, { catalog: deps.catalog });
   return server;
 }

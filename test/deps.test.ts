@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { loadConfig } from "../src/config.js";
 import { buildDeps } from "../src/deps.js";
+import type { JournalService } from "../src/journal/service.js";
 import { createServer } from "../src/server.js";
 import { connectTestClient } from "./helpers/client.js";
 import { fakeFetch, fixture, jsonResponse } from "./helpers/fakeFetch.js";
@@ -50,5 +51,35 @@ describe("buildDeps", () => {
     expect(capiEntries()).toBe(1);
     await deps.capiAuth!.logout();
     expect(capiEntries()).toBe(0);
+  });
+
+  it("takes the ship and jump range from the journal first, then the ship from CAPI", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+    const now = Date.now();
+    await writeFile(
+      path.join(dir, "capi-token.json"),
+      JSON.stringify({
+        refresh_token: "R",
+        access_token: "A",
+        expires_at: now + 3_600_000,
+        authorized_at: now,
+      }),
+    );
+    const profile = await fixture("capi/profile.json");
+    const fetchFn = fakeFetch([{ match: () => true, respond: () => jsonResponse(profile) }]);
+    let fresh: { type: string; max_jump_range: number | null } | null = {
+      type: "Corsair",
+      max_jump_range: 24.5,
+    };
+    const journal = { freshShip: async () => fresh } as unknown as JournalService;
+    const deps = buildDeps(loadConfig({ CAPI_CLIENT_ID: "cid" }, { config: dir, cache: dir }), {
+      fetchFn,
+      journal,
+    });
+    expect(await deps.currentShip!()).toEqual({ type: "Corsair", source: "journal" });
+    expect(await deps.jumpRange!()).toBe(24.5);
+    fresh = null;
+    expect(await deps.currentShip!()).toBe("Krait_MkII");
+    expect(await deps.jumpRange!()).toBeNull();
   });
 });

@@ -14,8 +14,11 @@ const Supercruise = z.object({
 });
 const Occlusion = z.object({ chance: z.number().min(0).max(1), seconds: z.number().min(0) });
 const NearStar = z.object({ within_ls: z.number().min(0), seconds: z.number().min(0) });
+// The journal's MaxJumpRange is the unladen best case; auto scales it down by this factor.
+const AutoRangeFactor = z.number().positive().max(1);
 const Travel = z.object({
-  jump_range_ly: z.number().positive(),
+  jump_range_ly: z.union([z.literal("auto"), z.number().positive()]),
+  auto_range_factor: AutoRangeFactor,
   seconds_per_jump: z.number().min(0),
   refuel_every_jumps: z.number().int().min(0),
   refuel_s: z.number().min(0),
@@ -36,7 +39,8 @@ export const PrefsSchema = z.object({
     megaships: TypeRule,
     min_pad: PadPref,
   }),
-  travel: Travel,
+  // Files saved before auto_range_factor existed lack it.
+  travel: Travel.extend({ auto_range_factor: AutoRangeFactor.default(0.85) }),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
 
@@ -65,7 +69,8 @@ export const PrefsPatchSchema = z
 export type PrefsPatch = z.infer<typeof PrefsPatchSchema>;
 
 const DEFAULT_TRAVEL = {
-  jump_range_ly: 30,
+  jump_range_ly: "auto" as const,
+  auto_range_factor: 0.85,
   seconds_per_jump: 60,
   refuel_every_jumps: 0,
   refuel_s: 15,

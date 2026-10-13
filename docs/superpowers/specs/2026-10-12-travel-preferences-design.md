@@ -56,7 +56,8 @@ file and is never overwritten.
     "min_pad": "auto"
   },
   "travel": {
-    "jump_range_ly": 30,
+    "jump_range_ly": "auto",
+    "auto_range_factor": 0.85,
     "seconds_per_jump": 60,
     "refuel_every_jumps": 0,
     "refuel_s": 15,
@@ -80,7 +81,8 @@ The JSON above is the default.
 | `fleet_carriers` | `allow`, `exclude` | Fleet carriers (stock changes often) |
 | `megaships` | `allow`, `avoid`, `exclude` | Megaships |
 | `min_pad` | `auto`, `S`, `M`, `L`, `none` | Smallest pad the station must have. `auto` (default) uses the pad size of the ship currently flown. `none` means no requirement |
-| `travel.jump_range_ly` | > 0 | Jump range used to count jumps. Automatic from the journal's `Loadout` once sub-project 2 exists |
+| `travel.jump_range_ly` | `"auto"` (default) or > 0 | Jump range used to count jumps. `auto` takes the journal's `Loadout.MaxJumpRange` times `auto_range_factor` when the newest journal event is less than 24 hours old, else 30 LY |
+| `travel.auto_range_factor` | > 0 and <= 1 (default 0.85) | `MaxJumpRange` is the unladen best case; `auto` multiplies it by this factor. A stored file without the field gets the default |
 | `travel.seconds_per_jump` | >= 0 | Time per jump (charge, hyperspace, cooldown, align) |
 | `travel.refuel_every_jumps` | integer >= 0 | Add a refuel stop every N jumps; 0 ignores refuelling |
 | `travel.refuel_s` | >= 0 | Time per refuel stop |

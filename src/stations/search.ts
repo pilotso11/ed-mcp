@@ -30,7 +30,7 @@ const SHIP_FAILURE_TTL_MS = 60_000;
 const recentFailures = new WeakMap<object, { at: number; message: string }>();
 
 export async function autoPad(
-  currentShip: () => Promise<string | null>,
+  currentShip: () => Promise<string | { type: string; source: string } | null>,
   opts: { timeoutMs?: number; now?: () => number } = {},
 ): Promise<PadResolution> {
   const now = opts.now ?? Date.now;
@@ -42,7 +42,7 @@ export async function autoPad(
   if (failed && now() - failed.at < SHIP_FAILURE_TTL_MS) return unavailable(failed.message);
 
   let timer: NodeJS.Timeout | undefined;
-  let ship: string | null;
+  let ship: string | { type: string; source: string } | null;
   try {
     ship = await Promise.race([
       currentShip(),
@@ -61,9 +61,11 @@ export async function autoPad(
     clearTimeout(timer);
   }
   if (!ship) return { size: null, source: "auto: current ship unavailable" };
-  const known = shipPad(ship);
-  if (!known) return { size: null, source: `auto: unknown ship ${ship}` };
-  return { size: known.pad, source: `auto: current ship ${known.name}` };
+  const type = typeof ship === "string" ? ship : ship.type;
+  const label = typeof ship === "string" ? "current" : ship.source;
+  const known = shipPad(type);
+  if (!known) return { size: null, source: `auto: unknown ship ${type}` };
+  return { size: known.pad, source: `auto: ${label} ship ${known.name}` };
 }
 
 export async function searchStations(
@@ -96,8 +98,8 @@ export async function searchStations(
     );
     source = wider;
   }
-  const ranked = rankStations(withDiscounts(outcome.stations), rules.prefs.travel);
-  const recommended = recommendStation(ranked, rules.prefs.travel);
+  const ranked = rankStations(withDiscounts(outcome.stations), rules.travel);
+  const recommended = recommendStation(ranked, rules.travel);
   // Ranking puts the recommended station first, so it is always in the page.
   const page = ranked.slice(0, limit);
   return {

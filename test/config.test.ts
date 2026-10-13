@@ -20,6 +20,24 @@ describe("loadConfig", () => {
     );
   });
 
+  it("reads ED_JOURNAL_DIR and the Windows default", () => {
+    // An absolute POSIX path resolves against the current drive on Windows.
+    expect(loadConfig({ ED_JOURNAL_DIR: "/j" }, dirs).journalDir).toBe(path.resolve("/j"));
+    expect(loadConfig({}, dirs, "darwin").journalDir).toBeUndefined();
+    expect(loadConfig({}, dirs, "win32").journalDir).toMatch(
+      /Saved Games.Frontier Developments.Elite Dangerous$/,
+    );
+  });
+
+  it("treats a blank or placeholder ED_JOURNAL_DIR as unset", () => {
+    for (const v of ["", "  ", "${user_config.ed_journal_dir}"]) {
+      expect(loadConfig({ ED_JOURNAL_DIR: v }, dirs, "darwin").journalDir).toBeUndefined();
+      expect(loadConfig({ ED_JOURNAL_DIR: v }, dirs, "win32").journalDir).toMatch(
+        /Saved Games.Frontier Developments.Elite Dangerous$/,
+      );
+    }
+  });
+
   it("reads Inara config with defaults", () => {
     const c = loadConfig({ INARA_API_KEY: "k", INARA_CMDR: "Jameson" }, dirs);
     expect(c.inara).toEqual({ apiKey: "k", cmdr: "Jameson", appName: "ed-mcp", devMode: true });
@@ -75,6 +93,23 @@ describe("loadConfig", () => {
       expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(ConfigError);
       expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(
         "ED_MCP_PLANS: Use an absolute path or one starting with ~: plans.json",
+      );
+    });
+  });
+
+  describe("ED_JOURNAL_DIR paths", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("expands ~", () => {
+      vi.spyOn(os, "homedir").mockReturnValue(path.resolve("/home/j"));
+      const c = loadConfig({ ED_JOURNAL_DIR: "~/Journals" }, dirs, "darwin");
+      expect(c.journalDir).toBe(path.join(path.resolve("/home/j"), "Journals"));
+    });
+
+    it("rejects a relative path", () => {
+      expect(() => loadConfig({ ED_JOURNAL_DIR: "Journals" }, dirs)).toThrow(ConfigError);
+      expect(() => loadConfig({ ED_JOURNAL_DIR: "Journals" }, dirs)).toThrow(
+        "ED_JOURNAL_DIR: Use an absolute path or one starting with ~: Journals",
       );
     });
   });

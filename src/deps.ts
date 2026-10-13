@@ -6,6 +6,7 @@ import { CatalogService } from "./catalog/service.js";
 import type { Config } from "./config.js";
 import { CacheRegistry, TtlCache } from "./http/cache.js";
 import { HttpClient, type FetchFn } from "./http/client.js";
+import { JournalService } from "./journal/service.js";
 import { InaraClient } from "./inara/client.js";
 import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
@@ -14,7 +15,10 @@ import { PreferencesStore } from "./prefs/store.js";
 import type { ServerDeps } from "./server.js";
 import { VERSION } from "./version.js";
 
-export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): ServerDeps {
+export function buildDeps(
+  config: Config,
+  opts: { fetchFn?: FetchFn; journal?: JournalService } = {},
+): ServerDeps {
   const caches = new CacheRegistry();
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
@@ -37,6 +41,7 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     { onSessionChange: () => void capiCache.clear() },
   );
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);
+  const journal = opts.journal ?? new JournalService(config.journalDir);
   return {
     caches,
     refreshables: [catalog],
@@ -46,7 +51,13 @@ export function buildDeps(config: Config, opts: { fetchFn?: FetchFn } = {}): Ser
     spansh,
     capiAuth,
     capi,
-    currentShip: async () => (await capi.profile()).ship?.type ?? null,
+    currentShip: async () => {
+      const j = await journal.freshShip();
+      if (j) return { type: j.type, source: "journal" };
+      return (await capi.profile()).ship?.type ?? null;
+    },
+    jumpRange: async () => (await journal.freshShip())?.max_jump_range ?? null,
+    journal,
     plans: new PlanStore(config.plansFile),
     prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
   };

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyPatch, DEFAULT_PREFS, OFF_PREFS, parsePatch } from "../../src/prefs/schema.js";
+import {
+  applyPatch,
+  DEFAULT_PREFS,
+  OFF_PREFS,
+  parsePatch,
+  PrefsSchema,
+} from "../../src/prefs/schema.js";
 import { UserError } from "../../src/errors.js";
 
 describe("prefs schema", () => {
@@ -14,7 +20,8 @@ describe("prefs schema", () => {
         min_pad: "auto",
       },
       travel: {
-        jump_range_ly: 30,
+        jump_range_ly: "auto",
+        auto_range_factor: 0.85,
         seconds_per_jump: 60,
         refuel_every_jumps: 0,
         refuel_s: 15,
@@ -61,5 +68,31 @@ describe("prefs schema", () => {
     const huge = JSON.parse("1e400") as number;
     expect(() => parsePatch({ stations: { max_arrival_ls: { value: huge } } })).toThrow(UserError);
     expect(() => parsePatch({ travel: { credits_per_hour: huge } })).toThrow(UserError);
+  });
+
+  it("accepts a numeric or auto jump range and rejects others", () => {
+    expect(
+      applyPatch(DEFAULT_PREFS, { travel: { jump_range_ly: 24.5 } }).travel.jump_range_ly,
+    ).toBe(24.5);
+    expect(parsePatch({ travel: { jump_range_ly: "auto" } })).toEqual({
+      travel: { jump_range_ly: "auto" },
+    });
+    expect(() => parsePatch({ travel: { jump_range_ly: 0 } })).toThrow(UserError);
+    expect(() => parsePatch({ travel: { jump_range_ly: "far" } })).toThrow(UserError);
+  });
+
+  it("accepts an auto range factor above 0 up to 1 and defaults a stored file without one", () => {
+    expect(applyPatch(DEFAULT_PREFS, { travel: { auto_range_factor: 1 } }).travel).toMatchObject({
+      auto_range_factor: 1,
+    });
+    expect(parsePatch({ travel: { auto_range_factor: 0.7 } })).toEqual({
+      travel: { auto_range_factor: 0.7 },
+    });
+    expect(() => parsePatch({ travel: { auto_range_factor: 0 } })).toThrow(UserError);
+    expect(() => parsePatch({ travel: { auto_range_factor: 1.1 } })).toThrow(UserError);
+    const { auto_range_factor: _, ...old } = DEFAULT_PREFS.travel;
+    expect(PrefsSchema.parse({ ...DEFAULT_PREFS, travel: old }).travel.auto_range_factor).toBe(
+      0.85,
+    );
   });
 });

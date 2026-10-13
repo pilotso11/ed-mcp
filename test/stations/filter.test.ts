@@ -65,7 +65,7 @@ describe("resolveRules", () => {
     expect(d).toMatchObject({
       min_pad: "M (auto: current ship Corsair)",
       max_arrival_ls: "1000 ls (soft)",
-      travel: "range 30 LY, 60 s per jump, time valued at 20,000,000 cr/h",
+      travel: "range 30 LY (auto: default 30 LY), 60 s per jump, time valued at 20,000,000 cr/h",
     });
   });
 });
@@ -135,6 +135,34 @@ describe("applyRules", () => {
 
   it("treats unknown arrival distance as passing", () => {
     expect(applyRules([hit({ arrival_ls: null })], rules, false).stations).toHaveLength(1);
+  });
+});
+
+describe("resolveRules jump range", () => {
+  const journal = { ly: 24.5, source: "auto: journal" };
+  it("uses a number from preferences", () => {
+    const stored = { ...DEFAULT_PREFS, travel: { ...DEFAULT_PREFS.travel, jump_range_ly: 18 } };
+    const r = resolveRules(stored, undefined, true, AUTO_M, journal);
+    expect(r.travel.jump_range_ly).toBe(18);
+    expect(r.jumpRangeSource).toBe("preferences");
+  });
+  it("uses a number from the request", () => {
+    const r = resolveRules(DEFAULT_PREFS, { travel: { jump_range_ly: 12 } }, true, AUTO_M, journal);
+    expect(r.travel.jump_range_ly).toBe(12);
+    expect(r.jumpRangeSource).toBe("request");
+  });
+  it("uses the journal value for auto", () => {
+    const r = resolveRules(DEFAULT_PREFS, undefined, true, AUTO_M, journal);
+    expect(r.travel.jump_range_ly).toBe(24.5);
+    expect(r.jumpRangeSource).toBe("auto: journal");
+    expect(describeRules(r).travel).toBe(
+      "range 24.5 LY (auto: journal), 60 s per jump, time valued at 20,000,000 cr/h",
+    );
+  });
+  it("falls back to 30 LY for auto without a journal value", () => {
+    const r = resolveRules(DEFAULT_PREFS, undefined, true, AUTO_M);
+    expect(r.travel.jump_range_ly).toBe(30);
+    expect(r.jumpRangeSource).toBe("auto: default 30 LY");
   });
 });
 

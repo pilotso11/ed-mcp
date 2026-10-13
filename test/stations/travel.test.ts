@@ -7,10 +7,10 @@ import {
   estimateTravel,
   rankStations,
   recommendStation,
-  type Travel,
+  type ResolvedTravel,
 } from "../../src/stations/travel.js";
 
-const T: Travel = DEFAULT_PREFS.travel;
+const T: ResolvedTravel = { ...DEFAULT_PREFS.travel, jump_range_ly: 30 };
 const hit = (o: Partial<StationHit>): StationHit => ({
   name: "S",
   system: "Sys",

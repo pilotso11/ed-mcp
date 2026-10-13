@@ -189,6 +189,12 @@ describe("autoPad", () => {
       source: "auto: current ship Corsair",
     });
   });
+  it("names the source when the lookup returns an object", async () => {
+    expect(await autoPad(async () => ({ type: "Corsair", source: "journal" }))).toEqual({
+      size: "M",
+      source: "auto: journal ship Corsair",
+    });
+  });
   it("explains when the ship is unknown or unavailable", async () => {
     expect(await autoPad(async () => "mystery_ship")).toEqual({
       size: null,

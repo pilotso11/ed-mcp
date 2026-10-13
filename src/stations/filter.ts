@@ -1,6 +1,7 @@
 import type { PadSize } from "../catalog/ships.js";
 import { applyPatch, OFF_PREFS, type Prefs, type PrefsPatch } from "../prefs/schema.js";
 import type { StationHit } from "../spansh/client.js";
+import type { ResolvedTravel } from "./travel.js";
 
 export interface PadResolution {
   size: PadSize | null;
@@ -10,6 +11,8 @@ export interface PadResolution {
 export interface Rules {
   prefs: Prefs;
   pad: PadResolution;
+  travel: ResolvedTravel;
+  jumpRangeSource: string;
 }
 
 const PAD_RANK: Record<PadSize, number> = { S: 1, M: 2, L: 3 };
@@ -19,6 +22,7 @@ export function resolveRules(
   override: PrefsPatch | undefined,
   usePreferences: boolean,
   auto: PadResolution,
+  jumpAuto: { ly: number | null; source: string } = { ly: null, source: "default" },
 ): Rules {
   const prefs = applyPatch(usePreferences ? stored : OFF_PREFS, override ?? {});
   const p = prefs.stations.min_pad;
@@ -29,7 +33,20 @@ export function resolveRules(
       : p === "none"
         ? { size: null, source: fromRequest ? "request" : "none" }
         : { size: p, source: fromRequest ? "request" : "preferences" };
-  return { prefs, pad };
+  const range = prefs.travel.jump_range_ly;
+  const fromRequestRange = override?.travel?.jump_range_ly !== undefined;
+  const { ly, source } =
+    range !== "auto"
+      ? { ly: range, source: fromRequestRange ? "request" : "preferences" }
+      : jumpAuto.ly
+        ? { ly: jumpAuto.ly, source: jumpAuto.source }
+        : { ly: 30, source: "auto: default 30 LY" };
+  return {
+    prefs,
+    pad,
+    travel: { ...prefs.travel, jump_range_ly: ly },
+    jumpRangeSource: source,
+  };
 }
 
 export function isFleetCarrier(h: StationHit): boolean {
@@ -124,7 +141,7 @@ export function describeRules(rules: Rules): Record<string, unknown> {
         ? "none"
         : `none (${rules.pad.source})`,
     travel:
-      `range ${rules.prefs.travel.jump_range_ly} LY, ${rules.prefs.travel.seconds_per_jump} s per jump, ` +
-      `time valued at ${rules.prefs.travel.credits_per_hour.toLocaleString("en-US")} cr/h`,
+      `range ${rules.travel.jump_range_ly} LY (${rules.jumpRangeSource}), ${rules.travel.seconds_per_jump} s per jump, ` +
+      `time valued at ${rules.travel.credits_per_hour.toLocaleString("en-US")} cr/h`,
   };
 }

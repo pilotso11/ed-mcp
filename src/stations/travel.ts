@@ -3,6 +3,7 @@ import type { StationHit } from "../spansh/client.js";
 import type { PricedHit } from "./filter.js";
 
 export type Travel = Prefs["travel"];
+export type ResolvedTravel = Omit<Travel, "jump_range_ly"> & { jump_range_ly: number };
 
 export interface TravelEstimate {
   jumps: number;
@@ -16,7 +17,7 @@ export type RankedHit = PricedHit & TravelEstimate & { effective_cost: number | 
 // Spansh omits arrival distance for some stations; 1,000 ls is a typical value.
 const ASSUMED_ARRIVAL_LS = 1000;
 
-export function estimateTravel(h: StationHit, t: Travel): TravelEstimate {
+export function estimateTravel(h: StationHit, t: ResolvedTravel): TravelEstimate {
   const jumps = h.distance_ly > 0 ? Math.ceil(h.distance_ly / t.jump_range_ly) : 0;
   const refuels = t.refuel_every_jumps > 0 ? Math.floor(jumps / t.refuel_every_jumps) : 0;
   const ls = Math.max(0, h.arrival_ls ?? ASSUMED_ARRIVAL_LS);
@@ -40,14 +41,18 @@ export function estimateTravel(h: StationHit, t: Travel): TravelEstimate {
   };
 }
 
-export function effectiveCost(price: number | null, travelS: number, t: Travel): number | null {
+export function effectiveCost(
+  price: number | null,
+  travelS: number,
+  t: ResolvedTravel,
+): number | null {
   return price ? Math.round(price + (travelS / 3600) * t.credits_per_hour) : null;
 }
 
 const nullsLast = (a: number | null, b: number | null) =>
   a === null ? (b === null ? 0 : 1) : b === null ? -1 : a - b;
 
-export function rankStations(hits: PricedHit[], t: Travel): RankedHit[] {
+export function rankStations(hits: PricedHit[], t: ResolvedTravel): RankedHit[] {
   const ranked = hits.map((h) => {
     const e = estimateTravel(h, t);
     return { ...h, ...e, effective_cost: effectiveCost(h.price, e.travel_s, t) };
@@ -71,7 +76,7 @@ function credits(n: number): string {
 // `ranked` must come from rankStations: the first entry is the best choice.
 export function recommendStation(
   ranked: RankedHit[],
-  t: Travel,
+  t: ResolvedTravel,
 ): { name: string; system: string; reason: string } | null {
   const best = ranked[0];
   if (!best) return null;
