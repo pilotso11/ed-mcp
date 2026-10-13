@@ -21,6 +21,7 @@ import { registerEdsmTools } from "./tools/edsm.js";
 import { registerPlanTools } from "./tools/plans.js";
 import { registerPrefsTools } from "./tools/prefs.js";
 import { registerSpanshTools } from "./tools/spansh.js";
+import { registerTradeTools } from "./tools/trade.js";
 import { VERSION } from "./version.js";
 
 export interface ServerDeps {
@@ -56,6 +57,15 @@ export function createServer(deps: ServerDeps): McpServer {
       currentShip: deps.currentShip,
       jumpRange: deps.jumpRange,
     });
+  if (deps.spansh) {
+    registerTradeTools(server, {
+      spansh: deps.spansh,
+      journal: deps.journal,
+      prefs: deps.prefs,
+      currentShip: deps.currentShip,
+      jumpRange: deps.jumpRange,
+    });
+  }
   if (deps.catalog && deps.spansh) {
     registerMaterialsTools(server, {
       catalog: deps.catalog,

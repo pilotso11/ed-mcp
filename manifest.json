@@ -62,6 +62,11 @@
       "name": "spansh_find_stations",
       "description": "Best stations near a system, ranked by travel time and cost"
     },
+    { "name": "trade_route", "description": "Multi-hop trade run ranked by profit per hour" },
+    {
+      "name": "commodity_prices",
+      "description": "Best nearby stations to sell or buy a commodity"
+    },
     { "name": "spansh_system", "description": "System coordinates and stations" },
     { "name": "spansh_route", "description": "Neutron route between systems" },
     { "name": "missions_route", "description": "Best stop order for accepted missions" },
