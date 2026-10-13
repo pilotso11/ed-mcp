@@ -99,7 +99,7 @@ Plan writes use a lock file, so several server processes can share one plans fil
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
 | `catalog_material`         | Material grade, trade group and trade rules                  |
 | `catalog_module`           | Outfitting module by symbol or name                          |
-| `spansh_find_stations`     | Nearest stations selling a module or ship, or with a service |
+| `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `prefs_get`                | Get your stored travel preferences                           |
