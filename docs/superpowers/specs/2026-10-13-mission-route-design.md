@@ -51,12 +51,14 @@ plus `travel.dock_s` are counted, and the stop is marked `station_unknown`.
 
 - Stops are grouped by (system, station): one visit handles every mission
   for that station.
-- Up to 12 stops: exact search over orders (dynamic programming over subsets)
-  minimising total time while meeting every deadline (`expires`) at the
-  estimated arrival time. If no order meets every deadline, minimise the
-  number of late missions, then total time.
-- More than 12 stops: nearest-first order, then 2-opt improvements that do
-  not add late missions.
+- Up to 12 stops and up to 24 missions with a deadline: exact search over
+  orders (dynamic programming over subsets) minimising total time while
+  meeting every deadline (`expires`) at the estimated arrival time. If no
+  order meets every deadline, minimise the number of late missions, then
+  total time.
+- More than 12 stops or more than 24 deadlines (the exact search keeps a
+  label per late count, so it slows as deadlines grow): nearest-first order,
+  then 2-opt improvements that do not add late missions.
 - An optional `return_to` (system, optional station) adds a final stop.
 
 ## Tool: `missions_route`
@@ -90,6 +92,6 @@ Output:
   `Missions.Complete` list.
 - Stops: grouping, active vs complete stop, unroutable cases.
 - Optimiser: exact search on small instances (known optimum), deadline
-  feasibility, late-minimising fallback, heuristic for > 12 stops with a
+  feasibility, late-minimising fallback, heuristic for > 12 stops or > 24 deadlines with a
   2-opt improvement, `return_to`.
 - Tool: fake Spansh systems and a journal stub; output shape and timings.

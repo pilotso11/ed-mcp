@@ -49,7 +49,8 @@ export function registerMissionTools(
         "Order the stops for accepted missions (from the game journal): passengers, deliveries and " +
         "hand-ins for completed missions. Uses Spansh coordinates and the travel-time model to minimise " +
         "time while meeting deadlines; lists late and unroutable missions. The order is exact up to 12 " +
-        "stops; above that it is a nearest-first heuristic and deadline handling is best-effort. " +
+        "stops and 24 missions with an expiry; above that it is a nearest-first heuristic and " +
+        "deadline handling is best-effort. " +
         "Planetary stations are inferred from the Spansh station type. `from` and `return_to` must be " +
         "systems Spansh knows. The first call for systems not seen in the last day can take tens of " +
         "seconds, because Spansh lookups are rate limited.",

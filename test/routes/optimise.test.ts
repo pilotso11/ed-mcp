@@ -98,6 +98,41 @@ describe("optimiseRoute", () => {
     expect(r.total).toBe(60);
   });
 
+  describe("more than 24 finite deadlines", () => {
+    // Nearest-first goes to 6 then 35 then -32 (102 s), and no single 2-opt reversal
+    // helps; the exact search goes to -32 first (99 s). Far deadlines change neither.
+    const far = (count: number) => [Array(count).fill(1e9), [Infinity], [Infinity]];
+
+    it("searches exactly at 24 deadlines", () => {
+      const r = optimiseRoute(line([35, 6, -32], far(24)));
+      expect(r.order).toEqual([2, 1, 0]);
+      expect(r.total).toBe(99);
+    });
+
+    it("uses the heuristic above 24 deadlines", () => {
+      const r = optimiseRoute(line([35, 6, -32], far(25)));
+      expect(r.order).toEqual([1, 0, 2]);
+      expect(r.total).toBe(102);
+    });
+
+    it("routes 12 stops with many missions each quickly", () => {
+      const rand = mulberry32(7);
+      const pts = Array.from({ length: 13 }, () => [rand() * 1000, rand() * 1000] as const);
+      const p: RouteProblem = {
+        n: 12,
+        deadlines: Array.from({ length: 12 }, () =>
+          Array.from({ length: 10 }, () => rand() * 6000),
+        ),
+        start: 12,
+        legSeconds: (a, b) => Math.hypot(pts[a]![0] - pts[b]![0], pts[a]![1] - pts[b]![1]),
+      };
+      const t0 = performance.now();
+      const r = optimiseRoute(p);
+      expect(performance.now() - t0).toBeLessThan(1000);
+      expect([...r.order].sort((a, b) => a - b)).toEqual(Array.from({ length: 12 }, (_, i) => i));
+    });
+  });
+
   describe("more than 12 stops", () => {
     const rand = mulberry32(42);
 

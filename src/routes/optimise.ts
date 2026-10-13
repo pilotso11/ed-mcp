@@ -18,6 +18,10 @@ export interface RouteSolution {
 }
 
 const EXACT_MAX_STOPS = 12;
+// Each finite deadline can add a label to a Pareto front, so the exact search slows as
+// they grow. At 12 stops and 24 deadlines, fronts filled to their limit take about 0.3 s;
+// 120 deadlines take about 4 s, too close to the MCP timeout.
+const EXACT_MAX_DEADLINES = 24;
 
 // Late missions first, then time.
 const better = (l1: number, t1: number, l2: number, t2: number) =>
@@ -26,7 +30,9 @@ const better = (l1: number, t1: number, l2: number, t2: number) =>
 const lateAt = (deadlines: number[], t: number) => deadlines.filter((d) => t > d).length;
 
 export function optimiseRoute(p: RouteProblem): RouteSolution {
-  const order = p.n <= EXACT_MAX_STOPS ? exactOrder(p) : heuristicOrder(p);
+  const deadlines = p.deadlines.flat().filter(Number.isFinite).length;
+  const exact = p.n <= EXACT_MAX_STOPS && deadlines <= EXACT_MAX_DEADLINES;
+  const order = exact ? exactOrder(p) : heuristicOrder(p);
   return evaluate(p, order);
 }
 
