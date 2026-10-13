@@ -66,6 +66,8 @@ const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null)
 const objs = (v: unknown): Obj[] =>
   Array.isArray(v) ? v.filter((x): x is Obj => typeof x === "object" && x !== null) : [];
 
+const NOT_A_SHIP = /suit|taxi|_fighter|testbuggy|_srv/i;
+
 const KINDS: MaterialKind[] = ["raw", "manufactured", "encoded"];
 
 // Categories arrive as "Raw" or as "$MICRORESOURCE_CATEGORY_Encoded;".
@@ -151,13 +153,22 @@ export function buildState(events: JournalEvent[]): JournalState {
       case "Commander":
         commander = str(e.Name) ?? commander;
         break;
-      case "LoadGame":
+      case "LoadGame": {
         commander = str(e.Commander) ?? commander;
         credits = num(e.Credits) ?? credits;
-        ship.type = str(e.Ship);
+        const type = str(e.Ship);
+        // On foot, in a taxi, a fighter or an SRV the game names that instead of the ship.
+        if (type && NOT_A_SHIP.test(type)) break;
+        if (type?.toLowerCase() !== ship.type?.toLowerCase()) {
+          ship.max_jump_range = null;
+          ship.cargo_capacity = null;
+          ship.fuel_capacity = null;
+        }
+        ship.type = type;
         ship.name = str(e.ShipName);
         ship.ident = str(e.ShipIdent);
         break;
+      }
       case "Location":
         setLocation(e, e.Docked === true);
         break;

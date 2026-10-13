@@ -66,6 +66,48 @@ describe("buildState", () => {
     expect(swapped.fuel_capacity).toBeNull();
   });
 
+  it("clears loadout facts when LoadGame names a different ship", () => {
+    const s = buildState([
+      ev(T(0), "Loadout", {
+        Ship: "corsair",
+        MaxJumpRange: 24.5,
+        CargoCapacity: 16,
+        FuelCapacity: { Main: 32 },
+      }),
+      ev(T(1), "LoadGame", { Ship: "Anaconda", ShipName: "Big" }),
+    ]).ship;
+    expect(s).toEqual({
+      type: "Anaconda",
+      name: "Big",
+      ident: null,
+      max_jump_range: null,
+      cargo_capacity: null,
+      fuel_capacity: null,
+    });
+    const same = buildState([
+      ev(T(0), "Loadout", { Ship: "corsair", MaxJumpRange: 24.5 }),
+      ev(T(1), "LoadGame", { Ship: "Corsair" }),
+    ]).ship;
+    expect(same.max_jump_range).toBe(24.5);
+  });
+
+  it("keeps the ship when LoadGame names a suit, taxi, fighter or SRV", () => {
+    const before = [
+      ev(T(0), "LoadGame", { Ship: "Corsair", ShipName: "PICORSER", ShipIdent: "PC-01" }),
+      ev(T(1), "Loadout", { Ship: "Corsair", MaxJumpRange: 24.5 }),
+    ];
+    for (const symbol of [
+      "UtilitySuit_Class1",
+      "adder_taxi",
+      "independent_fighter",
+      "testbuggy",
+      "combat_multicrew_srv_01",
+    ]) {
+      const s = buildState([...before, ev(T(2), "LoadGame", { Ship: symbol })]).ship;
+      expect(s).toMatchObject({ type: "Corsair", name: "PICORSER", max_jump_range: 24.5 });
+    }
+  });
+
   describe("materials", () => {
     const snapshot = ev(T(0), "Materials", {
       Raw: [{ Name: "iron", Count: 10 }],
