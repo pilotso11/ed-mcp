@@ -407,6 +407,25 @@ describe("commodity_prices", () => {
     expect(j.matched).toBe(1);
   });
 
+  it("relaxes a soft arrival limit that every station exceeds", async () => {
+    const { client } = commodity();
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: {
+        stations: { max_arrival_ls: { value: 100, mode: "soft" }, planetary: "allow" },
+      },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual([
+      "Janes Horizons",
+      "Ferraro Control",
+      "Gardner Settlement",
+    ]);
+    expect(j.relaxed).toEqual(["max_arrival_ls"]);
+  });
+
   it("values the cargo when an amount is given", async () => {
     const { client } = commodity();
     const r = await callTool(await client, "commodity_prices", {
