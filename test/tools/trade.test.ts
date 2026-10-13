@@ -19,7 +19,7 @@ const fixture = (name: string) =>
   readFileSync(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
 const hops = (JSON.parse(fixture("trade-results-ok.json")) as { result: RawTradeHop[] }).result;
 const NOW = (1791878886 + 3600) * 1000;
-const PENDING = "Spansh is still calculating; call again with the same inputs";
+const PENDING = "Spansh is still calculating; call again with the same inputs (shown in inputs)";
 
 interface Opts {
   job?: TradeJob;
@@ -79,10 +79,10 @@ describe("trade_route", () => {
       max_cargo: 192,
       starting_capital: 5_000_000,
       max_price_age: 172_800,
-      max_system_distance: 1000,
       requires_large_pad: false,
       allow_prohibited: false,
       allow_planetary: false,
+      allow_player_owned: false,
       unique: false,
     });
     expect(j.inputs).toMatchObject({
@@ -96,7 +96,12 @@ describe("trade_route", () => {
     expect(j.status).toBe("ok");
     expect(j.hops).toHaveLength(3);
     expect(j.total_profit).toBe(2354800);
-    expect(j.profit_per_hour).toBeGreaterThan(0);
+    // Hops of 1 jump each at 30 LY, arrivals 310, 259 and 2 ls, default travel model:
+    // 219.09 + 215.69 + 201.19 = 635.97 s; 2,354,800 / 635.97 s * 3600.
+    expect(j.profit_per_hour).toBe(13_329_662);
+    expect(j.notes).toContain(
+      "The soft arrival limit (1000 ls) is not enforced for trade routes; set its mode to hard to apply it.",
+    );
     expect(j.applied_preferences.min_pad).toBeDefined();
   });
 
@@ -113,7 +118,12 @@ describe("trade_route", () => {
         allow_prohibited: true,
         unique: true,
         preferences: {
-          stations: { min_pad: "L", planetary: "allow", max_arrival_ls: { mode: "off" } },
+          stations: {
+            min_pad: "L",
+            planetary: "allow",
+            fleet_carriers: "allow",
+            max_arrival_ls: { value: 500, mode: "hard" },
+          },
         },
       },
       { noJournal: true },
@@ -126,12 +136,33 @@ describe("trade_route", () => {
       max_cargo: 64,
       starting_capital: 100_000,
       max_price_age: 86_400,
+      max_system_distance: 500,
       requires_large_pad: true,
       allow_prohibited: true,
       allow_planetary: true,
+      allow_player_owned: true,
       unique: true,
     });
     expect(j.inputs.capital).toBe(100_000);
+    expect(j.notes.join(" ")).not.toContain("arrival limit");
+  });
+
+  it("treats a journal cargo capacity of 0 as unknown and refuses a given cargo of 0", async () => {
+    const { forms, j } = await trade({}, { cargo: 0 });
+    expect(forms[0]!.max_cargo).toBe(7);
+    expect(j.notes).toContain("Cargo defaulted to 7 t; give cargo for a real hold.");
+    const { r, forms: none } = await trade({ cargo: 0 });
+    expect(r.isError).toBe(true);
+    expect(r.text).toBe("cargo must be at least 1 t");
+    expect(none).toEqual([]);
+  });
+
+  it("notes a journal that cannot be read", async () => {
+    const { j } = await trade(
+      { from_system: "Sol", from_station: "Abraham Lincoln" },
+      { noState: true },
+    );
+    expect(j.notes).toContain("Journal unavailable: Journal not configured: set ED_JOURNAL_DIR");
   });
 
   it("falls back to 7 t and 1000 cr without journal figures", async () => {
@@ -144,6 +175,13 @@ describe("trade_route", () => {
     expect(r.isError).toBe(false);
     expect(j.status).toBe("pending");
     expect(j.message).toBe(PENDING);
+    expect(j.job).toBe("J1");
+    expect(j.inputs).toMatchObject({
+      from_system: "Lave",
+      from_station: "Lave Station",
+      cargo: 192,
+      capital: 5_000_000,
+    });
     expect(j.hops).toBeUndefined();
   });
 
@@ -178,7 +216,7 @@ describe("trade_route", () => {
 
 const C_NOW = Date.parse("2026-10-13T06:35:18Z");
 
-function commodity(opts: { journal?: boolean; body?: string } = {}) {
+function commodity(opts: { journal?: boolean; body?: string; broken?: boolean } = {}) {
   const f = fakeFetch([
     {
       match: () => true,
@@ -195,7 +233,10 @@ function commodity(opts: { journal?: boolean; body?: string } = {}) {
     { minIntervalMs: 0, now: () => C_NOW },
   );
   const journal = {
-    state: async () => ({ location: { system: "Lave", station: null, docked: false } }),
+    state: async () => {
+      if (opts.broken) throw new NotConfiguredError("Journal", ["ED_JOURNAL_DIR"]);
+      return { location: { system: "Lave", station: null, docked: false } };
+    },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
   registerTradeTools(server, {
@@ -343,5 +384,14 @@ describe("commodity_prices", () => {
     });
     expect(r.isError).toBe(true);
     expect(r.text).toBe("Give near, or set up the journal to use the current system");
+    const broken = commodity({ broken: true });
+    const b = await callTool(await broken.client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+    });
+    expect(b.isError).toBe(true);
+    expect(b.text).toBe(
+      "Give near, or set up the journal to use the current system (Journal unavailable: Journal not configured: set ED_JOURNAL_DIR)",
+    );
   });
 });

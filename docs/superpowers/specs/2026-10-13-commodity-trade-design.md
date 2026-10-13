@@ -25,14 +25,19 @@ Input (all optional): `from_system`, `from_station`, `max_hops` (5),
 
 Defaults from local data: start system and station from the journal (must be
 docked or given), `cargo` from the journal ship's cargo capacity (else 7),
-`capital` from journal credits (else 1000). From travel preferences:
-`requires_large_pad` = resolved pad is L; `allow_planetary` = planetary rule
-is `allow`; `max_system_distance` = `max_arrival_ls.value` unless its mode is
-`off`.
+`capital` from journal credits (else 1000). A journal cargo capacity of 0 or
+null counts as unknown (7); a given cargo of 0 is an error. From travel
+preferences: `requires_large_pad` = resolved pad is L; `allow_planetary` =
+planetary rule is `allow`; `allow_player_owned` = `fleet_carriers` is `allow`
+(so carriers are excluded by default); `max_system_distance` =
+`max_arrival_ls.value` only when its mode is `hard` (a `soft` limit is not
+sent, and a note says so). If the journal cannot be read, a note says
+"Journal unavailable: <message>".
 
 Spansh jobs take one to several minutes. The tool submits, polls with back-off
 for up to 50 seconds, and if the job is not finished returns `{ status:
-"pending", message }`. The job id is remembered in memory by the request's
+"pending", message, job, inputs }`, where `inputs` are the resolved values to
+repeat. The job id is remembered in memory by the request's
 form, so calling again with the same input resumes polling instead of
 submitting a new job; a finished result is cached for 5 minutes.
 
@@ -82,7 +87,7 @@ credits_per_hour`, and stations are ranked by that value; otherwise by price.
 
 ## Out of scope
 
-- Fleet carrier trading, loop routes back to the start (Spansh has no loop
+- Loop routes back to the start (Spansh has no loop
   option), and price history.
 - Trading rank or reputation effects.
 

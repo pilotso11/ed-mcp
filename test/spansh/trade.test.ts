@@ -45,6 +45,7 @@ const form: TradeForm = {
   requires_large_pad: true,
   allow_prohibited: false,
   allow_planetary: false,
+  allow_player_owned: false,
   unique: false,
 };
 
@@ -77,7 +78,7 @@ describe("SpanshClient.tradeRoute", () => {
       requires_large_pad: "1",
       allow_prohibited: "0",
       allow_planetary: "0",
-      allow_player_owned: "1",
+      allow_player_owned: "0",
       allow_restricted_access: "0",
       unique: "0",
       permit: "0",

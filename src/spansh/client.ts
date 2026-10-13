@@ -104,6 +104,8 @@ export interface TradeForm {
   requires_large_pad: boolean;
   allow_prohibited: boolean;
   allow_planetary: boolean;
+  /** Fleet carriers. */
+  allow_player_owned: boolean;
   unique: boolean;
 }
 
@@ -421,7 +423,7 @@ export class SpanshClient {
       requires_large_pad: flag(form.requires_large_pad),
       allow_prohibited: flag(form.allow_prohibited),
       allow_planetary: flag(form.allow_planetary),
-      allow_player_owned: "1",
+      allow_player_owned: flag(form.allow_player_owned),
       allow_restricted_access: "0",
       unique: flag(form.unique),
       permit: "0",

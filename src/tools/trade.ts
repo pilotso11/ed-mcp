@@ -32,8 +32,16 @@ export function registerTradeTools(
 ): void {
   const { spansh } = deps;
   const now = deps.now ?? Date.now;
-  // The journal is optional and only supplies defaults, so a missing or broken one is not fatal.
-  const journalState = () => deps.journal?.state().catch(() => null) ?? Promise.resolve(null);
+  // The journal is optional and only supplies defaults, so a broken one is noted, not fatal.
+  const journalState = async (notes: string[]) => {
+    if (!deps.journal) return null;
+    try {
+      return await deps.journal.state();
+    } catch (err) {
+      notes.push(`Journal unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  };
 
   server.registerTool(
     "trade_route",
@@ -42,10 +50,10 @@ export function registerTradeTools(
         "Plan a multi-hop trade run with the Spansh trade planner and rank it by profit per hour. " +
         "Starts at from_system/from_station, or the docked station from the game journal. Cargo and capital " +
         "default to the journal's ship and credits (else 7 t and 1000 cr). Pad size, planetary stations and " +
-        "the arrival-distance limit come from the commander's travel preferences. Returns hops with " +
+        "fleet carriers and a hard arrival-distance limit come from the commander's travel preferences. Returns hops with " +
         "commodities to buy and sell, profit, travel_min, total_profit, total_travel_min and profit_per_hour " +
         "(from the travel-time model), plus the resolved inputs. Spansh takes one to several minutes: if the " +
-        "result is status pending, call again with the same inputs to resume. Finished routes are cached 5 min.",
+        "result is status pending, call again with the inputs it shows to resume. Finished routes are cached 5 min.",
       inputSchema: {
         from_system: z.string().optional(),
         from_station: z.string().optional(),
@@ -55,7 +63,7 @@ export function registerTradeTools(
           .positive()
           .default(50)
           .describe("Longest single hop in LY, as the ship's laden jump range allows"),
-        cargo: z.number().int().positive().optional().describe("Tonnes"),
+        cargo: z.number().int().min(0).optional().describe("Tonnes"),
         capital: z.number().int().min(0).optional().describe("Credits"),
         max_price_age_days: z.number().positive().default(2),
         allow_prohibited: z.boolean().default(false),
@@ -78,9 +86,10 @@ export function registerTradeTools(
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
+        if (a.cargo === 0) throw new UserError("cargo must be at least 1 t");
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
-        const state = await journalState();
         const notes: string[] = [];
+        const state = await journalState(notes);
 
         let system = a.from_system;
         let station = a.from_station;
@@ -93,7 +102,8 @@ export function registerTradeTools(
           throw new UserError("Give from_system and from_station, or dock first");
         }
 
-        const cargo = a.cargo ?? state?.ship.cargo_capacity ?? DEFAULT_CARGO;
+        // A capacity of 0 means the journal has not seen the hold, and Spansh rejects max_cargo=0.
+        const cargo = a.cargo ?? (state?.ship.cargo_capacity || DEFAULT_CARGO);
         const capital = a.capital ?? state?.credits ?? DEFAULT_CAPITAL;
         if (a.cargo === undefined && !state?.ship.cargo_capacity) {
           notes.push(`Cargo defaulted to ${DEFAULT_CARGO} t; give cargo for a real hold.`);
@@ -114,9 +124,16 @@ export function registerTradeTools(
           requires_large_pad: rules.pad.size === "L",
           allow_prohibited: a.allow_prohibited,
           allow_planetary: s.planetary === "allow",
+          allow_player_owned: s.fleet_carriers === "allow",
           unique: a.unique,
         };
-        if (s.max_arrival_ls.mode !== "off") form.max_system_distance = s.max_arrival_ls.value;
+        // Spansh has only a hard cut-off; a soft limit would be relaxed if nothing met it.
+        if (s.max_arrival_ls.mode === "hard") form.max_system_distance = s.max_arrival_ls.value;
+        if (s.max_arrival_ls.mode === "soft") {
+          notes.push(
+            `The soft arrival limit (${s.max_arrival_ls.value} ls) is not enforced for trade routes; set its mode to hard to apply it.`,
+          );
+        }
 
         const inputs = {
           from_system: system,
@@ -135,7 +152,9 @@ export function registerTradeTools(
         if (job.status === "pending") {
           return {
             status: "pending",
-            message: "Spansh is still calculating; call again with the same inputs",
+            message:
+              "Spansh is still calculating; call again with the same inputs (shown in inputs)",
+            job: job.job,
             inputs,
             applied_preferences,
             notes,
@@ -197,9 +216,11 @@ export function registerTradeTools(
         const notes: string[] = [];
         let near = a.near;
         if (!near) {
-          near = (await journalState())?.location.system ?? undefined;
-          if (!near)
-            throw new UserError("Give near, or set up the journal to use the current system");
+          near = (await journalState(notes))?.location.system ?? undefined;
+          if (!near) {
+            const why = notes.length ? ` (${notes.join(" ")})` : "";
+            throw new UserError(`Give near, or set up the journal to use the current system${why}`);
+          }
           notes.push(`near ${near} is the journal's current system.`);
         }
         const found = await spansh.commodityStations({

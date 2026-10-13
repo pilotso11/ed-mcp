@@ -171,18 +171,18 @@ Inputs:
 - `from_system` and `from_station`: the start. Without both, the tool uses the docked station from the journal. If you are not docked, it asks for them.
 - `max_hops`: 1 to 50. The default is 5.
 - `max_hop_distance`: the longest single hop in LY. The default is 50. Set it to your laden jump range.
-- `cargo`: tonnes. The default is the journal ship's cargo capacity, then 7 t.
+- `cargo`: tonnes, at least 1. The default is the journal ship's cargo capacity, then 7 t (also when the journal shows 0).
 - `capital`: credits. The default is your journal credits, then 1000 cr.
 - `max_price_age_days`: the oldest market data to use. The default is 2.
 - `allow_prohibited`: allow commodities that are illegal at the destination. The default is `false`.
 - `unique`: never visit the same station twice. The default is `false`.
 - `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
 
-Your travel preferences set the rest. A pad size of L (`min_pad`) sets Spansh's large pad option. The planetary setting `allow` lets the route use planetary stations. The arrival distance limit sets the longest distance from the star. When a default applies, the result `notes` say so.
+Your travel preferences set the rest. A pad size of L (`min_pad`) sets Spansh's large pad option. The planetary setting `allow` lets the route use planetary stations. Fleet carriers are excluded by default; the `fleet_carriers` setting `allow` lets the route use them. A `hard` arrival distance limit sets the longest distance from the star. Spansh has no soft limit, so a `soft` limit is not applied and a note says so. When a default applies or the journal cannot be read, the result `notes` say so.
 
 The result lists the `hops` in order. Each hop has the `from` and `to` stations, `distance_ly`, `jumps`, `travel_min`, the `commodities` to buy and sell (with `amount`, `buy_price`, `sell_price`, `profit_per_unit` and `total_profit`), `profit` and `cumulative_profit`. Each station has `market_age_hours`. The result also has `total_profit`, `total_travel_min`, `profit_per_hour`, the resolved `inputs`, `applied_preferences` and `notes`. If Spansh finds no route, the message is "No profitable route found".
 
-Spansh takes one to several minutes. While it works, the tool returns `status: "pending"`. Call it again with the same inputs to resume the same job. Finished routes are cached for 5 minutes.
+Spansh takes one to several minutes. While it works, the tool returns `status: "pending"` with the Spansh `job` id and the resolved `inputs`. Call it again with those inputs to resume the same job, even if your journal has changed since. Finished routes are cached for 5 minutes.
 
 `profit_per_hour` is `total_profit` divided by `total_travel_min`, from the travel model. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover the way to the start station. It does not add time for planetary landings, because Spansh gives no station type.
 
@@ -206,7 +206,6 @@ With `amount`, each station gets a `value`: price × amount, minus the travel co
 ### Limits
 
 - The tool plans a route from a start to the last hop. It does not plan loops back to the start.
-- It does not plan for fleet carriers.
 - Market data can be old. Check `market_age_hours`. `max_price_age_days` sets the oldest prices both tools use. Prices can change before you arrive.
 
 ## Game journal
