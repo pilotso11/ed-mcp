@@ -24,9 +24,8 @@ Decisions made while scoping:
   shared send-only from the PC.
 - Syncthing setup is a README guide plus `journal_status` diagnostics
   (folder found, newest journal, age of the latest event). No setup script.
-- Backlog: rank stations by estimated travel time (extra jumps versus
-  supercruise distance) instead of LY with an ls cut-off. Tracked in
-  https://github.com/pilotso11/ed-mcp/issues/2.
+- Stations are ranked by estimated travel time and effective cost (this
+  spec), which resolves https://github.com/pilotso11/ed-mcp/issues/2.
 - A mission-board advisor (choosing missions to accept) is out of scope. The
   journal does not record the board, and screen reading was rejected.
 
@@ -36,8 +35,7 @@ Station searches currently return the nearest matches regardless of how far
 the station is from the arrival star, whether it is on the ground or a fleet
 carrier, or whether it sells at a discount. Commanders have standing rules
 for this ("nothing past 1,000 ls unless it's the only option", "orbital
-stations over ground bases", "take a discount if it's not far out of the
-way"). These rules should be stored once, applied to every station search,
+stations over ground bases", "take a discount if it's worth the time"). These rules should be stored once, applied to every station search,
 and changeable in conversation.
 
 ## Storage
@@ -57,7 +55,18 @@ file and is never overwritten.
     "megaships": "allow",
     "min_pad": "auto"
   },
-  "discounts": { "enabled": true, "min_pct": 10, "max_extra_ly": 30 }
+  "travel": {
+    "jump_range_ly": 30,
+    "seconds_per_jump": 60,
+    "refuel_every_jumps": 0,
+    "refuel_s": 120,
+    "supercruise": { "base_s": 20, "coeff": 8.9, "exponent": 0.33, "speed_factor": 1 },
+    "occlusion": { "chance": 0.5, "seconds": 40 },
+    "near_star": { "within_ls": 50, "seconds": 30 },
+    "dock_s": 60,
+    "planetary_extra_s": 90,
+    "credits_per_hour": 20000000
+  }
 }
 ```
 
@@ -71,9 +80,22 @@ The JSON above is the default.
 | `fleet_carriers` | `allow`, `exclude` | Fleet carriers (stock changes often) |
 | `megaships` | `allow`, `avoid`, `exclude` | Megaships |
 | `min_pad` | `auto`, `S`, `M`, `L`, `none` | Smallest pad the station must have. `auto` (default) uses the pad size of the ship currently flown. `none` means no requirement |
-| `discounts.enabled` | boolean | Whether to recommend discounted stations |
-| `discounts.min_pct` | 0 to 100 | Minimum discount worth a detour |
-| `discounts.max_extra_ly` | number >= 0 | Maximum extra distance for a discount |
+| `travel.jump_range_ly` | > 0 | Jump range used to count jumps. Automatic from the journal's `Loadout` once sub-project 2 exists |
+| `travel.seconds_per_jump` | >= 0 | Time per jump (charge, hyperspace, cooldown, align) |
+| `travel.refuel_every_jumps` | integer >= 0 | Add a refuel stop every N jumps; 0 ignores refuelling |
+| `travel.refuel_s` | >= 0 | Time per refuel stop |
+| `travel.supercruise.*` | `base_s`, `coeff`, `exponent` >= 0; `speed_factor` > 0 | Supercruise time `base_s + coeff * ls^exponent / speed_factor`. `speed_factor` above 1 models a Supercruise Overcharge drive |
+| `travel.occlusion.chance`, `.seconds` | 0 to 1; >= 0 | Expected time to clear the star when the station is behind it: `chance * seconds` |
+| `travel.near_star.within_ls`, `.seconds` | >= 0 | Extra time to leave the star's gravity well for stations within `within_ls` |
+| `travel.dock_s` | >= 0 | Approach, docking and take-off at an orbital station |
+| `travel.planetary_extra_s` | >= 0 | Extra time for a ground station (glide and descent) |
+| `travel.credits_per_hour` | >= 0 | Value of the commander's time, used to weigh price against travel time |
+
+Default sources: 60 s per jump and 120 s per refuel stop follow Spansh's route
+plotter and the owner's experience. The supercruise curve uses the Fuel Rats
+fit (`8.9 * ls^0.33`, measured) plus a 20 s start. Occlusion, near-star,
+docking and planetary times are estimates, not measurements, and exist to be
+tuned. See `docs/research/travel-time.md`.
 
 ## Tools
 
@@ -93,9 +115,9 @@ same logic. It has no MCP or HTTP dependencies.
   same shape as a `prefs_set` patch. It is deep-merged over the stored
   preferences for this call only and is never saved. Every preference can be
   overridden this way, including nested values such as
-  `discounts.max_extra_ly`, and preferences added later are overridable
+  `travel.credits_per_hour`, and preferences added later are overridable
   without new inputs. Example:
-  `{ "stations": { "max_arrival_ls": { "value": 5000, "mode": "hard" } }, "discounts": { "enabled": false } }`.
+  `{ "stations": { "max_arrival_ls": { "value": 5000, "mode": "hard" } }, "travel": { "credits_per_hour": 50000000 } }`.
 - New optional input `use_preferences` (default `true`). `false` starts from
   the built-in defaults with every rule off, then applies `preferences` on top,
   so a call can ignore stored settings entirely.
@@ -126,13 +148,20 @@ Result additions:
   price of the stations in the result (the average of the two middle prices
   for an even count), rounded to a whole percent, or `null` when there is no
   price. It is for display only.
-- `recommended`: the station to choose and why. The nearest passing station,
-  unless discounts are enabled and another station is at least `min_pct`
-  cheaper than the nearest station (exact, unrounded) and no more than
-  `max_extra_ly` further away. The cheapest such station wins; ties go to the
-  nearer one. If the nearest station has no price, the candidate is compared
-  with the median price instead. The recommended station is always in the
-  returned page.
+- Each station gets `jumps`, `travel_s` and `travel_min` (rounded to 0.1):
+  `jumps = ceil(distance_ly / jump_range_ly)` (0 in the reference system),
+  plus refuel stops, plus supercruise, expected occlusion, near-star, docking
+  and planetary time. An unknown arrival distance is treated as 1,000 ls and
+  flagged with `arrival_assumed: true`.
+- Each priced station gets `effective_cost = price + travel_s / 3600 *
+  credits_per_hour`, rounded to whole credits; `null` without a price.
+- Ranking: when any station has a price (module or ship searches), stations
+  are sorted by `effective_cost` (unpriced last, by time); otherwise by
+  `travel_s`. Ties go to the shorter travel time. The page is the top `limit`.
+- `recommended`: the first station in that order, with a reason. For priced
+  searches the reason compares it with the fastest station when they differ,
+  for example "6.2M cr cheaper than Bright Sentinel for 4.1 more minutes at
+  20M cr/h"; otherwise "fastest, about 2.3 min".
 - `relaxed`: list of relaxed rules, empty when none. `relax_attempted` is
   `true` when the strict pass found nothing and the relaxed pass ran.
 - `applied_preferences`: the effective rules after overrides, including the
@@ -160,13 +189,16 @@ map correctly (for example Sidewinder S, Corsair M, Anaconda L).
 - Preferences store: defaults when missing, round trip, deep merge, invalid
   patch rejected without writing, invalid file reported and not overwritten.
 - Per-call `preferences`: overrides any stored value including nested
-  discount values, is not saved, and is validated like a `prefs_set` patch;
+  travel values, is not saved, and is validated like a `prefs_set` patch;
   `use_preferences: false` ignores stored values.
 - Pad resolution: per-call override, fixed stored value, `auto` with a CAPI
   ship, `auto` with no source, unknown ship.
 - Filter module: each rule with each mode, fleet carrier detection with and
-  without type, pad sizes, relax order, discount and recommendation logic
-  including ties and missing prices.
+  without type, pad sizes, relax order.
+- Travel model: jumps (including same system), refuel stops, supercruise
+  curve and speed factor, occlusion and near-star terms, docking and
+  planetary time, unknown arrival distance; effective cost; ranking and
+  recommendation with priced, unpriced and mixed results.
 - `spansh_find_stations`: stored preferences applied by default, per-call
   `preferences` overrides, `use_preferences: false`, relaxation reported, arrival filter
   present in the Spansh request body. Uses recorded Spansh fixtures.
@@ -176,5 +208,7 @@ map correctly (for example Sidewinder S, Corsair M, Anaconda L).
 ## Out of scope
 
 - Preferences for tools without station choices (plans, catalog, CAPI).
-- Published base prices for modules. The discount baseline is the median of
+- Published base prices for modules. `discount_pct` uses the median of
   nearby results.
+- Travel-time precision for very long distances (over about 10,000 ls).
+  The model targets normal station distances.
