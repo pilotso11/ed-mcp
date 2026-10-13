@@ -90,6 +90,12 @@ export class CatalogService implements Refreshable {
     return this.loading;
   }
 
+  /** The catalog from memory or the disk cache, or null. Never touches the network. */
+  async peek(): Promise<Catalog | null> {
+    if (!this.catalog) await this.loadDisk();
+    return this.catalog;
+  }
+
   refresh(): Promise<{ changed: string[]; unchanged: string[]; warnings: number }> {
     this.refreshing ??= this.doRefresh().finally(() => (this.refreshing = null));
     return this.refreshing;
@@ -131,9 +137,12 @@ export class CatalogService implements Refreshable {
       this.meta = meta;
       return true;
     } catch {
-      // Missing or corrupt cache: fall back to a full download.
-      this.texts = {};
-      this.meta = null;
+      // Missing or corrupt cache: fall back to a full download. A peek can fail while a
+      // refresh lands, so keep data that refresh just installed.
+      if (!this.catalog) {
+        this.texts = {};
+        this.meta = null;
+      }
       return false;
     }
   }

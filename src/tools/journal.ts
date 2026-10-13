@@ -9,6 +9,10 @@ const FRESHNESS_TEXT =
   "as_of is the time of the newest journal event and age_minutes its age; warnings flag stale " +
   "data (over 30 minutes old) and unreadable journal files.";
 
+const NAMES_MISSING =
+  "Material names are not available until the game data catalog is downloaded. Call any " +
+  'catalog tool (for example catalog_material) or cache_refresh with source "catalog".';
+
 const freshness = (s: {
   as_of: string | null;
   age_minutes: number | null;
@@ -67,13 +71,10 @@ export function registerJournalTools(
     wrap(async (a: { kinds?: MaterialKind[] }) => {
       const s = await deps.journal.state();
       const kinds = a.kinds ?? (["raw", "manufactured", "encoded"] as MaterialKind[]);
-      let catalog;
-      try {
-        catalog = await deps.catalog?.get();
-      } catch {
-        catalog = undefined;
-      }
+      // Never download here: offline, a first catalog fetch stalls each call for ~30 s.
+      const catalog = await deps.catalog?.peek();
       const out: Record<string, unknown> = {};
+      if (deps.catalog && !catalog) out.note = NAMES_MISSING;
       for (const kind of kinds) {
         out[kind] = s.materials[kind].map((m) => {
           if (m.name !== m.symbol || !catalog) return m;

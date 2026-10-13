@@ -144,6 +144,31 @@ describe("CatalogService", () => {
     expect(f.calls.length).toBe(10);
   });
 
+  it("peek returns null without fetching when nothing is cached", async () => {
+    const f = fakeFetch([]);
+    const s = service(f);
+    expect(await s.peek()).toBeNull();
+    expect(f.calls).toHaveLength(0);
+    expect(s.status().state).toBe("empty");
+  });
+
+  it("peek loads the disk cache without fetching, even when stale", async () => {
+    await service(upstream(() => raw)).get();
+    t += 8 * DAY;
+    const f = fakeFetch([]);
+    const s = service(f);
+    expect((await s.peek())?.counts().blueprints).toBe(3);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(f.calls).toHaveLength(0);
+    expect(s.status().state).toBe("ready");
+  });
+
+  it("peek returns the catalog already in memory", async () => {
+    const s = service(upstream(() => raw));
+    const cat = await s.get();
+    expect(await s.peek()).toBe(cat);
+  });
+
   it("ignores a corrupt disk cache and downloads again", async () => {
     await service(upstream(() => raw)).get();
     await writeFile(path.join(dir, "catalog", "blueprints.raw"), "{");

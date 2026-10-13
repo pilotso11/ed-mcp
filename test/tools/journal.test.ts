@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { CatalogService } from "../../src/catalog/service.js";
+import { CatalogService } from "../../src/catalog/service.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { HttpClient } from "../../src/http/client.js";
 import { JournalService } from "../../src/journal/service.js";
 import { registerJournalTools } from "../../src/tools/journal.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
+import { fakeFetch } from "../helpers/fakeFetch.js";
 import { ev, writeJournal } from "../helpers/journal.js";
 
 const at = (iso: string) => () => Date.parse(iso);
@@ -76,7 +78,7 @@ describe("journal tools", () => {
 
   it("journal_materials names materials from the catalog and ignores unknown ones", async () => {
     const catalog = {
-      get: async () => ({
+      peek: async () => ({
         material: (symbol: string) => {
           if (symbol !== "dataminedwake") throw new Error("unknown");
           return { name: "Datamined Wake Exceptions" };
@@ -86,6 +88,20 @@ describe("journal tools", () => {
     const r = (await callTool(await setup(true, catalog), "journal_materials")).json as any;
     expect(r.encoded[0].name).toBe("Datamined Wake Exceptions");
     expect(r.raw[0].name).toBe("iron");
+    expect(r.note).toBeUndefined();
+  });
+
+  it("journal_materials never downloads the catalog and notes names are missing", async () => {
+    const cacheDir = await mkdtemp(path.join(os.tmpdir(), "jcat-"));
+    const fetchFn = fakeFetch([]);
+    const catalog = new CatalogService(
+      new HttpClient({ userAgent: "t", fetchFn, retryDelayMs: 0 }),
+      cacheDir,
+    );
+    const r = (await callTool(await setup(true, catalog), "journal_materials")).json as any;
+    expect(fetchFn.calls).toHaveLength(0);
+    expect(r.encoded).toEqual([{ symbol: "dataminedwake", name: "dataminedwake", count: 2 }]);
+    expect(r.note).toMatch(/catalog_material.*cache_refresh/);
   });
 
   it("journal_missions and journal_engineers return lists", async () => {
