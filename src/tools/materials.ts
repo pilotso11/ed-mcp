@@ -7,15 +7,13 @@ import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
 import { FRESH_MINUTES, loadInventory } from "../materials/inventory.js";
 import { computeNeeds, type BlueprintRequest } from "../materials/needs.js";
-import { planTrades, type NeedLine } from "../materials/trade.js";
+import { matKey, planTrades, type NeedLine } from "../materials/trade.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient, StationService } from "../spansh/client.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
-
-const matKey = (m: { symbol: string | null; name: string }) => (m.symbol ?? m.name).toLowerCase();
 
 export function registerMaterialsTools(
   server: McpServer,

@@ -22,14 +22,16 @@ export interface Trade {
 }
 
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
-const key = (m: MatInfo) => (m.symbol ?? m.name).toLowerCase();
+// One identity for a material across the planner and the tool's have/short columns.
+export const matKey = (m: { symbol: string | null; name: string }) =>
+  (m.symbol ?? m.name).toLowerCase();
 
 // Material trader matrix (Alioth wiki): x6 per grade up, x1/3 per grade down, and a
 // fixed x6 to change trade group. Rates are whole batches, e.g. 2 give 27.
 export function tradeRate(from: MatInfo, to: MatInfo): Rate | null {
   if (!from.kind || from.kind !== to.kind) return null;
   if (!from.trade_group || !to.trade_group || from.grade === null || to.grade === null) return null;
-  if (key(from) === key(to)) return null;
+  if (matKey(from) === matKey(to)) return null;
   const up = Math.max(0, to.grade - from.grade);
   const down = Math.max(0, from.grade - to.grade);
   let give = (from.trade_group === to.trade_group ? 1 : 6) * 6 ** up;
@@ -49,12 +51,12 @@ export function planTrades(
   needs: NeedLine[],
   inventory: Array<MatInfo & { count: number }>,
 ): { trades: Trade[]; still_short: Array<{ name: string; count: number }> } {
-  const needBy = new Map(needs.map((n) => [key(n), n.count]));
+  const needBy = new Map(needs.map((n) => [matKey(n), n.count]));
   const have = new Map<string, MatInfo & { count: number }>();
   for (const i of inventory) {
-    const prev = have.get(key(i));
+    const prev = have.get(matKey(i));
     if (prev) prev.count += i.count;
-    else have.set(key(i), { ...i });
+    else have.set(matKey(i), { ...i });
   }
   const surplus = new Map<string, MatInfo & { spare: number }>();
   for (const [k, i] of have) {
