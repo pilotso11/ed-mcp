@@ -270,4 +270,20 @@ describe("missions_route", () => {
     const tool = (await (await client).listTools()).tools.find((t) => t.name === "missions_route");
     expect(tool?.description).toContain("tens of seconds");
   });
+
+  it("passes the source note through and reports unknown include ids", async () => {
+    const { j } = await route(
+      { include: [8, 99] },
+      {
+        extra: [
+          mission(8, { commodity: "Gold", origin_system: "Alpha", origin_station: "Alpha Dock" }),
+        ],
+      },
+    );
+    expect(j.stops[0].missions[0]).toMatchObject({
+      kind: "source",
+      note: "source the commodity first",
+    });
+    expect(j.unroutable).toEqual([{ id: 99, name: "unknown", reason: "not in the journal" }]);
+  });
 });

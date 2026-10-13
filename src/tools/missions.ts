@@ -128,7 +128,7 @@ export function registerMissionTools(
           source = "journal";
         }
 
-        const grouped = missionsToStops(state.missions, a.include);
+        const grouped = missionsToStops(state.missions, a.include, now());
         const unroutable: Unroutable[] = [...grouped.unroutable];
         const stops: Stop[] = [];
         const places: Place[] = [];
