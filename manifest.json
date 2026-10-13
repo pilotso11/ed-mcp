@@ -61,6 +61,13 @@
     { "name": "spansh_system", "description": "System coordinates and stations" },
     { "name": "spansh_route", "description": "Neutron route between systems" },
     { "name": "journal_status", "description": "Journal folder and sync status" },
+    {
+      "name": "journal_commander",
+      "description": "Commander, location, ship and cargo from the journal"
+    },
+    { "name": "journal_materials", "description": "Engineering materials held, from the journal" },
+    { "name": "journal_missions", "description": "Active missions from the journal" },
+    { "name": "journal_engineers", "description": "Engineer progress from the journal" },
     { "name": "cache_refresh", "description": "Clear cached data or refresh game data" },
     { "name": "cache_status", "description": "Cache and game data status" },
     { "name": "plan_list", "description": "List saved plans" },

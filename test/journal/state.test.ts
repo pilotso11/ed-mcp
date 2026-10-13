@@ -223,6 +223,31 @@ describe("buildState", () => {
     ]);
   });
 
+  it("prefers the localised mission name", () => {
+    const s = buildState([
+      ev(T(0), "MissionAccepted", {
+        MissionID: 1,
+        Name: "Mission_Courier",
+        LocalisedName: "Courier delivery",
+      }),
+    ]);
+    expect(s.missions[0]!.name).toBe("Courier delivery");
+  });
+
+  it("merges a single engineer update that omits rank fields", () => {
+    const s = buildState([
+      ev(T(0), "EngineerProgress", {
+        Engineers: [
+          { Engineer: "Tod", EngineerID: 1, Progress: "Unlocked", Rank: 3, RankProgress: 40 },
+        ],
+      }),
+      ev(T(1), "EngineerProgress", { Engineer: "Tod", EngineerID: 1, Progress: "Unlocked" }),
+    ]);
+    expect(s.engineers).toEqual([
+      { name: "Tod", id: 1, progress: "Unlocked", rank: 3, rank_progress: 40 },
+    ]);
+  });
+
   it("reads cargo from a Cargo event with an Inventory", () => {
     const s = buildState([
       ev(T(0), "Cargo", {

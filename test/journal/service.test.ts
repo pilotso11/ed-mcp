@@ -1,0 +1,83 @@
+import { describe, expect, it } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { JournalService } from "../../src/journal/service.js";
+import { ev, writeJournal } from "../helpers/journal.js";
+
+const at = (iso: string) => () => Date.parse(iso);
+
+async function folder(): Promise<string> {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "jstate-"));
+  await writeJournal(dir, "Journal.2026-09-22T100000.01.log", [
+    ev("2026-09-22T10:00:00Z", "MissionAccepted", { MissionID: 99, Name: "Old" }),
+  ]);
+  await writeJournal(dir, "Journal.2026-10-10T100000.01.log", [
+    ev("2026-10-10T10:00:00Z", "MissionAccepted", { MissionID: 1, Name: "Recent" }),
+    ev("2026-10-10T10:00:01Z", "Materials", {
+      Raw: [{ Name: "iron", Count: 5 }],
+      Manufactured: [],
+      Encoded: [],
+    }),
+  ]);
+  await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+    ev("2026-10-12T10:00:00Z", "LoadGame", { Commander: "pin72", Ship: "Corsair" }),
+    ev("2026-10-12T10:00:01Z", "Loadout", { Ship: "Corsair", MaxJumpRange: 24.5 }),
+    ev("2026-10-12T10:05:00Z", "Docked", { StarSystem: "Sol", StationName: "Abraham Lincoln" }),
+  ]);
+  await writeFile(
+    path.join(dir, "Cargo.json"),
+    JSON.stringify({
+      timestamp: "2026-10-12T10:05:00Z",
+      event: "Cargo",
+      Vessel: "Ship",
+      Count: 4,
+      Inventory: [{ Name: "gold", Name_Localised: "Gold", Count: 4, Stolen: 0 }],
+    }),
+  );
+  return dir;
+}
+
+describe("JournalService.state", () => {
+  it("uses the 14 days before the newest journal and Cargo.json", async () => {
+    const s = await new JournalService(await folder()).state();
+    expect(s.missions.map((m) => m.id)).toEqual([1]);
+    expect(s.materials.raw).toEqual([{ symbol: "iron", name: "iron", count: 5 }]);
+    expect(s.cargo).toEqual([{ name: "Gold", count: 4, stolen: false, mission_id: null }]);
+    expect(s.location.station).toBe("Abraham Lincoln");
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("works without Cargo.json", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jnocargo-"));
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "Commander", { Name: "pin72" }),
+    ]);
+    expect((await new JournalService(dir).state()).cargo).toEqual([]);
+  });
+
+  it("rejects a missing folder and an empty folder", async () => {
+    await expect(new JournalService("/no/such/dir").state()).rejects.toThrow(/Run journal_status/);
+    const empty = await mkdtemp(path.join(os.tmpdir(), "jempty-"));
+    await expect(new JournalService(empty).state()).rejects.toThrow(
+      `No journal files in ${empty}. Run journal_status for help.`,
+    );
+  });
+});
+
+describe("JournalService.freshShip", () => {
+  it("returns the ship when the newest event is under 24 hours old", async () => {
+    const dir = await folder();
+    const svc = new JournalService(dir, { now: at("2026-10-12T11:05:00Z") });
+    expect(await svc.freshShip()).toEqual({ type: "Corsair", max_jump_range: 24.5 });
+  });
+
+  it("returns null when the data is old, missing or the folder is unusable", async () => {
+    const dir = await folder();
+    expect(
+      await new JournalService(dir, { now: at("2026-10-14T10:05:00Z") }).freshShip(),
+    ).toBeNull();
+    expect(await new JournalService("/no/such/dir").freshShip()).toBeNull();
+    expect(await new JournalService(undefined).freshShip()).toBeNull();
+  });
+});

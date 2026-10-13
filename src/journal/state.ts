@@ -73,6 +73,15 @@ function kindOf(category: unknown): MaterialKind | null {
   return KINDS.find((k) => c.includes(k)) ?? null;
 }
 
+export function mapCargo(inventory: unknown): JournalState["cargo"] {
+  return objs(inventory).map((i) => ({
+    name: str(i.Name_Localised) ?? str(i.Name) ?? "unknown",
+    count: num(i.Count) ?? 0,
+    stolen: i.Stolen === 1 || i.Stolen === true,
+    mission_id: num(i.MissionID),
+  }));
+}
+
 export function buildState(events: JournalEvent[]): JournalState {
   let commander: string | null = null;
   let credits: number | null = null;
@@ -124,12 +133,14 @@ export function buildState(events: JournalEvent[]): JournalState {
   const setEngineer = (e: Obj) => {
     const name = str(e.Engineer);
     if (!name) return;
+    // A single-engineer update can omit rank fields; keep what we already know.
+    const old = engineers.get(name);
     engineers.set(name, {
       name,
-      id: num(e.EngineerID),
-      progress: str(e.Progress),
-      rank: num(e.Rank),
-      rank_progress: num(e.RankProgress),
+      id: num(e.EngineerID) ?? old?.id ?? null,
+      progress: str(e.Progress) ?? old?.progress ?? null,
+      rank: num(e.Rank) ?? old?.rank ?? null,
+      rank_progress: num(e.RankProgress) ?? old?.rank_progress ?? null,
     });
   };
 
@@ -184,12 +195,7 @@ export function buildState(events: JournalEvent[]): JournalState {
       case "Cargo":
         // Newer builds write the list to Cargo.json and omit it here.
         if (Array.isArray(e.Inventory) && (e.Vessel === undefined || e.Vessel === "Ship")) {
-          cargo = objs(e.Inventory).map((i) => ({
-            name: str(i.Name_Localised) ?? str(i.Name) ?? "unknown",
-            count: num(i.Count) ?? 0,
-            stolen: i.Stolen === 1 || i.Stolen === true,
-            mission_id: num(i.MissionID),
-          }));
+          cargo = mapCargo(e.Inventory);
         }
         break;
       case "Materials":
@@ -255,7 +261,7 @@ export function buildState(events: JournalEvent[]): JournalState {
         if (id === null) break;
         missions.set(id, {
           id,
-          name: str(e.Name) ?? "unknown",
+          name: str(e.LocalisedName) ?? str(e.Name) ?? "unknown",
           faction: str(e.Faction),
           destination_system: str(e.DestinationSystem),
           destination_station: str(e.DestinationStation),

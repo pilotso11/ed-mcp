@@ -1,7 +1,9 @@
-import { stat } from "node:fs/promises";
-import { NotConfiguredError } from "../errors.js";
+import { readFile, stat } from "node:fs/promises";
+import path from "node:path";
+import { NotConfiguredError, UserError } from "../errors.js";
 import { listJournals, type JournalFile } from "./files.js";
-import { JournalReader } from "./reader.js";
+import { JournalReader, type JournalEvent } from "./reader.js";
+import { buildState, mapCargo, type JournalState } from "./state.js";
 
 export interface JournalStatus {
   dir: string;
@@ -20,6 +22,8 @@ function errText(err: unknown): string {
 }
 
 export const STALE_MS = 30 * 60_000;
+const STATE_WINDOW_MS = 14 * 86_400_000;
+const FRESH_MS = 86_400_000;
 
 export class JournalService {
   protected readonly reader: JournalReader;
@@ -120,5 +124,65 @@ export class JournalService {
       }
     }
     return base;
+  }
+
+  async state(): Promise<JournalState & { warnings: string[] }> {
+    const dir = this.requireDir();
+    const found = await this.files();
+    const hint = "Run journal_status for help.";
+    if (!("files" in found)) {
+      throw new UserError(
+        found.missing.startsWith("Journal folder not found")
+          ? `Journal folder not found: ${dir}. ${hint}`
+          : `${found.missing}. ${hint}`,
+      );
+    }
+    if (found.error) throw new UserError(`${found.error}. ${hint}`);
+    const newest = found.files.at(-1);
+    if (!newest) throw new UserError(`No journal files in ${dir}. ${hint}`);
+
+    // Name times are local wall-clock; comparing them with each other is safe.
+    const since = newest.time.getTime() - STATE_WINDOW_MS;
+    const warnings: string[] = [];
+    const events: JournalEvent[] = [];
+    for (const file of found.files.filter((f) => f.time.getTime() >= since)) {
+      try {
+        events.push(...(await this.reader.read(file)));
+      } catch (err) {
+        warnings.push(`Cannot read ${file.name}: ${errText(err)}`);
+      }
+    }
+    const state = buildState(events);
+    const cargo = await this.readCargoFile(dir);
+    if (cargo) state.cargo = cargo;
+    return { ...state, warnings };
+  }
+
+  // Newer game builds keep the cargo list here instead of in the Cargo event.
+  private async readCargoFile(dir: string): Promise<JournalState["cargo"] | null> {
+    try {
+      const j = JSON.parse(await readFile(path.join(dir, "Cargo.json"), "utf8")) as {
+        Vessel?: unknown;
+        Inventory?: unknown;
+      };
+      if (!Array.isArray(j.Inventory) || (j.Vessel !== undefined && j.Vessel !== "Ship")) {
+        return null;
+      }
+      return mapCargo(j.Inventory);
+    } catch {
+      // Missing is normal; a half-written file is retried on the next call.
+      return null;
+    }
+  }
+
+  async freshShip(): Promise<{ type: string; max_jump_range: number | null } | null> {
+    try {
+      const s = await this.state();
+      const age = this.now() - Date.parse(s.as_of ?? "");
+      if (!(age < FRESH_MS) || !s.ship.type) return null;
+      return { type: s.ship.type, max_jump_range: s.ship.max_jump_range };
+    } catch {
+      return null;
+    }
   }
 }

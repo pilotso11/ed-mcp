@@ -55,7 +55,7 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }
-  if (deps.journal) registerJournalTools(server, { journal: deps.journal });
+  if (deps.journal) registerJournalTools(server, { journal: deps.journal, catalog: deps.catalog });
   registerBuildTools(server, { catalog: deps.catalog });
   return server;
 }
