@@ -12,6 +12,18 @@ import { wrap } from "./result.js";
 
 export function registerPlanTools(server: McpServer, deps: { plans: PlanStore }): void {
   const { plans } = deps;
+  const exports = new Map<string, Promise<unknown>>();
+  const serialise = <T>(target: string, fn: () => Promise<T>): Promise<T> => {
+    const key = process.platform === "linux" ? target : target.toLowerCase();
+    const run = (exports.get(key) ?? Promise.resolve()).catch(() => undefined).then(fn);
+    exports.set(key, run);
+    void run
+      .finally(() => {
+        if (exports.get(key) === run) exports.delete(key);
+      })
+      .catch(() => undefined);
+    return run;
+  };
 
   server.registerTool(
     "plan_list",
@@ -90,19 +102,21 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       if (await sameFile(target, plans.file)) {
         throw new UserError(`${target} is the plan store file; choose another path`);
       }
-      if (!a.overwrite && (await exists(target))) {
-        throw new UserError(`${target} exists; pass overwrite: true to replace it`);
-      }
-      await mkdir(path.dirname(target), { recursive: true });
-      // Concurrent exports to one path need their own temp files.
-      const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
-      try {
-        await writeFile(tmp, markdown);
-        await rename(tmp, target);
-      } catch (err) {
-        await unlink(tmp).catch(() => undefined);
-        throw err;
-      }
+      // Windows fails concurrent renames onto one file, so exports to a path run one at a time.
+      await serialise(target, async () => {
+        if (!a.overwrite && (await exists(target))) {
+          throw new UserError(`${target} exists; pass overwrite: true to replace it`);
+        }
+        await mkdir(path.dirname(target), { recursive: true });
+        const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
+        try {
+          await writeFile(tmp, markdown);
+          await rename(tmp, target);
+        } catch (err) {
+          await unlink(tmp).catch(() => undefined);
+          throw err;
+        }
+      });
       return { path: target, bytes: Buffer.byteLength(markdown) };
     }),
   );
