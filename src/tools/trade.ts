@@ -102,7 +102,8 @@ export function registerTradeTools(
           if (system && station) notes.push(`Start ${station} (${system}) is from the journal.`);
         }
         if (!system || !station) {
-          throw new UserError("Give from_system and from_station, or dock first");
+          const why = notes.length ? ` (${notes.join(" ")})` : "";
+          throw new UserError(`Give from_system and from_station, or dock first${why}`);
         }
 
         // A capacity of 0 means the journal has not seen the hold, and Spansh rejects max_cargo=0.

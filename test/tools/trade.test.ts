@@ -197,13 +197,17 @@ describe("trade_route", () => {
   });
 
   it.each([
-    ["not docked", { docked: false }],
-    ["no journal", { noJournal: true }],
-    ["journal unavailable", { noState: true }],
-  ])("asks for a start when %s and none is given", async (_n, opts) => {
+    ["not docked", { docked: false }, ""],
+    ["no journal", { noJournal: true }, ""],
+    [
+      "journal unavailable",
+      { noState: true },
+      " (Journal unavailable: Journal not configured: set ED_JOURNAL_DIR)",
+    ],
+  ])("asks for a start when %s and none is given", async (_n, opts, why) => {
     const { r, forms } = await trade({}, opts);
     expect(r.isError).toBe(true);
-    expect(r.text).toBe("Give from_system and from_station, or dock first");
+    expect(r.text).toBe(`Give from_system and from_station, or dock first${why}`);
     expect(forms).toEqual([]);
   });
 
