@@ -50,7 +50,7 @@ Output:
 
 - `needs`: `{ name, symbol, kind, grade, trade_group, count, have, short }`
   per material, sorted by kind, trade group and grade.
-- `trades`: `{ give: { name, count }, get: { name, count }, rate: "2:27",
+- `trades`: `{ give: { name, count, grade }, get: { name, count, grade }, rate: "2:27",
   trader: "raw" | "manufactured" | "encoded" }`.
 - `still_short`: materials no surplus can cover, with counts.
 - `traders`: for each trader type used, the recommended station (from the

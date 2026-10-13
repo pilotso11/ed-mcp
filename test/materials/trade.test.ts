@@ -67,26 +67,26 @@ describe("planTrades", () => {
     expect(still_short).toEqual([]);
     expect(trades).toEqual([
       {
-        give: { name: enc5.name, count: 18 },
-        get: { name: wake5.name, count: 3 },
+        give: { name: enc5.name, count: 18, grade: enc5.grade },
+        get: { name: wake5.name, count: 3, grade: wake5.grade },
         rate: "6:1",
         trader: "encoded",
       },
       {
-        give: { name: enc5.name, count: 4 },
-        get: { name: wake4.name, count: 2 },
+        give: { name: enc5.name, count: 4, grade: enc5.grade },
+        get: { name: wake4.name, count: 2, grade: wake4.grade },
         rate: "2:1",
         trader: "encoded",
       },
       {
-        give: { name: ant.name, count: 12 },
-        get: { name: sel.name, count: 2 },
+        give: { name: ant.name, count: 12, grade: ant.grade },
+        get: { name: sel.name, count: 2, grade: sel.grade },
         rate: "6:1",
         trader: "raw",
       },
       {
-        give: { name: enc5.name, count: 2 },
-        get: { name: wake1.name, count: 27 },
+        give: { name: enc5.name, count: 2, grade: enc5.grade },
+        get: { name: wake1.name, count: 27, grade: wake1.grade },
         rate: "2:27",
         trader: "encoded",
       },
@@ -103,8 +103,8 @@ describe("planTrades", () => {
     );
     expect(trades).toEqual([
       {
-        give: { name: wake5.name, count: 1 },
-        get: { name: wake4.name, count: 3 },
+        give: { name: wake5.name, count: 1, grade: wake5.grade },
+        get: { name: wake4.name, count: 3, grade: wake4.grade },
         rate: "1:3",
         trader: "encoded",
       },
@@ -130,14 +130,14 @@ describe("planTrades", () => {
     );
     expect(trades).toEqual([
       {
-        give: { name: ant.name, count: 12 },
-        get: { name: sel.name, count: 2 },
+        give: { name: ant.name, count: 12, grade: ant.grade },
+        get: { name: sel.name, count: 2, grade: sel.grade },
         rate: "6:1",
         trader: "raw",
       },
       {
-        give: { name: iron.name, count: 216 },
-        get: { name: sel.name, count: 1 },
+        give: { name: iron.name, count: 216, grade: iron.grade },
+        get: { name: sel.name, count: 1, grade: sel.grade },
         rate: "216:1",
         trader: "raw",
       },
@@ -152,8 +152,8 @@ describe("planTrades", () => {
     );
     expect(trades).toEqual([
       {
-        give: { name: enc5.name, count: 4 },
-        get: { name: wake4.name, count: 2 },
+        give: { name: enc5.name, count: 4, grade: enc5.grade },
+        get: { name: wake4.name, count: 2, grade: wake4.grade },
         rate: "2:1",
         trader: "encoded",
       },
@@ -174,8 +174,8 @@ describe("planTrades", () => {
     );
     expect(trades).toEqual([
       {
-        give: { name: enc5.name, count: 6 },
-        get: { name: wake5.name, count: 1 },
+        give: { name: enc5.name, count: 6, grade: enc5.grade },
+        get: { name: wake5.name, count: 1, grade: wake5.grade },
         rate: "6:1",
         trader: "encoded",
       },
@@ -211,8 +211,8 @@ describe("planTrades", () => {
     );
     expect(trades).toEqual([
       {
-        give: { name: zinc.name, count: 1 },
-        get: { name: iron.name, count: 3 },
+        give: { name: zinc.name, count: 1, grade: zinc.grade },
+        get: { name: iron.name, count: 3, grade: iron.grade },
         rate: "1:3",
         trader: "raw",
       },

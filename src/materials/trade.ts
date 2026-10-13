@@ -15,8 +15,8 @@ export interface NeedLine extends MatInfo {
   short: number;
 }
 export interface Trade {
-  give: { name: string; count: number };
-  get: { name: string; count: number };
+  give: { name: string; count: number; grade: number };
+  get: { name: string; count: number; grade: number };
   rate: string;
   trader: "raw" | "manufactured" | "encoded";
 }
@@ -85,8 +85,8 @@ export function planTrades(
       s.spare -= batches * r.give;
       left -= batches * r.get;
       trades.push({
-        give: { name: s.name, count: batches * r.give },
-        get: { name: n.name, count: batches * r.get },
+        give: { name: s.name, count: batches * r.give, grade: s.grade! },
+        get: { name: n.name, count: batches * r.get, grade: n.grade! },
         rate: `${r.give}:${r.get}`,
         trader: n.kind!.toLowerCase() as Trade["trader"],
       });
