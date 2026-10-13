@@ -90,6 +90,74 @@ export interface RouteResult {
   }>;
 }
 
+export interface TradeForm {
+  system: string;
+  station: string;
+  max_hops: number;
+  max_hop_distance: number;
+  max_cargo: number;
+  starting_capital: number;
+  /** Seconds. */
+  max_price_age?: number;
+  /** Light-seconds from the star. */
+  max_system_distance?: number;
+  requires_large_pad: boolean;
+  allow_prohibited: boolean;
+  allow_planetary: boolean;
+  unique: boolean;
+}
+
+interface RawTradeEnd {
+  system: string;
+  station: string;
+  system_id64: number | string;
+  market_id: number | string;
+  /** Unix seconds; station search uses ISO strings instead. */
+  market_updated_at: number;
+  distance_to_arrival: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface RawTradeMarket {
+  buy_price: number;
+  sell_price: number;
+  supply: number;
+  demand: number;
+}
+
+export interface RawTradeHop {
+  source: RawTradeEnd;
+  destination: RawTradeEnd;
+  distance: number;
+  commodities: Array<{
+    name: string;
+    amount: number;
+    profit: number;
+    total_profit: number;
+    source_commodity: RawTradeMarket;
+    destination_commodity: RawTradeMarket;
+  }>;
+  total_profit: number;
+  cumulative_profit: number;
+}
+
+export type TradeJob = { status: "pending"; job: string } | { status: "ok"; hops: RawTradeHop[] };
+
+export interface CommodityQuery {
+  commodity: string;
+  mode: "sell" | "buy";
+  near: string;
+  size: number;
+}
+
+export interface CommodityHit extends StationHit {
+  price: number | null;
+  demand: number | null;
+  supply: number | null;
+}
+
 interface RawStation {
   name: string;
   system_name?: string;
@@ -110,6 +178,13 @@ interface RawStation {
   market_updated_at?: string | null;
   outfitting_updated_at?: string | null;
   shipyard_updated_at?: string | null;
+  market?: Array<{
+    commodity: string;
+    buy_price?: number;
+    sell_price?: number;
+    supply?: number;
+    demand?: number;
+  }>;
 }
 
 const SERVICE_FILTERS: Record<StationService, Record<string, unknown>> = {
@@ -144,6 +219,7 @@ export class SpanshClient {
   private readonly systemCache: TtlCache<unknown>;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
+  private readonly tradeJobs = new Map<string, string>();
   private gate: Promise<void> = Promise.resolve();
   private lastStart = 0;
 
@@ -323,6 +399,125 @@ export class SpanshClient {
         throw new UserError(`Spansh: ${b.error ?? `route failed (HTTP ${res.status})`}`);
       }
     })) as RouteResult;
+  }
+
+  async tradeRoute(form: TradeForm, opts: { budgetMs?: number } = {}): Promise<TradeJob> {
+    const flag = (b: boolean) => (b ? "1" : "0");
+    const fields: Record<string, string | undefined> = {
+      system: form.system,
+      station: form.station,
+      max_hops: String(form.max_hops),
+      max_hop_distance: String(form.max_hop_distance),
+      max_cargo: String(form.max_cargo),
+      starting_capital: String(form.starting_capital),
+      max_price_age: form.max_price_age === undefined ? undefined : String(form.max_price_age),
+      max_system_distance:
+        form.max_system_distance === undefined ? undefined : String(form.max_system_distance),
+      requires_large_pad: flag(form.requires_large_pad),
+      allow_prohibited: flag(form.allow_prohibited),
+      allow_planetary: flag(form.allow_planetary),
+      allow_player_owned: "1",
+      allow_restricted_access: "0",
+      unique: flag(form.unique),
+      permit: "0",
+    };
+    const body = new URLSearchParams();
+    for (const [k, v] of Object.entries(fields)) if (v !== undefined) body.set(k, v);
+    const key = body.toString();
+
+    const cacheKey = `trade:${key}`;
+    const done = this.cache.get(cacheKey) as TradeJob | undefined;
+    if (done) return done;
+
+    const deadline = this.now() + (opts.budgetMs ?? this.routeTimeoutMs);
+    let resubmitted = false;
+    for (;;) {
+      let job = this.tradeJobs.get(key);
+      if (!job) {
+        // A retry after Spansh accepted the job would submit a second one and lose the first id.
+        const submitted = (await this.post(
+          "/trade/route",
+          key,
+          "application/x-www-form-urlencoded",
+          {
+            retry: false,
+          },
+        )) as { job: string };
+        job = submitted.job;
+        this.tradeJobs.set(key, job);
+      }
+      let delay = 2000;
+      for (;;) {
+        const left = deadline - this.now();
+        if (left <= 0) return { status: "pending", job };
+        await this.sleep(Math.min(delay, left));
+        delay = Math.min(delay * 2, 10_000);
+        let res: { status: number; body: unknown };
+        try {
+          res = await this.raw(`/results/${job}`);
+        } catch (err) {
+          this.tradeJobs.delete(key);
+          throw err;
+        }
+        if (res.status === 202) continue;
+        this.tradeJobs.delete(key);
+        // Spansh drops old jobs; the remembered id may be gone, so submit afresh once.
+        if (res.status === 404 && !resubmitted) {
+          resubmitted = true;
+          break;
+        }
+        const b = res.body as { status?: string; error?: string; result?: RawTradeHop[] };
+        if (res.status === 200 && b.status === "ok") {
+          const ok: TradeJob = { status: "ok", hops: b.result ?? [] };
+          this.cache.set(cacheKey, ok);
+          return ok;
+        }
+        throw new UserError(`Spansh: ${b.error ?? `trade route failed (HTTP ${res.status})`}`);
+      }
+    }
+  }
+
+  async commodityStations(
+    q: CommodityQuery,
+  ): Promise<{ near: string; total: number; stations: CommodityHit[] }> {
+    const field = q.mode === "sell" ? "sell_price" : "buy_price";
+    const stock = q.mode === "sell" ? "demand" : "supply";
+    const open = { comparison: "<=>", value: [1, 1_000_000_000] };
+    const body = {
+      filters: { market: [{ name: q.commodity, [field]: open, [stock]: open }] },
+      sort: [
+        {
+          [`market_${field}`]: [
+            { name: q.commodity, direction: q.mode === "sell" ? "desc" : "asc" },
+          ],
+        },
+      ],
+      size: q.size,
+      page: 0,
+      reference_system: q.near,
+    };
+    // Each result is a full ~120 KB station record, so cache the compact mapping only.
+    return (await this.cached(`commodity:${JSON.stringify(body)}`, async () => {
+      const raw = (await this.post(
+        "/stations/search",
+        JSON.stringify(body),
+        "application/json",
+      )) as {
+        count: number;
+        results?: RawStation[];
+      };
+      const want = q.commodity.toLowerCase();
+      const stations = (raw.results ?? []).map((s): CommodityHit => {
+        const row = (s.market ?? []).find((m) => m.commodity.toLowerCase() === want);
+        return {
+          ...this.hit(s, { near: q.near, limit: q.size }),
+          price: (q.mode === "sell" ? row?.sell_price : row?.buy_price) ?? null,
+          demand: row?.demand ?? null,
+          supply: row?.supply ?? null,
+        };
+      });
+      return { near: q.near, total: raw.count, stations };
+    })) as { near: string; total: number; stations: CommodityHit[] };
   }
 
   private hit(s: RawStation, q: StationQuery, shipName?: string): StationHit {
