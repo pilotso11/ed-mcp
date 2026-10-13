@@ -22,6 +22,8 @@ export class TtlCache<V> implements Clearable {
   private readonly entries = new Map<string, Entry<V>>();
   private readonly inflight = new Map<string, Promise<V>>();
   private setsSinceSweep = 0;
+  // Bumped by clear() so loads started before it do not store data from the old state.
+  private generation = 0;
 
   constructor(
     readonly name: string,
@@ -62,12 +64,15 @@ export class TtlCache<V> implements Clearable {
     if (hit !== undefined) return hit;
     const pending = this.inflight.get(key);
     if (pending) return pending;
+    const gen = this.generation;
     const p = load()
       .then((v) => {
-        this.set(key, v);
+        if (gen === this.generation) this.set(key, v);
         return v;
       })
-      .finally(() => this.inflight.delete(key));
+      .finally(() => {
+        if (this.inflight.get(key) === p) this.inflight.delete(key);
+      });
     this.inflight.set(key, p);
     return p;
   }
@@ -75,6 +80,8 @@ export class TtlCache<V> implements Clearable {
   clear(): number {
     const n = this.entries.size;
     this.entries.clear();
+    this.inflight.clear();
+    this.generation++;
     return n;
   }
 

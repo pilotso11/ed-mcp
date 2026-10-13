@@ -23,6 +23,28 @@ describe("TtlCache", () => {
     expect(await c.getOrLoad("bad", async () => 7)).toBe(7);
   });
 
+  it("does not store a load that was in flight when the cache was cleared", async () => {
+    const c = new TtlCache<string>("capi", 60_000);
+    let finishOld!: (v: string) => void;
+    const old = c.getOrLoad("k", () => new Promise((r) => (finishOld = r)));
+    c.clear();
+    let finishNew!: (v: string) => void;
+    let loads = 0;
+    const load = () => {
+      loads++;
+      return new Promise<string>((r) => (finishNew = r));
+    };
+    const fresh = c.getOrLoad("k", load);
+    finishOld("old session");
+    expect(await old).toBe("old session");
+    expect(c.get("k")).toBeUndefined();
+    // The old load finishing must not drop the new in-flight load.
+    const shared = c.getOrLoad("k", load);
+    finishNew("new session");
+    expect([await fresh, await shared, loads]).toEqual(["new session", "new session", 1]);
+    expect(c.get("k")).toBe("new session");
+  });
+
   it("reports stats and clears", () => {
     let t = 0;
     const c = new TtlCache<number>("edsm", 60_000, () => t);
