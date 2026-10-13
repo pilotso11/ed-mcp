@@ -464,4 +464,5 @@ the developer portal at the time) completed a real login with
 `redirect_uri=http://localhost:<random port>/auth`. The code exchange,
 token storage and `GET /profile` all worked. The profile returned the
 commander, current system and station, the current ship with every module and
-its engineering, and the full fleet.
+its engineering, and the full fleet. The owner's client (October 2026) had an
+empty Redirect URL field, and login still worked.
