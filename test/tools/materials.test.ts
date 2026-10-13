@@ -97,6 +97,30 @@ describe("materials_plan", () => {
     expect(queries[0]).toMatchObject({ near: "Atlas", service: "material_trader_encoded" });
   });
 
+  it.each([
+    ["an extra need", { needs: [{ name: "Iron", count: 1 }] }],
+    [
+      "an experimental",
+      {
+        blueprints: [
+          {
+            blueprint: "FSD_LongRange",
+            from_grade: 0,
+            to_grade: 0,
+            experimental: "special_fsd_heavy",
+          },
+        ],
+      },
+    ],
+  ])("returns only the documented needs fields for %s", async (_label, args) => {
+    const { client } = setup({ system: "Atlas" });
+    const r = await callTool(await client, "materials_plan", { ...args, inventory: "none" });
+    const j = r.json as Record<string, any>;
+    const fields = ["count", "grade", "have", "kind", "name", "short", "symbol", "trade_group"];
+    expect(j.needs.length).toBeGreaterThan(0);
+    for (const n of j.needs) expect(Object.keys(n).sort()).toEqual(fields);
+  });
+
   it("rejects rolls_per_grade without exactly five entries", async () => {
     const { client } = setup({ system: "Atlas" });
     const r = await callTool(await client, "materials_plan", { ...need, rolls_per_grade: [1, 2] });

@@ -55,7 +55,10 @@ export function computeNeeds(
     const k = (info.symbol ?? info.name).toLowerCase();
     const prev = merged.get(k);
     if (prev) prev.count += count;
-    else merged.set(k, { ...info, count });
+    else {
+      const { name, symbol, kind, grade, trade_group } = info;
+      merged.set(k, { name, symbol, kind, grade, trade_group, count });
+    }
   };
 
   for (const b of req.blueprints ?? []) {
