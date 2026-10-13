@@ -96,27 +96,37 @@ export function registerMaterialsTools(
           if (!near) {
             notes.push("Give near to find traders");
           } else {
-            const rules = await resolveSearchRules(deps, a.preferences, true);
+            // Trader lookup is a bonus; the plan must survive a Spansh or rules failure.
+            const rules = await resolveSearchRules(deps, a.preferences, true).catch(
+              (e: unknown) => e as Error,
+            );
             for (const type of types) {
-              const r = await searchStations(
-                deps.spansh,
-                { near, service: `material_trader_${type}` as StationService },
-                rules,
-                3,
-              );
-              const s = r.stations[0];
-              traders.push({
-                type,
-                recommended: r.recommended,
-                station: s && {
-                  name: s.name,
-                  system: s.system,
-                  distance_ly: s.distance_ly,
-                  arrival_ls: s.arrival_ls,
-                  travel_min: s.travel_min,
-                },
-              });
-              if (!s) notes.push(`No ${type} material trader found near ${near}.`);
+              try {
+                if (rules instanceof Error) throw rules;
+                const r = await searchStations(
+                  deps.spansh,
+                  { near, service: `material_trader_${type}` as StationService },
+                  rules,
+                  3,
+                );
+                const s = r.stations[0];
+                traders.push({
+                  type,
+                  recommended: r.recommended,
+                  station: s && {
+                    name: s.name,
+                    system: s.system,
+                    distance_ly: s.distance_ly,
+                    arrival_ls: s.arrival_ls,
+                    travel_min: s.travel_min,
+                  },
+                });
+                if (!s) notes.push(`No ${type} material trader found near ${near}.`);
+              } catch (e) {
+                notes.push(
+                  `Trader lookup for ${type} failed: ${e instanceof Error ? e.message : String(e)}`,
+                );
+              }
             }
           }
         }

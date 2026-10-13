@@ -64,6 +64,8 @@ export async function loadInventory(
 
   // auto: the journal is current; EDSM covers a PC that has been off for a day.
   const skipped: string[] = [];
+  let stale: { items: InventoryItem[]; source: string; warnings: string[]; age: number } | null =
+    null;
   if (journal?.dir) {
     try {
       const { age, ...r } = await fromJournal(journal, catalog);
@@ -73,6 +75,7 @@ export async function loadInventory(
           ? "Journal skipped: its newest event has no readable time."
           : `Journal skipped: its newest event is ${age} minutes old.`,
       );
+      if (age !== null) stale = { ...r, age };
     } catch (e) {
       if (!(e instanceof UserError)) throw e;
       skipped.push(`Journal skipped: ${e.message}`);
@@ -83,10 +86,23 @@ export async function loadInventory(
       const r = await fromEdsm(edsm, catalog);
       return { ...r, warnings: skipped };
     } catch (e) {
-      if (!(e instanceof NotConfiguredError)) throw e;
+      if (!(e instanceof NotConfiguredError)) {
+        // A stale inventory still beats failing the whole plan on an EDSM outage.
+        if (!stale) throw e;
+        const why = e instanceof Error ? e.message : String(e);
+        return {
+          items: stale.items,
+          source: stale.source,
+          warnings: [
+            ...stale.warnings,
+            `Using the journal although it is ${stale.age} minutes old: EDSM failed (${why}).`,
+          ],
+        };
+      }
     }
   }
   throw new UserError(
-    'No inventory source: set ED_JOURNAL_DIR or EDSM_API_KEY/EDSM_CMDR, or pass inventory: "none"',
+    'No inventory source: set ED_JOURNAL_DIR or EDSM_API_KEY/EDSM_CMDR, or pass inventory: "none"' +
+      (skipped.length ? `. ${skipped.join(" ")}` : ""),
   );
 }

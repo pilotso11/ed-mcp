@@ -114,4 +114,39 @@ describe("loadInventory", () => {
     const r = await loadInventory("journal", { journal: journal(2000, ["old"]), catalog });
     expect(r.warnings).toEqual(["old"]);
   });
+
+  it("explains a stale journal when nothing else is usable", async () => {
+    const err = await loadInventory("auto", {
+      journal: journal(2000),
+      edsm: unconfiguredEdsm,
+      catalog,
+    }).catch((e: unknown) => e);
+    expect((err as Error).message).toMatch(/^No inventory source: set ED_JOURNAL_DIR/);
+    expect((err as Error).message).toContain("2000 minutes old");
+  });
+
+  it("reports why the journal was skipped when EDSM is used", async () => {
+    const r = await loadInventory("auto", { journal: journal(2000), edsm: edsm(), catalog });
+    expect(r.warnings).toEqual([expect.stringContaining("2000 minutes old")]);
+  });
+
+  it("uses the stale journal when EDSM fails", async () => {
+    const broken = {
+      inventory: async () => {
+        throw new Error("EDSM returned 503");
+      },
+    } as unknown as EdsmClient;
+    const r = await loadInventory("auto", { journal: journal(2000), edsm: broken, catalog });
+    expect(r.source).toContain("journal");
+    expect(r.warnings).toEqual([expect.stringMatching(/2000 minutes old.*EDSM returned 503/)]);
+  });
+
+  it("rethrows an EDSM failure when there is no journal to fall back on", async () => {
+    const broken = {
+      inventory: async () => {
+        throw new Error("EDSM returned 503");
+      },
+    } as unknown as EdsmClient;
+    await expect(loadInventory("auto", { edsm: broken, catalog })).rejects.toThrow("503");
+  });
 });

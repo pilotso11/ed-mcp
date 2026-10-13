@@ -24,12 +24,20 @@ const hit: StationHit = {
   shipyard_updated_at: null,
 };
 
-function setup(opts: { system?: string | null } = {}) {
+function setup(
+  opts: { system?: string | null; fail?: boolean; empty?: boolean; tellurium?: number } = {},
+) {
   const queries: Array<Record<string, unknown>> = [];
   const spansh = {
     findStations: async (q: Record<string, unknown>) => {
       queries.push(q);
-      return { near: String(q.near), total: 1, total_capped: false, stations: [hit] };
+      if (opts.fail) throw new Error("Spansh is down");
+      return {
+        near: String(q.near),
+        total: 1,
+        total_capped: false,
+        stations: opts.empty ? [] : [hit],
+      };
     },
   } as unknown as SpanshClient;
   const journal = {
@@ -40,7 +48,9 @@ function setup(opts: { system?: string | null } = {}) {
       warnings: [],
       location: { system: opts.system ?? null },
       materials: {
-        raw: [],
+        raw: opts.tellurium
+          ? [{ symbol: "Tellurium", name: "Tellurium", count: opts.tellurium }]
+          : [],
         manufactured: [],
         encoded: [{ symbol: "AdaptiveEncryptors", name: "Adaptive Encryptors Capture", count: 8 }],
       },
@@ -80,6 +90,7 @@ describe("materials_plan", () => {
     expect(j.traders).toHaveLength(1);
     expect(j.traders[0]).toMatchObject({
       type: "encoded",
+      recommended: { name: "Trader Hub", system: "Atlas", reason: expect.any(String) },
       station: { name: "Trader Hub", system: "Atlas", distance_ly: 12.5, arrival_ls: 300 },
     });
     expect(typeof j.traders[0].station.travel_min).toBe("number");
@@ -117,5 +128,40 @@ describe("materials_plan", () => {
     const { client } = setup();
     const r = await callTool(await client, "materials_plan", {});
     expect(r.isError).toBe(true);
+  });
+
+  it("keeps the plan when the trader lookup fails", async () => {
+    const { client } = setup({ system: "Atlas", fail: true });
+    const r = await callTool(await client, "materials_plan", need);
+    expect(r.isError).toBe(false);
+    const j = r.json as Record<string, any>;
+    expect(j.trades).toHaveLength(1);
+    expect(j.still_short).toEqual([]);
+    expect(j.traders).toEqual([]);
+    expect(j.notes).toContain("Trader lookup for encoded failed: Spansh is down");
+  });
+
+  it("notes a trader type with no station", async () => {
+    const { client } = setup({ system: "Atlas", empty: true });
+    const r = await callTool(await client, "materials_plan", need);
+    const j = r.json as Record<string, any>;
+    expect(j.notes).toContain("No encoded material trader found near Atlas.");
+    expect(j.traders[0].station).toBeUndefined();
+  });
+
+  it("looks up one trader per kind traded", async () => {
+    const { client, queries } = setup({ system: "Atlas", tellurium: 2 });
+    const r = await callTool(await client, "materials_plan", {
+      needs: [
+        { name: "Datamined Wake Exceptions", count: 1 },
+        { name: "Iron", count: 1 },
+      ],
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.trades.map((t: any) => t.trader).sort()).toEqual(["encoded", "raw"]);
+    expect(queries.map((q) => q.service).sort()).toEqual([
+      "material_trader_encoded",
+      "material_trader_raw",
+    ]);
   });
 });
