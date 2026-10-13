@@ -131,7 +131,7 @@ Inputs:
 - `needs`: extra materials by name or symbol, with counts.
 - `rolls_per_grade`: exactly 5 entries, the rolls for grades 1 to 5. The default is `[1, 2, 3, 4, 5]`, a cautious estimate. Fewer rolls are usual at high engineer reputation.
 - `inventory`: `auto` (default), `journal`, `edsm` or `none`. `auto` uses the journal when its newest event is less than 24 hours old, and EDSM otherwise. `none` plans the needs only.
-- `near`: the system to search for traders. Without it, the tool uses the journal location, then the Frontier profile system. If it finds none, it omits traders and adds a note.
+- `near`: the system to search for traders. Without it, the tool uses the journal location if the journal is under 24 hours old, then the EDSM position, then an older journal location (with a note), then the Frontier profile system. If it finds none, it omits traders and adds a note.
 - `preferences`: a travel preferences override, as for `spansh_find_stations`.
 
 The tool trades only surplus (what you hold above what the plan needs). Trades stay inside one kind (raw, manufactured or encoded). Guardian and Thargoid materials have no trade group, so it never trades them. The rate is an exact give:get ratio. A trade gives `6^up` (times 6 more for another trade group) and gets `3^down`, where `up` and `down` are grade steps, reduced by their common divisor. For example, trading 2 of a grade 5 material in one group for a grade 1 material in another group gives 27 of the grade 1 material (2:27). Trades use whole batches, so a trade can return more than you need. The tool picks the cheapest source by material value (3^grade), nearest grade first.

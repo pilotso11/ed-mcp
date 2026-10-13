@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCatalog } from "../../src/catalog/build.js";
 import type { CatalogService } from "../../src/catalog/service.js";
+import type { CapiClient } from "../../src/capi/client.js";
 import type { EdsmClient } from "../../src/edsm/client.js";
 import type { JournalService } from "../../src/journal/service.js";
 import type { SpanshClient, StationHit } from "../../src/spansh/client.js";
@@ -33,6 +34,7 @@ function setup(
     tellurium?: number;
     age?: number;
     edsm?: { system: string | null } | "down";
+    capi?: string | null;
   } = {},
 ) {
   const queries: Array<Record<string, unknown>> = [];
@@ -50,19 +52,23 @@ function setup(
   } as unknown as SpanshClient;
   const journal = {
     dir: "/j",
-    state: async () => ({
-      as_of: "2026-10-13T08:00:00Z",
-      age_minutes: opts.age ?? 10,
-      warnings: [],
-      location: { system: opts.system ?? null },
-      materials: {
-        raw: opts.tellurium
-          ? [{ symbol: "Tellurium", name: "Tellurium", count: opts.tellurium }]
-          : [],
-        manufactured: [],
-        encoded: [{ symbol: "AdaptiveEncryptors", name: "Adaptive Encryptors Capture", count: 8 }],
-      },
-    }),
+    state: async () => {
+      return {
+        as_of: "2026-10-13T08:00:00Z",
+        age_minutes: opts.age ?? 10,
+        warnings: [],
+        location: { system: opts.system ?? null },
+        materials: {
+          raw: opts.tellurium
+            ? [{ symbol: "Tellurium", name: "Tellurium", count: opts.tellurium }]
+            : [],
+          manufactured: [],
+          encoded: [
+            { symbol: "AdaptiveEncryptors", name: "Adaptive Encryptors Capture", count: 8 },
+          ],
+        },
+      };
+    },
   } as unknown as JournalService;
   const edsm =
     opts.edsm &&
@@ -82,6 +88,10 @@ function setup(
     spansh,
     journal,
     edsm,
+    capi:
+      opts.capi === undefined
+        ? undefined
+        : ({ profile: async () => ({ system: opts.capi }) } as unknown as CapiClient),
     currentShip: async () => "Corsair",
   });
   return { client: connectTestClient(server), queries };
@@ -170,6 +180,12 @@ describe("materials_plan", () => {
     expect(j.notes).toContain(
       "Traders are searched near Atlas, the journal location from 2000 minutes ago.",
     );
+  });
+
+  it("falls back to the Frontier profile system when the journal and EDSM have no location", async () => {
+    const { client, queries } = setup({ capi: "Shinrarta Dezhra" });
+    await callTool(await client, "materials_plan", need);
+    expect(queries[0]).toMatchObject({ near: "Shinrarta Dezhra" });
   });
 
   it("omits traders with a note when no location is known", async () => {
