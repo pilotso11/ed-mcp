@@ -18,9 +18,10 @@ async function setup(
     ship?: string | null;
     prefsFile?: string;
     currentShip?: () => Promise<string | null>;
+    stations?: string;
   } = {},
 ) {
-  const stations = await raw("stations-search-material-trader.json");
+  const stations = opts.stations ?? (await raw("stations-search-material-trader.json"));
   const f = fakeFetch([
     { match: (u) => u.endsWith("/stations/search"), respond: () => new Response(stations) },
   ]);
@@ -155,6 +156,29 @@ describe("spansh tools", () => {
       use_preferences: false,
     });
     expect(currentShip).not.toHaveBeenCalled();
+  });
+
+  it("keeps a planetary override alongside large_pad", async () => {
+    const fixture = JSON.parse(await raw("stations-search-material-trader.json"));
+    fixture.results[1].is_planetary = true;
+    const planetary = fixture.results[1].name as string;
+    const { client, f, prefs } = await setup({ stations: JSON.stringify(fixture) });
+    // The default "avoid" would hide the station anyway; only the override should here.
+    await prefs.set({ stations: { planetary: "allow" } });
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      large_pad: true,
+      preferences: { stations: { planetary: "exclude" } },
+    });
+    expect(r.isError).toBe(false);
+    expect(JSON.parse(String(f.calls[0]!.init!.body)).filters.has_large_pad).toEqual({
+      value: true,
+    });
+    const names = (r.json as { stations: Array<{ name: string }> }).stations.map((s) => s.name);
+    expect(names.length).toBeGreaterThan(0);
+    expect(names).not.toContain(planetary);
+    expect(r.json).toMatchObject({ applied_preferences: { min_pad: "L (request)" } });
   });
 
   it("caps limit at 50", async () => {
