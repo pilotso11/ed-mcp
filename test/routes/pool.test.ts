@@ -96,6 +96,47 @@ describe("buildPool", () => {
     expect(pool.stops).toHaveLength(1);
   });
 
+  it("routes an engineer once when a station-less plan stop has another label", () => {
+    const p = plan({
+      stops: [
+        { system: "Deciat", kind: "engineer", label: "Other", purpose: "unrelated" },
+        { system: "Deciat", kind: "engineer", label: "FSD G5", purpose: "Felicity Farseer: FSD" },
+      ],
+      items: [item("a", "Felicity Farseer", "todo", "grade 5 FSD")],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops.map((s) => s.label)).toEqual(["Other", "FSD G5"]);
+    expect(pool.stops[1]).toMatchObject({
+      station: "Farseer Inc",
+      engineer: { name: "Felicity Farseer" },
+      purpose: "Felicity Farseer: FSD; grade 5 FSD",
+    });
+    expect(pool.stops[1]!.aliases).toEqual(["Felicity Farseer"]);
+  });
+
+  it("adopts the base for a station-less stop labelled with the engineer's name", () => {
+    const p = plan({
+      stops: [{ system: "Deciat", kind: "engineer", label: "Felicity Farseer", purpose: "x" }],
+      items: [item("a", "Felicity Farseer", "todo", "grade 5 FSD")],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops).toHaveLength(1);
+    expect(pool.stops[0]).toMatchObject({
+      label: "Felicity Farseer",
+      station: "Farseer Inc",
+      engineer: { name: "Felicity Farseer" },
+    });
+  });
+
+  it("adopts the first station-less engineer stop when none mentions the name", () => {
+    const p = plan({
+      stops: [{ system: "Deciat", kind: "engineer", label: "FSD G5", purpose: "x" }],
+      items: [item("a", "Felicity Farseer")],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops.map((s) => s.label)).toEqual(["FSD G5"]);
+  });
+
   it("falls back from label to engineer, station, system and suffixes repeats", () => {
     const pool = buildPool(
       {
@@ -486,5 +527,17 @@ describe("buildPool", () => {
         UserError,
       );
     });
+  });
+  it("does not adopt a base for an unnamed stop when an entry names the engineer", () => {
+    const p = plan({
+      stops: [{ system: "Deciat", kind: "engineer", label: "FSD G5", purpose: "x" }],
+      items: [item("a", "Felicity Farseer")],
+    });
+    const pool = buildPool(
+      { ...base, plan: p, stops: [{ engineer: "Felicity Farseer" }] },
+      catalog,
+    );
+    expect(pool.stops).toHaveLength(2);
+    expect(pool.stops.find((s) => s.label === "FSD G5")).toMatchObject({ station: null });
   });
 });

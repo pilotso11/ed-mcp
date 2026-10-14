@@ -25,10 +25,13 @@ export interface Leg {
   stationKnown: boolean;
 }
 
+export function refuelsFor(jumps: number, t: ResolvedTravel): number {
+  return t.refuel_every_jumps > 0 ? Math.floor(jumps / t.refuel_every_jumps) : 0;
+}
+
 export function legSeconds(l: Leg, t: ResolvedTravel): { jumps: number; seconds: number } {
   const jumps = l.distanceLy > 0 ? Math.ceil(l.distanceLy / t.jump_range_ly) : 0;
-  const refuels = t.refuel_every_jumps > 0 ? Math.floor(jumps / t.refuel_every_jumps) : 0;
-  const base = jumps * t.seconds_per_jump + refuels * t.refuel_s + t.dock_s;
+  const base = jumps * t.seconds_per_jump + refuelsFor(jumps, t) * t.refuel_s + t.dock_s;
   if (!l.stationKnown) return { jumps, seconds: base };
   const ls = Math.max(0, l.arrivalLs ?? ASSUMED_ARRIVAL_LS);
   const sc = t.supercruise;

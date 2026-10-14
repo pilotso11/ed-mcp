@@ -72,7 +72,7 @@ A `StopInput` needs `system` or `engineer`.
 
 ### The stop pool
 
-- **From a plan:** each `plan.stops` entry, and one engineer stop for each distinct `engineer` named in an item that is not `done` or `skipped`. An engineer that already has a stop in `plan.stops` is not added twice.
+- **From a plan:** each `plan.stops` entry, and one engineer stop for each distinct `engineer` named in an item that is not `done` or `skipped`. An engineer that already has a stop in `plan.stops` is not added twice. A station-less `engineer` plan stop in the system of an engineer that an open item names takes that engineer's base as its station, and so merges with the engineer's stop. If another stop or entry already names the engineer, only a stop whose label or purpose contains the engineer's name does this. Each engineer takes at most one stop.
 - **From `stops`:** added to the pool. Without `plan_id`, they are the whole pool.
 - **Labels:** the given `label`. Otherwise the engineer name, then the station name, then the system name. If two labels match, the later one gets a suffix (`-2`, `-3`). Label matching ignores case.
 - **Selection:** `only` keeps the listed labels, then `skip` removes labels. A label in `only` or `skip` that is not in the pool is an error.
@@ -119,7 +119,7 @@ Each "one of" group is a requirement, for example "a raw trader" or "an engineer
 ### Plot (`plot: true`)
 
 1. Plot each leg of the winning order with `SpanshClient.route()` (the existing neutron plotter), at the resolved jump range. Legs inside one system need no plot.
-2. Replace each estimated leg time with the plotted time: plotted jumps × `seconds_per_jump`, plus the same supercruise and docking time.
+2. Replace each estimated leg time with the plotted time: plotted jumps × `seconds_per_jump`, plus the refuel stops for the plotted jumps (`floor(jumps / refuel_every_jumps)` × `refuel_s`), plus the same supercruise and docking time.
 3. If any plotted leg differs from its estimate by more than 20% and at least 2 jumps, solve again with the known plotted times and the estimates for the rest. Then plot only the new legs. Stop after 2 rounds.
 4. All plots share one time budget: about 40 s from the start of the call, which includes the time spent placing stops. Each `route()` call gets the time that is left (`budgetMs`). When the budget is used up, the remaining legs are not sent to Spansh.
 5. If a plot does not finish within its time, or the budget runs out before a leg, keep the estimate for that leg, set `plotted: false` on it, and add the note "Spansh is still plotting; call again to finish."

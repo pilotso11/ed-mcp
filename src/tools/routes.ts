@@ -8,6 +8,7 @@ import { StopKind } from "../plans/schema.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
+import { refuelsFor } from "../stations/travel.js";
 import { findCycle } from "../routes/optimise.js";
 import { buildPool, joinPurposes, type PoolStop, type StopEntry } from "../routes/pool.js";
 import { countCombinations, solveRoute } from "../routes/solve.js";
@@ -295,7 +296,9 @@ export function registerRouteTools(
           const p = plottedJumps.get(key(f, t));
           return p === undefined
             ? est.seconds
-            : est.seconds + (p - est.jumps) * travel.seconds_per_jump;
+            : est.seconds +
+                (p - est.jumps) * travel.seconds_per_jump +
+                (refuelsFor(p, travel) - refuelsFor(est.jumps, travel)) * travel.refuel_s;
         };
         const legsOf = (order: number[]) => {
           const stops = [n, ...order, ...(returnPlace ? [n + 1] : [])];

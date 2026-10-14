@@ -172,6 +172,24 @@ describe("route_stops", () => {
     });
   });
 
+  it("routes a station-less engineer plan stop at the engineer's base", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith(
+        [{ system: "Alpha", label: "FSD upgrade", purpose: "g5", kind: "engineer" }],
+        engItem,
+      ),
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p" });
+    const j = r.json as Record<string, any>;
+    expect(j.stops).toHaveLength(1);
+    expect(j.stops[0]).toMatchObject({
+      station: "Farseer Inc",
+      engineer: "Felicity Farseer",
+    });
+    expect(Number.isFinite(j.stops[0].arrive_min)).toBe(true);
+  });
+
   it("lists an engineer and a station at the engineer's base once", async () => {
     const { j } = await route({
       stops: [
@@ -474,6 +492,26 @@ describe("route_stops", () => {
       expect(j.total_min).toBeCloseTo(base.total_min + 1, 1);
       expect(j.stops[1].leg_min).toBeCloseTo(base.stops[1].leg_min + 1, 1);
       expect(j.notes).not.toContain("Spansh is still plotting; call again to finish.");
+    });
+
+    it("adds the refuel stops of the extra plotted jumps", async () => {
+      const refuel = {
+        preferences: {
+          travel: { jump_range_ly: 20, seconds_per_jump: 60, refuel_every_jumps: 2, refuel_s: 100 },
+        },
+      };
+      const base = (await route({ ...refuel, stops: [alpha] })).j;
+      const est = base.stops[0].jumps as number;
+      const plotted = est + 2;
+      const { j } = await run(
+        { ...refuel, stops: [alpha], plot: true },
+        plotter({ "sol>alpha": plotted }),
+      );
+      const refuels = (n: number) => Math.floor(n / 2);
+      const extra = 2 * 60 + (refuels(plotted) - refuels(est)) * 100;
+      expect(j.stops[0].plotted).toBe(true);
+      // leg_min is rounded to 0.1 min.
+      expect(Math.abs(j.stops[0].leg_min - base.stops[0].leg_min - extra / 60)).toBeLessThan(0.1);
     });
 
     it("plots at the resolved jump range", async () => {
