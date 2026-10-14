@@ -13,7 +13,7 @@ A build plan needs visits to shops, material traders and engineers. `route_stops
 - **New tool `route_stops`.** `missions_route` stays as it is. Both tools share the code that places stops and times legs.
 - **Plan or explicit stops, or both.** `plan_id` loads a pool of stops. `stops` adds stops or replaces the plan. `only` and `skip` select from the pool, so one plan serves several trips.
 - **"One of" groups.** A group lists alternative stops. The tool solves every combination exactly and keeps the fastest. At most 16 combinations (for example, four pairs).
-- **Ordering rules.** Each stop can list labels it must come `after`. For plans, the default rule puts shops and traders before engineers (`plan_rules`, on by default).
+- **Ordering rules.** Each stop can list labels it must come `after`. Claude sets them from what each engineer needs: the shop that sells the module, and the trader that supplies the materials. An engineer with nothing to collect can come first. For plans, a fallback rule puts shops and traders before any engineer stop that has no `after` list of its own (`plan_rules`, on by default).
 - **Estimates first, real routes on request.** Leg times use the travel model (straight-line jumps). `plot: true` plots the winning order's legs with the Spansh route plotter and re-solves with the real times (at most 2 rounds).
 - **The search sits behind one function** (`solveRoute`), so a heavier search (A*, branch and bound) can replace it later.
 
@@ -81,9 +81,13 @@ A `StopInput` needs `system` or `engineer`.
 ### Ordering rules
 
 - `after` lists labels. A stop is placed only after every stop in its `after` list.
-- **Plan default (`plan_rules`):** every `engineer` stop comes after every `shop` and `trader` stop. It applies only with `plan_id` and only between stops that both survived `only` and `skip`.
+- **Plan fallback (`plan_rules`):** an `engineer` stop with no `after` list of its own comes after every `shop` and `trader` stop. An engineer stop with its own `after` list (even an empty one, `after: []`) is exempt. The fallback applies only with `plan_id`, and only between stops that both survived `only` and `skip`.
 - **Inside a "one of" group:** `after` rules on the group's options apply to whichever option is chosen. A rule that names a group's label means "after the chosen option".
 - An `after` label that is not in the selected pool is ignored, with a note. A cycle is an error that names the stops in the cycle.
+
+### Tool description
+
+The description tells Claude how to set the rules: "For each engineer stop, set `after` to the shops and traders that supply what that engineer needs (the module to buy, the materials to trade). Give `after: []` to an engineer who needs nothing from the other stops, so they can come first. Without your rules, a plan puts every engineer after every shop and trader." Claude finds what each engineer needs from the plan items (`engineer`, `materials`, `station`), `materials_plan` and `catalog_engineers`.
 
 ### Placing stops and timing legs
 
@@ -154,6 +158,7 @@ Without `plot`, every leg longer than 200 LY gets a note: a neutron route or a d
 - **Combinations:** the fastest combination wins. `runner_up` is the next best. The 16 cap. `after` rules that name a group label.
 - **Pool:** plan stops plus engineer items. No duplicate engineers. `only`, `skip`, label suffixes and unknown labels.
 - **Tool:** fake Spansh (systems and routes) and a test plan:
+  - the plan fallback for engineers without `after`, and the exemption for `after: []` and precise rules,
   - engineers placed from the catalog,
   - the plan default rule,
   - `save_to_plan` and the `route` field in `plan_get` and `plan_export`,
