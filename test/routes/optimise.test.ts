@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { optimiseRoute, type RouteProblem } from "../../src/routes/optimise.js";
+import { findCycle, optimiseRoute, type RouteProblem } from "../../src/routes/optimise.js";
 
 // Stops 0..n-1 sit at `pos`; node n is the start and node n+1 the finish.
 function line(
@@ -246,5 +246,61 @@ describe("optimiseRoute", () => {
       expect(r.total).toBe(52);
       expect(r.total).toBeGreaterThan(greedy.total);
     });
+  });
+});
+
+describe("after rules", () => {
+  // Stops at 10, 20, 30 from start 0.
+  const permutations = (xs: number[]): number[][] =>
+    xs.length <= 1
+      ? [xs]
+      : xs.flatMap((x, i) =>
+          permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]),
+        );
+
+  it("finds the optimum under a rule, matching brute force", () => {
+    const p = { ...line([10, 20, 30]), after: [[2], [], []] };
+    expect(optimiseRoute(line([10, 20, 30])).order).toEqual([0, 1, 2]);
+    const cost = (order: number[]) => {
+      let at = 0;
+      let t = 0;
+      for (const s of order) {
+        t += Math.abs([10, 20, 30][s]! - at);
+        at = [10, 20, 30][s]!;
+      }
+      return t;
+    };
+    const valid = permutations([0, 1, 2]).filter((o) => o.indexOf(2) < o.indexOf(0));
+    const optimum = Math.min(...valid.map(cost));
+    const got = optimiseRoute(p);
+    expect(got.order.indexOf(2)).toBeLessThan(got.order.indexOf(0));
+    expect(got.total).toBe(optimum);
+  });
+
+  it("makes the heuristic obey every rule on a 14-stop instance", () => {
+    const rand = mulberry32(7);
+    const pos = Array.from({ length: 14 }, () => Math.floor(rand() * 1000));
+    const after: number[][] = pos.map(() => []);
+    after[0] = [13, 5];
+    after[3] = [0];
+    after[7] = [12];
+    after[12] = [9];
+    const r = optimiseRoute({ ...line(pos), after });
+    expect(r.order).toHaveLength(14);
+    after.forEach((befores, stop) => {
+      for (const b of befores) expect(r.order.indexOf(b)).toBeLessThan(r.order.indexOf(stop));
+    });
+  });
+
+  it("finds cycles", () => {
+    expect(findCycle([[1], [0]])!.sort()).toEqual([0, 1]);
+    expect(findCycle([[1], [2], [0]])!.sort()).toEqual([0, 1, 2]);
+    expect(findCycle([[1, 2], [2], []])).toBeNull();
+  });
+
+  it("throws on a cycle", () => {
+    expect(() => optimiseRoute({ ...line([1, 2]), after: [[1], [0]] })).toThrow(
+      "after rules form a cycle",
+    );
   });
 });

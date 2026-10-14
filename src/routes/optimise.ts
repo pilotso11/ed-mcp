@@ -6,6 +6,8 @@ export interface RouteProblem {
   deadlines: number[][];
   start: number;
   finish?: number;
+  // after[i] lists the stops that must come before stop i.
+  after?: number[][];
 }
 
 export interface RouteSolution {
@@ -30,7 +32,42 @@ const better = (l1: number, t1: number, l2: number, t2: number) =>
 
 const lateAt = (deadlines: number[], t: number) => deadlines.filter((d) => t > d).length;
 
+// Returns the stops of one cycle in the after rules, or null when there is none.
+export function findCycle(after: number[][]): number[] | null {
+  const state: number[] = []; // 1 = on the current path, 2 = done
+  const path: number[] = [];
+  const visit = (i: number): number[] | null => {
+    if (state[i] === 2) return null;
+    if (state[i] === 1) return path.slice(path.indexOf(i));
+    state[i] = 1;
+    path.push(i);
+    for (const j of after[i] ?? []) {
+      const cycle = visit(j);
+      if (cycle) return cycle;
+    }
+    path.pop();
+    state[i] = 2;
+    return null;
+  };
+  for (let i = 0; i < after.length; i++) {
+    const cycle = visit(i);
+    if (cycle) return cycle;
+  }
+  return null;
+}
+
+const obeysAfter = (order: number[], after: number[][] | undefined) => {
+  if (!after) return true;
+  const seen = new Set<number>();
+  for (const stop of order) {
+    if (!(after[stop] ?? []).every((j) => seen.has(j))) return false;
+    seen.add(stop);
+  }
+  return true;
+};
+
 export function optimiseRoute(p: RouteProblem): RouteSolution {
+  if (p.after && findCycle(p.after)) throw new Error("after rules form a cycle");
   const deadlines = p.deadlines.flat().filter(Number.isFinite).length;
   const exact = p.n <= EXACT_MAX_STOPS && deadlines <= EXACT_MAX_DEADLINES;
   const order = exact ? exactOrder(p) : heuristicOrder(p);
@@ -87,7 +124,13 @@ function exactOrder(p: RouteProblem): number[] {
     front.push(...kept, label);
   };
 
+  // Bit mask of the stops that must precede each stop.
+  const needs = Array.from({ length: n }, (_, i) =>
+    (p.after?.[i] ?? []).reduce((m, j) => m | (1 << j), 0),
+  );
+
   for (let i = 0; i < n; i++) {
+    if (needs[i]) continue;
     const time = fromStart[i]!;
     insert(fronts[1 << i]![i]!, {
       late: lateAt(p.deadlines[i] ?? [], time),
@@ -100,7 +143,7 @@ function exactOrder(p: RouteProblem): number[] {
     for (let last = 0; last < n; last++) {
       for (const label of fronts[mask]![last]!) {
         for (let next = 0; next < n; next++) {
-          if (mask & (1 << next)) continue;
+          if (mask & (1 << next) || (needs[next]! & mask) !== needs[next]) continue;
           const time = label.time + between[last]![next]!;
           const late = label.late + lateAt(p.deadlines[next] ?? [], time);
           insert(fronts[mask | (1 << next)]![next]!, { late, time, last: next, parent: label });
@@ -135,6 +178,7 @@ function heuristicOrder(p: RouteProblem): number[] {
     let next = -1;
     let nextLeg = Infinity;
     for (const i of left) {
+      if (!(p.after?.[i] ?? []).every((j) => !left.has(j))) continue;
       const s = p.legSeconds(at, i);
       if (next < 0 || s < nextLeg) {
         next = i;
@@ -157,6 +201,7 @@ function heuristicOrder(p: RouteProblem): number[] {
           ...cur.order.slice(i, j + 1).reverse(),
           ...cur.order.slice(j + 1),
         ];
+        if (!obeysAfter(cand, p.after)) continue;
         const r = evaluate(p, cand);
         if (better(r.late.length, r.total, cur.late.length, cur.total)) {
           cur = r;
