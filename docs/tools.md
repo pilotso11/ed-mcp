@@ -30,6 +30,7 @@ For installation and setup, see the [README](../README.md).
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `missions_route`           | Best stop order for accepted missions, with deadlines        |
+| `route_stops`              | Best order for a build's shops, traders and engineers        |
 | `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
 | `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
 | `prefs_get`                | Get your stored travel preferences                           |
@@ -78,6 +79,32 @@ With up to 12 stops and up to 24 missions with an expiry, the search is exact. I
 The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
 Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+
+## Build routes
+
+`route_stops` puts the stops for a build in the fastest order: shops, material traders and engineers. It takes the stops from a plan (`plan_id`), from a list (`stops`), or both. It uses Spansh coordinates and the travel model, as `missions_route` does.
+
+Inputs:
+
+- `plan_id`: load the stops from a plan. Each engineer named in an open plan item gets a stop.
+- `stops`: stops to add to the pool, or the whole pool without `plan_id`. A stop has an optional `label`, a `system` and `station` or an `engineer`, a `kind` (`shop`, `trader`, `engineer` or `other`) and an `after` list. A `{ label, one_of: [...] }` entry is a group of alternatives.
+- `only` and `skip`: labels to keep or leave out, so one plan can serve several trips. A label that is not in the pool is an error.
+- `from`: the start system. The default is the journal location.
+- `return_to`: a system and optional station to add as the final stop.
+- `plan_rules`: default true. Without your own `after` list, an engineer comes after every shop and trader of the plan. Give `after: []` to let an engineer come first.
+- `plot`: default false. See below.
+- `save_to_plan`: save the order in the plan (needs `plan_id`). Saving does not change the plan's stops. With `return_to`, the saved stops end with a "return to ..." entry.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+Rules: a stop comes only after every stop in its `after` list. An `after` label that is not in the pool is ignored, with a note. A cycle is an error. Stops at the same station become one stop with several labels.
+
+Groups: for each `one_of` group, the tool tries every combination and keeps the fastest. The result shows `chosen`, with one entry for each group, and a `runner_up` with its extra time. A group that needs no choice, because only one option is left or a fixed stop meets it, is in `chosen` too. More than 16 combinations is an error.
+
+Shared candidates: one place can meet several groups, for example an engineer who does the work for two modules. Entries that name the same system and station (ignoring case) become one stop. An engineer counts as the system and station of their base, so an engineer and a station entry at that base also become one stop, which keeps the engineer. Its first label is the main label and the others are aliases; `only`, `skip` and `after` accept any of them. The stop is visited once, so a combination that uses it for several groups costs one visit. A group with an option that is already a fixed stop needs no choice: the tool adds a note and leaves it out of the search.
+
+Plot: with `plot: true`, the tool plots each leg of the chosen route with the Spansh neutron plotter, at your jump range. A plotted leg uses the plotted number of jumps. If a plotted leg differs from its estimate by more than 20% and by at least 2 jumps, the tool solves again with the plotted times and plots only the new legs. It stops after 2 rounds. All plots share a time budget of about 40 s for the call, so the call ends before MCP clients give up. If Spansh has not finished a leg, or the budget runs out before a leg, the tool keeps the estimate, sets `plotted: false` on that stop and adds the note "Spansh is still plotting; call again to finish." Call again to collect the plot. If Spansh cannot plot a leg, for example because it does not know a system, the tool keeps the estimate, sets `plotted: false` and adds the note "Spansh could not plot the leg to <label>: <error>; the estimate is used." Calling again does not help for that leg. Without `plot`, each leg longer than 200 LY gets a note, because a neutron route or a detour can change its time.
+
+The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `meets` (the groups that this visit meets), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. A saved route has `plotted: true` only if every leg was plotted. `plan_export` shows the saved route with its start and whether it was plotted or is an estimate.
 
 ## Trading
 

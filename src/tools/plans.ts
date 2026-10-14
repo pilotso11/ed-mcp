@@ -42,7 +42,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
     {
       description:
         "Create or replace a build plan. Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision); " +
-        "stops are the route. Replacing keeps created_at.",
+        "stops are the places to visit (optionally with label, kind and after rules); route is the saved visiting order. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },
     wrap(async ({ plan }: { plan: PlanInput }) => plans.upsert(plan)),

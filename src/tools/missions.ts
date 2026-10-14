@@ -2,33 +2,17 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
+import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { optimiseRoute } from "../routes/optimise.js";
 import { missionsToStops, type Stop, type StopMission, type Unroutable } from "../routes/stops.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import type { SpanshClient, SystemInfo } from "../spansh/client.js";
+import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { legSeconds } from "../stations/travel.js";
 import { wrap } from "./result.js";
 
-// High enough that the destination station is in the list even for crowded systems.
-const STATION_LIMIT = 500;
-
-interface Place {
-  system: string;
-  station: string | null;
-  coords: SystemInfo["coords"];
-  arrivalLs: number | null;
-  planetary: boolean;
-}
-
-// Spansh system records carry no planetary flag, only the station type.
-const PLANETARY = /planetary|surface|settlement/i;
-
 const min = (s: number) => Math.round(s / 6) / 10;
-const same = (a: string | null, b: string | null) =>
-  a !== null && b !== null && a.toLowerCase() === b.toLowerCase();
 
 export function registerMissionTools(
   server: McpServer,
@@ -79,13 +63,7 @@ export function registerMissionTools(
         const travel = rules.travel;
         const notes = new Set<string>();
 
-        const systems = new Map<string, Promise<SystemInfo>>();
-        const lookup = (name: string) => {
-          const key = name.toLowerCase();
-          let p = systems.get(key);
-          if (!p) systems.set(key, (p = deps.spansh.system(name, STATION_LIMIT)));
-          return p;
-        };
+        const { place } = createPlacer(deps.spansh, notes);
         const endpoint = async (label: string, system: string, station: string | null) => {
           try {
             return await place(system, station);
@@ -96,23 +74,6 @@ export function registerMissionTools(
             throw e;
           }
         };
-        const place = async (system: string, station: string | null): Promise<Place> => {
-          const info = await lookup(system);
-          const hit = station ? info.stations.find((s) => same(s.name, station)) : undefined;
-          if (station && !hit) {
-            notes.add(
-              `Station ${station} not found in ${info.name}; assumed 1000 ls from arrival.`,
-            );
-          }
-          return {
-            system: info.name,
-            station,
-            coords: info.coords,
-            arrivalLs: hit?.arrival_ls ?? null,
-            planetary: PLANETARY.test(hit?.type ?? ""),
-          };
-        };
-
         let startPlace: Place;
         let source: "journal" | "input";
         if (a.from) {
@@ -160,25 +121,7 @@ export function registerMissionTools(
 
         const n = stops.length;
         const nodes = [...places, startPlace, ...(returnPlace ? [returnPlace] : [])];
-        const leg = (from: number, to: number) => {
-          const f = nodes[from]!;
-          const t = nodes[to]!;
-          if (same(f.system, t.system) && same(f.station, t.station)) {
-            return { jumps: 0, seconds: 0 };
-          }
-          const distanceLy = same(f.system, t.system)
-            ? 0
-            : Math.hypot(f.coords.x - t.coords.x, f.coords.y - t.coords.y, f.coords.z - t.coords.z);
-          return legSeconds(
-            {
-              distanceLy,
-              arrivalLs: t.arrivalLs,
-              planetary: t.planetary,
-              stationKnown: t.station !== null,
-            },
-            travel,
-          );
-        };
+        const leg = (from: number, to: number) => legBetween(nodes[from]!, nodes[to]!, travel);
 
         // A completed mission only needs handing in; its expiry no longer matters.
         const deadlineOf = (m: StopMission) => {

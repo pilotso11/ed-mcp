@@ -4,7 +4,7 @@ ed-mcp connects Claude to Elite Dangerous. Claude can then read your commander d
 
 With ed-mcp, Claude can:
 
-- plan a ship build: the modules to buy, the engineering, the materials and the engineers to visit,
+- plan a ship build: the modules to buy, the engineering, the materials and the engineers to visit, and the route to all of them,
 - work out which materials you are short of and the trades that cover them,
 - find the best station for a module, ship or service, ranked by travel time and price,
 - plan trade runs and find where to sell or buy a commodity,
@@ -27,6 +27,7 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 - "Find me a trade route from here. I have 400 t of cargo."
 - "Where can I sell 200 t of gold near Atlas?"
 - "Plan the best order for my passenger missions."
+- "Plan the route for my Corsair build plan."
 - "From now on, ignore stations more than 2,000 ls from the star."
 
 ## Install

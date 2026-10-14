@@ -18,6 +18,7 @@ import { registerMissionTools } from "./tools/missions.js";
 import { registerJournalTools } from "./tools/journal.js";
 import { registerInaraTools } from "./tools/inara.js";
 import { registerEdsmTools } from "./tools/edsm.js";
+import { registerRouteTools } from "./tools/routes.js";
 import { registerPlanTools } from "./tools/plans.js";
 import { registerPrefsTools } from "./tools/prefs.js";
 import { registerSpanshTools } from "./tools/spansh.js";
@@ -81,6 +82,17 @@ export function createServer(deps: ServerDeps): McpServer {
     registerMissionTools(server, {
       journal: deps.journal,
       spansh: deps.spansh,
+      prefs: deps.prefs,
+      currentShip: deps.currentShip,
+      jumpRange: deps.jumpRange,
+    });
+  }
+  if (deps.spansh) {
+    registerRouteTools(server, {
+      journal: deps.journal,
+      spansh: deps.spansh,
+      plans: deps.plans,
+      catalog: deps.catalog,
       prefs: deps.prefs,
       currentShip: deps.currentShip,
       jumpRange: deps.jumpRange,

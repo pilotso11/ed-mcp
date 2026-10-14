@@ -9,6 +9,7 @@ import {
   type PlanFile,
   type PlanInput,
   type PlanItem,
+  type PlanRoute,
 } from "./schema.js";
 
 export interface PlanSummary {
@@ -80,6 +81,16 @@ export class PlanStore {
       if (!item) throw new UserError(`Item "${itemId}" not found in plan "${planId}"`);
       if (patch.status !== undefined) item.status = patch.status;
       if (patch.notes !== undefined) item.notes = patch.notes;
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  setRoute(planId: string, route: PlanRoute): Promise<Plan> {
+    return this.mutate((data) => {
+      const plan = data.plans.find((p) => p.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      plan.route = route;
       plan.updated_at = this.now().toISOString();
       return plan;
     });
