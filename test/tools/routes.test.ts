@@ -577,6 +577,13 @@ describe("route_stops", () => {
       expect(j.notes).toContain(note);
     });
 
+    it("adds a note for the leg to return_to", async () => {
+      const { j } = await route({ stops: [alpha], return_to: { system: "Far" } });
+      expect(j.notes).toContain(
+        "The leg to return_to is 290 LY; a neutron route or a detour can change its time. Pass plot: true to plot it.",
+      );
+    });
+
     it("leaves the note out with plot", async () => {
       const { client } = await setup({ route: async () => ({ total_jumps: 15 }) });
       const r = await callTool(client, "route_stops", { ...range, stops: [far], plot: true });

@@ -380,9 +380,9 @@ export function registerRouteTools(
           const seconds = legSeconds(f, t);
           clock += seconds;
           const node = t === n + 1 ? null : nodes[t]!;
-          if (node && !a.plot && l.distanceLy > LONG_LEG_LY) {
+          if (!a.plot && l.distanceLy > LONG_LEG_LY) {
             notes.add(
-              `The leg to ${node.labels.join(" + ")} is ${Math.round(l.distanceLy)} LY; a neutron route or a detour can change its time. Pass plot: true to plot it.`,
+              `The leg to ${node ? node.labels.join(" + ") : "return_to"} is ${Math.round(l.distanceLy)} LY; a neutron route or a detour can change its time. Pass plot: true to plot it.`,
             );
           }
           const plotted = plottedFlag(f, t);
