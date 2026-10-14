@@ -64,4 +64,21 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
 2. Merge the change to `main`.
 3. Tag the commit `vX.Y.Z` and push the tag.
 
-The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. It publishes to npm only if the repository has an `NPM_TOKEN` secret. Without the secret, it skips npm and still creates the release.
+The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. Then it publishes the package to npm, unless that version is already on npm.
+
+Do not create the release in the GitHub web form. The workflow creates the release itself, and the step fails if the release already exists.
+
+### npm trusted publishing
+
+The workflow publishes to npm with trusted publishing. npm takes a short-lived token from the GitHub Actions run and adds provenance to the package. No npm token is stored in the repository.
+
+The trusted publisher is set on npmjs.com, in the settings of the `ed-mcp` package:
+
+| Field                | Value         |
+| -------------------- | ------------- |
+| Organization or user | `pilotso11`   |
+| Repository           | `ed-mcp`      |
+| Workflow filename    | `release.yml` |
+| Environment          | (empty)       |
+
+npm can set a trusted publisher only for a package that exists. For that reason, the first version was published by hand with `npm publish --access public`.

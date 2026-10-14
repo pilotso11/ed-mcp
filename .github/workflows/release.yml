@@ -11,8 +11,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +18,8 @@ jobs:
           node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@^11.5.1
       - run: npm ci
       - name: Check tag matches package version
         run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
@@ -29,8 +29,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" ed-mcp-*.mcpb --title "$GITHUB_REF_NAME" --generate-notes
+      # Trusted publishing: npm takes a short-lived OIDC token from this workflow (id-token: write)
+      # and adds provenance itself. No npm token is stored in the repository.
       - name: Publish to npm
-        if: env.HAS_NPM_TOKEN == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "ed-mcp@$version" version >/dev/null 2>&1; then
+            echo "ed-mcp@$version is already on npm; skipping"
+          else
+            npm publish --access public
+          fi
