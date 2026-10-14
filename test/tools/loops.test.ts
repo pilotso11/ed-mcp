@@ -407,7 +407,7 @@ describe("trade_loops", () => {
     expect(system).toHaveBeenCalledWith("Gamma", expect.any(Number));
     expect(names(j.loops[0])).toEqual(["Start Port", "Gamma Market"]);
     expect(j.notes).toContain("Cannot include Nowhere: Spansh has no market for it.");
-    expect(j.notes).toContain("Cannot include Lost: Spansh has no market for it.");
+    expect(j.notes).toContain('Cannot include Lost: System "Unknown" not found on Spansh.');
   });
 
   it("reports the search coverage", async () => {

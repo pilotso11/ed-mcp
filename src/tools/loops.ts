@@ -285,12 +285,16 @@ export function registerLoopTools(
             stopped = true;
             break;
           }
-          const market = await includeMarket(inc).catch((err: unknown) => {
-            if (err instanceof UserError) return null;
-            throw err;
-          });
+          let market: MarketStation | null = null;
+          let failure = "Spansh has no market for it.";
+          try {
+            market = await includeMarket(inc);
+          } catch (err) {
+            if (!(err instanceof UserError)) throw err;
+            failure = err.message;
+          }
           if (!market) {
-            notes.push(`Cannot include ${inc.station}: Spansh has no market for it.`);
+            notes.push(`Cannot include ${inc.station}: ${failure}`);
           } else if (!candidates.some((c) => c.market_id === market.market_id)) {
             candidates.push(market);
           }
@@ -434,6 +438,11 @@ export function registerLoopTools(
   async function includeMarket(inc: { system: string; station: string }) {
     const info = await spansh.system(inc.system, STATION_LIMIT);
     const id = info.stations.find((st) => same(st.name, inc.station))?.market_id;
-    return id == null ? null : spansh.stationMarket(id);
+    if (id == null) return null;
+    // A market that Spansh does not have is the same as a station not in the list.
+    return spansh.stationMarket(id).catch((err: unknown) => {
+      if (err instanceof UserError) return null;
+      throw err;
+    });
   }
 }
