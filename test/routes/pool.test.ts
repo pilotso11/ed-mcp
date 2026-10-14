@@ -528,4 +528,16 @@ describe("buildPool", () => {
       );
     });
   });
+  it("does not adopt a base for an unnamed stop when an entry names the engineer", () => {
+    const p = plan({
+      stops: [{ system: "Deciat", kind: "engineer", label: "FSD G5", purpose: "x" }],
+      items: [item("a", "Felicity Farseer")],
+    });
+    const pool = buildPool(
+      { ...base, plan: p, stops: [{ engineer: "Felicity Farseer" }] },
+      catalog,
+    );
+    expect(pool.stops).toHaveLength(2);
+    expect(pool.stops.find((s) => s.label === "FSD G5")).toMatchObject({ station: null });
+  });
 });
