@@ -119,15 +119,6 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
   const candidates: Candidate[] = [];
 
   if (a.plan) {
-    for (const s of a.plan.stops) {
-      candidates.push({
-        fixed: make(
-          { label: s.label, system: s.system, station: s.station, kind: s.kind, after: s.after },
-          { purpose: s.purpose },
-        ),
-      });
-    }
-
     const named = new Set<string>();
     for (const s of a.plan.stops) if (s.kind === "engineer" && s.label) named.add(lc(s.label));
     for (const e of entries) {
@@ -146,6 +137,48 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       entry.descriptions.push(item.description);
       byEngineer.set(lc(item.engineer), entry);
     }
+
+    // A plan stop of kind engineer with no station, in the system of an item's engineer, is that
+    // engineer under another label. It gets their base so that the two merge into one stop.
+    const baseFor = new Map<(typeof a.plan.stops)[number], string>();
+    if (catalog) {
+      for (const [key, { name }] of byEngineer) {
+        if (named.has(key)) continue;
+        let e: ReturnType<typeof resolveEngineer>;
+        try {
+          e = resolveEngineer(name);
+        } catch {
+          continue; // Reported with the item's id below.
+        }
+        const here = a.plan.stops.filter(
+          (s) =>
+            s.kind === "engineer" &&
+            !s.station &&
+            !baseFor.has(s) &&
+            lc(s.system ?? "") === lc(e.system),
+        );
+        const mentions = (s: (typeof here)[number]) =>
+          lc(`${s.label ?? ""} ${s.purpose ?? ""}`).includes(lc(e.name));
+        const match = here.find(mentions) ?? here[0];
+        if (match) baseFor.set(match, e.base);
+      }
+    }
+
+    for (const s of a.plan.stops) {
+      candidates.push({
+        fixed: make(
+          {
+            label: s.label,
+            system: s.system,
+            station: s.station ?? baseFor.get(s),
+            kind: s.kind,
+            after: s.after,
+          },
+          { purpose: s.purpose },
+        ),
+      });
+    }
+
     for (const [key, { id, name, descriptions }] of byEngineer) {
       if (named.has(key)) continue;
       let fixed: PoolStop;
