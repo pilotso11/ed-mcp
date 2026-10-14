@@ -164,9 +164,47 @@ export interface CommodityHit extends StationHit {
   supply: number | null;
 }
 
+export interface MarketRow {
+  commodity: string;
+  buy_price: number;
+  sell_price: number;
+  supply: number;
+  demand: number;
+}
+
+export interface MarketStation {
+  name: string;
+  system: string;
+  market_id: number;
+  distance_ly: number | null;
+  arrival_ls: number | null;
+  coords: { x: number; y: number; z: number };
+  pad: "S" | "M" | "L" | null;
+  type: string | null;
+  planetary: boolean;
+  market_age_hours: number | null;
+  /** Rows with supply or demand only. */
+  market: MarketRow[];
+}
+
+export interface MarketStationsQuery {
+  near: string;
+  radiusLy: number;
+  maxStations: number;
+  maxAgeDays: number;
+  largePad?: boolean;
+  planetary?: boolean;
+  fleetCarriers?: boolean;
+  maxArrivalLs?: number;
+}
+
 interface RawStation {
   name: string;
+  market_id?: number;
   system_name?: string;
+  system_x?: number;
+  system_y?: number;
+  system_z?: number;
   distance?: number;
   distance_to_arrival?: number | null;
   type?: string | null;
@@ -215,6 +253,8 @@ function pad(s: RawStation): Pad {
 }
 
 const MAX_JOBS = 100;
+const SEARCH_PAGE_SIZE = 50;
+const CARRIER_TYPE = "Drake-Class Carrier";
 
 export class SpanshClient {
   private readonly baseUrl: string;
@@ -223,6 +263,7 @@ export class SpanshClient {
   private readonly routeTimeoutMs: number;
   private readonly now: () => number;
   private readonly systemCache: TtlCache<unknown>;
+  private readonly marketCache: TtlCache<unknown>;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
@@ -241,6 +282,8 @@ export class SpanshClient {
       now?: () => number;
       // System lookups change rarely and cost two rate-limited calls, so they outlive the station cache.
       systemCache?: TtlCache<unknown>;
+      // Mapped market records are compact but costly to fetch, so they are kept longer than raw search results.
+      marketCache?: TtlCache<unknown>;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
@@ -250,6 +293,7 @@ export class SpanshClient {
     this.routeTimeoutMs = opts.routeTimeoutMs ?? 50_000;
     this.now = opts.now ?? Date.now;
     this.systemCache = opts.systemCache ?? cache;
+    this.marketCache = opts.marketCache ?? cache;
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -556,6 +600,108 @@ export class SpanshClient {
       });
       return { near: q.near, total: raw.count, stations };
     })) as { near: string; total: number; stations: CommodityHit[] };
+  }
+
+  async marketStations(
+    q: MarketStationsQuery,
+  ): Promise<{ near: string; total: number; stations: MarketStation[]; droppedOld: number }> {
+    const filters: Record<string, unknown> = {
+      distance: { min: 0, max: q.radiusLy },
+      has_market: { value: true },
+    };
+    if (q.largePad) filters.has_large_pad = { value: true };
+    if (q.planetary === false) filters.is_planetary = { value: false };
+    if (q.maxArrivalLs !== undefined) {
+      filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
+    }
+    return (await this.marketCache.getOrLoad(`markets:${JSON.stringify(q)}`, async () => {
+      const raws: RawStation[] = [];
+      let total = 0;
+      for (let page = 0; raws.length < q.maxStations; page++) {
+        const body = {
+          filters,
+          sort: [{ distance: { direction: "asc" } }],
+          size: SEARCH_PAGE_SIZE,
+          page,
+          reference_system: q.near,
+        };
+        let res: { count: number; results?: RawStation[] };
+        try {
+          res = (await this.post("/stations/search", JSON.stringify(body), "application/json")) as {
+            count: number;
+            results?: RawStation[];
+          };
+        } catch (err) {
+          if (err instanceof SpanshError && err.status === 400) {
+            throw new UserError(
+              `Spansh rejected the search (${err.detail}). Check that "${q.near}" is an exact system name (spansh_system).`,
+            );
+          }
+          throw err;
+        }
+        total = res.count;
+        const results = res.results ?? [];
+        raws.push(...results);
+        if (results.length < SEARCH_PAGE_SIZE) break;
+      }
+      const now = this.now();
+      const stations: MarketStation[] = [];
+      let droppedOld = 0;
+      for (const raw of raws.slice(0, q.maxStations)) {
+        // Carriers have no server-side exclusion filter, so drop them here.
+        if (q.fleetCarriers === false && raw.type === CARRIER_TYPE) continue;
+        const st = this.marketStation(raw, now);
+        if (st.market_age_hours !== null && st.market_age_hours > q.maxAgeDays * 24) {
+          droppedOld++;
+          continue;
+        }
+        stations.push(st);
+      }
+      return { near: q.near, total, stations, droppedOld };
+    })) as { near: string; total: number; stations: MarketStation[]; droppedOld: number };
+  }
+
+  async stationMarket(marketId: number): Promise<MarketStation> {
+    return (await this.marketCache.getOrLoad(`market:${marketId}`, async () => {
+      let res: { record?: RawStation } | undefined;
+      try {
+        res = (await this.get(`/station/${marketId}`)) as { record?: RawStation } | undefined;
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 404) {
+          throw new UserError(`Spansh has no market for station ${marketId}`);
+        }
+        throw err;
+      }
+      if (!res?.record) throw new UserError(`Spansh has no market for station ${marketId}`);
+      return { ...this.marketStation(res.record, this.now()), distance_ly: null };
+    })) as MarketStation;
+  }
+
+  private marketStation(s: RawStation, now: number): MarketStation {
+    const updated = s.market_updated_at ? Date.parse(s.market_updated_at) : NaN;
+    return {
+      name: s.name,
+      system: s.system_name ?? "",
+      market_id: s.market_id ?? 0,
+      distance_ly: s.distance ?? null,
+      arrival_ls: s.distance_to_arrival ?? null,
+      coords: { x: s.system_x ?? 0, y: s.system_y ?? 0, z: s.system_z ?? 0 },
+      pad: pad(s),
+      type: s.type ?? null,
+      planetary: s.is_planetary ?? false,
+      market_age_hours: Number.isNaN(updated)
+        ? null
+        : Math.round(((now - updated) / 3_600_000) * 10) / 10,
+      market: (s.market ?? [])
+        .filter((m) => (m.supply ?? 0) > 0 || (m.demand ?? 0) > 0)
+        .map((m) => ({
+          commodity: m.commodity,
+          buy_price: m.buy_price ?? 0,
+          sell_price: m.sell_price ?? 0,
+          supply: m.supply ?? 0,
+          demand: m.demand ?? 0,
+        })),
+    };
   }
 
   private hit(s: RawStation, q: StationQuery, shipName?: string): StationHit {
