@@ -293,6 +293,28 @@ describe("route_stops", () => {
     expect(md.markdown).toContain("## Route");
   });
 
+  it("lists the return_to leg in the saved route", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", { plan: planWith([]) });
+    const run = (return_to: Record<string, string>) =>
+      callTool(client, "route_stops", {
+        ...range,
+        plan_id: "p",
+        stops: [alpha],
+        return_to,
+        save_to_plan: true,
+      });
+    const route = async () =>
+      ((await callTool(client, "plan_get", { id: "p" })).json as Record<string, any>).route;
+
+    await run({ system: "Sol" });
+    expect((await route()).stops).toEqual(["AlphaShop", "return to Sol"]);
+    await run({ system: "Sol", station: "Abraham Lincoln" });
+    expect((await route()).stops).toEqual(["AlphaShop", "return to Sol — Abraham Lincoln"]);
+    const md = (await callTool(client, "plan_export", { id: "p" })).json as { markdown: string };
+    expect(md.markdown).toContain("2. return to Sol — Abraham Lincoln");
+  });
+
   it("merges stops at the same station", async () => {
     const { j } = await route({
       stops: [alpha, { label: "Again", system: "alpha", station: "alpha port" }, beta],

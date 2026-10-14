@@ -93,7 +93,7 @@ Inputs:
 - `return_to`: a system and optional station to add as the final stop.
 - `plan_rules`: default true. Without your own `after` list, an engineer comes after every shop and trader of the plan. Give `after: []` to let an engineer come first.
 - `plot`: default false. See below.
-- `save_to_plan`: save the order in the plan (needs `plan_id`). Saving does not change the plan's stops.
+- `save_to_plan`: save the order in the plan (needs `plan_id`). Saving does not change the plan's stops. With `return_to`, the saved stops end with a "return to ..." entry.
 - `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
 
 Rules: a stop comes only after every stop in its `after` list. An `after` label that is not in the pool is ignored, with a note. A cycle is an error. Stops at the same station become one stop with several labels.

@@ -426,7 +426,14 @@ export function registerRouteTools(
           await deps.plans!.setRoute(a.plan_id, {
             computed_at: new Date(now()).toISOString(),
             from: startPlace.system,
-            stops: solved.order.map(optionLabel),
+            stops: [
+              ...solved.order.map(optionLabel),
+              ...(a.return_to
+                ? [
+                    `return to ${a.return_to.system}${a.return_to.station ? ` — ${a.return_to.station}` : ""}`,
+                  ]
+                : []),
+            ],
             total_min: total,
             plotted: a.plot && allPlotted,
           });
