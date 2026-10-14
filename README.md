@@ -11,7 +11,7 @@ With ed-mcp, Claude can:
 - put the stops for your accepted missions in the best order,
 - read your game journal for your location, ship, cargo, materials, missions and engineer progress.
 
-ed-mcp runs on your computer. It keeps your plans and settings on your computer, and it only reads from Inara, EDSM and Frontier.
+ed-mcp runs on your computer. It keeps your plans and settings on your computer. It reads from Inara, EDSM, Frontier and Spansh, and it downloads game data from GitHub.
 
 ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 
