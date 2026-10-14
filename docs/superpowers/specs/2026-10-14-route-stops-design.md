@@ -102,7 +102,7 @@ This part is shared with `missions_route` (factored out of `src/tools/missions.t
 
 Each "one of" group is a requirement, for example "a raw trader" or "an engineer for G5 FSD". One place can be a candidate for several requirements, and it is then visited once.
 
-- **A place** is identified by its engineer name, or else by its system and station, ignoring case.
+- **A place** is identified by its system and station, ignoring case. An engineer is identified by the system and station of their base.
 - **One stop per place.** Entries in the pool (fixed stops and group options) that name the same place become one stop. Its first label is the main label, and the others are aliases. The `after` lists of the merged entries combine. The merged stop has an `after` list if any of the entries had one.
 - **A group already met by a fixed stop** is dropped, with the note `Group "${name}" is met by ${label}, which is already in the route.`
 - **In each combination,** the visited stops are the fixed stops plus the chosen options, with each stop counted once. So a place that meets several groups costs one visit, and the search prefers it when it is faster.

@@ -257,6 +257,45 @@ describe("buildPool", () => {
   });
 
   describe("shared places", () => {
+    it("merges an engineer and a station at the engineer's base, in either order", () => {
+      const shop = {
+        label: "Shop",
+        system: "deciat",
+        station: "FARSEER INC",
+        kind: "shop" as const,
+      };
+      const eng = { engineer: "Felicity Farseer" };
+      for (const stops of [
+        [shop, eng],
+        [eng, shop],
+      ]) {
+        const pool = buildPool({ ...base, stops }, catalog);
+        expect(pool.stops).toHaveLength(1);
+        expect(pool.stops[0]).toMatchObject({
+          key: "deciat|farseer inc",
+          kind: "engineer",
+          engineer: { name: "Felicity Farseer" },
+        });
+        expect(pool.stops[0]!.aliases).toHaveLength(1);
+      }
+    });
+
+    it("meets a group of engineers with a station at the engineer's base", () => {
+      const pool = buildPool(
+        {
+          ...base,
+          stops: [
+            { label: "Shop", system: "Deciat", station: "Farseer Inc" },
+            { label: "fsd", one_of: [{ engineer: "Felicity Farseer" }, { system: "Lave" }] },
+          ],
+        },
+        catalog,
+      );
+      expect(pool.groups).toEqual([]);
+      expect(pool.requirements[0]!.met).toBe(pool.stops[0]);
+      expect(pool.notes[0]).toContain('Group "fsd" is met by Shop');
+    });
+
     it("shares one stop between groups that name the same engineer", () => {
       const pool = buildPool(
         {
@@ -285,7 +324,7 @@ describe("buildPool", () => {
       expect(fsd!.options[0]).toMatchObject({
         label: "Felicity Farseer",
         aliases: ["Farseer"],
-        key: "eng:felicity farseer",
+        key: "deciat|farseer inc",
       });
       expect(thr!.options[1]!.key).toBe("lave|");
     });

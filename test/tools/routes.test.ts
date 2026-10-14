@@ -172,6 +172,19 @@ describe("route_stops", () => {
     });
   });
 
+  it("lists an engineer and a station at the engineer's base once", async () => {
+    const { j } = await route({
+      stops: [
+        { label: "Base", system: "Alpha", station: "Farseer Inc" },
+        { label: "fsd", one_of: [{ engineer: "Farseer" }, beta] },
+      ],
+    });
+    expect(labels(j)).toEqual(["Base+Felicity Farseer"]);
+    expect(j.stops[0]).toMatchObject({ engineer: "Felicity Farseer", kind: "engineer" });
+    expect(j.stops[0].meets).toEqual(["fsd"]);
+    expect(j.chosen).toEqual([{ group: "fsd", option: "Base" }]);
+  });
+
   it("lets after: [] put a nearby engineer first", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", {

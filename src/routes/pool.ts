@@ -15,7 +15,7 @@ export interface StopInput {
 export type StopEntry = StopInput | { label?: string; one_of: StopInput[] };
 
 export interface PoolStop {
-  // One stop per place: `eng:<engineer>` or `<system>|<station>`, lower case.
+  // One stop per place: `<system>|<station>`, lower case. An engineer's place is their base.
   key: string;
   label: string;
   // Labels of other entries that name the same place.
@@ -86,14 +86,18 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       );
     }
     const station = input.station ?? (input.system ? undefined : engineer?.base);
-    const key = engineer ? `eng:${lc(engineer.name)}` : `${lc(system)}|${lc(station ?? "")}`;
+    // An engineer is the place of their base, so a station entry there merges with them.
+    const key = engineer
+      ? `${lc(engineer.system)}|${lc(engineer.base)}`
+      : `${lc(system)}|${lc(station ?? "")}`;
     const name = input.label ?? engineer?.name ?? input.station ?? system;
     const hit = byKey.get(key);
     if (hit) {
       if (!namesOf(hit).some((n) => lc(n) === lc(name))) hit.aliases.push(unique(name));
       if (input.after) hit.after = [...new Set([...(hit.after ?? []), ...input.after])];
       hit.purpose = joinPurposes(hit.purpose, over.purpose ?? null);
-      if ((over.kind ?? input.kind) === "engineer") hit.kind = "engineer";
+      hit.engineer ??= engineer;
+      if (engineer || (over.kind ?? input.kind) === "engineer") hit.kind = "engineer";
       return hit;
     }
     const stop: PoolStop = {
