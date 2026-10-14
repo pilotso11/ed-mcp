@@ -34,11 +34,16 @@ export function planToMarkdown(plan: Plan): string {
     out.push("");
   }
   if (plan.stops.length) {
-    out.push("## Route", "");
+    out.push("## Stops", "");
     plan.stops.forEach((s, n) => {
       out.push(`${n + 1}. ${s.system}${s.station ? ` — ${s.station}` : ""}: ${s.purpose}`);
     });
     out.push("");
+  }
+  if (plan.route) {
+    out.push("## Route", "");
+    plan.route.stops.forEach((s, n) => out.push(`${n + 1}. ${s}`));
+    out.push("", `Total ${plan.route.total_min} min, computed ${plan.route.computed_at}`, "");
   }
   return out.join("\n");
 }

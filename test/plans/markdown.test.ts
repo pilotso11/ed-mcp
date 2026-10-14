@@ -46,11 +46,40 @@ describe("planToMarkdown", () => {
         "  - Materials: 3× Datamined Wake Exceptions",
         "  - Notes: pin blueprint",
         "",
-        "## Route",
+        "## Stops",
         "",
         "1. Deciat — Farseer Inc: FSD G5",
         "",
       ].join("\n"),
     );
+  });
+
+  it("renders the saved route after the stops, in route order", () => {
+    const md = planToMarkdown({
+      ...plan,
+      route: {
+        computed_at: "2026-10-14T00:00:00.000Z",
+        from: "Sol",
+        stops: ["Deciat", "Shinrarta Dezhra"],
+        total_min: 12.5,
+        plotted: false,
+      },
+    });
+    expect(md).toContain(
+      [
+        "## Route",
+        "",
+        "1. Deciat",
+        "2. Shinrarta Dezhra",
+        "",
+        "Total 12.5 min, computed 2026-10-14T00:00:00.000Z",
+        "",
+      ].join("\n"),
+    );
+    expect(md.indexOf("## Stops")).toBeLessThan(md.indexOf("## Route"));
+  });
+
+  it("omits the Route section without a saved route", () => {
+    expect(planToMarkdown(plan)).not.toContain("## Route");
   });
 });

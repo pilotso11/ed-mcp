@@ -24,10 +24,23 @@ export const PlanItemSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const StopKind = z.enum(["shop", "trader", "engineer", "other"]);
+
 export const StopSchema = z.object({
   system: z.string().min(1),
   station: z.string().optional(),
   purpose: z.string().min(1),
+  label: z.string().min(1).optional(),
+  kind: StopKind.optional(),
+  after: z.array(z.string().min(1)).optional(),
+});
+
+export const PlanRouteSchema = z.object({
+  computed_at: z.string(),
+  from: z.string(),
+  stops: z.array(z.string()),
+  total_min: z.number(),
+  plotted: z.boolean(),
 });
 
 export const PlanInputSchema = z.object({
@@ -38,6 +51,7 @@ export const PlanInputSchema = z.object({
   target_build: z.unknown().optional(),
   items: z.array(PlanItemSchema).default([]),
   stops: z.array(StopSchema).default([]),
+  route: PlanRouteSchema.optional(),
   notes: z.string().optional(),
 });
 
@@ -52,6 +66,7 @@ export const PlanFileSchema = z.object({
 });
 
 export type PlanItem = z.infer<typeof PlanItemSchema>;
+export type PlanRoute = z.infer<typeof PlanRouteSchema>;
 export type Stop = z.infer<typeof StopSchema>;
 export type PlanInput = z.input<typeof PlanInputSchema>;
 export type Plan = z.infer<typeof PlanSchema>;

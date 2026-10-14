@@ -147,4 +147,29 @@ describe("PlanStore", () => {
       await expect(s.upsert(input())).rejects.toThrow(/locked by another process/);
     });
   });
+
+  it("saves a route without touching the stops", async () => {
+    const s = new PlanStore(file, now);
+    const before = await s.upsert(input());
+    t += 1000;
+    const route = {
+      computed_at: "2026-10-11T00:00:01.000Z",
+      from: "Sol",
+      stops: ["Shinrarta Dezhra"],
+      total_min: 3,
+      plotted: true,
+    };
+    const after = await s.setRoute("python-mk2", route);
+    expect(after.route).toEqual(route);
+    expect(after.stops).toEqual(before.stops);
+    expect(after.updated_at).toBe("2026-10-11T00:00:01.000Z");
+    expect((await s.get("python-mk2")).route).toEqual(route);
+  });
+
+  it("fails to save a route for an unknown plan", async () => {
+    const route = { computed_at: "x", from: "Sol", stops: [], total_min: 0, plotted: false };
+    await expect(new PlanStore(file, now).setRoute("nope", route)).rejects.toThrow(
+      'Plan "nope" not found',
+    );
+  });
 });
