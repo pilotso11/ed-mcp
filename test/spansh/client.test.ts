@@ -372,6 +372,19 @@ describe("SpanshClient.route", () => {
     expect(sleeps).toEqual([1000, 2000, 4000, 8000, 16000, 16000, 3000]);
   });
 
+  it("stops polling when the caller's budget runs out", async () => {
+    const submit = await raw("route-submit.json");
+    const pending = await raw("results-route-pending.json");
+    const { client, sleeps } = makeTimed([
+      { match: isSubmit, respond: () => text(submit, 202) },
+      { match: () => true, respond: () => text(pending, 202) },
+    ]);
+    await expect(
+      client.route({ from: "Sol", to: "Colonia", rangeLy: 50 }, { budgetMs: 5_000 }),
+    ).rejects.toThrow(STILL_PLOTTING);
+    expect(sleeps).toEqual([1000, 2000, 2000]);
+  });
+
   it("resumes the same job on a repeat call instead of submitting again", async () => {
     const submit = await raw("route-submit.json");
     const pending = await raw("results-route-pending.json");

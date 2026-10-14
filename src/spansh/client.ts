@@ -362,7 +362,7 @@ export class SpanshClient {
     };
   }
 
-  async route(q: RouteQuery): Promise<RouteResult> {
+  async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {
     const form = new URLSearchParams({
       from: q.from,
       to: q.to,
@@ -372,7 +372,7 @@ export class SpanshClient {
     });
     const key = form.toString();
     return (await this.cached(`route:${key}`, async () => {
-      const deadline = this.now() + this.routeTimeoutMs;
+      const deadline = this.now() + (opts.budgetMs ?? this.routeTimeoutMs);
       let job = this.routeJobs.get(key);
       if (!job) {
         // A retry after Spansh accepted the job would submit a second one and lose the first id.

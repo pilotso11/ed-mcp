@@ -22,6 +22,8 @@ const LONG_LEG_LY = 200;
 const PLOT_ROUNDS = 2;
 const PLOT_DIFF = 0.2;
 const PLOT_PENDING_NOTE = "Spansh is still plotting; call again to finish.";
+// MCP clients often give up on a tool call near 60 s; placing stops also counts.
+const PLOT_BUDGET_MS = 40_000;
 
 const StopInputSchema = z.object({
   label: z
@@ -115,6 +117,7 @@ export function registerRouteTools(
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
+        const plotDeadline = now() + PLOT_BUDGET_MS;
         if (a.save_to_plan && !a.plan_id) throw new UserError("save_to_plan needs plan_id.");
         let plan;
         if (a.plan_id) {
@@ -255,9 +258,10 @@ export function registerRouteTools(
         const sameSystem = (f: number, t: number) =>
           lc(places[f]!.system) === lc(places[t]!.system);
 
-        // Plotted jump counts by leg. A leg that did not finish is never retried in this call.
+        // Plotted jump counts by leg. A leg that did not finish or failed is never retried in this call.
         const plottedJumps = new Map<string, number>();
         const unfinished = new Set<string>();
+        const failed = new Map<string, string>();
         const key = (f: number, t: number) => `${f}>${t}`;
         const needsPlot = (f: number, t: number) => !sameSystem(f, t);
         const legSeconds = (f: number, t: number) => {
@@ -274,17 +278,28 @@ export function registerRouteTools(
         const plotLegs = async (order: number[]) => {
           for (const [f, t] of legsOf(order)) {
             const k = key(f, t);
-            if (!needsPlot(f, t) || plottedJumps.has(k) || unfinished.has(k)) continue;
-            try {
-              const r = await deps.spansh.route({
-                from: places[f]!.system,
-                to: places[t]!.system,
-                rangeLy: travel.jump_range_ly,
-              });
-              plottedJumps.set(k, r.total_jumps);
-            } catch {
-              // Pending, unknown or failed: keep the estimate for this leg.
+            if (!needsPlot(f, t) || plottedJumps.has(k) || unfinished.has(k) || failed.has(k)) {
+              continue;
+            }
+            const left = plotDeadline - now();
+            if (left <= 0) {
               unfinished.add(k);
+              continue;
+            }
+            try {
+              const r = await deps.spansh.route(
+                { from: places[f]!.system, to: places[t]!.system, rangeLy: travel.jump_range_ly },
+                { budgetMs: left },
+              );
+              plottedJumps.set(k, r.total_jumps);
+            } catch (e) {
+              const message = e instanceof Error ? e.message : String(e);
+              // Only a pending job is worth another call; other failures keep the estimate.
+              if (e instanceof UserError && message.startsWith("Spansh is still plotting")) {
+                unfinished.add(k);
+              } else {
+                failed.set(k, message.replace(/\.$/, ""));
+              }
             }
           }
         };
@@ -362,7 +377,13 @@ export function registerRouteTools(
         const totalSeconds = clock;
         // Legs dropped by a re-solve do not count; only the final order matters.
         const allPlotted = legs.every(([f, t]) => !needsPlot(f, t) || plottedJumps.has(key(f, t)));
-        if (a.plot && !allPlotted) notes.add(PLOT_PENDING_NOTE);
+        for (const [f, t] of legs) {
+          const message = failed.get(key(f, t));
+          if (message === undefined) continue;
+          const label = t === n + 1 ? "return_to" : nodes[t]!.labels.join(" + ");
+          notes.add(`Spansh could not plot the leg to ${label}: ${message}; the estimate is used.`);
+        }
+        if (legs.some(([f, t]) => unfinished.has(key(f, t)))) notes.add(PLOT_PENDING_NOTE);
 
         if (catalog) {
           for (const s of all) {

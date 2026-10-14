@@ -37,17 +37,26 @@ const catalog = {
   }),
 } as unknown as CatalogService;
 
-type RouteFn = (q: {
-  from: string;
-  to: string;
-  rangeLy: number;
-}) => Promise<{ total_jumps: number }>;
+type RouteFn = (
+  q: { from: string; to: string; rangeLy: number },
+  opts?: { budgetMs?: number },
+) => Promise<{ total_jumps: number }>;
 
-async function setup(opts: { location?: boolean; noCatalog?: boolean; route?: RouteFn } = {}) {
+async function setup(
+  opts: {
+    location?: boolean | string;
+    noCatalog?: boolean;
+    catalog?: CatalogService;
+    route?: RouteFn;
+    now?: () => number;
+    systemCalls?: string[];
+  } = {},
+) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "routes-"));
   const plans = new PlanStore(path.join(dir, "plans.json"));
   const spansh = {
     system: async (name: string) => {
+      opts.systemCalls?.push(name);
       const x = coords[name.toLowerCase()];
       if (x === undefined) throw new UserError(`System "${name}" not found on Spansh.`);
       return {
@@ -71,7 +80,9 @@ async function setup(opts: { location?: boolean; noCatalog?: boolean; route?: Ro
       location:
         opts.location === false
           ? { system: null, station: null, docked: false }
-          : { system: "Sol", station: "Abraham Lincoln", docked: true },
+          : typeof opts.location === "string"
+            ? { system: opts.location, station: null, docked: false }
+            : { system: "Sol", station: "Abraham Lincoln", docked: true },
     }),
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
@@ -80,7 +91,8 @@ async function setup(opts: { location?: boolean; noCatalog?: boolean; route?: Ro
     journal,
     spansh,
     plans,
-    catalog: opts.noCatalog ? undefined : catalog,
+    catalog: opts.noCatalog ? undefined : (opts.catalog ?? catalog),
+    now: opts.now,
   });
   return { client: await connectTestClient(server), plans };
 }
@@ -439,6 +451,65 @@ describe("route_stops", () => {
       };
       expect(await save({ "sol>alpha": 1, "alpha>beta": 2 })).toBe(true);
       expect(await save({ "sol>alpha": 1 })).toBe(false);
+    });
+
+    it("stops plotting when the time budget is used up", async () => {
+      let clock = 0;
+      const budgets: Array<number | undefined> = [];
+      const { client } = await setup({
+        now: () => clock,
+        route: async (_q, o) => {
+          budgets.push(o?.budgetMs);
+          clock += 30_000;
+          return { total_jumps: 1 };
+        },
+      });
+      const gamma = { label: "GammaShop", system: "Gamma" };
+      const r = await callTool(client, "route_stops", {
+        ...sec,
+        stops: [alpha, beta, gamma],
+        plot: true,
+      });
+      const j = r.json as Record<string, any>;
+      expect(budgets).toEqual([40_000, 10_000]);
+      expect(j.stops.map((s: any) => s.plotted)).toEqual([true, true, false]);
+      expect(j.notes).toContain("Spansh is still plotting; call again to finish.");
+    });
+
+    it("notes a leg Spansh cannot plot and does not ask to call again", async () => {
+      const calls: string[] = [];
+      const { j } = await run({ stops: [alpha, beta], plot: true }, async (q) => {
+        calls.push(`${q.from}>${q.to}`.toLowerCase());
+        if (q.to === "Beta") throw new UserError("Spansh: Could not find finishing system");
+        return { total_jumps: 1 };
+      });
+      expect(calls).toEqual(["sol>alpha", "alpha>beta"]);
+      expect(j.stops.map((s: any) => s.plotted)).toEqual([true, false]);
+      expect(j.notes).toContain(
+        "Spansh could not plot the leg to BetaShop: Spansh: Could not find finishing system; the estimate is used.",
+      );
+      expect(j.notes).not.toContain("Spansh is still plotting; call again to finish.");
+    });
+
+    it("plots the leg to return_to", async () => {
+      const calls: string[] = [];
+      const { j } = await run(
+        { stops: [alpha], return_to: { system: "Beta" }, plot: true },
+        plotter({ "sol>alpha": 1, "alpha>beta": 3 }, calls),
+      );
+      expect(calls).toEqual(["sol>alpha", "alpha>beta"]);
+      expect(j.stops[1]).toMatchObject({ labels: ["return_to"], jumps: 3, plotted: true });
+    });
+
+    it("stops after 2 rounds even when the second round is also far off", async () => {
+      const calls: string[] = [];
+      const { j } = await run(
+        { stops: [alpha, beta], plot: true },
+        plotter({ "sol>alpha": 1, "alpha>beta": 30, "sol>beta": 40, "beta>alpha": 2 }, calls),
+      );
+      // A third solve would go back to Alpha first; the cap keeps the round-2 order.
+      expect(calls).toEqual(["sol>alpha", "alpha>beta", "sol>beta", "beta>alpha"]);
+      expect(labels(j)).toEqual(["BetaShop", "AlphaShop"]);
     });
 
     it("does not plot without plot", async () => {
