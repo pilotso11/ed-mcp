@@ -17,7 +17,7 @@ Find trade loops that a commander can repeat: A⇄B, or A→B→C→A. Any leg c
   - In both cases, `near` moves the centre to another system or station.
 - **Candidate stations:**
   - `"here"`: the nearest stations.
-  - `"any"`: a spread of up to 200 stations across the radius.
+  - `"any"`: up to 200 stations, the nearest in each of 4 distance bands across the radius.
   - Legs are limited by `max_leg_ly`.
   - The result states its coverage.
   - `include` adds known stations.
@@ -51,12 +51,14 @@ Cargo, capital and the start location come from the journal, as in `trade_route`
 - **The start station's market** (`"here"` case): `GET /api/station/<market_id>`, through a new client method `stationMarket(marketId)`. The market id comes from the journal, or from the station search below.
 - **Candidates:** `POST /api/stations/search` with `reference_system: near`, a `distance` filter of 0 to `radius_ly`, the `has_market` filter, and the pad and other filters from preferences. Results are sorted by distance.
   - **`"here"`:** one page of `max_stations`.
-  - **`"any"`:** pages of 50 until `max_stations` stations are loaded or the results run out. Then thin to a spread across the radius: keep every station within 30 LY of `near` up to 40% of `max_stations`, and fill the rest by taking every k-th station from the further pages so that every distance band gets some stations.
+  - **`"any"`:** split `radius_ly` into 4 equal distance bands. Search each band (`distance` from its inner to its outer edge) for the nearest `max_stations / 4` stations, in pages of 50. Merge the bands in order. Near busy systems the nearest stations crowd into a few LY (the 400 nearest market stations around Sol are all within about 13 LY), so a single nearest-first search would not reach the rest of the radius. A band with fewer stations leaves its places empty. If rounding gives more than `max_stations`, thin to `max_stations`: keep the stations within 30 LY up to 40%, then an even sample of the rest.
+  - `fleet_carriers: "exclude"` sends a `type` filter that lists every station type except Drake-Class Carrier. Near busy systems most `has_market` records are carriers (about 88%), so dropping them after the fetch would leave few stations. The client still drops a carrier that gets through.
+  - Records without coordinates or a market id are skipped.
   - A new client method `marketStations(q)` returns compact records only: `{ name, system, market_id, distance_ly, arrival_ls, coords, pad, type, market_age_hours, market: [{ commodity, buy_price, sell_price, supply, demand }] }`. Market rows with neither supply nor demand are dropped. Full records are never kept, and the cache holds only the compact form.
 - **Price age:** stations whose market is older than `max_price_age_days` are dropped. The coverage note counts them.
 - **`include`:** each entry is resolved with `system()` and `stationMarket()`. An entry Spansh does not know adds a note.
 
-Spansh calls go through the existing request gate (1 per second). The `"any"` case at 200 stations makes 4 searches plus any `include` lookups. That is about 5 s and a few MB. The result is cached for 10 minutes by query.
+Spansh calls go through the existing request gate (1 per second). The `"any"` case at 200 stations makes 4 searches (one page of 50 in each band) plus up to 10 `include` lookups. A record is about 7 to 38 KB, so a page of 50 is 0.3 to 6 MB and takes 1 to 4 s. The client maps each page to compact records as it arrives, so it holds one page of full records at a time. Fetching stops about 40 s after the call starts (bands, pages and includes) with the note "Search stopped early to stay within the time limit; results cover the stations loaded so far." Each complete band search is cached for 10 minutes by query; a search cut short is not cached. Spansh caps `count` at 10000, so the coverage note then says "at least 10000".
 
 ### Computing loops
 
@@ -142,7 +144,7 @@ Spansh calls go through the existing request gate (1 per second). The `"any"` ca
   - `max_leg_ly`,
   - a thin market losing to a deeper loop under `sustained_per_hour` while winning on `profit_per_hour`,
   - the triple cap.
-- **Thinning for `"any"`:** stations from every distance band remain.
+- **Bands for `"any"`:** one search per distance band, with `max_stations / 4` each.
 - **Tool:**
   - defaults from a journal stub,
   - `near` with and without a station,
