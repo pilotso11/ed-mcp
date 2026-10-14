@@ -19,8 +19,9 @@ export interface RouteSolution {
 
 const EXACT_MAX_STOPS = 12;
 // Each finite deadline can add a label to a Pareto front, so the exact search slows as
-// they grow. At 12 stops and 24 deadlines, fronts filled to their limit take about 0.3 s;
-// 120 deadlines take about 4 s, too close to the MCP timeout.
+// they grow. Realistic missions keep fronts small (12 stops, 24 deadlines: 20-50 ms). A
+// synthetic case built to fill every front takes about 0.3 s at 24 deadlines and about 4 s
+// at 120, too close to the MCP timeout.
 const EXACT_MAX_DEADLINES = 24;
 
 // Late missions first, then time.
