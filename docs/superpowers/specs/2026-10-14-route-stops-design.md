@@ -98,7 +98,16 @@ This part is shared with `missions_route` (factored out of `src/tools/missions.t
 - The time between two stops is `legSeconds` from the travel model (jumps at the resolved jump range, supercruise, docking and planetary time). Stops in the same system have no jumps. Stops at the same station merge into one stop with both labels.
 - A stop whose system Spansh does not know is an error that names the stop.
 
-### Search
+### Shared candidates
+
+Each "one of" group is a requirement, for example "a raw trader" or "an engineer for G5 FSD". One place can be a candidate for several requirements, and it is then visited once.
+
+- **A place** is identified by its engineer name, or else by its system and station, ignoring case.
+- **One stop per place.** Entries in the pool (fixed stops and group options) that name the same place become one stop. Its first label is the main label, and the others are aliases. The `after` lists of the merged entries combine. The merged stop has an `after` list if any of the entries had one.
+- **A group already met by a fixed stop** is dropped, with the note `Group "${name}" is met by ${label}, which is already in the route.`
+- **In each combination,** the visited stops are the fixed stops plus the chosen options, with each stop counted once. So a place that meets several groups costs one visit, and the search prefers it when it is faster.
+- **The output** gives each stop `meets`: the names of the groups that its visit meets.
+
 
 1. Expand the "one of" groups into combinations. More than 16 is an error that says how many there are.
 2. For each combination, call `solveRoute({ legSeconds, n, start, finish?, after })`:
@@ -122,7 +131,7 @@ Without `plot`, every leg longer than 200 LY gets a note: a neutron route or a d
 {
   start: { system, station, source: "journal" | "input" },
   stops: Array<{
-    labels: string[], system, station: string | null, engineer: string | null,
+    labels: string[], meets: string[], system, station: string | null, engineer: string | null,
     kind, purpose: string | null,
     jumps, leg_min, arrive_min, plotted?: boolean,
   }>,

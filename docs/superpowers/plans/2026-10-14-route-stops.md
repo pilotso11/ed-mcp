@@ -268,3 +268,47 @@ Spec: `docs/superpowers/specs/2026-10-14-route-stops-design.md`.
 - [ ] **Step 3: Implement.** Then update the docs.
 - [ ] **Step 4:** `npx prettier --write . && npm run check`. Expected: PASS.
 - [ ] **Step 5: Commit:** `git commit -m "feat: plot route_stops legs with Spansh and document build routes"` (with trailer).
+
+---
+
+### Task 7: Shared candidates across requirements
+
+**Files:**
+- Modify: `src/routes/pool.ts`, `src/routes/solve.ts`, `src/tools/routes.ts`, `docs/tools.md`
+- Test: `test/routes/pool.test.ts`, `test/routes/solve.test.ts`, `test/tools/routes.test.ts`
+
+**Spec:** the "Shared candidates" section of `docs/superpowers/specs/2026-10-14-route-stops-design.md`.
+
+**Interfaces:**
+- **Pool** (`pool.ts`):
+  - `PoolStop` gains `key: string` and `aliases: string[]`. The key is `eng:<engineer name lower case>` for an engineer stop, else `<system lower case>|<station lower case or "">`.
+  - `buildPool` merges every entry (fixed or option) whose key matches an existing stop into that stop:
+    - The entry's label becomes an alias.
+    - `after` lists combine as a union. The result is `undefined` only when every merged entry had `undefined`.
+  - A label, alias or group name used in `only`, `skip` or `after` resolves to the merged stop.
+  - Within a group, duplicate options collapse.
+  - A group with an option that is a fixed stop is dropped, with the note `Group "${name}" is met by ${label}, which is already in the route.`
+  - Pool groups hold `PoolStop` references (the same object can appear in several groups).
+- **Solver** (`solve.ts`):
+  - Group options may share node ids with other groups. Shared ids with `fixed` cannot happen, because the pool drops those groups.
+  - In each combination, the visited set is `fixed` plus the chosen options, each id once.
+  - `Solved.chosen` stays one entry per group, and `combinations` stays the product of group sizes.
+- **Tool** (`routes.ts`):
+  - One node per `PoolStop` (shared objects map to one node).
+  - The existing merge of fixed stops at the same station stays, and still never merges group options.
+  - Each output stop gains `meets: string[]`, the names of the groups whose chosen option is this stop, in group order.
+  - `labels` lists the main label then the aliases.
+  - The cycle checks use the merged stops.
+
+- [ ] **Step 1: Tests first.**
+  - **Pool:**
+    - two groups that share an engineer give one shared `PoolStop`, with the second label as an alias,
+    - a fixed stop at the same station as a group option drops the group, with the note,
+    - `after` on an alias resolves to the merged stop,
+    - the merged `after` follows the union and `undefined` rule.
+  - **Solve:** two groups whose best options are the same node give a route that visits it once, and the total counts one visit. A combination with a shared node beats one with two separate nodes that are each slightly nearer.
+  - **Tool:** two `one_of` requirements whose candidates both include Felicity Farseer, with the other candidates far away. The route has one Farseer stop with `meets` listing both group names, and `chosen` names Farseer for both.
+- [ ] **Step 2: Run** `npx vitest run test/routes test/tools/routes.test.ts`. Expected: FAIL.
+- [ ] **Step 3: Implement.** Add a short "Shared candidates" paragraph to the build routes section of `docs/tools.md`.
+- [ ] **Step 4:** `npx prettier --write . && npm run check`. Expected: PASS.
+- [ ] **Step 5: Commit:** `git commit -m "feat: visit a place once when it meets several route requirements"` (with trailer).
