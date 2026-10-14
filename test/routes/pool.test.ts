@@ -64,6 +64,13 @@ describe("buildPool", () => {
     expect(pool.stops[0]).toMatchObject({ purpose: "a; b", kind: "engineer" });
   });
 
+  it("names the plan item with an unknown engineer", () => {
+    const p = plan({ items: [item("fsd", "Nobody")] });
+    expect(() => buildPool({ ...base, plan: p }, catalog)).toThrow(
+      'Plan item "fsd" names an unknown engineer: Unknown engineer "Nobody". Fix it with plan_upsert.',
+    );
+  });
+
   it("ignores done and skipped items", () => {
     const p = plan({
       stops: [{ system: "Sol", purpose: "x" }],

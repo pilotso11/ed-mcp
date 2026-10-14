@@ -25,13 +25,19 @@ export interface Solved {
 
 export const MAX_COMBINATIONS = 16;
 
-export function solveRoute(input: SolveInput): Solved {
-  const combinations = input.groups.reduce((n, g) => n * g.options.length, 1);
+// Returns the number of combinations of one option per group, or throws if there are too many.
+export function countCombinations(optionCounts: number[]): number {
+  const combinations = optionCounts.reduce((n, c) => n * c, 1);
   if (combinations > MAX_COMBINATIONS) {
     throw new UserError(
       `Too many alternatives: ${combinations} combinations (at most ${MAX_COMBINATIONS}). Remove some "one of" options.`,
     );
   }
+  return combinations;
+}
+
+export function solveRoute(input: SolveInput): Solved {
+  const combinations = countCombinations(input.groups.map((g) => g.options.length));
 
   let best: { chosen: Chosen; total: number; order: number[]; arrive: number[] } | null = null;
   let second: { chosen: Chosen; total: number } | null = null;

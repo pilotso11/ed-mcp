@@ -342,9 +342,11 @@ describe("route_stops", () => {
           { label: `b${n}`, system: "Beta" },
         ],
       });
-      const { r } = await route({ stops: [1, 2, 3, 4, 5].map(g) });
+      const systemCalls: string[] = [];
+      const { r } = await route({ stops: [1, 2, 3, 4, 5].map(g) }, { systemCalls });
       expect(r.isError).toBe(true);
       expect(r.text).toContain("32 combinations");
+      expect(systemCalls).toEqual([]);
     });
 
     it("rejects an empty pool", async () => {
@@ -357,6 +359,14 @@ describe("route_stops", () => {
       const { r } = await route({ stops: [{ engineer: "Nobody" }] });
       expect(r.isError).toBe(true);
       expect(r.text).toContain('Unknown engineer "Nobody"');
+    });
+
+    it("names the journal location it cannot place", async () => {
+      const { r } = await route({ stops: [alpha] }, { location: "Nowhere" });
+      expect(r.isError).toBe(true);
+      expect(r.text).toBe(
+        'Cannot use journal location "Nowhere": System "Nowhere" not found on Spansh.',
+      );
     });
 
     it("rejects save_to_plan without plan_id", async () => {
@@ -375,6 +385,25 @@ describe("route_stops", () => {
   it("notes a permit-locked engineer", async () => {
     const { j } = await route({ stops: [{ engineer: "Lock" }] });
     expect(j.notes).toContain("Lock Smith is in a permit-locked system.");
+  });
+
+  it("notes a permit only for an engineer in the route", async () => {
+    const { j } = await route({
+      stops: [{ label: "pick", one_of: [{ engineer: "Farseer" }, { engineer: "Lock" }] }],
+    });
+    expect(labels(j)).toEqual(["Felicity Farseer"]);
+    expect(j.notes).not.toContain("Lock Smith is in a permit-locked system.");
+  });
+
+  it("routes plain systems when the catalog cannot load", async () => {
+    const broken = {
+      get: async () => {
+        throw new Error("catalog download failed");
+      },
+    } as unknown as CatalogService;
+    const { r, j } = await route({ stops: [alpha, beta] }, { catalog: broken });
+    expect(r.isError).toBe(false);
+    expect(labels(j)).toEqual(["AlphaShop", "BetaShop"]);
   });
 
   describe("plot", () => {

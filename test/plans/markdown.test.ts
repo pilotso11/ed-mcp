@@ -72,11 +72,25 @@ describe("planToMarkdown", () => {
         "1. Deciat",
         "2. Shinrarta Dezhra",
         "",
-        "Total 12.5 min, computed 2026-10-14T00:00:00.000Z",
+        "From Sol; estimate. Total 12.5 min, computed 2026-10-14T00:00:00.000Z",
         "",
       ].join("\n"),
     );
     expect(md.indexOf("## Stops")).toBeLessThan(md.indexOf("## Route"));
+  });
+
+  it("says when the saved route was plotted", () => {
+    const md = planToMarkdown({
+      ...plan,
+      route: {
+        computed_at: "2026-10-14T00:00:00.000Z",
+        from: "Sol",
+        stops: ["Deciat"],
+        total_min: 12.5,
+        plotted: true,
+      },
+    });
+    expect(md).toContain("From Sol; plotted. Total 12.5 min");
   });
 
   it("omits the Route section without a saved route", () => {

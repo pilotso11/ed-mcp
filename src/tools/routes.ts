@@ -10,7 +10,7 @@ import type { PreferencesStore } from "../prefs/store.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { findCycle } from "../routes/optimise.js";
 import { buildPool, joinPurposes, type PoolStop, type StopEntry } from "../routes/pool.js";
-import { solveRoute } from "../routes/solve.js";
+import { countCombinations, solveRoute } from "../routes/solve.js";
 import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
@@ -78,7 +78,9 @@ export function registerRouteTools(
         "to an engineer who needs nothing from the other stops, so they can come first. Without your rules, a plan " +
         "puts every engineer after every shop and trader. Use `one_of` for alternatives, for example two engineers " +
         "who both do the work; the tool tries every combination (at most 16) and keeps the fastest. `only` and " +
-        "`skip` choose stops from the plan, so one plan can serve several trips. Leg times are estimates from " +
+        "`skip` choose stops from the plan, so one plan can serve several trips. One place (the same engineer, or " +
+        "the same system and station) can be an option in several groups; it is visited once, and each stop's " +
+        "`meets` lists the groups it covers. Leg times are estimates from " +
         "straight-line jumps; pass plot: true to plot the chosen route with Spansh.",
       inputSchema: {
         plan_id: z.string().optional(),
@@ -127,12 +129,19 @@ export function registerRouteTools(
           if (!deps.plans) throw new UserError("Plans are not available.");
           plan = await deps.plans.get(a.plan_id);
         }
-        const catalog = deps.catalog ? await deps.catalog.get() : null;
+        const hasEngineer = (e: StopEntry) =>
+          "one_of" in e ? e.one_of.some((o) => !!o.engineer) : !!e.engineer;
+        const needsCatalog =
+          (a.stops ?? []).some(hasEngineer) ||
+          !!plan?.items.some((i) => i.engineer && i.status !== "done" && i.status !== "skipped");
+        const catalog = deps.catalog && needsCatalog ? await deps.catalog.get() : null;
         const pool = buildPool(
           { plan, stops: a.stops, only: a.only, skip: a.skip, planRules: a.plan_rules },
           catalog,
         );
         const notes = new Set<string>(pool.notes);
+        // Placing stops is rate-limited, so reject too many alternatives first.
+        countCombinations(pool.groups.map((g) => g.options.length));
 
         const all = [...new Set([...pool.stops, ...pool.groups.flatMap((g) => g.options)])];
         const names = (s: PoolStop) => [s.label, ...s.aliases];
@@ -248,7 +257,11 @@ export function registerRouteTools(
           const loc = state?.location;
           if (!state || !loc?.system)
             throw new UserError("The journal has no location; give from.");
-          startPlace = await place(loc.system, loc.docked ? loc.station : null);
+          startPlace = await endpoint(
+            "journal location",
+            loc.system,
+            loc.docked ? loc.station : null,
+          );
           if (state.age_minutes !== null && state.age_minutes > 30) {
             notes.add(
               `The start location comes from a journal ${state.age_minutes} minutes old; give from if you have moved.`,
@@ -399,9 +412,10 @@ export function registerRouteTools(
         if (legs.some(([f, t]) => unfinished.has(key(f, t)))) notes.add(PLOT_PENDING_NOTE);
 
         if (catalog) {
-          for (const s of all) {
-            if (s.engineer && catalog.engineer(s.engineer.name).permit) {
-              notes.add(`${s.engineer.name} is in a permit-locked system.`);
+          for (const i of solved.order) {
+            const name = nodes[i]!.engineer;
+            if (name && catalog.engineer(name).permit) {
+              notes.add(`${name} is in a permit-locked system.`);
             }
           }
         }

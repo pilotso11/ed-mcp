@@ -131,18 +131,32 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       if (e.engineer) named.add(lc(e.engineer));
       if (e.kind === "engineer" && e.label) named.add(lc(e.label));
     }
-    const byEngineer = new Map<string, { name: string; descriptions: string[] }>();
+    const byEngineer = new Map<string, { id: string; name: string; descriptions: string[] }>();
     for (const item of a.plan.items) {
       if (!item.engineer || item.status === "done" || item.status === "skipped") continue;
-      const entry = byEngineer.get(lc(item.engineer)) ?? { name: item.engineer, descriptions: [] };
+      const entry = byEngineer.get(lc(item.engineer)) ?? {
+        id: item.id,
+        name: item.engineer,
+        descriptions: [],
+      };
       entry.descriptions.push(item.description);
       byEngineer.set(lc(item.engineer), entry);
     }
-    for (const [key, { name, descriptions }] of byEngineer) {
+    for (const [key, { id, name, descriptions }] of byEngineer) {
       if (named.has(key)) continue;
-      candidates.push({
-        fixed: make({ engineer: name }, { purpose: descriptions.join("; ") }),
-      });
+      let fixed: PoolStop;
+      try {
+        fixed = make({ engineer: name }, { purpose: descriptions.join("; ") });
+      } catch (e) {
+        // Without a catalog the error is not about this item's engineer.
+        if (catalog && e instanceof UserError) {
+          throw new UserError(
+            `Plan item "${id}" names an unknown engineer: ${e.message} Fix it with plan_upsert.`,
+          );
+        }
+        throw e;
+      }
+      candidates.push({ fixed });
     }
   }
 

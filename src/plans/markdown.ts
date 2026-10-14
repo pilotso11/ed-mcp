@@ -43,7 +43,13 @@ export function planToMarkdown(plan: Plan): string {
   if (plan.route) {
     out.push("## Route", "");
     plan.route.stops.forEach((s, n) => out.push(`${n + 1}. ${s}`));
-    out.push("", `Total ${plan.route.total_min} min, computed ${plan.route.computed_at}`, "");
+    const r = plan.route;
+    const kind = r.plotted ? "plotted" : "estimate";
+    out.push(
+      "",
+      `From ${r.from}; ${kind}. Total ${r.total_min} min, computed ${r.computed_at}`,
+      "",
+    );
   }
   return out.join("\n");
 }
