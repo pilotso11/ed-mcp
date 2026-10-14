@@ -49,16 +49,25 @@ const asHit = (s: MarketStation): StationHit => ({
   shipyard_updated_at: null,
 });
 
-// The rules Spansh cannot apply in the search: medium pads, megaships and the avoid
-// rules. A soft arrival limit is not applied, as for trade_route.
+// The hard rules Spansh cannot apply in the search: medium pads and excluded megaships.
+// Avoid rules and a soft arrival limit keep their stations: loops rank by credits per
+// hour, and the travel model already charges a surface station's landing time.
 function localRules(rules: Rules): Rules {
   const s = rules.prefs.stations;
-  if (s.max_arrival_ls.mode !== "soft") return rules;
+  const soften = <T extends string>(v: T) => (v === "avoid" ? "allow" : v);
   return {
     ...rules,
     prefs: {
       ...rules.prefs,
-      stations: { ...s, max_arrival_ls: { ...s.max_arrival_ls, mode: "off" } },
+      stations: {
+        ...s,
+        planetary: soften(s.planetary),
+        megaships: soften(s.megaships),
+        max_arrival_ls:
+          s.max_arrival_ls.mode === "soft"
+            ? { ...s.max_arrival_ls, mode: "off" }
+            : s.max_arrival_ls,
+      },
     },
   };
 }
@@ -191,6 +200,14 @@ export function registerLoopTools(
           notes.push(
             `The soft arrival limit (${s.max_arrival_ls.value} ls) is not enforced for trade loops; set its mode to hard to apply it.`,
           );
+        }
+        if (s.planetary === "avoid") {
+          notes.push(
+            "Surface stations are included; their landing time counts against profit per hour.",
+          );
+        }
+        if (s.megaships === "avoid") {
+          notes.push("Megaships are included; trade_loops does not rank them lower.");
         }
         const local = localRules(rules);
         const allowed = found.stations.filter(

@@ -155,7 +155,7 @@ Inputs (all optional):
 
 The tool searches Spansh for stations with a market within `radius_ly` of `near`, nearest first. With `"any"`, it loads twice `max_stations` (at most 400) and keeps a spread: the stations within 30 LY of `near`, up to 40% of `max_stations`, then an even sample of the rest. Stations with prices older than `max_price_age_days` are left out.
 
-Your travel preferences filter the candidates. A pad size of L, `planetary: "exclude"`, `fleet_carriers: "exclude"` and a `hard` arrival limit go to the Spansh search. The tool then applies the medium pad size, the megaships setting and the `avoid` rules itself. An `avoid` rule excludes those stations, as in `trade_route`. A `soft` arrival limit is not applied, and a note says so. The start station and the `include` stations are never filtered.
+Your travel preferences filter the candidates. A pad size of L, `planetary: "exclude"`, `fleet_carriers: "exclude"` and a `hard` arrival limit go to the Spansh search. The tool then applies the medium pad size and `megaships: "exclude"` itself. An `avoid` rule keeps those stations, and a note says so: loops are ranked by credits per hour, and the travel model already adds the landing time of a surface station. A `soft` arrival limit is not applied, and a note says so. The start station and the `include` stations are never filtered.
 
 Each leg carries the commodity with the best profit. The amount is the smallest of your cargo, the supply, the demand and what your capital buys. `depth` is the number of full loads that the two markets support. The leg time comes from the travel model. It does not count market and loading time.
 

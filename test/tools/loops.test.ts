@@ -387,7 +387,9 @@ describe("trade_loops", () => {
     });
   });
 
-  it("applies the avoid rules to candidates and notes a soft arrival limit", async () => {
+  it("keeps avoided surface stations and drops excluded ones", async () => {
+    const SURFACE =
+      "Surface stations are included; their landing time counts against profit per hour.";
     const ground = st(
       "Ground Base",
       "Alpha",
@@ -396,13 +398,34 @@ describe("trade_loops", () => {
       { planetary: true, type: "Planetary Outpost" },
     );
     const world = { found: [start(), alpha(), ground] };
-    const strict = await loops({}, world);
-    expect(strict.j.loops.flatMap(names)).not.toContain("Ground Base");
-    expect(strict.j.notes).toContain(
+    const avoid = await loops({}, world);
+    expect(names(avoid.j.loops[0])).toEqual(["Start Port", "Ground Base"]);
+    expect(avoid.j.notes).toContain(SURFACE);
+    expect(avoid.j.notes).toContain(
       "The soft arrival limit (1000 ls) is not enforced for trade loops; set its mode to hard to apply it.",
     );
-    const open = await loops({ use_preferences: false }, world);
-    expect(names(open.j.loops[0])).toEqual(["Start Port", "Ground Base"]);
+    // Spansh filters planetary stations for exclude; this fake does not, so the local rule must.
+    const exclude = await loops({ preferences: { stations: { planetary: "exclude" } } }, world);
+    expect(exclude.j.loops.flatMap(names)).not.toContain("Ground Base");
+    expect(exclude.j.notes).not.toContain(SURFACE);
+  });
+
+  it("keeps avoided megaships with a note", async () => {
+    const mega = st(
+      "Big Ship",
+      "Alpha",
+      [10, 0, 0],
+      [row("Gold", { sell_price: 5000, demand: 10_000 })],
+      { type: "Mega ship" },
+    );
+    const world = { found: [start(), mega] };
+    const avoid = await loops({ preferences: { stations: { megaships: "avoid" } } }, world);
+    expect(names(avoid.j.loops[0])).toEqual(["Start Port", "Big Ship"]);
+    expect(avoid.j.notes).toContain(
+      "Megaships are included; trade_loops does not rank them lower.",
+    );
+    const exclude = await loops({ preferences: { stations: { megaships: "exclude" } } }, world);
+    expect(exclude.j.loops).toEqual([]);
   });
 
   it("rejects out-of-range inputs", async () => {
