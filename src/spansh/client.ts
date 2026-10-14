@@ -190,15 +190,26 @@ export interface MarketStation {
 
 export interface MarketStationsQuery {
   near: string;
+  /** Inner edge of the search, 0 by default. */
+  minLy?: number;
   radiusLy: number;
   maxStations: number;
   maxAgeDays: number;
   largePad?: boolean;
   /** false excludes planetary stations; true or undefined applies no restriction. */
   planetary?: boolean;
-  /** false drops carriers locally after fetching; true or undefined keeps them. */
+  /** false searches the non-carrier station types only; true or undefined keeps carriers. */
   fleetCarriers?: boolean;
   maxArrivalLs?: number;
+}
+
+export interface MarketStations {
+  near: string;
+  total: number;
+  stations: MarketStation[];
+  droppedOld: number;
+  /** The deadline stopped the paging before maxStations or the end of the results. */
+  partial: boolean;
 }
 
 interface RawStation {
@@ -258,6 +269,25 @@ function pad(s: RawStation): Pad {
 const MAX_JOBS = 100;
 const SEARCH_PAGE_SIZE = 50;
 const CARRIER_TYPE = "Drake-Class Carrier";
+// Spansh has no "not" filter, so carriers are left out by listing every other type
+// (GET /api/stations/field_values/type, 2026-10-14). Near busy systems most market
+// records are carriers, so dropping them after the fetch would leave few stations.
+const NON_CARRIER_TYPES = [
+  "Asteroid base",
+  "Coriolis Starport",
+  "Dockable Planet Station",
+  "Dodec Starport",
+  "Mega ship",
+  "Ocellus Starport",
+  "Orbis Starport",
+  "Outpost",
+  "Planetary Construction Depot",
+  "Planetary Outpost",
+  "Planetary Port",
+  "Settlement",
+  "Space Construction Depot",
+  "Surface Settlement",
+];
 
 export class SpanshClient {
   private readonly baseUrl: string;
@@ -606,63 +636,77 @@ export class SpanshClient {
     })) as { near: string; total: number; stations: CommodityHit[] };
   }
 
+  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has, uncached. */
   async marketStations(
     q: MarketStationsQuery,
-  ): Promise<{ near: string; total: number; stations: MarketStation[]; droppedOld: number }> {
+    opts: { deadline?: number } = {},
+  ): Promise<MarketStations> {
     const filters: Record<string, unknown> = {
-      distance: { min: 0, max: q.radiusLy },
+      distance: { min: q.minLy ?? 0, max: q.radiusLy },
       has_market: { value: true },
     };
     if (q.largePad) filters.has_large_pad = { value: true };
     if (q.planetary === false) filters.is_planetary = { value: false };
+    if (q.fleetCarriers === false) filters.type = { value: NON_CARRIER_TYPES };
     if (q.maxArrivalLs !== undefined) {
       filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
     }
-    return (await this.marketCache.getOrLoad(`markets:${JSON.stringify(q)}`, async () => {
-      const raws: RawStation[] = [];
-      let total = 0;
-      for (let page = 0; raws.length < q.maxStations; page++) {
-        const body = {
-          filters,
-          sort: [{ distance: { direction: "asc" } }],
-          size: SEARCH_PAGE_SIZE,
-          page,
-          reference_system: q.near,
-        };
-        let res: { count: number; results?: RawStation[] };
-        try {
-          res = (await this.post("/stations/search", JSON.stringify(body), "application/json")) as {
-            count: number;
-            results?: RawStation[];
-          };
-        } catch (err) {
-          if (err instanceof SpanshError && err.status === 400) {
-            throw new UserError(
-              `Spansh rejected the search (${err.detail}). Check that "${q.near}" is an exact system name (spansh_system).`,
-            );
-          }
-          throw err;
-        }
-        total = res.count;
-        const results = res.results ?? [];
-        raws.push(...results);
-        if (results.length < SEARCH_PAGE_SIZE) break;
+    const key = `markets:${JSON.stringify(q)}`;
+    const hit = this.marketCache.get(key) as MarketStations | undefined;
+    if (hit) return hit;
+
+    const stations: MarketStation[] = [];
+    let total = 0;
+    let droppedOld = 0;
+    let loaded = 0;
+    let partial = false;
+    for (let page = 0; loaded < q.maxStations; page++) {
+      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+        partial = true;
+        break;
       }
+      const body = {
+        filters,
+        sort: [{ distance: { direction: "asc" } }],
+        size: SEARCH_PAGE_SIZE,
+        page,
+        reference_system: q.near,
+      };
+      let res: { count: number; results?: RawStation[] };
+      try {
+        res = (await this.post("/stations/search", JSON.stringify(body), "application/json")) as {
+          count: number;
+          results?: RawStation[];
+        };
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 400) {
+          throw new UserError(
+            `Spansh rejected the search (${err.detail}). Check that "${q.near}" is an exact system name (spansh_system).`,
+          );
+        }
+        throw err;
+      }
+      total = res.count;
+      const results = res.results ?? [];
+      // Map each page as it arrives so that only one page of full records is held at once.
       const now = this.now();
-      const stations: MarketStation[] = [];
-      let droppedOld = 0;
-      for (const raw of raws.slice(0, q.maxStations)) {
-        // Carriers have no server-side exclusion filter, so drop them here.
+      for (const raw of results.slice(0, q.maxStations - loaded)) {
+        loaded++;
+        // A fallback in case the type filter misses a carrier.
         if (q.fleetCarriers === false && raw.type === CARRIER_TYPE) continue;
         const st = this.marketStation(raw, now);
+        if (!st) continue;
         if (st.market_age_hours !== null && st.market_age_hours > q.maxAgeDays * 24) {
           droppedOld++;
           continue;
         }
         stations.push(st);
       }
-      return { near: q.near, total, stations, droppedOld };
-    })) as { near: string; total: number; stations: MarketStation[]; droppedOld: number };
+      if (results.length < SEARCH_PAGE_SIZE) break;
+    }
+    const result: MarketStations = { near: q.near, total, stations, droppedOld, partial };
+    if (!partial) this.marketCache.set(key, result);
+    return result;
   }
 
   async stationMarket(marketId: number): Promise<MarketStation> {
@@ -676,20 +720,24 @@ export class SpanshClient {
         }
         throw err;
       }
-      if (!res?.record) throw new UserError(`Spansh has no market for station ${marketId}`);
-      return { ...this.marketStation(res.record, this.now()), distance_ly: null };
+      const st = res?.record && this.marketStation(res.record, this.now());
+      if (!st) throw new UserError(`Spansh has no market for station ${marketId}`);
+      return { ...st, distance_ly: null };
     })) as MarketStation;
   }
 
-  private marketStation(s: RawStation, now: number): MarketStation {
+  // Null without coordinates or a market id: a leg from (0, 0, 0) or a market id of 0 would be wrong.
+  private marketStation(s: RawStation, now: number): MarketStation | null {
+    const { market_id, system_x: x, system_y: y, system_z: z } = s;
+    if (market_id == null || x == null || y == null || z == null) return null;
     const updated = s.market_updated_at ? Date.parse(s.market_updated_at) : NaN;
     return {
       name: s.name,
       system: s.system_name ?? "",
-      market_id: s.market_id ?? 0,
+      market_id,
       distance_ly: s.distance ?? null,
       arrival_ls: s.distance_to_arrival ?? null,
-      coords: { x: s.system_x ?? 0, y: s.system_y ?? 0, z: s.system_z ?? 0 },
+      coords: { x, y, z },
       pad: pad(s),
       type: s.type ?? null,
       planetary: s.is_planetary ?? false,

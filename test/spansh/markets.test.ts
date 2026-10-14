@@ -13,15 +13,33 @@ const fixture = async (name: string) =>
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-function make(routes: FakeRoute[]) {
+function make(routes: FakeRoute[], now: () => number = () => NOW) {
   const f = fakeFetch(routes);
   const client = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
     new TtlCache("spansh", 300_000),
-    { minIntervalMs: 0, now: () => NOW, sleep: async () => {} },
+    { minIntervalMs: 0, now, sleep: async () => {} },
   );
   return { client, f };
 }
+
+// The station types Spansh listed on 2026-10-14 (GET /api/stations/field_values/type), less the carrier.
+const NON_CARRIER_TYPES = [
+  "Asteroid base",
+  "Coriolis Starport",
+  "Dockable Planet Station",
+  "Dodec Starport",
+  "Mega ship",
+  "Ocellus Starport",
+  "Orbis Starport",
+  "Outpost",
+  "Planetary Construction Depot",
+  "Planetary Outpost",
+  "Planetary Port",
+  "Settlement",
+  "Space Construction Depot",
+  "Surface Settlement",
+];
 
 const query: MarketStationsQuery = { near: "Lave", radiusLy: 30, maxStations: 100, maxAgeDays: 30 };
 
@@ -58,6 +76,7 @@ describe("SpanshClient.marketStations", () => {
         has_market: { value: true },
         has_large_pad: { value: true },
         is_planetary: { value: false },
+        type: { value: NON_CARRIER_TYPES },
         distance_to_arrival: { comparison: "<=>", value: [0, 2000] },
       },
       sort: [{ distance: { direction: "asc" } }],
@@ -74,6 +93,62 @@ describe("SpanshClient.marketStations", () => {
     await client.marketStations({ ...query, planetary: true });
     const sent = JSON.parse(String(f.calls[0]!.init!.body));
     expect(sent.filters).not.toHaveProperty("is_planetary");
+  });
+
+  it("filters by type only when fleetCarriers is false", async () => {
+    for (const fleetCarriers of [true, undefined]) {
+      const { client, f } = make([
+        { match: () => true, respond: () => json({ count: 0, results: [] }) },
+      ]);
+      await client.marketStations({ ...query, fleetCarriers });
+      expect(JSON.parse(String(f.calls[0]!.init!.body)).filters).not.toHaveProperty("type");
+    }
+  });
+
+  it("searches from minLy when given", async () => {
+    const { client, f } = make([
+      { match: () => true, respond: () => json({ count: 0, results: [] }) },
+    ]);
+    await client.marketStations({ ...query, minLy: 10 });
+    expect(JSON.parse(String(f.calls[0]!.init!.body)).filters.distance).toEqual({
+      min: 10,
+      max: 30,
+    });
+  });
+
+  it("skips records without coordinates or a market id", async () => {
+    const src = await fixture("trade-stations-search-market-sell.json");
+    const { system_x: _x, ...noCoords } = { ...src.results[1], name: "No Coords" };
+    const { market_id: _m, ...noId } = { ...src.results[2], name: "No Id" };
+    const body = { count: 3, results: [src.results[0], noCoords, noId] };
+    const { client } = make([{ match: () => true, respond: () => json(body) }]);
+    const r = await client.marketStations({ ...query, maxAgeDays: 3650 });
+    expect(r.stations.map((s) => s.name)).toEqual(["Janes Horizons"]);
+  });
+
+  it("stops paging at the deadline and does not cache the partial result", async () => {
+    let t = NOW;
+    const { client, f } = make(
+      [
+        {
+          match: () => true,
+          respond: (_u, init) => {
+            t += 15_000;
+            return page(pageOf(init) * 50, 50, 500).then(json);
+          },
+        },
+      ],
+      () => t,
+    );
+    const r = await client.marketStations(
+      { ...query, maxStations: 500 },
+      { deadline: NOW + 40_000 },
+    );
+    expect(f.calls.map((c) => pageOf(c.init))).toEqual([0, 1, 2]);
+    expect(r.stations).toHaveLength(150);
+    expect(r.partial).toBe(true);
+    await client.marketStations({ ...query, maxStations: 500 }, { deadline: t + 1_000_000 });
+    expect(f.calls.length).toBeGreaterThan(3);
   });
 
   it("drops carriers only when fleetCarriers is false", async () => {
