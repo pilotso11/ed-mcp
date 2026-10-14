@@ -15,7 +15,11 @@ export interface StopInput {
 export type StopEntry = StopInput | { label?: string; one_of: StopInput[] };
 
 export interface PoolStop {
+  // One stop per place: `eng:<engineer>` or `<system>|<station>`, lower case.
+  key: string;
   label: string;
+  // Labels of other entries that name the same place.
+  aliases: string[];
   system: string;
   station: string | null;
   engineer: { name: string; system: string; base: string } | null;
@@ -26,8 +30,9 @@ export interface PoolStop {
 
 export interface Pool {
   stops: PoolStop[];
+  // Groups can share options.
   groups: Array<{ name: string; options: PoolStop[] }>;
-  // Keys and values are lower case. Group labels are expanded to their option labels.
+  // Keys and values are lower-case main labels. Group labels and aliases are resolved.
   after: Map<string, string[]>;
   rulesApplied: string[];
   notes: string[];
@@ -44,6 +49,7 @@ interface PoolArgs {
 type Candidate = { fixed: PoolStop } | { group: string; options: PoolStop[] };
 
 const lc = (s: string) => s.toLowerCase();
+const namesOf = (s: PoolStop) => [s.label, ...s.aliases];
 
 export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null): Pool {
   const used = new Set<string>();
@@ -60,6 +66,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
     return { name: e.name, system: e.system, base: e.base };
   };
 
+  const byKey = new Map<string, PoolStop>();
   const make = (input: StopInput, over: { purpose?: string; kind?: Kind } = {}): PoolStop => {
     let engineer: PoolStop["engineer"] = null;
     if (input.engineer) engineer = resolveEngineer(input.engineer);
@@ -70,8 +77,21 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       );
     }
     const station = input.station ?? (input.system ? undefined : engineer?.base);
-    return {
-      label: unique(input.label ?? engineer?.name ?? input.station ?? system),
+    const key = engineer ? `eng:${lc(engineer.name)}` : `${lc(system)}|${lc(station ?? "")}`;
+    const name = input.label ?? engineer?.name ?? input.station ?? system;
+    const hit = byKey.get(key);
+    if (hit) {
+      if (!namesOf(hit).some((n) => lc(n) === lc(name))) hit.aliases.push(unique(name));
+      if (input.after) hit.after = [...new Set([...(hit.after ?? []), ...input.after])];
+      if (over.purpose && hit.purpose !== over.purpose) {
+        hit.purpose = hit.purpose ? `${hit.purpose}; ${over.purpose}` : over.purpose;
+      }
+      return hit;
+    }
+    const stop: PoolStop = {
+      key,
+      label: unique(name),
+      aliases: [],
       system,
       station: station ?? null,
       engineer,
@@ -79,6 +99,8 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       purpose: over.purpose ?? null,
       after: input.after,
     };
+    byKey.set(key, stop);
+    return stop;
   };
 
   const entries: StopEntry[] = a.stops ?? [];
@@ -131,10 +153,9 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
   // Selection.
   const known = new Map<string, string>();
   for (const c of candidates) {
-    if ("fixed" in c) known.set(lc(c.fixed.label), c.fixed.label);
-    else {
-      known.set(lc(c.group), c.group);
-      for (const o of c.options) known.set(lc(o.label), o.label);
+    if ("group" in c) known.set(lc(c.group), c.group);
+    for (const s of "fixed" in c ? [c.fixed] : c.options) {
+      for (const n of namesOf(s)) known.set(lc(n), n);
     }
   }
   for (const l of [...(a.only ?? []), ...(a.skip ?? [])]) {
@@ -144,39 +165,54 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
   }
   const only = a.only ? new Set(a.only.map(lc)) : null;
   const skip = new Set((a.skip ?? []).map(lc));
-  const keep = (label: string, viaGroup: boolean) =>
-    (!only || viaGroup || only.has(lc(label))) && !skip.has(lc(label));
+  const keep = (s: PoolStop, viaGroup: boolean) => {
+    const names = namesOf(s).map(lc);
+    return (!only || viaGroup || names.some((n) => only.has(n))) && !names.some((n) => skip.has(n));
+  };
+
+  // Per candidate, the stops left after only/skip, without repeats.
+  const kept = candidates.map((c) => {
+    if ("fixed" in c) return keep(c.fixed, false) ? [c.fixed] : [];
+    if (skip.has(lc(c.group))) return [];
+    const viaGroup = !!only?.has(lc(c.group));
+    return [...new Set(c.options.filter((o) => keep(o, viaGroup)))];
+  });
+  const fixedStops = new Set(
+    kept.filter((k, i) => "fixed" in candidates[i]! || k.length === 1).flat(),
+  );
 
   const stops: PoolStop[] = [];
   const groups: Pool["groups"] = [];
-  // Group name -> option labels still in the route, for expanding rules.
+  // Group name -> labels of the stops that meet it, for expanding rules.
   const groupLabels = new Map<string, string[]>();
-  for (const c of candidates) {
+  candidates.forEach((c, i) => {
+    const options = kept[i]!;
     if ("fixed" in c) {
-      if (keep(c.fixed.label, false)) stops.push(c.fixed);
-      continue;
+      if (options.length > 0 && !stops.includes(c.fixed)) stops.push(c.fixed);
+      return;
     }
-    const groupKept = !skip.has(lc(c.group));
-    const viaGroup = !!only?.has(lc(c.group));
-    const options = groupKept ? c.options.filter((o) => keep(o.label, viaGroup)) : [];
+    const met = options.length > 1 ? options.find((o) => fixedStops.has(o)) : undefined;
     groupLabels.set(
       lc(c.group),
-      options.map((o) => lc(o.label)),
+      (met ? [met] : options).map((o) => lc(o.label)),
     );
     if (options.length === 0) {
       notes.push(`Group "${c.group}" has no stops left after only/skip; dropped.`);
+    } else if (met) {
+      notes.push(`Group "${c.group}" is met by ${met.label}, which is already in the route.`);
     } else if (options.length === 1) {
-      stops.push(options[0]!);
+      if (!stops.includes(options[0]!)) stops.push(options[0]!);
     } else {
       groups.push({ name: c.group, options });
     }
-  }
+  });
 
   if (stops.length === 0 && groups.length === 0) throw new UserError("No stops to route.");
 
   // After rules.
-  const all = [...stops, ...groups.flatMap((g) => g.options)];
-  const present = new Set(all.map((s) => lc(s.label)));
+  const all = [...new Set([...stops, ...groups.flatMap((g) => g.options)])];
+  // Any name of a stop in the route -> its lower-case main label.
+  const present = new Map(all.flatMap((s) => namesOf(s).map((n) => [lc(n), lc(s.label)])));
   const rulesApplied: string[] = [];
   const after = new Map<string, string[]>();
 
@@ -197,7 +233,8 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
     const resolved: string[] = [];
     const named: string[] = [];
     for (const l of s.after) {
-      const expanded = groupLabels.get(lc(l)) ?? (present.has(lc(l)) ? [lc(l)] : []);
+      const main = present.get(lc(l));
+      const expanded = groupLabels.get(lc(l)) ?? (main ? [main] : []);
       const targets = expanded.filter((t) => t !== key);
       if (targets.length === 0) {
         notes.push(`Rule "${s.label} after ${l}" ignored: ${l} is not in this route.`);

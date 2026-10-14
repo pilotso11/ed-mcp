@@ -128,15 +128,16 @@ export function registerRouteTools(
         );
         const notes = new Set<string>(pool.notes);
 
-        const all = [...pool.stops, ...pool.groups.flatMap((g) => g.options)];
+        const all = [...new Set([...pool.stops, ...pool.groups.flatMap((g) => g.options)])];
+        const names = (s: PoolStop) => [s.label, ...s.aliases];
         const labelIndex = new Map(all.map((s, i) => [lc(s.label), i]));
         const graph = all.map((s) =>
           (pool.after.get(lc(s.label)) ?? []).flatMap((l) => labelIndex.get(l) ?? []),
         );
         const cycle = findCycle(graph);
         if (cycle) {
-          const names = [...cycle, cycle[0]!].map((i) => all[i]!.label);
-          throw new UserError(`The after rules form a cycle: ${names.join(" -> ")}`);
+          const path = [...cycle, cycle[0]!].map((i) => names(all[i]!).join("+"));
+          throw new UserError(`The after rules form a cycle: ${path.join(" -> ")}`);
         }
 
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
@@ -163,24 +164,30 @@ export function registerRouteTools(
           }
         };
 
-        // Fixed stops at one station share a node. Group options keep their own node.
+        // One node per pool stop. Fixed stops at one station also share a node, such as an
+        // engineer and a shop at the engineer's base. Group options keep their own node.
         const nodes: Node[] = [];
-        const nodeOf = new Map<string, number>(); // lower-case label -> node
+        const nodeOf = new Map<string, number>(); // lower-case main label -> node
+        const nodeOfStop = new Map<PoolStop, number>();
         const byStation = new Map<string, number>();
         const fixed: number[] = [];
         const addNode = async (s: PoolStop, merge: boolean): Promise<number> => {
+          const seen = nodeOfStop.get(s);
+          if (seen !== undefined) return seen;
           const p = await placeStop(s);
           const key = p.station ? `${lc(p.system)}|${lc(p.station)}` : null;
           const hit = merge && key ? byStation.get(key) : undefined;
+          let idx: number;
           if (hit !== undefined) {
-            nodes[hit]!.labels.push(s.label);
-            nodeOf.set(lc(s.label), hit);
-            return hit;
+            nodes[hit]!.labels.push(...names(s));
+            idx = hit;
+          } else {
+            nodes.push({ labels: names(s), stop: s, place: p });
+            idx = nodes.length - 1;
+            if (merge && key) byStation.set(key, idx);
           }
-          nodes.push({ labels: [s.label], stop: s, place: p });
-          const idx = nodes.length - 1;
           nodeOf.set(lc(s.label), idx);
-          if (merge && key) byStation.set(key, idx);
+          nodeOfStop.set(s, idx);
           return idx;
         };
         for (const s of pool.stops) {
@@ -337,6 +344,7 @@ export function registerRouteTools(
             engineer: node?.stop.engineer?.name ?? null,
             kind: node ? node.stop.kind : "other",
             purpose: node ? node.stop.purpose : null,
+            meets: solved.chosen.filter((c) => c.option === t).map((c) => c.group),
             jumps: plottedJumps.get(key(f, t)) ?? l.jumps,
             leg_min: min(seconds),
             arrive_min: min(clock),

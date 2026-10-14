@@ -4,6 +4,7 @@ import { optimiseRoute } from "./optimise.js";
 export interface SolveInput {
   legSeconds: (from: number, to: number) => number;
   fixed: number[];
+  // Options may be shared between groups, but never with fixed.
   groups: Array<{ name: string; options: number[] }>;
   // Entries naming nodes that are not visited in a combination are dropped.
   after: Map<number, number[]>;
@@ -43,7 +44,8 @@ export function solveRoute(input: SolveInput): Solved {
       rest = Math.floor(rest / g.options.length);
       return { group: g.name, option };
     });
-    const nodes = [...input.fixed, ...chosen.map((x) => x.option)];
+    // Several groups can choose the same node; it is visited once.
+    const nodes = [...new Set([...input.fixed, ...chosen.map((x) => x.option)])];
     const index = new Map(nodes.map((node, i) => [node, i]));
     const after = nodes.map((node) =>
       (input.after.get(node) ?? []).filter((j) => index.has(j)).map((j) => index.get(j)!),

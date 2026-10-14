@@ -49,6 +49,44 @@ describe("solveRoute", () => {
     expect(other.order).toEqual([25, 30]);
   });
 
+  it("visits a node shared by two groups once", () => {
+    const r = solveRoute(
+      input({
+        groups: [
+          { name: "a", options: [10, 100] },
+          { name: "b", options: [10, 200] },
+        ],
+      }),
+    );
+    expect(r.order).toEqual([10]);
+    expect(r.total).toBe(10);
+    expect(r.chosen).toEqual([
+      { group: "a", option: 10 },
+      { group: "b", option: 10 },
+    ]);
+    expect(r.combinations).toBe(4);
+  });
+
+  it("prefers a shared node over two separate nearer nodes", () => {
+    // Points on a plane: 1 and 2 are 9 from the start on opposite sides, 3 is 20 away.
+    // Shared: 20. Separate: 9 + 18 = 27. Mixed: 9 + about 21.9.
+    const at: Record<number, [number, number]> = { 0: [0, 0], 1: [9, 0], 2: [-9, 0], 3: [0, 20] };
+    const r = solveRoute(
+      input({
+        // A second visit to the same place still costs time, like docking again.
+        legSeconds: (a, b) =>
+          a === b ? 10 : Math.hypot(at[a]![0] - at[b]![0], at[a]![1] - at[b]![1]),
+        groups: [
+          { name: "a", options: [1, 3] },
+          { name: "b", options: [2, 3] },
+        ],
+      }),
+    );
+    expect(r.chosen.map((c) => c.option)).toEqual([3, 3]);
+    expect(r.total).toBe(20);
+    expect(r.runnerUp!.total).toBe(27);
+  });
+
   it("rejects too many combinations", () => {
     const groups = [1, 2, 3, 4, 5].map((i) => ({ name: `g${i}`, options: [i, i + 10] }));
     expect(() => solveRoute(input({ groups }))).toThrow(UserError);

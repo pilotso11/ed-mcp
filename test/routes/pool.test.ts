@@ -83,8 +83,8 @@ describe("buildPool", () => {
         stops: [
           { system: "Sol", station: "Daedalus" },
           { system: "Sol" },
-          { system: "Sol", station: "daedalus" },
-          { system: "Sol", station: "Daedalus", label: "Daedalus" },
+          { system: "Lave", station: "daedalus" },
+          { system: "Achenar", station: "Daedalus", label: "Daedalus" },
           { engineer: "Elvira Martuuk" },
         ],
       },
@@ -106,8 +106,8 @@ describe("buildPool", () => {
 
   const three: StopEntry[] = [
     { label: "A", system: "Sol" },
-    { label: "B", system: "Sol" },
-    { label: "C", system: "Sol" },
+    { label: "B", system: "Lave" },
+    { label: "C", system: "Achenar" },
   ];
 
   it("applies only then skip, ignoring case", () => {
@@ -128,8 +128,8 @@ describe("buildPool", () => {
         ...base,
         stops: [
           { label: "A", system: "Sol", after: ["B", "C"] },
-          { label: "B", system: "Sol" },
-          { label: "C", system: "Sol" },
+          { label: "B", system: "Lave" },
+          { label: "C", system: "Achenar" },
         ],
         skip: ["B"],
       },
@@ -144,11 +144,11 @@ describe("buildPool", () => {
     const p = plan({
       stops: [
         { system: "Sol", label: "Shop", kind: "shop", purpose: "x" },
-        { system: "Sol", label: "Trader", kind: "trader", purpose: "x" },
-        { system: "Sol", label: "Other", purpose: "x" },
+        { system: "Lave", label: "Trader", kind: "trader", purpose: "x" },
+        { system: "Achenar", label: "Other", purpose: "x" },
         { system: "Deciat", label: "E1", kind: "engineer", purpose: "x" },
-        { system: "Deciat", label: "E2", kind: "engineer", purpose: "x", after: [] },
-        { system: "Deciat", label: "E3", kind: "engineer", purpose: "x", after: ["Other"] },
+        { system: "Khun", label: "E2", kind: "engineer", purpose: "x", after: [] },
+        { system: "Shinrarta", label: "E3", kind: "engineer", purpose: "x", after: ["Other"] },
       ],
     });
 
@@ -233,6 +233,130 @@ describe("buildPool", () => {
       expect([...pool.stops, ...pool.groups.flatMap((g) => g.options)].map((s) => s.label)).toEqual(
         ["X", "X-2", "X-3"],
       );
+    });
+  });
+
+  describe("shared places", () => {
+    it("shares one stop between groups that name the same engineer", () => {
+      const pool = buildPool(
+        {
+          ...base,
+          stops: [
+            {
+              label: "fsd",
+              one_of: [
+                { engineer: "Felicity Farseer" },
+                { label: "M1", engineer: "Elvira Martuuk" },
+              ],
+            },
+            {
+              label: "thrusters",
+              one_of: [
+                { label: "Farseer", engineer: "felicity farseer" },
+                { label: "Other", system: "Lave" },
+              ],
+            },
+          ],
+        },
+        catalog,
+      );
+      const [fsd, thr] = pool.groups;
+      expect(fsd!.options[0]).toBe(thr!.options[0]);
+      expect(fsd!.options[0]).toMatchObject({
+        label: "Felicity Farseer",
+        aliases: ["Farseer"],
+        key: "eng:felicity farseer",
+      });
+      expect(thr!.options[1]!.key).toBe("lave|");
+    });
+
+    it("collapses duplicate options within a group", () => {
+      const pool = buildPool(
+        {
+          ...base,
+          stops: [
+            { label: "Bench", system: "Sol" },
+            {
+              label: "g",
+              one_of: [
+                { label: "A", system: "Lave", station: "Station" },
+                { label: "B", system: "lave", station: "station" },
+              ],
+            },
+          ],
+        },
+        null,
+      );
+      expect(pool.groups).toEqual([]);
+      expect(pool.stops.map((s) => s.label)).toEqual(["Bench", "A"]);
+      expect(pool.stops[1]!.aliases).toEqual(["B"]);
+    });
+
+    it("drops a group met by a fixed stop, with a note", () => {
+      const pool = buildPool(
+        {
+          ...base,
+          stops: [
+            {
+              label: "trader",
+              one_of: [
+                { label: "T1", system: "Lave", station: "Port" },
+                { label: "T2", system: "Achenar" },
+              ],
+            },
+            { label: "Shop", system: "lave", station: "port" },
+          ],
+        },
+        null,
+      );
+      expect(pool.groups).toEqual([]);
+      expect(pool.stops.map((s) => s.label)).toEqual(["T1"]);
+      expect(pool.stops[0]!.aliases).toEqual(["Shop"]);
+      expect(pool.notes).toContain('Group "trader" is met by T1, which is already in the route.');
+    });
+
+    it("resolves an alias in after, only and skip to the merged stop", () => {
+      const stops: StopEntry[] = [
+        { label: "A", system: "Sol", station: "Abe" },
+        { label: "B", system: "sol", station: "abe" },
+        { label: "C", system: "Lave", after: ["B"] },
+        { label: "D", system: "Achenar" },
+      ];
+      const pool = buildPool({ ...base, stops }, null);
+      expect(pool.stops.map((s) => s.label)).toEqual(["A", "C", "D"]);
+      expect(pool.after.get("c")).toEqual(["a"]);
+      expect(buildPool({ ...base, stops, only: ["b"] }, null).stops.map((s) => s.label)).toEqual([
+        "A",
+      ]);
+      expect(buildPool({ ...base, stops, skip: ["B"] }, null).stops.map((s) => s.label)).toEqual([
+        "C",
+        "D",
+      ]);
+    });
+
+    it("merges after lists as a union, undefined only when all are undefined", () => {
+      const pool = buildPool(
+        {
+          ...base,
+          stops: [
+            { label: "A", system: "Sol", station: "Abe" },
+            { label: "B", system: "Sol", station: "Abe", after: ["C"] },
+            { label: "B2", system: "Sol", station: "Abe", after: ["D"] },
+            { label: "C", system: "Lave" },
+            { label: "D", system: "Achenar" },
+            { label: "E", system: "Sol", station: "Other" },
+            { label: "E2", system: "Sol", station: "Other" },
+            { label: "F", system: "Sol", station: "Third", after: [] },
+            { label: "F2", system: "Sol", station: "Third" },
+          ],
+        },
+        null,
+      );
+      const byLabel = new Map(pool.stops.map((s) => [s.label, s]));
+      expect(byLabel.get("A")!.after).toEqual(["C", "D"]);
+      expect(byLabel.get("E")!.after).toBeUndefined();
+      expect(byLabel.get("F")!.after).toEqual([]);
+      expect(pool.after.get("a")).toEqual(["c", "d"]);
     });
   });
 

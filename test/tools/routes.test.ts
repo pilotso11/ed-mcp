@@ -166,6 +166,27 @@ describe("route_stops", () => {
     expect(j.runner_up.extra_min).toBeGreaterThan(0);
   });
 
+  it("visits a shared engineer once for two one_of groups", async () => {
+    const { j } = await route({
+      stops: [
+        { label: "fsd", one_of: [{ engineer: "Farseer" }, { label: "FarFsd", system: "Far" }] },
+        { label: "thrusters", one_of: [{ engineer: "Farseer" }, { engineer: "Lock" }] },
+      ],
+    });
+    expect(labels(j)).toEqual(["Felicity Farseer"]);
+    expect(j.stops[0].meets).toEqual(["fsd", "thrusters"]);
+    expect(j.chosen).toEqual([
+      { group: "fsd", option: "Felicity Farseer" },
+      { group: "thrusters", option: "Felicity Farseer" },
+    ]);
+    expect(j.combinations).toBe(4);
+  });
+
+  it("gives fixed stops an empty meets", async () => {
+    const { j } = await route({ stops: [alpha] });
+    expect(j.stops[0].meets).toEqual([]);
+  });
+
   it("applies only and skip", async () => {
     const gamma = { label: "GammaShop", system: "Gamma" };
     expect(labels((await route({ stops: [alpha, beta, gamma], only: ["alphashop"] })).j)).toEqual([
@@ -230,7 +251,7 @@ describe("route_stops", () => {
       expect(r.text).toMatch(/The after rules form a cycle: .*->/);
     });
 
-    it("rejects a cycle that only appears after stops at one station merge", async () => {
+    it("rejects a cycle that only appears after stops at one place merge", async () => {
       const { r } = await route({
         stops: [
           { ...alpha, after: ["Eng"] },
@@ -240,6 +261,19 @@ describe("route_stops", () => {
       });
       expect(r.isError).toBe(true);
       expect(r.text).toMatch(/The after rules form a cycle: .*AlphaShop\+AlphaTrader.*->/);
+    });
+
+    it("rejects a cycle through an engineer and a shop at the engineer's base", async () => {
+      // The pool keeps these apart (engineer key vs station key); the tool merges their nodes.
+      const { r } = await route({
+        stops: [
+          { engineer: "Farseer", after: ["Eng"] },
+          { label: "BaseShop", system: "Alpha", station: "Farseer Inc" },
+          { label: "Eng", system: "Beta", station: "Beta Hub", after: ["BaseShop"] },
+        ],
+      });
+      expect(r.isError).toBe(true);
+      expect(r.text).toMatch(/The after rules form a cycle: .*Felicity Farseer\+BaseShop.*->/);
     });
 
     it("rejects more than 16 combinations", async () => {
