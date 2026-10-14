@@ -33,6 +33,7 @@ For installation and setup, see the [README](../README.md).
 | `route_stops`              | Best order for a build's shops, traders and engineers        |
 | `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
 | `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
+| `trade_loops`              | Repeatable trade loops, ranked by sustained profit per hour  |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
@@ -108,7 +109,7 @@ The result lists the `stops` in order, each with `labels`, `system`, `station`, 
 
 ## Trading
 
-`trade_route` plans a multi-hop trade run with the Spansh trade planner. `commodity_prices` finds the best stations near a system to sell or buy one commodity.
+`trade_route` plans a multi-hop trade run with the Spansh trade planner. `trade_loops` finds repeatable loops of two or three stations. `commodity_prices` finds the best stations near a system to sell or buy one commodity.
 
 ### trade_route
 
@@ -132,6 +133,38 @@ Spansh takes one to several minutes. While it works, the tool returns `status: "
 
 `profit_per_hour` is `total_profit` ÷ `total_travel_min` × 60, from the travel model. It is a one-way figure. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover market and loading time, the way to the start station or the return trip. It does not add time for planetary landings, because Spansh gives no station type.
 
+### trade_loops
+
+`trade_loops` finds loops of two or three stations that you can run again and again. A leg can run empty.
+
+Inputs (all optional):
+
+- `start`: `"here"` (default) finds loops through the start station. `"any"` finds the best loops anywhere in the area.
+- `near`: the centre. With `"here"`, give `{ system, station }`. Without it, the tool uses the docked station from the journal. If you are not docked, the error is "Give near with a station, or dock first." With `"any"`, give a system. The default is the journal's current system.
+- `radius_ly`: the area to search around `near`. The default is 40 for `"here"` and 100 for `"any"`.
+- `max_leg_ly`: the longest single leg. The default is 30.
+- `max_stations`: candidate stations, 1 to 200. The default is 50 for `"here"` and 200 for `"any"`.
+- `stops`: the loop sizes to consider. The default is `[2, 3]`.
+- `cargo`: tonnes, at least 1. The default is the journal ship's cargo capacity, then 7 t.
+- `capital`: credits for the first purchase of a lap. The default is your journal credits, then 1000 cr.
+- `max_price_age_days`: the oldest market data to use. The default is 2.
+- `session_min`: the session length for the sustained profit, at least 1. The default is 60.
+- `include`: up to 10 extra stations, as `[{ system, station }]`. If Spansh has no market for one, a note says so.
+- `limit`: loops to return, 1 to 30. The default is 10.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+The tool searches Spansh for stations with a market within `radius_ly` of `near`, nearest first. With `"here"`, it loads the nearest `max_stations`. With `"any"`, it splits `radius_ly` into 4 equal distance bands and loads the nearest quarter of `max_stations` in each band, so the stations around a busy centre cannot take every place. A band with fewer stations leaves its places empty. Stations with prices older than `max_price_age_days` are left out. If the start station's market comes from a separate lookup and is older than `max_price_age_days`, a note says so.
+
+Loading stops about 40 s after the call starts, so that the client does not time out. The note "Search stopped early to stay within the time limit; results cover the stations loaded so far." then says that the loops use only the stations loaded so far.
+
+Your travel preferences filter the candidates. A pad size of L, `planetary: "exclude"`, `fleet_carriers: "exclude"` (as a list of the other station types) and a `hard` arrival limit go to the Spansh search. The tool then applies the medium pad size and `megaships: "exclude"` itself. An `avoid` rule keeps those stations, and a note says so when a candidate is affected: loops are ranked by credits per hour, and the travel model already adds the landing time of a surface station. A `soft` arrival limit is not applied, and a note says so. The start station and the `include` stations are never filtered.
+
+Each leg carries the commodity with the best profit. The amount is the smallest of your cargo, the supply, the demand and what your capital buys. `depth` is the number of full loads that the two markets support. The leg time comes from the travel model. It does not count market and loading time.
+
+The loops are ranked by `sustained_per_hour`. This is the lap profit times the laps you can run in `session_min`, limited by `laps_supported` (the smallest `depth` in the loop), per hour. A thin market that cannot refill your hold every lap ranks low. Ties go to the higher `profit_per_hour` (one lap, repeated). With `"any"`, each loop starts at its alphabetically first station, and `reposition_min` is the time from your location (or `near`) to that station.
+
+Each loop has `stations`, `legs` (`from`, `to`, `distance_ly`, `jumps`, `leg_min`, `cargo` and `depth`; `cargo` is null for an empty leg), `lap_profit`, `lap_min`, `profit_per_hour`, `laps_supported`, `sustained_per_hour`, `reposition_min`, `oldest_price_hours` and `notes`. A note says when a market cannot fill your hold, or when your capital cannot. The result also has `centre`, `coverage` (with a note such as "Searched the nearest 50 of 412 stations within 40 LY; 37 had prices older than 2 days.", or for `"any"` "Searched 200 of 3120 stations within 100 LY, the nearest in each of 4 distance bands; ..."; Spansh counts at most 10000, so a capped count reads "at least 10000"), the resolved `inputs`, `applied_preferences` and `notes`. Spansh market records do not show prohibited commodities, so every result has the note "Legality is not checked; make sure that a commodity is legal where you sell it." If no loop pays, `loops` is empty and a note suggests a larger radius, another centre or `include`. With a capital of 0, the note is "Capital is 0 cr; no cargo can be bought." instead.
+
 ### commodity_prices
 
 Inputs:
@@ -151,8 +184,9 @@ With `amount`, each station gets a `value`: price × amount, minus the travel co
 
 ### Limits
 
-- The tool plans a route from a start to the last hop. It does not plan loops back to the start.
-- Market data can be old. Check `market_age_hours`. `max_price_age_days` sets the oldest prices both tools use. Prices can change before you arrive.
+- `trade_route` plans a route from a start to the last hop. It does not plan loops back to the start. Use `trade_loops` for loops.
+- `trade_loops` carries one commodity on each leg and considers loops of two or three stations only. Its scores use one price snapshot. Prices fall as you repeat a loop, so `laps_supported` is the only guard.
+- Market data can be old. Check `market_age_hours` and `oldest_price_hours`. `max_price_age_days` sets the oldest prices the tools use. Prices can change before you arrive.
 
 ## Game journal
 

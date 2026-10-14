@@ -61,6 +61,7 @@ export interface SystemInfo {
     arrival_ls: number | null;
     pad: Pad;
     market: boolean;
+    market_id: number | null;
     outfitting: boolean;
     shipyard: boolean;
     services: string[];
@@ -164,9 +165,60 @@ export interface CommodityHit extends StationHit {
   supply: number | null;
 }
 
+export interface MarketRow {
+  commodity: string;
+  buy_price: number;
+  sell_price: number;
+  supply: number;
+  demand: number;
+}
+
+export interface MarketStation {
+  name: string;
+  system: string;
+  market_id: number;
+  distance_ly: number | null;
+  arrival_ls: number | null;
+  coords: { x: number; y: number; z: number };
+  pad: "S" | "M" | "L" | null;
+  type: string | null;
+  planetary: boolean;
+  market_age_hours: number | null;
+  /** Rows with supply or demand only. */
+  market: MarketRow[];
+}
+
+export interface MarketStationsQuery {
+  near: string;
+  /** Inner edge of the search, 0 by default. */
+  minLy?: number;
+  radiusLy: number;
+  maxStations: number;
+  maxAgeDays: number;
+  largePad?: boolean;
+  /** false excludes planetary stations; true or undefined applies no restriction. */
+  planetary?: boolean;
+  /** false searches the non-carrier station types only; true or undefined keeps carriers. */
+  fleetCarriers?: boolean;
+  maxArrivalLs?: number;
+}
+
+export interface MarketStations {
+  near: string;
+  total: number;
+  stations: MarketStation[];
+  droppedOld: number;
+  /** The deadline stopped the paging before maxStations or the end of the results. */
+  partial: boolean;
+}
+
 interface RawStation {
   name: string;
+  market_id?: number;
   system_name?: string;
+  system_x?: number;
+  system_y?: number;
+  system_z?: number;
   distance?: number;
   distance_to_arrival?: number | null;
   type?: string | null;
@@ -215,6 +267,27 @@ function pad(s: RawStation): Pad {
 }
 
 const MAX_JOBS = 100;
+const SEARCH_PAGE_SIZE = 50;
+const CARRIER_TYPE = "Drake-Class Carrier";
+// Spansh has no "not" filter, so carriers are left out by listing every other type
+// (GET /api/stations/field_values/type, 2026-10-14). Near busy systems most market
+// records are carriers, so dropping them after the fetch would leave few stations.
+const NON_CARRIER_TYPES = [
+  "Asteroid base",
+  "Coriolis Starport",
+  "Dockable Planet Station",
+  "Dodec Starport",
+  "Mega ship",
+  "Ocellus Starport",
+  "Orbis Starport",
+  "Outpost",
+  "Planetary Construction Depot",
+  "Planetary Outpost",
+  "Planetary Port",
+  "Settlement",
+  "Space Construction Depot",
+  "Surface Settlement",
+];
 
 export class SpanshClient {
   private readonly baseUrl: string;
@@ -223,6 +296,7 @@ export class SpanshClient {
   private readonly routeTimeoutMs: number;
   private readonly now: () => number;
   private readonly systemCache: TtlCache<unknown>;
+  private readonly marketCache: TtlCache<unknown>;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
@@ -241,6 +315,8 @@ export class SpanshClient {
       now?: () => number;
       // System lookups change rarely and cost two rate-limited calls, so they outlive the station cache.
       systemCache?: TtlCache<unknown>;
+      // Mapped market records are compact but costly to fetch, so they are kept longer than raw search results.
+      marketCache?: TtlCache<unknown>;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
@@ -250,6 +326,7 @@ export class SpanshClient {
     this.routeTimeoutMs = opts.routeTimeoutMs ?? 50_000;
     this.now = opts.now ?? Date.now;
     this.systemCache = opts.systemCache ?? cache;
+    this.marketCache = opts.marketCache ?? cache;
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -355,6 +432,7 @@ export class SpanshClient {
         arrival_ls: s.distance_to_arrival ?? null,
         pad: pad(s),
         market: s.has_market ?? false,
+        market_id: s.market_id ?? null,
         outfitting: s.has_outfitting ?? false,
         shipyard: s.has_shipyard ?? false,
         services: (s.services ?? []).map((x) => (typeof x === "string" ? x : x.name)),
@@ -556,6 +634,126 @@ export class SpanshClient {
       });
       return { near: q.near, total: raw.count, stations };
     })) as { near: string; total: number; stations: CommodityHit[] };
+  }
+
+  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has, uncached. */
+  async marketStations(
+    q: MarketStationsQuery,
+    opts: { deadline?: number } = {},
+  ): Promise<MarketStations> {
+    const filters: Record<string, unknown> = {
+      distance: { min: q.minLy ?? 0, max: q.radiusLy },
+      has_market: { value: true },
+    };
+    if (q.largePad) filters.has_large_pad = { value: true };
+    if (q.planetary === false) filters.is_planetary = { value: false };
+    if (q.fleetCarriers === false) filters.type = { value: NON_CARRIER_TYPES };
+    if (q.maxArrivalLs !== undefined) {
+      filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
+    }
+    const key = `markets:${JSON.stringify(q)}`;
+    const hit = this.marketCache.get(key) as MarketStations | undefined;
+    if (hit) return hit;
+
+    const stations: MarketStation[] = [];
+    let total = 0;
+    let droppedOld = 0;
+    let loaded = 0;
+    let partial = false;
+    for (let page = 0; loaded < q.maxStations; page++) {
+      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+        partial = true;
+        break;
+      }
+      const body = {
+        filters,
+        sort: [{ distance: { direction: "asc" } }],
+        size: SEARCH_PAGE_SIZE,
+        page,
+        reference_system: q.near,
+      };
+      let res: { count: number; results?: RawStation[] };
+      try {
+        res = (await this.post("/stations/search", JSON.stringify(body), "application/json")) as {
+          count: number;
+          results?: RawStation[];
+        };
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 400) {
+          throw new UserError(
+            `Spansh rejected the search (${err.detail}). Check that "${q.near}" is an exact system name (spansh_system).`,
+          );
+        }
+        throw err;
+      }
+      total = res.count;
+      const results = res.results ?? [];
+      // Map each page as it arrives so that only one page of full records is held at once.
+      const now = this.now();
+      for (const raw of results.slice(0, q.maxStations - loaded)) {
+        loaded++;
+        // A fallback in case the type filter misses a carrier.
+        if (q.fleetCarriers === false && raw.type === CARRIER_TYPE) continue;
+        const st = this.marketStation(raw, now);
+        if (!st) continue;
+        if (st.market_age_hours !== null && st.market_age_hours > q.maxAgeDays * 24) {
+          droppedOld++;
+          continue;
+        }
+        stations.push(st);
+      }
+      if (results.length < SEARCH_PAGE_SIZE) break;
+    }
+    const result: MarketStations = { near: q.near, total, stations, droppedOld, partial };
+    if (!partial) this.marketCache.set(key, result);
+    return result;
+  }
+
+  async stationMarket(marketId: number): Promise<MarketStation> {
+    return (await this.marketCache.getOrLoad(`market:${marketId}`, async () => {
+      let res: { record?: RawStation } | undefined;
+      try {
+        res = (await this.get(`/station/${marketId}`)) as { record?: RawStation } | undefined;
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 404) {
+          throw new UserError(`Spansh has no market for station ${marketId}`);
+        }
+        throw err;
+      }
+      const st = res?.record && this.marketStation(res.record, this.now());
+      if (!st) throw new UserError(`Spansh has no market for station ${marketId}`);
+      return { ...st, distance_ly: null };
+    })) as MarketStation;
+  }
+
+  // Null without coordinates or a market id: a leg from (0, 0, 0) or a market id of 0 would be wrong.
+  private marketStation(s: RawStation, now: number): MarketStation | null {
+    const { market_id, system_x: x, system_y: y, system_z: z } = s;
+    if (market_id == null || x == null || y == null || z == null) return null;
+    const updated = s.market_updated_at ? Date.parse(s.market_updated_at) : NaN;
+    return {
+      name: s.name,
+      system: s.system_name ?? "",
+      market_id,
+      distance_ly: s.distance ?? null,
+      arrival_ls: s.distance_to_arrival ?? null,
+      coords: { x, y, z },
+      pad: pad(s),
+      type: s.type ?? null,
+      planetary: s.is_planetary ?? false,
+      market_age_hours: Number.isNaN(updated)
+        ? null
+        : Math.round(((now - updated) / 3_600_000) * 10) / 10,
+      market: (s.market ?? [])
+        .filter((m) => (m.supply ?? 0) > 0 || (m.demand ?? 0) > 0)
+        .map((m) => ({
+          commodity: m.commodity,
+          buy_price: m.buy_price ?? 0,
+          sell_price: m.sell_price ?? 0,
+          supply: m.supply ?? 0,
+          demand: m.demand ?? 0,
+        })),
+    };
   }
 
   private hit(s: RawStation, q: StationQuery, shipName?: string): StationHit {

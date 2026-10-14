@@ -67,6 +67,10 @@
       "name": "commodity_prices",
       "description": "Best nearby stations to sell or buy a commodity"
     },
+    {
+      "name": "trade_loops",
+      "description": "Repeatable two- and three-station trade loops, ranked by sustained profit per hour"
+    },
     { "name": "spansh_system", "description": "System coordinates and stations" },
     { "name": "spansh_route", "description": "Neutron route between systems" },
     { "name": "missions_route", "description": "Best stop order for accepted missions" },

@@ -7,7 +7,7 @@ With ed-mcp, Claude can:
 - plan a ship build: the modules to buy, the engineering, the materials and the engineers to visit, and the route to all of them,
 - work out which materials you are short of and the trades that cover them,
 - find the best station for a module, ship or service, ranked by travel time and price,
-- plan trade runs and find where to sell or buy a commodity,
+- plan trade runs and loops, and find where to sell or buy a commodity,
 - put the stops for your accepted missions in the best order,
 - read your game journal for your location, ship, cargo, materials, missions and engineer progress.
 
@@ -26,6 +26,7 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 - "What do I need for grade 5 dirty drives?"
 - "Find me a trade route from here. I have 400 t of cargo."
 - "Where can I sell 200 t of gold near Atlas?"
+- "Find me a trade loop from this station that I can run for an hour."
 - "Plan the best order for my passenger missions."
 - "Plan the route for my Corsair build plan."
 - "From now on, ignore stations more than 2,000 ls from the star."
@@ -134,7 +135,7 @@ The travel times come from about 1,300 timed trips in a commander's journals, fl
 
 - Station, market and trade data come from Spansh. Market prices can be some hours or days old. The results show the age of each price. Spansh gets prices from EDDN, so a market that you open while you run a tool such as EDMC reaches Spansh within minutes.
 - Trade routes and first-time mission routes can take a minute or more. If Spansh is still working, Claude asks again.
-- Trade routes go one way. They do not plan a loop back to the start.
+- Trade routes go one way. Trade loops use two or three stations and one commodity on each leg. Their scores use one price snapshot, and prices fall as you repeat a loop.
 - ed-mcp cannot see the mission board. It plans routes only for missions that you accepted.
 - Material plans ignore the storage limit for each material grade.
 
