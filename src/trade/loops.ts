@@ -87,6 +87,8 @@ export function spreadStations(
 }
 
 const TOO_MANY_TRIPLES = "Too many stations for 3-station loops; showing 2-station loops only.";
+const TOO_MANY_TRIPLES_ONLY =
+  "Too many stations for 3-station loops; no loops were searched. Lower max_stations or radius_ly.";
 
 const better = (a: Loop, b: Loop) =>
   b.sustainedPerHour - a.sustainedPerHour || b.profitPerHour - a.profitPerHour;
@@ -191,7 +193,7 @@ export function findLoops(a: {
 
   if (a.sizes.includes(3)) {
     if (triples > tripleCap) {
-      notes.push(TOO_MANY_TRIPLES);
+      notes.push(a.sizes.includes(2) ? TOO_MANY_TRIPLES : TOO_MANY_TRIPLES_ONLY);
     } else {
       for (const x of firsts) {
         for (const y of outs.get(x)!) {

@@ -298,6 +298,23 @@ describe("findLoops", () => {
     ]);
   });
 
+  it("says no loops were searched when only 3-loops were asked for and the cap passes", () => {
+    const { leg } = legs(all(3, () => ({ s: 600, profit: 1000 })));
+    const r = findLoops({
+      count: 3,
+      leg,
+      start: null,
+      sizes: [3],
+      sessionMin: 60,
+      limit: 10,
+      tripleCap: 0,
+    });
+    expect(r.loops).toEqual([]);
+    expect(r.notes).toEqual([
+      "Too many stations for 3-station loops; no loops were searched. Lower max_stations or radius_ly.",
+    ]);
+  });
+
   it("finds no loops without a loaded leg", () => {
     const { leg } = legs(all(3, () => ({ s: 600 })));
     const r = findLoops({ count: 3, leg, start: null, sizes: [2, 3], sessionMin: 60, limit: 10 });
