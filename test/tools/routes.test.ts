@@ -223,6 +223,18 @@ describe("route_stops", () => {
       expect(r.text).toMatch(/The after rules form a cycle: .*->/);
     });
 
+    it("rejects a cycle that only appears after stops at one station merge", async () => {
+      const { r } = await route({
+        stops: [
+          { ...alpha, after: ["Eng"] },
+          { label: "AlphaTrader", system: "Alpha", station: "Alpha Port" },
+          { label: "Eng", system: "Beta", station: "Beta Hub", after: ["AlphaTrader"] },
+        ],
+      });
+      expect(r.isError).toBe(true);
+      expect(r.text).toMatch(/The after rules form a cycle: .*AlphaShop\+AlphaTrader.*->/);
+    });
+
     it("rejects more than 16 combinations", async () => {
       const g = (n: number) => ({
         label: `g${n}`,

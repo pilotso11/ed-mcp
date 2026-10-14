@@ -198,6 +198,14 @@ export function registerRouteTools(
           if (list.size > 0) after.set(self, [...list]);
         }
 
+        // Merging stops at one station can close a cycle the label graph did not have.
+        const nodeGraph = nodes.map((_, i) => after.get(i) ?? []);
+        const nodeCycle = findCycle(nodeGraph);
+        if (nodeCycle) {
+          const names = [...nodeCycle, nodeCycle[0]!].map((i) => nodes[i]!.labels.join("+"));
+          throw new UserError(`The after rules form a cycle: ${names.join(" -> ")}`);
+        }
+
         let startPlace: Place;
         let source: "journal" | "input";
         let warnings: string[] = [];
