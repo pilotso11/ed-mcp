@@ -246,6 +246,9 @@ describe("SpanshClient.system", () => {
     expect(small.stations).toHaveLength(1);
     expect(large.stations).toHaveLength(3);
     expect(large.station_count).toBe(3);
+    expect(large.stations.map((st) => st.market_id).sort()).toEqual([
+      128666762, 128679815, 3534249216,
+    ]);
     expect(again.stations).toEqual(large.stations.slice(0, 2));
     expect(f.calls).toHaveLength(2);
   });

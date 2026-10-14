@@ -61,6 +61,7 @@ export interface SystemInfo {
     arrival_ls: number | null;
     pad: Pad;
     market: boolean;
+    market_id: number | null;
     outfitting: boolean;
     shipyard: boolean;
     services: string[];
@@ -401,6 +402,7 @@ export class SpanshClient {
         arrival_ls: s.distance_to_arrival ?? null,
         pad: pad(s),
         market: s.has_market ?? false,
+        market_id: s.market_id ?? null,
         outfitting: s.has_outfitting ?? false,
         shipyard: s.has_shipyard ?? false,
         services: (s.services ?? []).map((x) => (typeof x === "string" ? x : x.name)),
