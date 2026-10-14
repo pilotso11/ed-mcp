@@ -65,17 +65,21 @@ function userPath(env: Env, key: string): string | undefined {
   }
 }
 
+// ed-mcp's registered Frontier client. Login uses PKCE, so a client ID is public by design
+// (EDMC ships its own the same way). CAPI_CLIENT_ID overrides it.
+const ED_MCP_CAPI_CLIENT_ID = "320100b9-b71e-4b8a-ab80-210f7192d330";
+
 export function loadConfig(
   env: Env,
   dirs: { config: string; cache: string },
   platform: NodeJS.Platform = process.platform,
 ): Config {
-  const devMode = bool(env, "INARA_DEV_MODE", true);
+  const devMode = bool(env, "INARA_DEV_MODE", false);
   const inaraKey = get(env, "INARA_API_KEY");
   const inaraCmdr = get(env, "INARA_CMDR");
   const edsmKey = get(env, "EDSM_API_KEY");
   const edsmCmdr = get(env, "EDSM_CMDR");
-  const capiClientId = get(env, "CAPI_CLIENT_ID");
+  const capiClientId = get(env, "CAPI_CLIENT_ID") ?? ED_MCP_CAPI_CLIENT_ID;
 
   return {
     inara:

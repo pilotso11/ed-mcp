@@ -11,7 +11,8 @@ describe("loadConfig", () => {
     const c = loadConfig({}, dirs);
     expect(c.inara).toBeUndefined();
     expect(c.edsm).toBeUndefined();
-    expect(c.capi).toBeUndefined();
+    // ed-mcp ships its own Frontier client ID, so Frontier login works with no settings.
+    expect(c.capi).toEqual({ clientId: "320100b9-b71e-4b8a-ab80-210f7192d330" });
     expect(c.plansFile).toBe(path.join("/cfg", "plans.json"));
     expect(c.cacheDir).toBe("/cache");
     expect(c.configDir).toBe("/cfg");
@@ -40,15 +41,15 @@ describe("loadConfig", () => {
 
   it("reads Inara config with defaults", () => {
     const c = loadConfig({ INARA_API_KEY: "k", INARA_CMDR: "Jameson" }, dirs);
-    expect(c.inara).toEqual({ apiKey: "k", cmdr: "Jameson", appName: "ed-mcp", devMode: true });
+    expect(c.inara).toEqual({ apiKey: "k", cmdr: "Jameson", appName: "ed-mcp", devMode: false });
   });
 
   it("parses INARA_DEV_MODE and INARA_APP_NAME", () => {
     const c = loadConfig(
-      { INARA_API_KEY: "k", INARA_CMDR: "J", INARA_DEV_MODE: "false", INARA_APP_NAME: "x" },
+      { INARA_API_KEY: "k", INARA_CMDR: "J", INARA_DEV_MODE: "true", INARA_APP_NAME: "x" },
       dirs,
     );
-    expect(c.inara?.devMode).toBe(false);
+    expect(c.inara?.devMode).toBe(true);
     expect(c.inara?.appName).toBe("x");
   });
 
