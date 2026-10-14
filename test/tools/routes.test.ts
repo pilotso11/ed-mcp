@@ -172,6 +172,24 @@ describe("route_stops", () => {
     });
   });
 
+  it("routes a station-less engineer plan stop at the engineer's base", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith(
+        [{ system: "Alpha", label: "FSD upgrade", purpose: "g5", kind: "engineer" }],
+        engItem,
+      ),
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p" });
+    const j = r.json as Record<string, any>;
+    expect(j.stops).toHaveLength(1);
+    expect(j.stops[0]).toMatchObject({
+      station: "Farseer Inc",
+      engineer: "Felicity Farseer",
+    });
+    expect(Number.isFinite(j.stops[0].arrive_min)).toBe(true);
+  });
+
   it("lists an engineer and a station at the engineer's base once", async () => {
     const { j } = await route({
       stops: [
