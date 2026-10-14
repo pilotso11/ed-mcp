@@ -71,6 +71,17 @@ describe("loadConfig", () => {
     expect(c.edsm).toBeUndefined();
   });
 
+  // Claude Desktop passes "${user_config.capi_client_id}", or "" when the field is empty.
+  // Either must fall back to the shipped client, or every Desktop install loses Frontier login.
+  it.each(["", "  ", "${user_config.capi_client_id}"])(
+    "uses the ed-mcp Frontier client when CAPI_CLIENT_ID is %j",
+    (value) => {
+      expect(loadConfig({ CAPI_CLIENT_ID: value }, dirs).capi).toEqual({
+        clientId: "320100b9-b71e-4b8a-ab80-210f7192d330",
+      });
+    },
+  );
+
   it("reads EDSM, CAPI and the plans override", () => {
     const c = loadConfig(
       { EDSM_API_KEY: "e", EDSM_CMDR: "J", CAPI_CLIENT_ID: "cid", ED_MCP_PLANS: "/p.json" },
