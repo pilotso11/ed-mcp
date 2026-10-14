@@ -5,7 +5,12 @@ import type { JournalService } from "../journal/service.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { createPlacer, legBetween, STATION_LIMIT, type Place } from "../routes/legs.js";
-import type { MarketStation, SpanshClient, StationHit } from "../spansh/client.js";
+import type {
+  MarketStation,
+  MarketStationsQuery,
+  SpanshClient,
+  StationHit,
+} from "../spansh/client.js";
 import { applyRules, describeRules, type Rules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { bestCargo, findLoops, spreadStations, type ScoredLeg } from "../trade/loops.js";
@@ -13,9 +18,17 @@ import { wrap } from "./result.js";
 
 const DEFAULT_CARGO = 7;
 const DEFAULT_CAPITAL = 1000;
-// "any" fetches twice the candidates so that spreadStations can sample every distance band.
-const MAX_FETCH = 400;
+// "any" searches this many equal distance bands, nearest first in each, so that
+// the stations near a busy centre cannot fill every candidate place.
+const BANDS = 4;
 const INNER_LY = 30;
+// MCP clients often give up on a tool call near 60 s; leave time to compute the loops.
+const TIME_LIMIT_MS = 40_000;
+// Spansh caps its count at this.
+const COUNT_CAP = 10_000;
+const STOPPED =
+  "Search stopped early to stay within the time limit; results cover the stations loaded so far.";
+const ZERO_CAPITAL = "Capital is 0 cr; no cargo can be bought.";
 const LEGALITY = "Legality is not checked; make sure that a commodity is legal where you sell it.";
 const NO_LOOPS =
   "No profitable loop found. Try a larger radius, another centre, or include stations.";
@@ -80,9 +93,11 @@ export function registerLoopTools(
     prefs?: PreferencesStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
+    now?: () => number;
   },
 ): void {
   const { spansh } = deps;
+  const now = deps.now ?? Date.now;
   const journalState = async (notes: string[]) => {
     if (!deps.journal) return null;
     try {
@@ -125,7 +140,7 @@ export function registerLoopTools(
         capital: z.number().int().min(0).optional().describe("Credits"),
         max_price_age_days: z.number().positive().default(2),
         session_min: z.number().int().min(1).default(60),
-        include: z.array(Station).optional(),
+        include: z.array(Station).max(10).optional(),
         limit: z.number().int().min(1).max(30).default(10),
         preferences: PrefsPatchSchema.optional(),
         use_preferences: z.boolean().default(true),
@@ -148,6 +163,8 @@ export function registerLoopTools(
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
+        const deadline = now() + TIME_LIMIT_MS;
+        let stopped = false;
         const notes: string[] = [];
         const state = await journalState(notes);
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
@@ -186,24 +203,49 @@ export function registerLoopTools(
         }
 
         const s = rules.prefs.stations;
-        const found = await spansh.marketStations({
+        const base: MarketStationsQuery = {
           near: centre.system,
           radiusLy: radius,
-          maxStations: here ? maxStations : Math.min(maxStations * 2, MAX_FETCH),
+          maxStations,
           maxAgeDays: a.max_price_age_days,
           ...(rules.pad.size === "L" ? { largePad: true } : {}),
           ...(s.planetary === "exclude" ? { planetary: false } : {}),
           ...(s.fleet_carriers === "exclude" ? { fleetCarriers: false } : {}),
           ...(s.max_arrival_ls.mode === "hard" ? { maxArrivalLs: s.max_arrival_ls.value } : {}),
-        });
+        };
+        const bands = here
+          ? [{ minLy: 0, radiusLy: radius, maxStations }]
+          : Array.from({ length: BANDS }, (_, i) => ({
+              minLy: (radius * i) / BANDS,
+              radiusLy: (radius * (i + 1)) / BANDS,
+              maxStations: Math.ceil(maxStations / BANDS),
+            }));
+        const found = { total: 0, capped: false, droppedOld: 0, stations: [] as MarketStation[] };
+        for (const band of bands) {
+          if (now() >= deadline) {
+            stopped = true;
+            break;
+          }
+          const { minLy, ...rest } = band;
+          const r = await spansh.marketStations(
+            { ...base, ...(minLy > 0 ? { minLy } : {}), ...rest },
+            { deadline },
+          );
+          found.total += r.total;
+          found.capped ||= r.total >= COUNT_CAP;
+          found.droppedOld += r.droppedOld;
+          // A station on a band edge can come back in both bands.
+          found.stations.push(
+            ...r.stations.filter((x) => !found.stations.some((y) => y.market_id === x.market_id)),
+          );
+          if (r.partial) {
+            stopped = true;
+            break;
+          }
+        }
         if (s.max_arrival_ls.mode === "soft") {
           notes.push(
             `The soft arrival limit (${s.max_arrival_ls.value} ls) is not enforced for trade loops; set its mode to hard to apply it.`,
-          );
-        }
-        if (s.planetary === "avoid") {
-          notes.push(
-            "Surface stations are included; their landing time counts against profit per hour.",
           );
         }
         if (s.megaships === "avoid") {
@@ -217,23 +259,35 @@ export function registerLoopTools(
         let candidates: MarketStation[];
         if (here) {
           const name = centre.station!;
-          let id = found.stations.find(
+          let startMarket = found.stations.find(
             (st) => same(st.name, name) && same(st.system, centre.system),
-          )?.market_id;
-          if (id === undefined) {
+          );
+          if (!startMarket) {
             const info = await spansh.system(centre.system, STATION_LIMIT);
-            id = info.stations.find((st) => same(st.name, name))?.market_id ?? undefined;
+            const id = info.stations.find((st) => same(st.name, name))?.market_id ?? undefined;
             if (id === undefined) {
               throw new UserError(`Spansh has no market for ${name} in ${info.name}.`);
             }
+            startMarket = await spansh.stationMarket(id);
+            const age = startMarket.market_age_hours;
+            if (age !== null && age > a.max_price_age_days * 24) {
+              notes.push(
+                `Prices at ${startMarket.name} are ${age} hours old, older than max_price_age_days (${a.max_price_age_days}).`,
+              );
+            }
           }
-          const startMarket = await spansh.stationMarket(id);
+          const id = startMarket.market_id;
           candidates = [startMarket, ...allowed.filter((st) => st.market_id !== id)];
         } else {
+          // The bands give at most maxStations plus rounding; trim any extra.
           candidates = spreadStations(allowed, maxStations, INNER_LY);
         }
 
         for (const inc of a.include ?? []) {
+          if (stopped || now() >= deadline) {
+            stopped = true;
+            break;
+          }
           const market = await includeMarket(inc).catch((err: unknown) => {
             if (err instanceof UserError) return null;
             throw err;
@@ -243,6 +297,12 @@ export function registerLoopTools(
           } else if (!candidates.some((c) => c.market_id === market.market_id)) {
             candidates.push(market);
           }
+        }
+        if (stopped) notes.push(STOPPED);
+        if (s.planetary === "avoid" && candidates.some((c) => c.planetary)) {
+          notes.push(
+            "Surface stations are included; their landing time counts against profit per hour.",
+          );
         }
         // findLoops starts an "any" loop at its smallest index; sorting by name starts
         // each loop at its alphabetically first station.
@@ -320,16 +380,22 @@ export function registerLoopTools(
             oldest_price_hours: ages.length ? Math.max(...ages) : null,
             notes: loop.legs
               .filter((l) => l.cargo && l.cargo.amount < cargo)
-              .map(
-                (l) =>
-                  `only ${l.cargo!.amount} t of ${l.cargo!.commodity} available; your hold is ${cargo} t`,
+              .map(({ cargo: c }) =>
+                Math.floor(capital / c!.buy_price) === c!.amount
+                  ? `your capital buys ${c!.amount} t of ${c!.commodity}; your hold is ${cargo} t`
+                  : `only ${c!.amount} t of ${c!.commodity} available; your hold is ${cargo} t`,
               ),
           };
         });
-        if (!loops.length) notes.push(NO_LOOPS);
+        if (capital === 0) notes.push(ZERO_CAPITAL);
+        else if (!loops.length) notes.push(NO_LOOPS);
         notes.push(LEGALITY);
 
         const searched = found.stations.length + found.droppedOld;
+        const total = `${found.capped ? "at least " : ""}${found.total}`;
+        const scope = here
+          ? `the nearest ${searched} of ${total} stations within ${radius} LY`
+          : `${searched} of ${total} stations within ${radius} LY, the nearest in each of ${BANDS} distance bands`;
         return {
           centre,
           loops,
@@ -339,7 +405,7 @@ export function registerLoopTools(
             dropped_old_prices: found.droppedOld,
             radius_ly: radius,
             note:
-              `Searched the nearest ${searched} of ${found.total} stations within ${radius} LY; ` +
+              `Searched ${scope}; ` +
               `${found.droppedOld} had prices older than ${a.max_price_age_days} days.`,
           },
           inputs: {

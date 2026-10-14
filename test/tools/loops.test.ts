@@ -16,6 +16,7 @@ import { registerLoopTools } from "../../src/tools/loops.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
 const LEGALITY = "Legality is not checked; make sure that a commodity is legal where you sell it.";
+const SURFACE = "Surface stations are included; their landing time counts against profit per hour.";
 const NO_LOOPS =
   "No profitable loop found. Try a larger radius, another centre, or include stations.";
 
@@ -82,16 +83,29 @@ interface World {
   extra?: MarketStation[];
   total?: number;
   droppedOld?: number;
+  /** A clock that each station search moves on by searchMs. */
+  clock?: { t: number; searchMs: number };
 }
 
 function fakeSpansh(w: World) {
   const all = [...w.found, ...(w.extra ?? [])];
-  const marketStations = vi.fn(async (q: MarketStationsQuery) => ({
-    near: q.near,
-    total: w.total ?? w.found.length,
-    stations: w.found.slice(0, q.maxStations),
-    droppedOld: w.droppedOld ?? 0,
-  }));
+  // Like Spansh: the distance range and the carrier type filter apply before the count.
+  const marketStations = vi.fn(async (q: MarketStationsQuery, _opts?: { deadline?: number }) => {
+    if (w.clock) w.clock.t += w.clock.searchMs;
+    const hits = w.found.filter(
+      (s) =>
+        s.distance_ly! >= (q.minLy ?? 0) &&
+        s.distance_ly! <= q.radiusLy &&
+        !(q.fleetCarriers === false && s.type === "Drake-Class Carrier"),
+    );
+    return {
+      near: q.near,
+      total: w.total ?? hits.length,
+      stations: hits.slice(0, q.maxStations),
+      droppedOld: w.droppedOld ?? 0,
+      partial: false,
+    };
+  });
   const stationMarket = vi.fn(async (id: number) => {
     const s = all.find((x) => x.market_id === id);
     if (!s) throw new UserError(`Spansh has no market for station ${id}`);
@@ -145,6 +159,7 @@ interface Journal {
 }
 
 async function loops(args: Record<string, unknown>, world: World, j: Journal = {}) {
+  const clock = world.clock;
   const fake = fakeSpansh(world);
   const journal = {
     state: async () => {
@@ -158,7 +173,11 @@ async function loops(args: Record<string, unknown>, world: World, j: Journal = {
     },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
-  registerLoopTools(server, { spansh: fake.spansh, journal: j.none ? undefined : journal });
+  registerLoopTools(server, {
+    spansh: fake.spansh,
+    journal: j.none ? undefined : journal,
+    ...(clock ? { now: () => clock.t } : {}),
+  });
   const r = await callTool(await connectTestClient(server), "trade_loops", args);
   return { r, j: r.json as Record<string, any>, ...fake };
 }
@@ -182,7 +201,8 @@ describe("trade_loops", () => {
       maxAgeDays: 2,
       fleetCarriers: false,
     });
-    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    // The search record of the start station has its market already.
+    expect(stationMarket).not.toHaveBeenCalled();
     expect(j.inputs).toMatchObject({
       start: "here",
       radius_ly: 40,
@@ -220,6 +240,21 @@ describe("trade_loops", () => {
     expect(best.notes).toEqual([]);
     expect(j.notes).toContain(LEGALITY);
     expect(j.notes).not.toContain(NO_LOOPS);
+    expect(j.notes).not.toContain(SURFACE);
+  });
+
+  it("looks up the start market by system when the search does not return it", async () => {
+    const s = start();
+    const { j, system, stationMarket } = await loops(
+      {},
+      { found: [alpha(), beta()], extra: [{ ...s, market_age_hours: 70 }] },
+    );
+    expect(system).toHaveBeenCalledWith("Home", expect.any(Number));
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    expect(names(j.loops[0])).toEqual(["Start Port", "Alpha Hub"]);
+    expect(j.notes).toContain(
+      "Prices at Start Port are 70 hours old, older than max_price_age_days (2).",
+    );
   });
 
   it("uses near with a station when not docked", async () => {
@@ -251,26 +286,46 @@ describe("trade_loops", () => {
     expect(j.inputs).toMatchObject({ cargo: 7, capital: 1000 });
   });
 
-  it("spreads the candidates for start any and gives reposition_min", async () => {
+  it("fetches 'any' candidates in four distance bands and gives reposition_min", async () => {
     const gold = (buy: number) => [row("Gold", { buy_price: buy, supply: 10_000 })];
     const sellGold = (sell: number) => [row("Gold", { sell_price: sell, demand: 10_000 })];
-    const zulu = st("Zulu Port", "Zulu", [5, 0, 0], gold(100), { distance_ly: 5 });
-    const yankee = st("Yankee Port", "Yankee", [6, 0, 0], gold(10), { distance_ly: 6 });
-    const bravo = st("Bravo Port", "Bravo", [0, 5, 0], sellGold(300), { distance_ly: 7 });
-    const xray = st("Xray Port", "Xray", [7, 0, 0], sellGold(5000), { distance_ly: 8 });
+    const zulu = st("Zulu Port", "Zulu", [5, 0, 0], gold(100));
+    // Second in the first band, so max_stations 4 leaves it out though it pays more.
+    const yankee = st("Yankee Port", "Yankee", [6, 0, 0], gold(10));
+    const bravo = st("Bravo Port", "Bravo", [0, 30, 0], sellGold(300));
+    const xray = st("Xray Port", "Xray", [0, 0, 60], []);
+    const whisky = st("Whisky Port", "Whisky", [0, 0, -90], []);
+    const carrier = st("KXX-123", "Zulu", [5, 0, 0], sellGold(9000), {
+      type: "Drake-Class Carrier",
+    });
     const { r, j, marketStations } = await loops(
-      { start: "any", max_stations: 2, preferences: { travel: { jump_range_ly: 30 } } },
-      { found: [zulu, yankee, bravo, xray] },
+      {
+        start: "any",
+        max_stations: 4,
+        max_leg_ly: 200,
+        stops: [2],
+        preferences: { travel: { jump_range_ly: 30 } },
+      },
+      { found: [zulu, carrier, yankee, bravo, xray, whisky] },
       { docked: false },
     );
     expect(r.isError).toBe(false);
     expect(j.centre).toEqual({ system: "Home", station: null, source: "journal" });
-    expect(marketStations.mock.calls[0]![0]).toMatchObject({
-      near: "Home",
-      radiusLy: 100,
-      maxStations: 4,
-    });
-    // max_stations 2 keeps every other station: Zulu and Bravo, not the richer Yankee and Xray.
+    expect(marketStations.mock.calls.map((c) => c[0])).toEqual(
+      [
+        [undefined, 25],
+        [25, 50],
+        [50, 75],
+        [75, 100],
+      ].map(([minLy, radiusLy]) => ({
+        near: "Home",
+        ...(minLy ? { minLy } : {}),
+        radiusLy,
+        maxStations: 1,
+        maxAgeDays: 2,
+        fleetCarriers: false,
+      })),
+    );
     expect(j.loops).toHaveLength(1);
     const loop = j.loops[0];
     expect(names(loop)).toEqual(["Bravo Port", "Zulu Port"]);
@@ -298,7 +353,38 @@ describe("trade_loops", () => {
       travel,
     );
     expect(loop.reposition_min).toBe(Math.round(toBravo.seconds / 6) / 10);
-    expect(j.coverage).toMatchObject({ candidates: 2, within_radius_total: 4, radius_ly: 100 });
+    expect(j.coverage).toEqual({
+      candidates: 4,
+      within_radius_total: 5,
+      dropped_old_prices: 0,
+      radius_ly: 100,
+      note: "Searched 4 of 5 stations within 100 LY, the nearest in each of 4 distance bands; 0 had prices older than 2 days.",
+    });
+  });
+
+  it("stops fetching at the time limit", async () => {
+    const clock = { t: 1_000_000, searchMs: 15_000 };
+    const gamma = st("Gamma Market", "Gamma", [0, 0, 10], []);
+    const { j, marketStations, system } = await loops(
+      { start: "any", include: [{ system: "Gamma", station: "Gamma Market" }] },
+      { found: [start(), alpha()], extra: [gamma], clock },
+      { docked: false },
+    );
+    // 15, 30 and 45 s: the fourth band and the include would start after 40 s.
+    expect(marketStations).toHaveBeenCalledTimes(3);
+    expect(marketStations.mock.calls[0]![1]).toEqual({ deadline: 1_040_000 });
+    expect(system).not.toHaveBeenCalledWith("Gamma", expect.anything());
+    expect(j.notes).toContain(
+      "Search stopped early to stay within the time limit; results cover the stations loaded so far.",
+    );
+    expect(names(j.loops[0])).toEqual(["Alpha Hub", "Start Port"]);
+  });
+
+  it("says at least 10000 when Spansh caps the count", async () => {
+    const { j } = await loops({}, { found: [start(), alpha()], total: 10_000 });
+    expect(j.coverage.note).toBe(
+      "Searched the nearest 2 of at least 10000 stations within 40 LY; 0 had prices older than 2 days.",
+    );
   });
 
   it("adds include stations and notes one without a market", async () => {
@@ -356,6 +442,26 @@ describe("trade_loops", () => {
     expect(loop.notes).toContain("only 40 t of Gold available; your hold is 100 t");
   });
 
+  it("notes when capital limits the cargo", async () => {
+    // Gold costs 100 cr, so 4,000 cr buys 40 t.
+    const { j } = await loops({ capital: 4000 }, { found: [start(), alpha()] });
+    const loop = j.loops.find((l: any) => names(l).join() === "Start Port,Alpha Hub");
+    expect(loop.legs[0].cargo.amount).toBe(40);
+    expect(loop.notes).toContain("your capital buys 40 t of Gold; your hold is 100 t");
+  });
+
+  it("notes zero capital instead of the radius advice", async () => {
+    for (const [args, journal] of [
+      [{ capital: 0 }, {}],
+      [{}, { credits: 0 }],
+    ] as const) {
+      const { j } = await loops(args, { found: [start(), alpha()] }, journal);
+      expect(j.loops).toEqual([]);
+      expect(j.notes).toContain("Capital is 0 cr; no cargo can be bought.");
+      expect(j.notes).not.toContain(NO_LOOPS);
+    }
+  });
+
   it("sends the preference filters to Spansh and reports them", async () => {
     const { j, marketStations } = await loops(
       {
@@ -388,8 +494,6 @@ describe("trade_loops", () => {
   });
 
   it("keeps avoided surface stations and drops excluded ones", async () => {
-    const SURFACE =
-      "Surface stations are included; their landing time counts against profit per hour.";
     const ground = st(
       "Ground Base",
       "Alpha",
@@ -429,7 +533,14 @@ describe("trade_loops", () => {
   });
 
   it("rejects out-of-range inputs", async () => {
-    for (const args of [{ cargo: 0 }, { session_min: 0 }, { limit: 31 }, { max_stations: 201 }]) {
+    const include = Array.from({ length: 11 }, (_, i) => ({ system: "Home", station: `S${i}` }));
+    for (const args of [
+      { cargo: 0 },
+      { session_min: 0 },
+      { limit: 31 },
+      { max_stations: 201 },
+      { include },
+    ]) {
       const { r } = await loops(args, { found: [start(), alpha()] });
       expect(r.isError, JSON.stringify(args)).toBe(true);
     }
