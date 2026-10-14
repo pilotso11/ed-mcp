@@ -532,6 +532,14 @@ describe("trade_loops", () => {
     expect(exclude.j.loops).toEqual([]);
   });
 
+  it("does not note avoided megaships when no candidate is one", async () => {
+    const { j } = await loops(
+      { preferences: { stations: { megaships: "avoid" } } },
+      { found: [start(), alpha()] },
+    );
+    expect(j.notes).not.toContain("Megaships are included; trade_loops does not rank them lower.");
+  });
+
   it("rejects out-of-range inputs", async () => {
     const include = Array.from({ length: 11 }, (_, i) => ({ system: "Home", station: `S${i}` }));
     for (const args of [

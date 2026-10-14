@@ -248,9 +248,6 @@ export function registerLoopTools(
             `The soft arrival limit (${s.max_arrival_ls.value} ls) is not enforced for trade loops; set its mode to hard to apply it.`,
           );
         }
-        if (s.megaships === "avoid") {
-          notes.push("Megaships are included; trade_loops does not rank them lower.");
-        }
         const local = localRules(rules);
         const allowed = found.stations.filter(
           (st) => applyRules([asHit(st)], local, false).stations.length > 0,
@@ -299,6 +296,9 @@ export function registerLoopTools(
           }
         }
         if (stopped) notes.push(STOPPED);
+        if (s.megaships === "avoid" && candidates.some((c) => /mega ?ship/i.test(c.type ?? ""))) {
+          notes.push("Megaships are included; trade_loops does not rank them lower.");
+        }
         if (s.planetary === "avoid" && candidates.some((c) => c.planetary)) {
           notes.push(
             "Surface stations are included; their landing time counts against profit per hour.",
