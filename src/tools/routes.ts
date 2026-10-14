@@ -19,6 +19,9 @@ import { wrap } from "./result.js";
 const min = (s: number) => Math.round(s / 6) / 10;
 const lc = (s: string) => s.toLowerCase();
 const LONG_LEG_LY = 200;
+const PLOT_ROUNDS = 2;
+const PLOT_DIFF = 0.2;
+const PLOT_PENDING_NOTE = "Spansh is still plotting; call again to finish.";
 
 const StopInputSchema = z.object({
   label: z
@@ -82,6 +85,10 @@ export function registerRouteTools(
           .object({ system: z.string(), station: z.string().optional() })
           .optional()
           .describe("Add a final stop here"),
+        plot: z
+          .boolean()
+          .default(false)
+          .describe("Plot each leg of the chosen route with Spansh and use the real jump counts"),
         plan_rules: z
           .boolean()
           .default(true)
@@ -102,6 +109,7 @@ export function registerRouteTools(
         skip?: string[];
         from?: string;
         return_to?: { system: string; station?: string };
+        plot: boolean;
         plan_rules: boolean;
         save_to_plan: boolean;
         preferences?: PrefsPatch;
@@ -237,56 +245,108 @@ export function registerRouteTools(
           ...(returnPlace ? [returnPlace] : []),
         ];
         const leg = (from: number, to: number) => legBetween(places[from]!, places[to]!, travel);
+        const sameSystem = (f: number, t: number) =>
+          lc(places[f]!.system) === lc(places[t]!.system);
 
-        const solved = solveRoute({
-          legSeconds: (f, t) => leg(f, t).seconds,
-          fixed,
-          groups,
-          after,
-          start: n,
-          finish: returnPlace ? n + 1 : undefined,
-        });
+        // Plotted jump counts by leg. A leg that did not finish is never retried in this call.
+        const plottedJumps = new Map<string, number>();
+        const unfinished = new Set<string>();
+        const key = (f: number, t: number) => `${f}>${t}`;
+        const needsPlot = (f: number, t: number) => !sameSystem(f, t);
+        const legSeconds = (f: number, t: number) => {
+          const est = leg(f, t);
+          const p = plottedJumps.get(key(f, t));
+          return p === undefined
+            ? est.seconds
+            : est.seconds + (p - est.jumps) * travel.seconds_per_jump;
+        };
+        const legsOf = (order: number[]) => {
+          const stops = [n, ...order, ...(returnPlace ? [n + 1] : [])];
+          return stops.slice(1).map((t, i) => [stops[i]!, t] as const);
+        };
+        const plotLegs = async (order: number[]) => {
+          for (const [f, t] of legsOf(order)) {
+            const k = key(f, t);
+            if (!needsPlot(f, t) || plottedJumps.has(k) || unfinished.has(k)) continue;
+            try {
+              const r = await deps.spansh.route({
+                from: places[f]!.system,
+                to: places[t]!.system,
+                rangeLy: travel.jump_range_ly,
+              });
+              plottedJumps.set(k, r.total_jumps);
+            } catch {
+              // Pending, unknown or failed: keep the estimate for this leg.
+              unfinished.add(k);
+            }
+          }
+        };
+        const bigDifference = (order: number[]) =>
+          legsOf(order).some(([f, t]) => {
+            const p = plottedJumps.get(key(f, t));
+            if (p === undefined) return false;
+            const est = leg(f, t);
+            return (
+              Math.max(p, est.jumps) >= 2 &&
+              Math.abs(legSeconds(f, t) - est.seconds) > PLOT_DIFF * est.seconds
+            );
+          });
+
+        const solve = () =>
+          solveRoute({
+            legSeconds,
+            fixed,
+            groups,
+            after,
+            start: n,
+            finish: returnPlace ? n + 1 : undefined,
+          });
+        let solved = solve();
+        if (a.plot) {
+          for (let round = 1; round <= PLOT_ROUNDS; round++) {
+            await plotLegs(solved.order);
+            if (round === PLOT_ROUNDS || !bigDifference(solved.order)) break;
+            solved = solve();
+          }
+        }
 
         const optionLabel = (node: number) => nodes[node]!.labels[0]!;
         const describe = (chosen: Array<{ group: string; option: number }>) =>
           chosen.map((c) => ({ group: c.group, option: optionLabel(c.option) }));
 
-        let at = n;
-        const out = solved.order.map((idx, i) => {
-          const node = nodes[idx]!;
-          const l = leg(at, idx);
-          at = idx;
-          if (l.distanceLy > LONG_LEG_LY) {
+        // Rebuild the times from the final order: the last round may have plotted legs the solve did not see.
+        const plottedFlag = (f: number, t: number) =>
+          a.plot && needsPlot(f, t) ? plottedJumps.has(key(f, t)) : undefined;
+        const legs = legsOf(solved.order);
+        let clock = 0;
+        const out = legs.map(([f, t], i) => {
+          const l = leg(f, t);
+          const seconds = legSeconds(f, t);
+          clock += seconds;
+          const node = t === n + 1 ? null : nodes[t]!;
+          if (node && !a.plot && l.distanceLy > LONG_LEG_LY) {
             notes.add(
-              `The leg to ${node.labels.join(" + ")} is ${Math.round(l.distanceLy)} LY; a neutron route or a detour can change its time.`,
+              `The leg to ${node.labels.join(" + ")} is ${Math.round(l.distanceLy)} LY; a neutron route or a detour can change its time. Pass plot: true to plot it.`,
             );
           }
+          const plotted = plottedFlag(f, t);
           return {
-            labels: node.labels,
-            system: node.place.system,
-            station: node.place.station,
-            engineer: node.stop.engineer?.name ?? null,
-            kind: node.stop.kind,
-            purpose: node.stop.purpose,
-            jumps: l.jumps,
-            leg_min: min(l.seconds),
-            arrive_min: min(solved.arrive[i]!),
+            labels: node ? node.labels : ["return_to"],
+            system: places[t]!.system,
+            station: places[t]!.station,
+            engineer: node?.stop.engineer?.name ?? null,
+            kind: node ? node.stop.kind : "other",
+            purpose: node ? node.stop.purpose : null,
+            jumps: plottedJumps.get(key(f, t)) ?? l.jumps,
+            leg_min: min(seconds),
+            arrive_min: min(clock),
+            ...(plotted === undefined ? {} : { plotted }),
           };
         });
-        if (returnPlace) {
-          const l = leg(at, n + 1);
-          out.push({
-            labels: ["return_to"],
-            system: returnPlace.system,
-            station: returnPlace.station,
-            engineer: null,
-            kind: "other",
-            purpose: null,
-            jumps: l.jumps,
-            leg_min: min(l.seconds),
-            arrive_min: min(solved.total),
-          });
-        }
+        const totalSeconds = clock;
+        // Legs dropped by a re-solve do not count; only the final order matters.
+        const allPlotted = legs.every(([f, t]) => !needsPlot(f, t) || plottedJumps.has(key(f, t)));
+        if (a.plot && !allPlotted) notes.add(PLOT_PENDING_NOTE);
 
         if (catalog) {
           for (const s of all) {
@@ -296,7 +356,7 @@ export function registerRouteTools(
           }
         }
 
-        const total = min(solved.total);
+        const total = min(totalSeconds);
         let saved = false;
         if (a.save_to_plan && a.plan_id) {
           await deps.plans!.setRoute(a.plan_id, {
@@ -304,7 +364,7 @@ export function registerRouteTools(
             from: startPlace.system,
             stops: solved.order.map(optionLabel),
             total_min: total,
-            plotted: false,
+            plotted: a.plot && allPlotted,
           });
           saved = true;
         }

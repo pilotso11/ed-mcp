@@ -12,7 +12,7 @@ import { registerPlanTools } from "../../src/tools/plans.js";
 import { registerRouteTools } from "../../src/tools/routes.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
-const coords: Record<string, number> = { sol: 0, alpha: 10, beta: 50, gamma: 90 };
+const coords: Record<string, number> = { sol: 0, alpha: 10, beta: 50, gamma: 90, far: 300 };
 const stationNames: Record<string, string[]> = {
   sol: ["Abraham Lincoln"],
   alpha: ["Alpha Port", "Farseer Inc"],
@@ -37,7 +37,13 @@ const catalog = {
   }),
 } as unknown as CatalogService;
 
-async function setup(opts: { location?: boolean; noCatalog?: boolean } = {}) {
+type RouteFn = (q: {
+  from: string;
+  to: string;
+  rangeLy: number;
+}) => Promise<{ total_jumps: number }>;
+
+async function setup(opts: { location?: boolean; noCatalog?: boolean; route?: RouteFn } = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "routes-"));
   const plans = new PlanStore(path.join(dir, "plans.json"));
   const spansh = {
@@ -54,6 +60,7 @@ async function setup(opts: { location?: boolean; noCatalog?: boolean } = {}) {
         })),
       } as unknown as SystemInfo;
     },
+    route: opts.route,
   } as unknown as SpanshClient;
   const journal = {
     state: async () => ({
@@ -276,5 +283,109 @@ describe("route_stops", () => {
   it("notes a permit-locked engineer", async () => {
     const { j } = await route({ stops: [{ engineer: "Lock" }] });
     expect(j.notes).toContain("Lock Smith is in a permit-locked system.");
+  });
+
+  describe("plot", () => {
+    const sec = { preferences: { travel: { jump_range_ly: 20, seconds_per_jump: 60 } } };
+    const plotter = (jumps: Record<string, number>, calls: string[] = []): RouteFn => {
+      return async (q) => {
+        const key = `${q.from}>${q.to}`.toLowerCase();
+        calls.push(key);
+        const n = jumps[key];
+        if (n === undefined)
+          throw new UserError("Spansh is still plotting this route; call again.");
+        return { total_jumps: n };
+      };
+    };
+    const run = async (args: Record<string, unknown>, fn: RouteFn) => {
+      const { client, plans } = await setup({ route: fn });
+      const r = await callTool(client, "route_stops", { ...sec, ...args });
+      return { r, client, plans, j: r.json as Record<string, any> };
+    };
+
+    it("replaces estimates with plotted jumps", async () => {
+      const base = (await route({ ...sec, stops: [alpha, beta] })).j;
+      const calls: string[] = [];
+      const { j } = await run(
+        { stops: [alpha, beta], plot: true },
+        plotter({ "sol>alpha": 1, "alpha>beta": 3 }, calls),
+      );
+      expect(calls).toEqual(["sol>alpha", "alpha>beta"]);
+      expect(j.stops.map((s: any) => s.plotted)).toEqual([true, true]);
+      expect(j.total_min).toBeCloseTo(base.total_min + 1, 1);
+      expect(j.stops[1].leg_min).toBeCloseTo(base.stops[1].leg_min + 1, 1);
+      expect(j.notes).not.toContain("Spansh is still plotting; call again to finish.");
+    });
+
+    it("plots at the resolved jump range", async () => {
+      const seen: number[] = [];
+      await run({ stops: [alpha], plot: true }, async (q) => {
+        seen.push(q.rangeLy);
+        return { total_jumps: 1 };
+      });
+      expect(seen).toEqual([20]);
+    });
+
+    it("re-solves once after a large difference and plots only the new legs", async () => {
+      const calls: string[] = [];
+      const { j } = await run(
+        { stops: [alpha, beta], plot: true },
+        plotter({ "sol>alpha": 1, "alpha>beta": 30, "sol>beta": 3, "beta>alpha": 2 }, calls),
+      );
+      expect(calls).toEqual(["sol>alpha", "alpha>beta", "sol>beta", "beta>alpha"]);
+      expect(labels(j)).toEqual(["BetaShop", "AlphaShop"]);
+      expect(j.stops.map((s: any) => s.plotted)).toEqual([true, true]);
+    });
+
+    it("keeps the estimate for a leg whose plot does not finish", async () => {
+      const base = (await route({ ...sec, stops: [alpha, beta] })).j;
+      const { j } = await run({ stops: [alpha, beta], plot: true }, plotter({ "sol>alpha": 1 }));
+      expect(j.stops.map((s: any) => s.plotted)).toEqual([true, false]);
+      expect(j.stops[1].leg_min).toBe(base.stops[1].leg_min);
+      expect(j.notes).toContain("Spansh is still plotting; call again to finish.");
+    });
+
+    it("saves plotted: true only when every leg was plotted", async () => {
+      const save = async (jumps: Record<string, number>) => {
+        const { client } = await setup({ route: plotter(jumps) });
+        await callTool(client, "plan_upsert", {
+          plan: { id: "p", name: "P", items: [], stops: [] },
+        });
+        await callTool(client, "route_stops", {
+          ...sec,
+          plan_id: "p",
+          stops: [alpha, beta],
+          plot: true,
+          save_to_plan: true,
+        });
+        return ((await callTool(client, "plan_get", { id: "p" })).json as any).route.plotted;
+      };
+      expect(await save({ "sol>alpha": 1, "alpha>beta": 2 })).toBe(true);
+      expect(await save({ "sol>alpha": 1 })).toBe(false);
+    });
+
+    it("does not plot without plot", async () => {
+      const calls: string[] = [];
+      const { j } = await run({ stops: [alpha] }, plotter({}, calls));
+      expect(calls).toEqual([]);
+      expect(j.stops[0].plotted).toBeUndefined();
+    });
+  });
+
+  describe("long legs", () => {
+    const far = { label: "FarShop", system: "Far", station: undefined };
+    const note =
+      "The leg to FarShop is 300 LY; a neutron route or a detour can change its time. Pass plot: true to plot it.";
+
+    it("adds a note without plot", async () => {
+      const { j } = await route({ stops: [far] });
+      expect(j.notes).toContain(note);
+    });
+
+    it("leaves the note out with plot", async () => {
+      const { client } = await setup({ route: async () => ({ total_jumps: 15 }) });
+      const r = await callTool(client, "route_stops", { ...range, stops: [far], plot: true });
+      expect((r.json as any).notes).not.toContain(note);
+    });
   });
 });
