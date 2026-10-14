@@ -121,7 +121,9 @@ Each "one of" group is a requirement, for example "a raw trader" or "an engineer
 1. Plot each leg of the winning order with `SpanshClient.route()` (the existing neutron plotter), at the resolved jump range. Legs inside one system need no plot.
 2. Replace each estimated leg time with the plotted time: plotted jumps × `seconds_per_jump`, plus the same supercruise and docking time.
 3. If any plotted leg differs from its estimate by more than 20% and at least 2 jumps, solve again with the known plotted times and the estimates for the rest. Then plot only the new legs. Stop after 2 rounds.
-4. If a plot does not finish within the Spansh route time limit, keep the estimate for that leg, set `plotted: false` on it, and add the note "Spansh is still plotting; call again to finish."
+4. All plots share one time budget: about 40 s from the start of the call, which includes the time spent placing stops. Each `route()` call gets the time that is left (`budgetMs`). When the budget is used up, the remaining legs are not sent to Spansh.
+5. If a plot does not finish within its time, or the budget runs out before a leg, keep the estimate for that leg, set `plotted: false` on it, and add the note "Spansh is still plotting; call again to finish."
+6. If Spansh cannot plot a leg (an error that is not a pending job), keep the estimate, set `plotted: false`, and add the note "Spansh could not plot the leg to <label>: <error>; the estimate is used." Do not add the call-again note for that leg.
 
 Without `plot`, every leg longer than 200 LY gets a note: a neutron route or a detour can change its time.
 
