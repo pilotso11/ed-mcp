@@ -190,9 +190,9 @@ writes within the process.
 
 | Service | Method | Config |
 |---|---|---|
-| Inara | personal API key | `INARA_API_KEY` and `INARA_CMDR` (optional; Inara tools return "Inara not configured" without them), `INARA_APP_NAME` (default `ed-mcp`), `INARA_DEV_MODE` (default `true`, sent as `isBeingDeveloped`) |
+| Inara | personal API key | `INARA_API_KEY` and `INARA_CMDR` (optional; Inara tools return "Inara not configured" without them), `INARA_APP_NAME` (default `ed-mcp`), `INARA_DEV_MODE` (default `false`, sent as `isBeingDeveloped`) |
 | EDSM | API key | `EDSM_API_KEY` and `EDSM_CMDR` (optional; EDSM tools return "EDSM not configured" without them) |
-| Frontier CAPI | OAuth2 authorisation code with PKCE in the browser | `CAPI_CLIENT_ID` (optional; CAPI tools return "CAPI not configured" without it) |
+| Frontier CAPI | OAuth2 authorisation code with PKCE in the browser | `CAPI_CLIENT_ID` (optional; defaults to ed-mcp's registered client, which is public under PKCE) |
 | Spansh | none | none |
 
 Other config: `ED_MCP_PLANS` overrides the plan file path.
@@ -225,12 +225,12 @@ CAPI requests use `User-Agent: EDCD-EdMcp-<version>`.
 `capi_profile` calls `https://companion.orerve.net/profile`. When no token is
 stored, it returns an error telling Claude to call `capi_login`.
 
-One-time setup steps for the user (documented in the README):
+One-time maintainer steps (done; documented in CONTRIBUTING.md): Inara
+whitelisted the app name `ed-mcp`, and ed-mcp has a registered CAPI client
+whose ID ships as the default.
 
-- Ask Inara to whitelist the app name.
-- Register a CAPI client on the Frontier developer portal and set
-  `CAPI_CLIENT_ID`.
-- Copy the Inara and EDSM API keys from each site's settings page.
+Player setup (documented in the README): copy the Inara and EDSM API keys
+from each site's settings page, and log in to Frontier in the browser.
 
 ## Network behaviour
 

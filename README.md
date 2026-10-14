@@ -1,350 +1,157 @@
 # ed-mcp
 
-An MCP server that gives Claude tools for Elite Dangerous build planning. It reads commander data from Inara, EDSM and Frontier's Companion API (CAPI). It looks up stations, systems and routes on Spansh. It parses SLEF builds, answers questions about blueprints, engineers and materials, and keeps engineering plans on your machine.
+ed-mcp connects Claude to Elite Dangerous. Claude can then read your commander data and plan with you.
 
-Claude decides what to do. The server supplies small, single-purpose tools.
+With ed-mcp, Claude can:
 
-Not affiliated with Frontier Developments, Inara, EDSM or Spansh.
+- plan a ship build: the modules to buy, the engineering, the materials and the engineers to visit,
+- work out which materials you are short of and the trades that cover them,
+- find the best station for a module, ship or service, ranked by travel time and price,
+- plan trade runs and find where to sell or buy a commodity,
+- put the stops for your accepted missions in the best order,
+- read your game journal for your location, ship, cargo, materials, missions and engineer progress.
 
-## Example prompts
+ed-mcp runs on your computer. It keeps your plans and settings on your computer, and it only reads from Inara, EDSM and Frontier.
 
-- "Here is my target build (SLEF from EDSY). Add the modules I need to buy or engineer to a plan. Work out the materials I am short of, where to buy the modules, which engineers to visit, and a route."
-- "Where is the nearest Guardian tech broker?"
-- "What do I need for G5 dirty drives?"
+ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 
-## Install for Claude Desktop
+## What you can ask
+
+- "Here is my build from EDSY. Make a plan for the modules I need to buy or engineer. Tell me the materials I am short of and where to trade for them."
+- "Where is the nearest Guardian technology broker?"
+- "What do I need for grade 5 dirty drives?"
+- "Find me a trade route from here. I have 400 t of cargo."
+- "Where can I sell 200 t of gold near Atlas?"
+- "Plan the best order for my passenger missions."
+- "From now on, ignore stations more than 2,000 ls from the star."
+
+## Install
+
+### Claude Desktop
 
 1. Download `ed-mcp-<version>.mcpb` from the [Releases](https://github.com/pilotso11/ed-mcp/releases) page.
-2. Double-click the file.
-3. Fill in the settings form. Every field is optional.
+2. Open the file. Claude Desktop shows the ed-mcp settings form.
+3. Fill in the fields for the services that you use (see [Connect your accounts](#connect-your-accounts)). All fields are optional.
 
-## Install for Claude Code
+### Claude Code
+
+Run this command. Put your own values in place of `<...>`:
 
 ```bash
-claude mcp add ed-mcp -e INARA_API_KEY=... -e INARA_CMDR=... -- npx -y ed-mcp
+claude mcp add ed-mcp -s user \
+  -e INARA_API_KEY=<key> -e INARA_CMDR=<commander name> \
+  -e EDSM_API_KEY=<key> -e EDSM_CMDR=<commander name> \
+  -- npx -y ed-mcp
 ```
 
-Add `-e EDSM_API_KEY=... -e EDSM_CMDR=...` or `-e CAPI_CLIENT_ID=...` for the other services.
-
-## Configuration
-
-All settings are optional. A tool for a service you did not configure returns a message that names the missing variables. The game data, Spansh and plan tools need no settings.
-
-| Variable         | Where to get it                                            | Without it                                                |
-| ---------------- | ---------------------------------------------------------- | --------------------------------------------------------- |
-| `INARA_API_KEY`  | inara.cz, Settings, Inara API                              | Inara tools are off                                       |
-| `INARA_CMDR`     | Your in-game commander name                                | Inara tools are off                                       |
-| `INARA_APP_NAME` | Defaults to `ed-mcp`. Change it only if Inara whitelisted a different name. | Uses `ed-mcp`                |
-| `INARA_DEV_MODE` | `true` or `false`. Defaults to `true`. Sent to Inara as `isBeingDeveloped`. | Uses `true`                 |
-| `EDSM_API_KEY`   | edsm.net, Settings, API Key                                | EDSM tools are off                                        |
-| `EDSM_CMDR`      | Your commander name on EDSM                                | EDSM tools are off                                        |
-| `CAPI_CLIENT_ID` | Frontier developer portal (user.frontierstore.net/developer) | Frontier login tools are off                            |
-| `ED_JOURNAL_DIR` | The Elite Dangerous journal folder. On Windows it defaults to `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. On a Mac, set it to your Syncthing copy. Use an absolute path or one starting with `~` | Journal tools are off on a Mac; the Windows default applies on the gaming PC |
-| `ED_MCP_PLANS`   | An absolute file path, or one starting with `~`            | Plans go to `plans.json` in the config directory          |
-
-Inara needs both `INARA_API_KEY` and `INARA_CMDR`. EDSM needs both `EDSM_API_KEY` and `EDSM_CMDR`. An invalid `INARA_DEV_MODE` value stops the server at startup.
+- Keep `ed-mcp` directly after `add`. The `-e` options take every word after them until the `--`.
+- Leave out the `-e` options for a service that you do not use.
+- On a Mac, also add `-e ED_JOURNAL_DIR=<folder>` (see [Your game journal](#your-game-journal)).
 
-## Setup notes
+Then start a new Claude Code session. To make sure that the server works, ask Claude "What is my journal status?".
 
-### Inara
+## Connect your accounts
 
-Inara allows only whitelisted app names. Email Inara with the app name `ed-mcp`, what the app does, and the homepage `https://github.com/pilotso11/ed-mcp`. Until Inara approves the name, it rejects requests. The server only reads from Inara. It never writes.
+Every account is optional. Without one, the tools for that service tell Claude which setting is missing. The game data, station search, route and plan tools work with no account.
 
-### Frontier CAPI
+| Service  | What it gives Claude                                     | What you need                                                        |
+| -------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| Journal  | Location, ship, cargo, materials, missions, engineers    | The game journal folder (see below)                                  |
+| Inara    | Ranks, squadron, main ship, community goals              | Your API key (inara.cz, Settings, Inara API) and commander name      |
+| EDSM     | Last known location, materials and cargo                 | Your API key (edsm.net, Settings, API Key) and commander name        |
+| Frontier | Current ship with engineering, location and fleet        | A Frontier login in your browser. No key is necessary.               |
 
-1. Request developer access on the Frontier developer portal. Frontier approves access by hand.
-2. After approval, choose "Create Client".
-3. Leave the Redirect URL field empty. Login works without it (tested October 2026). If the portal insists on a value, enter `https://localhost/auth`.
-4. Copy only the Client ID. Never copy the Shared Key.
-5. Set `CAPI_CLIENT_ID`.
+To log in to Frontier, ask Claude "Log me in to Frontier". Claude gives you a link. Open the link and sign in. Then tell Claude that you are done. The login lasts 25 days. If you log in to ed-mcp on another computer, the old login ends.
 
-At runtime the server uses `http://localhost:<random port>/auth` as the redirect, as EDMC does. See `docs/research/capi.md`, section 2.
+The game journal is the best source for most questions. It is on your computer and it is current while you play. Inara and EDSM show data from your last sync to them.
 
-Then ask Claude to log in. `capi_login` returns at once with a login URL. Open it in your browser and sign in to Frontier. Call `capi_login` again to check the state. It reports one of `waiting`, `logged_in`, `failed` or `logged_out`. Pass `force: true` to log in again.
+### All settings
 
-Frontier logins last 25 days. If you log in elsewhere with the same client ID, that login ends this one. A refusal (HTTP 4xx) from Frontier clears the saved login. A network error or a Frontier server error does not.
+| Setting          | Meaning                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `INARA_API_KEY`  | Your Inara API key                                                                                        |
+| `INARA_CMDR`     | Your in-game commander name                                                                               |
+| `EDSM_API_KEY`   | Your EDSM API key                                                                                         |
+| `EDSM_CMDR`      | Your commander name on EDSM                                                                               |
+| `ED_JOURNAL_DIR` | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`. |
+| `ED_MCP_PLANS`   | A different file for your plans. Use a full path or one that starts with `~`.                             |
 
-The server sends the User-Agent `EDCD-EdMcp-<version>` with CAPI requests.
+Inara needs both of its settings. EDSM needs both of its settings.
 
-## Data and privacy
+## Your game journal
 
-The server keeps these files on your machine.
+Elite Dangerous writes a journal while you play. ed-mcp reads it and never changes it.
 
-| Data                                      | Location                                                   |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| Plans (`plans.json`)                      | Config directory, or the path in `ED_MCP_PLANS`            |
-| Travel preferences (`preferences.json`)   | Config directory                                           |
-| Frontier login (`capi-token.json`)        | Config directory, with `0600` permissions                  |
-| Game data (catalog) and request cache     | Cache directory                                            |
+**If Claude runs on your gaming PC**, ed-mcp finds the journal by itself. The folder is `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. If Windows moved your Saved Games folder (for example, into OneDrive), set `ED_JOURNAL_DIR` to the real folder.
 
-The config and cache directories come from `env-paths` for the name `ed-mcp`. On macOS the config directory is `~/Library/Preferences/ed-mcp`. On Windows it is under `%APPDATA%`. On Linux it is `~/.config/ed-mcp`.
+**If Claude runs on a Mac**, copy the journal to the Mac with Syncthing:
 
-The coriolis-data and FDevIDs files are not bundled. On first catalog use, the server downloads them from GitHub into the cache directory. It checks for new versions weekly with ETags. `cache_refresh` with source `catalog` forces a check. Two small data sets ship inside the server: engineer locations and requirements, from EliteDangerousCore (Apache-2.0, see `NOTICE`), and module group names.
+1. Install Syncthing on the PC and on the Mac (syncthing.net).
+2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set the folder type to **Send Only**.
+3. Pair the two devices. Share the folder with the Mac.
+4. On the Mac, accept the folder into a local folder, for example `~/EliteDangerous`. Set the folder type to **Receive Only**.
+5. Set `ED_JOURNAL_DIR` to that folder. In Claude Desktop, use the Journal folder field.
+6. Ask Claude "What is my journal status?". While you play, the newest journal is a few minutes old.
 
-Material trader rules follow the Alioth wiki.
+Do not share `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous`. That folder has the same name, but it holds only the game's settings. If you share it by mistake, the journal status tells you.
 
-Plan writes use a lock file, so several server processes can share one plans file. `plan_export` writes Markdown to a path you give it. It never overwrites the plans file. It refuses to replace any existing file unless you pass `overwrite: true`.
+The journal tools warn you when the newest entry is more than 30 minutes old. Then the game is not running, or Syncthing has stopped.
 
-## Tools
+## Plans
 
-| Tool                       | What it does                                                 |
-| -------------------------- | ------------------------------------------------------------ |
-| `inara_commander_profile`  | Ranks, squadron, main ship and Inara URL                     |
-| `inara_community_goals`    | Recent and active community goals                            |
-| `edsm_commander_location`  | Last known system and docked station                         |
-| `edsm_commander_materials` | Materials, encoded data and cargo                            |
-| `capi_login`               | Log in to Frontier in the browser                            |
-| `capi_profile`             | Current ship with engineering, location and fleet            |
-| `capi_logout`              | Forget the Frontier login                                    |
-| `journal_status`           | Journal folder, newest journal, its age and warnings         |
-| `journal_commander`        | Commander, location, ship and cargo from the journal         |
-| `journal_materials`        | Materials held, by kind, from the journal                    |
-| `journal_missions`         | Accepted missions (active and complete), soonest expiry first |
-| `journal_engineers`        | Engineer progress from the journal                           |
-| `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
-| `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
-| `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
-| `catalog_material`         | Material grade, trade group and trade rules                  |
-| `catalog_module`           | Outfitting module by symbol or name                          |
-| `materials_plan`           | Material needs, trades from surplus and traders to use       |
-| `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
-| `spansh_system`            | System coordinates and stations                              |
-| `spansh_route`             | Neutron route between systems                                |
-| `missions_route`           | Best stop order for accepted missions, with deadlines        |
-| `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
-| `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
-| `prefs_get`                | Get your stored travel preferences                           |
-| `prefs_set`                | Change stored travel preferences                             |
-| `cache_refresh`            | Clear cached data or refresh game data                       |
-| `cache_status`             | Cache and game data status                                   |
-| `plan_list`                | List saved plans                                             |
-| `plan_get`                 | Get a plan                                                   |
-| `plan_upsert`              | Create or replace a plan                                     |
-| `plan_update_item`         | Update one plan item                                         |
-| `plan_delete`              | Delete a plan                                                |
-| `plan_export`              | Export a plan as Markdown                                    |
+Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. The plans stay on your computer.
 
-## Material planning
+## Preferences
 
-`materials_plan` turns blueprints and extra materials into a checked shopping list.
+ed-mcp ranks stations by travel time and price. Your preferences control which stations it uses. To change a preference, tell Claude, for example "Avoid surface stations" or "My time is worth 50M credits an hour". The change stays for future sessions. For one question only, say so: "Just this once, include fleet carriers."
 
-Inputs:
+| Preference                       | Default                                                                    |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| Distance from the star           | Up to 1,000 ls. A station further out is used only when no other matches. |
+| Surface stations                 | Avoided. They are used only when no orbital station matches.               |
+| Fleet carriers                   | Excluded                                                                   |
+| Megaships                        | Allowed                                                                    |
+| Landing pad size                 | Taken from your current ship                                               |
+| Jump range                       | Taken from your current ship (85% of its best range)                      |
+| Value of your time               | 20M credits an hour                                                        |
 
-- `blueprints`: each entry has `blueprint`, optional `module`, `from_grade` (default 0), `to_grade`, `count` (modules, default 1) and `experimental`. It adds the materials for grades `from_grade + 1` to `to_grade`, and the experimental once per module. To plan only an experimental effect, set `to_grade` to 0 and give `experimental`.
-- `needs`: extra materials by name or symbol, with counts.
-- `rolls_per_grade`: exactly 5 entries, the rolls for grades 1 to 5. The default is `[1, 2, 3, 4, 5]`, a cautious estimate. Fewer rolls are usual at high engineer reputation.
-- `inventory`: `auto` (default), `journal`, `edsm` or `none`. `auto` uses the journal when its newest event is less than 24 hours old, and EDSM otherwise. `none` plans the needs only.
-- `near`: the system to search for traders. Without it, the tool uses the journal location if the journal is under 24 hours old, then the EDSM position, then an older journal location (with a note), then the Frontier profile system. If it finds none, it omits traders and adds a note.
-- `preferences`: a travel preferences override, as for `spansh_find_stations`.
+The value of your time decides between a cheap station far away and a dearer one nearby. At 20M credits an hour, one extra minute of travel is worth about 333,000 credits.
 
-The tool trades only surplus (what you hold above what the plan needs). Trades stay inside one kind (raw, manufactured or encoded). Guardian and Thargoid materials have no trade group, so it never trades them. The rate is an exact give:get ratio. A trade gives `6^up` (times 6 more for another trade group) and gets `3^down`, where `up` and `down` are grade steps, reduced by their common divisor. For example, trading 2 of a grade 5 material in one group for a grade 1 material in another group gives 27 of the grade 1 material (2:27). Trades use whole batches, so a trade can return more than you need. The tool picks the cheapest source by material value (3^grade), nearest grade first.
+The travel times come from about 1,300 timed trips in a commander's journals, flown with supercruise assist. If you fly faster, tell Claude "I fly about 40% faster in supercruise". For all the details, see the [tool reference](docs/tools.md#travel-model).
 
-The result lists `needs` (with `have` and `short`), `trades` (each with the `name`, `count` and `grade` of what you give and get), `still_short`, the best `traders` of each type used, the `inventory_source`, `warnings`, `notes` and `unknown` names. The tool does not check storage caps (300, 250, 200, 150 and 100 for grades 1 to 5). A trade can give more than a cap allows.
+## Limits
 
-## Mission routes
+- Station, market and trade data come from Spansh. Market prices can be some hours or days old. The results show the age of each price.
+- Trade routes and first-time mission routes can take a minute or more. If Spansh is still working, Claude asks again.
+- Trade routes go one way. They do not plan a loop back to the start.
+- ed-mcp cannot see the mission board. It plans routes only for missions that you accepted.
+- Material plans ignore the storage limit for each material grade.
 
-`missions_route` orders the stops for the missions in your journal. Passenger and delivery missions go to their destination. Completed missions go back to where you accepted them, which is usually where you collect the reward. Completed missions have no deadline. An active mission with a commodity but no destination goes to where you accepted it, with `kind: "source"` and the note "source the commodity first". Missions with no known stop, past their expiry, listed in `include` but absent from the journal, or in a system Spansh does not know, appear in `unroutable` with a reason. The first call for systems not seen in the last day can take tens of seconds.
+## Your data
 
-Inputs:
+ed-mcp keeps these files on your computer:
 
-- `from`: the start system. The default is the journal location.
-- `include`: mission ids to route. The default is every mission.
-- `return_to`: a system and optional station to add as the final stop.
-- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+| Data                         | File                                         |
+| ---------------------------- | -------------------------------------------- |
+| Plans                        | `plans.json`, or the file in `ED_MCP_PLANS`  |
+| Preferences                  | `preferences.json`                           |
+| Frontier login               | `capi-token.json`, readable only by you      |
+| Game data and cached results | The cache folder                             |
 
-The tool groups missions by station, so one visit handles all of them. It gets coordinates and arrival distances from Spansh, and times each leg with the travel model. Legs inside one system have no jumps. A mission with no station counts jumps and docking time only, and its stop is marked `station_unknown`.
+The files are in these folders:
 
-With up to 12 stops and up to 24 missions with an expiry, the search is exact. It meets every deadline (`expires`) at the estimated arrival time if any order can, and takes the shortest such order. If no order can, it minimises the late missions first, then the time. Above either limit, it uses a nearest-first order with 2-opt improvements that never add late missions. Deadline handling is then best-effort.
+| System  | Settings folder                | Cache folder                       |
+| ------- | ------------------------------ | ---------------------------------- |
+| macOS   | `~/Library/Preferences/ed-mcp` | `~/Library/Caches/ed-mcp`          |
+| Windows | `%APPDATA%\ed-mcp\Config`      | `%LOCALAPPDATA%\ed-mcp\Cache`      |
+| Linux   | `~/.config/ed-mcp`             | `~/.cache/ed-mcp`                  |
 
-The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
+ed-mcp sends your API keys only to the service that they belong to. On first use, it downloads game data (modules, blueprints and materials) from the coriolis-data and FDevIDs projects on GitHub. Then it looks for new versions once a week. To get new data at once, ask Claude to refresh the game data.
 
-Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+## More information
 
-## Trading
-
-`trade_route` plans a multi-hop trade run with the Spansh trade planner. `commodity_prices` finds the best stations near a system to sell or buy one commodity.
-
-### trade_route
-
-Inputs:
-
-- `from_system` and `from_station`: the start. Without both, the tool uses the docked station from the journal. If you are not docked, it asks for them.
-- `max_hops`: 1 to 50. The default is 5.
-- `max_hop_distance`: the longest single hop in LY. The default is 50. Set it to your laden jump range.
-- `cargo`: tonnes, at least 1. The default is the journal ship's cargo capacity, then 7 t (also when the journal shows 0).
-- `capital`: credits. The default is your journal credits, then 1000 cr.
-- `max_price_age_days`: the oldest market data to use. The default is 2.
-- `allow_prohibited`: allow commodities that are illegal at the destination. The default is `false`.
-- `unique`: never visit the same station twice. The default is `false`.
-- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
-
-Your travel preferences set the rest. A pad size of L (`min_pad`) sets Spansh's large pad option. The planetary setting `allow` lets the route use planetary stations. Spansh cannot rank planetary stations lower, so `avoid` excludes them like `exclude`, and a note says so. Spansh cannot filter megaships, so a `megaships` setting other than `allow` is not applied and a note says so. Fleet carriers are excluded by default; the `fleet_carriers` setting `allow` lets the route use them. A `hard` arrival distance limit sets the longest distance from the star. Spansh has no soft limit, so a `soft` limit is not applied and a note says so. When a default applies or the journal cannot be read, the result `notes` say so.
-
-The result lists the `hops` in order. Each hop has the `from` and `to` stations, `distance_ly`, `jumps`, `travel_min`, the `commodities` to buy and sell (with `amount`, `buy_price`, `sell_price`, `profit_per_unit` and `total_profit`), `profit` and `cumulative_profit`. Each station has `market_age_hours`. The result also has `total_profit`, `total_travel_min`, `profit_per_hour`, the resolved `inputs`, `applied_preferences` and `notes`. If Spansh finds no route, the message is "No profitable route found".
-
-Spansh takes one to several minutes. While it works, the tool returns `status: "pending"` with the Spansh `job` id and the resolved `inputs`. Call it again with those inputs to resume the same job, even if your journal has changed since. A call without a start, cargo or capital resumes the pending job with the same options if it was last returned within 15 minutes. Finished routes are cached for 5 minutes.
-
-`profit_per_hour` is `total_profit` ÷ `total_travel_min` × 60, from the travel model. It is a one-way figure. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover market and loading time, the way to the start station or the return trip. It does not add time for planetary landings, because Spansh gives no station type.
-
-### commodity_prices
-
-Inputs:
-
-- `commodity`: the exact English name, for example Gold.
-- `mode`: `sell` (where to sell it) or `buy` (where to buy it).
-- `near`: the reference system. The default is the journal's current system.
-- `amount`: tonnes. Optional.
-- `limit`: 1 to 30. The default is 10.
-- `max_distance_ly`: the search radius around `near`. The default is 75.
-- `max_price_age_days`: the oldest market data to use. The default is 2.
-- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
-
-The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). A station must have a demand (sell) or supply (buy) of at least `amount`, or at least 1 without `amount`. Each station shows its price, its demand or supply, `market_age_hours` and `travel_min`. If Spansh finds no station, a note asks you to check the commodity name.
-
-With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
-
-### Limits
-
-- The tool plans a route from a start to the last hop. It does not plan loops back to the start.
-- Market data can be old. Check `market_age_hours`. `max_price_age_days` sets the oldest prices both tools use. Prices can change before you arrive.
-
-## Game journal
-
-Elite Dangerous writes a journal file while you play. The server reads it from disk. The data is local and current, so the journal tools need no EDSM account. Materials, cargo, location, ship, missions and engineer progress all come from it.
-
-The server reads the journal files from the last 14 days, plus `Cargo.json` for the current cargo. It never writes to the journal folder.
-
-Set `ED_JOURNAL_DIR` to the journal folder. On the gaming PC (Windows) it defaults to `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. On a Mac there is no default. Set it to a synced copy of the folder (see below). Without a folder, the journal tools return a message that names `ED_JOURNAL_DIR`. In the Desktop extension, use the Journal folder field.
-
-Tools:
-
-- `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems. Run it first when journal data looks wrong.
-- `journal_commander`: commander name, credits, location, ship and cargo.
-- `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
-- `journal_missions`: accepted missions (active and complete) with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
-- `journal_engineers`: engineers with progress, rank and rank progress.
-
-`journal_commander`, `journal_materials`, `journal_missions` and `journal_engineers` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.
-
-Freshness rules:
-
-- The journal tools warn when the newest event is more than 30 minutes old. The game is not running, or sync has stopped.
-- `min_pad: "auto"` and `jump_range_ly: "auto"` use the journal ship and its jump range only when the newest event is less than 24 hours old. Otherwise they fall back (see the travel preferences).
-
-### Using the journal from a Mac (Syncthing)
-
-The game runs on the PC, so a Mac cannot read the journal directly. Syncthing copies the folder to the Mac.
-
-1. Install Syncthing on the PC and the Mac (syncthing.net). On the PC, use the official Syncthing installer for Windows.
-2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set Folder Type to **Send Only**. Do not use `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous`: that folder has the same name but holds only settings. The Mac must never write to the live journal folder. If Windows moves Saved Games somewhere else (for example into OneDrive), share the real folder instead. If the server also runs on the PC, set `ED_JOURNAL_DIR` there to the real folder too.
-3. Pair the devices. Add the Mac's device ID on the PC, then accept the PC on the Mac. Share the folder with the Mac. On the Mac, accept the folder into a local folder, for example `~/EliteJournal`, and set Folder Type to **Receive Only**.
-4. Set `ED_JOURNAL_DIR` to that folder in the MCP config, or in the Desktop extension's Journal folder field.
-5. Ask Claude to run `journal_status`. While you play, it should show the newest journal and an age of a few minutes. If it warns that the journal is old, check that Syncthing is running on the PC.
-
-## Travel preferences
-
-`spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json` in the config folder. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
-
-Defaults:
-
-| Preference                      | Default                              |
-| ------------------------------- | ------------------------------------ |
-| `stations.max_arrival_ls`       | 1000 ls, `soft`                      |
-| `stations.planetary`            | `avoid`                              |
-| `stations.fleet_carriers`       | `exclude`                            |
-| `stations.megaships`            | `allow`                              |
-| `stations.min_pad`              | `auto`                               |
-| `travel`                        | See the travel model below           |
-
-- `max_arrival_ls` mode is `soft`, `hard` or `off`.
-- `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
-- `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the current ship from the journal when the newest journal event is less than 24 hours old. Otherwise it uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
-
-A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
-
-To change your preferences, ask Claude, for example "from now on ignore stations over 2,000 ls". Claude calls `prefs_set` with a patch such as `{"stations":{"max_arrival_ls":{"value":2000}}}`. The patch is strict: unknown keys are errors. The change applies to future sessions.
-
-For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. `large_pad: true` is the same as `min_pad: "L"`.
-
-Each result has these fields:
-
-- `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
-- `matched`: how many stations match your preferences among those the server fetched. That is the nearest 50, or up to 100 when the search relaxed the arrival limit and fetched a second page.
-- `jumps`, `travel_s`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
-- `discount_pct` on each station: how far its price is below the median price of the filtered results.
-- `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page.
-- `relaxed`: the rules the search dropped.
-- `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
-- `applied_preferences`: the rules in effect, including the pad source.
-
-## Travel model
-
-The server ranks stations by estimated travel time. For purchases it also ranks by cost. The `travel` settings tune the estimate. All of them can be set with `prefs_set`.
-
-| Setting                | Default                                                      |
-| ---------------------- | ------------------------------------------------------------ |
-| `jump_range_ly`        | `auto`                                                       |
-| `auto_range_factor`    | 0.85                                                         |
-| `seconds_per_jump`     | 60                                                           |
-| `refuel_every_jumps`   | 0 (no refuel stops)                                          |
-| `refuel_s`             | 15                                                           |
-| `supercruise`          | `base_s` 43, `coeff` 6.2, `exponent` 0.43, `speed_factor` 1  |
-| `occlusion`            | `chance` 0.5, `seconds` 40                                   |
-| `near_star`            | `within_ls` 50, `seconds` 0                                  |
-| `dock_s`               | 80                                                           |
-| `planetary_extra_s`    | 90                                                           |
-| `credits_per_hour`     | 20,000,000                                                   |
-
-`jump_range_ly` is a number of light years or `"auto"`. `auto` uses the maximum jump range of your current ship from the journal, when the newest journal event is less than 24 hours old. Otherwise it uses 30 ly. The journal value (`MaxJumpRange`) is the unladen best case, so `auto` multiplies it by `auto_range_factor` (above 0, up to 1). `applied_preferences` shows the range and where it came from: `request`, `preferences`, the journal (for example `auto: journal, 85% of unladen max 24.5 LY`), or the 30 ly default. A number you set always wins.
-
-The server estimates travel time like this:
-
-- Jumps: `ceil(distance_ly / jump_range_ly)`. Each jump takes `seconds_per_jump`. A station in the same system needs no jumps.
-- Refuel: one stop of `refuel_s` for every `refuel_every_jumps` jumps. Zero turns this off.
-- Supercruise: `base_s + coeff * ls^exponent / speed_factor`, where `ls` is the arrival distance. Use a `speed_factor` above 1 to model a faster ship or Supercruise Overcharge.
-- Occlusion: `chance * seconds`. This is the expected time lost when the star hides the station.
-- Near star: `near_star.seconds` extra when the station is within `within_ls` of the star.
-- Docking: `dock_s`, plus `planetary_extra_s` for planetary stations.
-
-When Spansh gives no arrival distance, the server assumes 1000 ls and sets `arrival_assumed: true`.
-
-The supercruise, docking and refuel defaults come from about 1,300 timed legs in one commander's journals, flown with supercruise assist. They are medians, so they include normal human delays. A pilot who flies faster can raise `speed_factor`. The occlusion and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
-
-For module searches, give both class and rating. Without them the server does not compare prices, and stations rank by travel time.
-
-For purchases, `effective_cost = price + travel time in hours * credits_per_hour`. It is `null` when the station has no price. `credits_per_hour` is what an hour of your time is worth. For example, ask Claude "my time is worth 50M cr an hour". Claude calls `prefs_set` with `{"travel":{"credits_per_hour":50000000}}`.
-
-Ranking:
-
-- If any station has an effective cost, stations sort by effective cost. Stations without a price come last. Ties sort by travel time.
-- Otherwise, stations sort by travel time.
-- The page holds the first `limit` stations. The recommendation is the first station.
-
-Each station has these fields:
-
-- `jumps`: the estimated number of jumps.
-- `travel_s`: the estimated travel time in seconds.
-- `travel_min`: the estimated travel time in minutes, to one decimal place.
-- `effective_cost`: price plus the value of the travel time, in credits.
-- `arrival_assumed`: `true` when the arrival distance was missing.
-
-## Development
-
-```bash
-npm ci
-npm run check
-npm run pack:mcpb
-```
-
-`npm run check` runs the type check, the format check and the tests. Tests use no network. `npm run pack:mcpb` builds `dist/` and creates `ed-mcp-<version>.mcpb`.
-
-## Releasing
-
-1. Set the new version in `package.json`, `manifest.json` and `src/version.ts`.
-2. Merge the change to `main`.
-3. Tag the commit `vX.Y.Z` and push the tag.
-
-The release workflow checks that the tag matches the package version, runs the checks, and builds the `.mcpb` file. It then creates a GitHub Release with the file attached. It publishes to npm only if the repository has an `NPM_TOKEN` secret. Without the secret, it skips npm and still creates the release.
+- [Tool reference](docs/tools.md): what each tool does, its inputs and its results.
+- [Contributing](CONTRIBUTING.md): development, releases and service registrations.
 
 ## Licence
 
