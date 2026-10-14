@@ -263,11 +263,20 @@ describe("findLoops", () => {
   });
 
   it("keeps the top limit", () => {
-    const { leg } = legs(all(4, (i, j) => ({ s: 600, profit: 100 * (i + j) })));
-    const r = findLoops({ count: 4, leg, start: null, sizes: [2, 3], sessionMin: 60, limit: 3 });
-    expect(r.loops).toHaveLength(3);
-    const s = r.loops.map((l) => l.sustainedPerHour);
-    expect([...s].sort((a, b) => b - a)).toEqual(s);
+    // A 2-loop runs 3 laps an hour and a 3-loop 2, so 2-loops earn 6 × and 3-loops 4 × the
+    // sum of 10^i over their stations: {2,3} 6600, {1,3} 6060, {0,3} 6006, {1,2,3} 4440.
+    const { leg } = legs(all(4, (i, j) => ({ s: 600, profit: 10 ** i + 10 ** j })));
+    const r = findLoops({ count: 4, leg, start: null, sizes: [2, 3], sessionMin: 60, limit: 4 });
+    expect(r.loops.map((l) => l.stations.join(","))).toEqual(["2,3", "1,3", "0,3", "1,2,3"]);
+    expect(r.loops.map((l) => l.sustainedPerHour)).toEqual([6600, 6060, 6006, 4440]);
+  });
+
+  it("counts each 'any' triangle once against the default triple cap", () => {
+    // 200 dense stations, the "any" default, make about 1.3M triangles but 2.6M ordered pairs.
+    const { leg } = legs(all(200, () => ({ s: 600, profit: 1000 })));
+    const r = findLoops({ count: 200, leg, start: null, sizes: [3], sessionMin: 60, limit: 5 });
+    expect(r.notes).toEqual([]);
+    expect(r.loops).toHaveLength(5);
   });
 
   it("drops to 2-loops with a note when the triples would pass the cap", () => {
@@ -279,7 +288,8 @@ describe("findLoops", () => {
       sizes: [2, 3],
       sessionMin: 60,
       limit: 10,
-      tripleCap: 1,
+      // Three dense stations make one triangle.
+      tripleCap: 0,
     });
     expect(r.loops.every((l) => l.stations.length === 2)).toBe(true);
     expect(r.loops).toHaveLength(3);

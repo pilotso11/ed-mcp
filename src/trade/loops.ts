@@ -148,9 +148,18 @@ export function findLoops(a: {
   const others = (x: number) =>
     Array.from({ length: count }, (_, i) => i).filter((i) => i !== x && (start !== null || i > x));
 
+  // The best `limit` loops, best first, so memory stays small however many loops there are.
+  // A loop goes after any equal ones, as a stable sort would put it.
   const loops: Loop[] = [];
   const keep = (l: Loop | null) => {
-    if (l) loops.push(l);
+    if (!l) return;
+    const at = loops.findIndex((x) => better(l, x) < 0);
+    if (at === -1) {
+      if (loops.length < a.limit) loops.push(l);
+      return;
+    }
+    loops.splice(at, 0, l);
+    if (loops.length > a.limit) loops.pop();
   };
 
   // Out and in neighbours of each start, used both for 2-loops and to
@@ -168,7 +177,12 @@ export function findLoops(a: {
       x,
       o.filter((y) => leg(y, x)),
     );
-    triples += outs.get(x)!.length * ins.get(x)!.length;
+    // Pairs (y, z) with y ≠ z. With "any" each triangle is reached twice when both
+    // directions have every leg, so count half: 200 dense stations make about 1.3M.
+    const inSet = new Set(ins.get(x));
+    const both = outs.get(x)!.filter((y) => inSet.has(y)).length;
+    const pairs = outs.get(x)!.length * ins.get(x)!.length - both;
+    triples += start === null ? pairs / 2 : pairs;
   }
 
   if (a.sizes.includes(2)) {
@@ -202,5 +216,5 @@ export function findLoops(a: {
     }
   }
 
-  return { loops: loops.sort(better).slice(0, a.limit), notes };
+  return { loops, notes };
 }
