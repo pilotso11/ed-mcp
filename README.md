@@ -11,6 +11,10 @@ With ed-mcp, Claude can:
 - put the stops for your accepted missions in the best order,
 - read your game journal for your location, ship, cargo, materials, missions and engineer progress.
 
+### Why use it
+
+Inara, EDSM, Spansh, EDSY and the community wikis already have this data, and you can do all of this on their sites. ed-mcp does not replace them. It lets Claude use them together, with your game journal, in one conversation. Some commanders find it easier to ask a question in their own words than to use several sites.
+
 ed-mcp runs on your computer. It keeps your plans and settings on your computer. It reads from Inara, EDSM, Frontier and Spansh, and it downloads game data from GitHub.
 
 ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
@@ -32,6 +36,12 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 1. Download `ed-mcp-<version>.mcpb` from the [Releases](https://github.com/pilotso11/ed-mcp/releases) page.
 2. Open the file. Claude Desktop shows the ed-mcp settings form.
 3. Fill in the fields for the services that you use (see [Connect your accounts](#connect-your-accounts)). All fields are optional.
+
+To make sure that the file came from this project, run the GitHub CLI command below. It shows that the ed-mcp release workflow built the file from this repository. This command works for version 0.1.1 and later.
+
+```bash
+gh attestation verify ed-mcp-<version>.mcpb --repo pilotso11/ed-mcp
+```
 
 ### Claude Code
 
@@ -74,7 +84,7 @@ The game journal is the best source for most questions. It is on your computer a
 | `EDSM_API_KEY`   | Your EDSM API key                                                                                         |
 | `EDSM_CMDR`      | Your commander name on EDSM                                                                               |
 | `ED_JOURNAL_DIR` | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`. |
-| `ED_MCP_PLANS`   | A different file for your plans. Use a full path or one that starts with `~`.                             |
+| `ED_MCP_PLANS`   | A different file for your plans. Use a full path or one that starts with `~`. The default is `plans.json` in the settings folder (see [Your data](#your-data)). |
 
 Inara needs both of its settings. EDSM needs both of its settings.
 
@@ -99,7 +109,7 @@ The journal tools warn you when the newest entry is more than 30 minutes old. Th
 
 ## Plans
 
-Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. The plans stay on your computer.
+Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. The plans stay on your computer, in `plans.json` in the settings folder (see [Your data](#your-data)). To keep them in another place, for example a folder that you back up, set `ED_MCP_PLANS`.
 
 ## Preferences
 
@@ -121,7 +131,7 @@ The travel times come from about 1,300 timed trips in a commander's journals, fl
 
 ## Limits
 
-- Station, market and trade data come from Spansh. Market prices can be some hours or days old. The results show the age of each price.
+- Station, market and trade data come from Spansh. Market prices can be some hours or days old. The results show the age of each price. Spansh gets prices from EDDN, so a market that you open while you run a tool such as EDMC reaches Spansh within minutes.
 - Trade routes and first-time mission routes can take a minute or more. If Spansh is still working, Claude asks again.
 - Trade routes go one way. They do not plan a loop back to the start.
 - ed-mcp cannot see the mission board. It plans routes only for missions that you accepted.

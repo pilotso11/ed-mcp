@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -25,6 +26,11 @@ jobs:
         run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm run check
       - run: npm run pack:mcpb
+      # Records that this workflow built the .mcpb from this commit. Players can check it with
+      # `gh attestation verify <file> --repo pilotso11/ed-mcp`.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ed-mcp-*.mcpb
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
