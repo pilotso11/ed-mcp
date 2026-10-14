@@ -32,6 +32,9 @@ export interface Pool {
   stops: PoolStop[];
   // Groups can share options.
   groups: Array<{ name: string; options: PoolStop[] }>;
+  // Every group still in the route, in input order. `met` is the stop that meets it without a
+  // choice (a fixed stop or its only option); null means the solver chooses from `groups`.
+  requirements: Array<{ group: string; met: PoolStop | null }>;
   // Keys and values are lower-case main labels. Group labels and aliases are resolved.
   after: Map<string, string[]>;
   rulesApplied: string[];
@@ -183,6 +186,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
 
   const stops: PoolStop[] = [];
   const groups: Pool["groups"] = [];
+  const requirements: Pool["requirements"] = [];
   // Group name -> labels of the stops that meet it, for expanding rules.
   const groupLabels = new Map<string, string[]>();
   candidates.forEach((c, i) => {
@@ -200,10 +204,13 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       notes.push(`Group "${c.group}" has no stops left after only/skip; dropped.`);
     } else if (met) {
       notes.push(`Group "${c.group}" is met by ${met.label}, which is already in the route.`);
+      requirements.push({ group: c.group, met });
     } else if (options.length === 1) {
       if (!stops.includes(options[0]!)) stops.push(options[0]!);
+      requirements.push({ group: c.group, met: options[0]! });
     } else {
       groups.push({ name: c.group, options });
+      requirements.push({ group: c.group, met: null });
     }
   });
 
@@ -249,5 +256,5 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
   }
   if (fallbackUsed) rulesApplied.unshift("engineers after shops and traders (plan default)");
 
-  return { stops, groups, after, rulesApplied, notes };
+  return { stops, groups, requirements, after, rulesApplied, notes };
 }

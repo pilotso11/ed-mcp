@@ -315,6 +315,45 @@ describe("buildPool", () => {
       expect(pool.notes).toContain('Group "trader" is met by T1, which is already in the route.');
     });
 
+    it("lists every requirement in input order, with the stop for those met without a choice", () => {
+      const pool = buildPool(
+        {
+          ...base,
+          stops: [
+            {
+              label: "trader",
+              one_of: [
+                { label: "T1", system: "Lave", station: "Port" },
+                { label: "T2", system: "Achenar" },
+              ],
+            },
+            {
+              label: "pick",
+              one_of: [
+                { label: "P1", system: "Diso" },
+                { label: "P2", system: "Leesti" },
+              ],
+            },
+            {
+              label: "single",
+              one_of: [
+                { label: "S1", system: "Riedquat" },
+                { label: "S2", system: "Zaonce" },
+              ],
+            },
+            { label: "Shop", system: "lave", station: "port" },
+          ],
+          skip: ["S2"],
+        },
+        null,
+      );
+      expect(pool.requirements.map((r) => [r.group, r.met?.label ?? null])).toEqual([
+        ["trader", "T1"],
+        ["pick", null],
+        ["single", "S1"],
+      ]);
+    });
+
     it("resolves an alias in after, only and skip to the merged stop", () => {
       const stops: StopEntry[] = [
         { label: "A", system: "Sol", station: "Abe" },

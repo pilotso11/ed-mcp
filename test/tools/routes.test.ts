@@ -182,6 +182,34 @@ describe("route_stops", () => {
     expect(j.combinations).toBe(4);
   });
 
+  it("lists groups met without a choice in meets and chosen", async () => {
+    const { j } = await route({
+      stops: [
+        { label: "fsd", one_of: [{ engineer: "Farseer" }, { label: "FarFsd", system: "Far" }] },
+        { label: "pick", one_of: [{ engineer: "Palin" }, { engineer: "Lock" }] },
+        {
+          label: "only",
+          one_of: [
+            { ...alpha, label: "A1" },
+            { label: "G1", system: "Gamma" },
+          ],
+        },
+        { engineer: "Farseer" },
+      ],
+      skip: ["G1"],
+    });
+    const farseer = j.stops.find((s: any) => s.engineer === "Felicity Farseer");
+    expect(farseer.meets).toEqual(["fsd"]);
+    expect(j.stops.find((s: any) => s.labels.includes("A1")).meets).toEqual(["only"]);
+    expect(j.chosen).toEqual([
+      { group: "fsd", option: "Felicity Farseer" },
+      { group: "pick", option: "Professor Palin" },
+      { group: "only", option: "A1" },
+    ]);
+    expect(j.runner_up.chosen.map((c: any) => c.group)).toEqual(["fsd", "pick", "only"]);
+    expect(j.combinations).toBe(2);
+  });
+
   it("gives fixed stops an empty meets", async () => {
     const { j } = await route({ stops: [alpha] });
     expect(j.stops[0].meets).toEqual([]);

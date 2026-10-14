@@ -318,8 +318,16 @@ export function registerRouteTools(
         }
 
         const optionLabel = (node: number) => nodes[node]!.labels[0]!;
+        // Every requirement once, in input order: groups met without a choice and solver choices.
+        const withMet = (chosen: Array<{ group: string; option: number }>) => {
+          let next = 0;
+          return pool.requirements.map((r) =>
+            r.met ? { group: r.group, option: nodeOfStop.get(r.met)! } : chosen[next++]!,
+          );
+        };
         const describe = (chosen: Array<{ group: string; option: number }>) =>
-          chosen.map((c) => ({ group: c.group, option: optionLabel(c.option) }));
+          withMet(chosen).map((c) => ({ group: c.group, option: optionLabel(c.option) }));
+        const allChosen = withMet(solved.chosen);
 
         // Rebuild the times from the final order: the last round may have plotted legs the solve did not see.
         const plottedFlag = (f: number, t: number) =>
@@ -344,7 +352,7 @@ export function registerRouteTools(
             engineer: node?.stop.engineer?.name ?? null,
             kind: node ? node.stop.kind : "other",
             purpose: node ? node.stop.purpose : null,
-            meets: solved.chosen.filter((c) => c.option === t).map((c) => c.group),
+            meets: allChosen.filter((c) => c.option === t).map((c) => c.group),
             jumps: plottedJumps.get(key(f, t)) ?? l.jumps,
             leg_min: min(seconds),
             arrive_min: min(clock),

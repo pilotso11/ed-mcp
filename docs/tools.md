@@ -98,13 +98,13 @@ Inputs:
 
 Rules: a stop comes only after every stop in its `after` list. An `after` label that is not in the pool is ignored, with a note. A cycle is an error. Stops at the same station become one stop with several labels.
 
-Groups: for each `one_of` group, the tool tries every combination and keeps the fastest. The result shows `chosen` and a `runner_up` with its extra time. More than 16 combinations is an error.
+Groups: for each `one_of` group, the tool tries every combination and keeps the fastest. The result shows `chosen`, with one entry for each group, and a `runner_up` with its extra time. A group that needs no choice, because only one option is left or a fixed stop meets it, is in `chosen` too. More than 16 combinations is an error.
 
-Shared candidates: one place can meet several groups, for example an engineer who does the work for two modules. Entries that name the same engineer, or the same system and station (ignoring case), become one stop. Its first label is the main label and the others are aliases; `only`, `skip` and `after` accept any of them. The stop is visited once, so a combination that uses it for several groups costs one visit. A group with an option that is already a fixed stop is dropped, with a note.
+Shared candidates: one place can meet several groups, for example an engineer who does the work for two modules. Entries that name the same engineer, or the same system and station (ignoring case), become one stop. Its first label is the main label and the others are aliases; `only`, `skip` and `after` accept any of them. The stop is visited once, so a combination that uses it for several groups costs one visit. A group with an option that is already a fixed stop needs no choice: the tool adds a note and leaves it out of the search.
 
 Plot: with `plot: true`, the tool plots each leg of the chosen route with the Spansh neutron plotter, at your jump range. A plotted leg uses the plotted number of jumps. If a plotted leg differs from its estimate by more than 20% and by at least 2 jumps, the tool solves again with the plotted times and plots only the new legs. It stops after 2 rounds. If Spansh has not finished a leg, the tool keeps the estimate, sets `plotted: false` on that stop and adds the note "Spansh is still plotting; call again to finish." Call again to collect the plot. Without `plot`, each leg longer than 200 LY gets a note, because a neutron route or a detour can change its time.
 
-The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `meets` (the groups whose chosen option is this stop), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. A saved route has `plotted: true` only if every leg was plotted.
+The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `meets` (the groups that this visit meets), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. A saved route has `plotted: true` only if every leg was plotted.
 
 ## Trading
 
