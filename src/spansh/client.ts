@@ -193,7 +193,9 @@ export interface MarketStationsQuery {
   maxStations: number;
   maxAgeDays: number;
   largePad?: boolean;
+  /** false excludes planetary stations; true or undefined applies no restriction. */
   planetary?: boolean;
+  /** false drops carriers locally after fetching; true or undefined keeps them. */
   fleetCarriers?: boolean;
   maxArrivalLs?: number;
 }

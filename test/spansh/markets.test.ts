@@ -67,6 +67,29 @@ describe("SpanshClient.marketStations", () => {
     });
   });
 
+  it("sends no is_planetary filter when planetary is true", async () => {
+    const { client, f } = make([
+      { match: () => true, respond: () => json({ count: 0, results: [] }) },
+    ]);
+    await client.marketStations({ ...query, planetary: true });
+    const sent = JSON.parse(String(f.calls[0]!.init!.body));
+    expect(sent.filters).not.toHaveProperty("is_planetary");
+  });
+
+  it("drops carriers only when fleetCarriers is false", async () => {
+    const src = await fixture("trade-stations-search-market-sell.json");
+    const carrier = { ...src.results[1], name: "KXX-123", type: "Drake-Class Carrier" };
+    const body = { count: 2, results: [src.results[0], carrier] };
+    const run = (fleetCarriers?: boolean) =>
+      make([{ match: () => true, respond: () => json(body) }]).client.marketStations({
+        ...query,
+        maxAgeDays: 3650,
+        fleetCarriers,
+      });
+    expect((await run(false)).stations.map((s) => s.name)).toEqual(["Janes Horizons"]);
+    expect((await run(true)).stations.map((s) => s.name)).toEqual(["Janes Horizons", "KXX-123"]);
+  });
+
   it("maps coordinates, pad, age and drops rows without stock", async () => {
     const src = await fixture("trade-stations-search-market-sell.json");
     const { client } = make([{ match: () => true, respond: () => json(src) }]);
