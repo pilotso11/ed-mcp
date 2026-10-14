@@ -476,6 +476,26 @@ describe("route_stops", () => {
       expect(j.notes).not.toContain("Spansh is still plotting; call again to finish.");
     });
 
+    it("adds the refuel stops of the extra plotted jumps", async () => {
+      const refuel = {
+        preferences: {
+          travel: { jump_range_ly: 20, seconds_per_jump: 60, refuel_every_jumps: 2, refuel_s: 100 },
+        },
+      };
+      const base = (await route({ ...refuel, stops: [alpha] })).j;
+      const est = base.stops[0].jumps as number;
+      const plotted = est + 2;
+      const { j } = await run(
+        { ...refuel, stops: [alpha], plot: true },
+        plotter({ "sol>alpha": plotted }),
+      );
+      const refuels = (n: number) => Math.floor(n / 2);
+      const extra = 2 * 60 + (refuels(plotted) - refuels(est)) * 100;
+      expect(j.stops[0].plotted).toBe(true);
+      // leg_min is rounded to 0.1 min.
+      expect(Math.abs(j.stops[0].leg_min - base.stops[0].leg_min - extra / 60)).toBeLessThan(0.1);
+    });
+
     it("plots at the resolved jump range", async () => {
       const seen: number[] = [];
       await run({ stops: [alpha], plot: true }, async (q) => {
