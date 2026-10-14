@@ -428,9 +428,9 @@ export function registerRouteTools(
             from: startPlace.system,
             stops: [
               ...solved.order.map(optionLabel),
-              ...(a.return_to
+              ...(returnPlace
                 ? [
-                    `return to ${a.return_to.system}${a.return_to.station ? ` — ${a.return_to.station}` : ""}`,
+                    `return to ${returnPlace.system}${returnPlace.station ? ` — ${returnPlace.station}` : ""}`,
                   ]
                 : []),
             ],

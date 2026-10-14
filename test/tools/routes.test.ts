@@ -313,6 +313,9 @@ describe("route_stops", () => {
     expect((await route()).stops).toEqual(["AlphaShop", "return to Sol — Abraham Lincoln"]);
     const md = (await callTool(client, "plan_export", { id: "p" })).json as { markdown: string };
     expect(md.markdown).toContain("2. return to Sol — Abraham Lincoln");
+    // Spansh's spelling of the system is saved, as for `from`.
+    await run({ system: "sol" });
+    expect((await route()).stops).toEqual(["AlphaShop", "return to Sol"]);
   });
 
   it("merges stops at the same station", async () => {
