@@ -110,9 +110,9 @@
     "inara_dev_mode": {
       "type": "boolean",
       "title": "Inara development mode",
-      "description": "Keep on until Inara has whitelisted the app name ed-mcp.",
+      "description": "Marks requests as test traffic to Inara. Leave off.",
       "required": false,
-      "default": true
+      "default": false
     },
     "edsm_api_key": {
       "type": "string",
@@ -131,8 +131,8 @@
     },
     "capi_client_id": {
       "type": "string",
-      "title": "Frontier CAPI client ID",
-      "description": "Client ID from user.frontierstore.net/developer. Leave empty to disable Frontier login.",
+      "title": "Frontier client ID (advanced)",
+      "description": "Leave empty to use the ed-mcp client. Set it only to use your own Frontier developer client.",
       "required": false,
       "default": ""
     },

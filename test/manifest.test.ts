@@ -26,8 +26,8 @@ describe("manifest.json", () => {
     }
   });
 
-  it("maps Inara development mode to INARA_DEV_MODE, on by default", () => {
-    expect(manifest.user_config.inara_dev_mode).toMatchObject({ type: "boolean", default: true });
+  it("maps Inara development mode to INARA_DEV_MODE, off by default", () => {
+    expect(manifest.user_config.inara_dev_mode).toMatchObject({ type: "boolean", default: false });
     expect(manifest.server.mcp_config.env.INARA_DEV_MODE).toBe("${user_config.inara_dev_mode}");
   });
 });

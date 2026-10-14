@@ -1,0 +1,234 @@
+# ed-mcp tool reference
+
+This page describes each tool, its inputs and its results. Claude reads the same information from the tool descriptions, so you do not need it to use ed-mcp. Read it to understand a result or to tune a preference.
+
+For installation and setup, see the [README](../README.md).
+
+## Tool list
+
+| Tool                       | What it does                                                 |
+| -------------------------- | ------------------------------------------------------------ |
+| `inara_commander_profile`  | Ranks, squadron, main ship and Inara URL                     |
+| `inara_community_goals`    | Recent and active community goals                            |
+| `edsm_commander_location`  | Last known system and docked station                         |
+| `edsm_commander_materials` | Materials, encoded data and cargo                            |
+| `capi_login`               | Log in to Frontier in the browser                            |
+| `capi_profile`             | Current ship with engineering, location and fleet            |
+| `capi_logout`              | Forget the Frontier login                                    |
+| `journal_status`           | Journal folder, newest journal, its age and warnings         |
+| `journal_commander`        | Commander, location, ship and cargo from the journal         |
+| `journal_materials`        | Materials held, by kind, from the journal                    |
+| `journal_missions`         | Accepted missions (active and complete), soonest expiry first |
+| `journal_engineers`        | Engineer progress from the journal                           |
+| `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
+| `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
+| `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
+| `catalog_material`         | Material grade, trade group and trade rules                  |
+| `catalog_module`           | Outfitting module by symbol or name                          |
+| `materials_plan`           | Material needs, trades from surplus and traders to use       |
+| `spansh_find_stations`     | Best stations near a system, ranked by travel time and cost  |
+| `spansh_system`            | System coordinates and stations                              |
+| `spansh_route`             | Neutron route between systems                                |
+| `missions_route`           | Best stop order for accepted missions, with deadlines        |
+| `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
+| `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
+| `prefs_get`                | Get your stored travel preferences                           |
+| `prefs_set`                | Change stored travel preferences                             |
+| `cache_refresh`            | Clear cached data or refresh game data                       |
+| `cache_status`             | Cache and game data status                                   |
+| `plan_list`                | List saved plans                                             |
+| `plan_get`                 | Get a plan                                                   |
+| `plan_upsert`              | Create or replace a plan                                     |
+| `plan_update_item`         | Update one plan item                                         |
+| `plan_delete`              | Delete a plan                                                |
+| `plan_export`              | Export a plan as Markdown                                    |
+
+## Material planning
+
+`materials_plan` turns blueprints and extra materials into a checked shopping list.
+
+Inputs:
+
+- `blueprints`: each entry has `blueprint`, optional `module`, `from_grade` (default 0), `to_grade`, `count` (modules, default 1) and `experimental`. It adds the materials for grades `from_grade + 1` to `to_grade`, and the experimental once per module. To plan only an experimental effect, set `to_grade` to 0 and give `experimental`.
+- `needs`: extra materials by name or symbol, with counts.
+- `rolls_per_grade`: exactly 5 entries, the rolls for grades 1 to 5. The default is `[1, 2, 3, 4, 5]`, a cautious estimate. Fewer rolls are usual at high engineer reputation.
+- `inventory`: `auto` (default), `journal`, `edsm` or `none`. `auto` uses the journal when its newest event is less than 24 hours old, and EDSM otherwise. `none` plans the needs only.
+- `near`: the system to search for traders. Without it, the tool uses the journal location if the journal is under 24 hours old, then the EDSM position, then an older journal location (with a note), then the Frontier profile system. If it finds none, it omits traders and adds a note.
+- `preferences`: a travel preferences override, as for `spansh_find_stations`.
+
+The tool trades only surplus (what you hold above what the plan needs). Trades stay inside one kind (raw, manufactured or encoded). Guardian and Thargoid materials have no trade group, so it never trades them. The rate is an exact give:get ratio. A trade gives `6^up` (times 6 more for another trade group) and gets `3^down`, where `up` and `down` are grade steps, reduced by their common divisor. For example, trading 2 of a grade 5 material in one group for a grade 1 material in another group gives 27 of the grade 1 material (2:27). Trades use whole batches, so a trade can return more than you need. The tool picks the cheapest source by material value (3^grade), nearest grade first.
+
+The result lists `needs` (with `have` and `short`), `trades` (each with the `name`, `count` and `grade` of what you give and get), `still_short`, the best `traders` of each type used, the `inventory_source`, `warnings`, `notes` and `unknown` names. The tool does not check storage caps (300, 250, 200, 150 and 100 for grades 1 to 5). A trade can give more than a cap allows.
+
+## Mission routes
+
+`missions_route` orders the stops for the missions in your journal. Passenger and delivery missions go to their destination. Completed missions go back to where you accepted them, which is usually where you collect the reward. Completed missions have no deadline. An active mission with a commodity but no destination goes to where you accepted it, with `kind: "source"` and the note "source the commodity first". Missions with no known stop, past their expiry, listed in `include` but absent from the journal, or in a system Spansh does not know, appear in `unroutable` with a reason. The first call for systems not seen in the last day can take tens of seconds.
+
+Inputs:
+
+- `from`: the start system. The default is the journal location.
+- `include`: mission ids to route. The default is every mission.
+- `return_to`: a system and optional station to add as the final stop.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+The tool groups missions by station, so one visit handles all of them. It gets coordinates and arrival distances from Spansh, and times each leg with the travel model. Legs inside one system have no jumps. A mission with no station counts jumps and docking time only, and its stop is marked `station_unknown`.
+
+With up to 12 stops and up to 24 missions with an expiry, the search is exact. It meets every deadline (`expires`) at the estimated arrival time if any order can, and takes the shortest such order. If no order can, it minimises the late missions first, then the time. Above either limit, it uses a nearest-first order with 2-opt improvements that never add late missions. Deadline handling is then best-effort.
+
+The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
+
+Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+
+## Trading
+
+`trade_route` plans a multi-hop trade run with the Spansh trade planner. `commodity_prices` finds the best stations near a system to sell or buy one commodity.
+
+### trade_route
+
+Inputs:
+
+- `from_system` and `from_station`: the start. Without both, the tool uses the docked station from the journal. If you are not docked, it asks for them.
+- `max_hops`: 1 to 50. The default is 5.
+- `max_hop_distance`: the longest single hop in LY. The default is 50. Set it to your laden jump range.
+- `cargo`: tonnes, at least 1. The default is the journal ship's cargo capacity, then 7 t (also when the journal shows 0).
+- `capital`: credits. The default is your journal credits, then 1000 cr.
+- `max_price_age_days`: the oldest market data to use. The default is 2.
+- `allow_prohibited`: allow commodities that are illegal at the destination. The default is `false`.
+- `unique`: never visit the same station twice. The default is `false`.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+Your travel preferences set the rest. A pad size of L (`min_pad`) sets Spansh's large pad option. The planetary setting `allow` lets the route use planetary stations. Spansh cannot rank planetary stations lower, so `avoid` excludes them like `exclude`, and a note says so. Spansh cannot filter megaships, so a `megaships` setting other than `allow` is not applied and a note says so. Fleet carriers are excluded by default; the `fleet_carriers` setting `allow` lets the route use them. A `hard` arrival distance limit sets the longest distance from the star. Spansh has no soft limit, so a `soft` limit is not applied and a note says so. When a default applies or the journal cannot be read, the result `notes` say so.
+
+The result lists the `hops` in order. Each hop has the `from` and `to` stations, `distance_ly`, `jumps`, `travel_min`, the `commodities` to buy and sell (with `amount`, `buy_price`, `sell_price`, `profit_per_unit` and `total_profit`), `profit` and `cumulative_profit`. Each station has `market_age_hours`. The result also has `total_profit`, `total_travel_min`, `profit_per_hour`, the resolved `inputs`, `applied_preferences` and `notes`. If Spansh finds no route, the message is "No profitable route found".
+
+Spansh takes one to several minutes. While it works, the tool returns `status: "pending"` with the Spansh `job` id and the resolved `inputs`. Call it again with those inputs to resume the same job, even if your journal has changed since. A call without a start, cargo or capital resumes the pending job with the same options if it was last returned within 15 minutes. Finished routes are cached for 5 minutes.
+
+`profit_per_hour` is `total_profit` ÷ `total_travel_min` × 60, from the travel model. It is a one-way figure. The time covers the travel of each hop only (jumps, supercruise to the station and docking). It does not cover market and loading time, the way to the start station or the return trip. It does not add time for planetary landings, because Spansh gives no station type.
+
+### commodity_prices
+
+Inputs:
+
+- `commodity`: the exact English name, for example Gold.
+- `mode`: `sell` (where to sell it) or `buy` (where to buy it).
+- `near`: the reference system. The default is the journal's current system.
+- `amount`: tonnes. Optional.
+- `limit`: 1 to 30. The default is 10.
+- `max_distance_ly`: the search radius around `near`. The default is 75.
+- `max_price_age_days`: the oldest market data to use. The default is 2.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
+
+The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). A station must have a demand (sell) or supply (buy) of at least `amount`, or at least 1 without `amount`. Each station shows its price, its demand or supply, `market_age_hours` and `travel_min`. If Spansh finds no station, a note asks you to check the commodity name.
+
+With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
+
+### Limits
+
+- The tool plans a route from a start to the last hop. It does not plan loops back to the start.
+- Market data can be old. Check `market_age_hours`. `max_price_age_days` sets the oldest prices both tools use. Prices can change before you arrive.
+
+## Game journal
+
+The server reads the journal files from the last 14 days, plus `Cargo.json` for the current cargo. It never writes to the journal folder.
+
+Tools:
+
+- `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems. Run it first when journal data looks wrong.
+- `journal_commander`: commander name, credits, location, ship and cargo.
+- `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
+- `journal_missions`: accepted missions (active and complete) with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
+- `journal_engineers`: engineers with progress, rank and rank progress.
+
+`journal_commander`, `journal_materials`, `journal_missions` and `journal_engineers` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.
+
+Freshness rules:
+
+- The journal tools warn when the newest event is more than 30 minutes old. The game is not running, or sync has stopped.
+- `min_pad: "auto"` and `jump_range_ly: "auto"` use the journal ship and its jump range only when the newest event is less than 24 hours old. Otherwise they fall back (see the travel preferences).
+
+## Travel preferences
+
+`spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json` in the config folder. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
+
+Defaults:
+
+| Preference                      | Default                              |
+| ------------------------------- | ------------------------------------ |
+| `stations.max_arrival_ls`       | 1000 ls, `soft`                      |
+| `stations.planetary`            | `avoid`                              |
+| `stations.fleet_carriers`       | `exclude`                            |
+| `stations.megaships`            | `allow`                              |
+| `stations.min_pad`              | `auto`                               |
+| `travel`                        | See the travel model below           |
+
+- `max_arrival_ls` mode is `soft`, `hard` or `off`.
+- `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
+- `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the current ship from the journal when the newest journal event is less than 24 hours old. Otherwise it uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
+
+A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
+
+To change your preferences, ask Claude, for example "from now on ignore stations over 2,000 ls". Claude calls `prefs_set` with a patch such as `{"stations":{"max_arrival_ls":{"value":2000}}}`. The patch is strict: unknown keys are errors. The change applies to future sessions.
+
+For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. `large_pad: true` is the same as `min_pad: "L"`.
+
+Each result has these fields:
+
+- `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
+- `matched`: how many stations match your preferences among those the server fetched. That is the nearest 50, or up to 100 when the search relaxed the arrival limit and fetched a second page.
+- `jumps`, `travel_s`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
+- `discount_pct` on each station: how far its price is below the median price of the filtered results.
+- `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page.
+- `relaxed`: the rules the search dropped.
+- `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
+- `applied_preferences`: the rules in effect, including the pad source.
+
+## Travel model
+
+The server ranks stations by estimated travel time. For purchases it also ranks by cost. The `travel` settings tune the estimate. All of them can be set with `prefs_set`.
+
+| Setting                | Default                                                      |
+| ---------------------- | ------------------------------------------------------------ |
+| `jump_range_ly`        | `auto`                                                       |
+| `auto_range_factor`    | 0.85                                                         |
+| `seconds_per_jump`     | 60                                                           |
+| `refuel_every_jumps`   | 0 (no refuel stops)                                          |
+| `refuel_s`             | 15                                                           |
+| `supercruise`          | `base_s` 43, `coeff` 6.2, `exponent` 0.43, `speed_factor` 1  |
+| `occlusion`            | `chance` 0.5, `seconds` 40                                   |
+| `near_star`            | `within_ls` 50, `seconds` 0                                  |
+| `dock_s`               | 80                                                           |
+| `planetary_extra_s`    | 90                                                           |
+| `credits_per_hour`     | 20,000,000                                                   |
+
+`jump_range_ly` is a number of light years or `"auto"`. `auto` uses the maximum jump range of your current ship from the journal, when the newest journal event is less than 24 hours old. Otherwise it uses 30 ly. The journal value (`MaxJumpRange`) is the unladen best case, so `auto` multiplies it by `auto_range_factor` (above 0, up to 1). `applied_preferences` shows the range and where it came from: `request`, `preferences`, the journal (for example `auto: journal, 85% of unladen max 24.5 LY`), or the 30 ly default. A number you set always wins.
+
+The server estimates travel time like this:
+
+- Jumps: `ceil(distance_ly / jump_range_ly)`. Each jump takes `seconds_per_jump`. A station in the same system needs no jumps.
+- Refuel: one stop of `refuel_s` for every `refuel_every_jumps` jumps. Zero turns this off.
+- Supercruise: `base_s + coeff * ls^exponent / speed_factor`, where `ls` is the arrival distance. Use a `speed_factor` above 1 to model a faster ship or Supercruise Overcharge.
+- Occlusion: `chance * seconds`. This is the expected time lost when the star hides the station.
+- Near star: `near_star.seconds` extra when the station is within `within_ls` of the star.
+- Docking: `dock_s`, plus `planetary_extra_s` for planetary stations.
+
+When Spansh gives no arrival distance, the server assumes 1000 ls and sets `arrival_assumed: true`.
+
+The supercruise, docking and refuel defaults come from about 1,300 timed legs in one commander's journals, flown with supercruise assist. They are medians, so they include normal human delays. A pilot who flies faster can raise `speed_factor`. The occlusion and planetary times are estimates. Tune them to match your play. The model does not filter stations. It only orders them.
+
+For module searches, give both class and rating. Without them the server does not compare prices, and stations rank by travel time.
+
+For purchases, `effective_cost = price + travel time in hours * credits_per_hour`. It is `null` when the station has no price. `credits_per_hour` is what an hour of your time is worth. For example, ask Claude "my time is worth 50M cr an hour". Claude calls `prefs_set` with `{"travel":{"credits_per_hour":50000000}}`.
+
+Ranking:
+
+- If any station has an effective cost, stations sort by effective cost. Stations without a price come last. Ties sort by travel time.
+- Otherwise, stations sort by travel time.
+- The page holds the first `limit` stations. The recommendation is the first station.
+
+Each station has these fields:
+
+- `jumps`: the estimated number of jumps.
+- `travel_s`: the estimated travel time in seconds.
+- `travel_min`: the estimated travel time in minutes, to one decimal place.
+- `effective_cost`: price plus the value of the travel time, in credits.
+- `arrival_assumed`: `true` when the arrival distance was missing.
