@@ -140,10 +140,9 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
 
     // A plan stop of kind engineer with no station, in the system of an item's engineer, is that
     // engineer under another label. It gets their base so that the two merge into one stop.
-    const baseFor = new Map<(typeof a.plan.stops)[number], string>();
+    const baseFor = new Map<(typeof a.plan.stops)[number], { base: string; engineer: string }>();
     if (catalog) {
       for (const [key, { name }] of byEngineer) {
-        if (named.has(key)) continue;
         let e: ReturnType<typeof resolveEngineer>;
         try {
           e = resolveEngineer(name);
@@ -159,8 +158,9 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
         );
         const mentions = (s: (typeof here)[number]) =>
           lc(`${s.label ?? ""} ${s.purpose ?? ""}`).includes(lc(e.name));
-        const match = here.find(mentions) ?? here[0];
-        if (match) baseFor.set(match, e.base);
+        // An engineer something else already names only claims a stop that names them too.
+        const match = here.find(mentions) ?? (named.has(key) ? undefined : here[0]);
+        if (match) baseFor.set(match, { base: e.base, engineer: e.name });
       }
     }
 
@@ -170,7 +170,8 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
           {
             label: s.label,
             system: s.system,
-            station: s.station ?? baseFor.get(s),
+            station: s.station ?? baseFor.get(s)?.base,
+            engineer: baseFor.get(s)?.engineer,
             kind: s.kind,
             after: s.after,
           },

@@ -114,6 +114,20 @@ describe("buildPool", () => {
     expect(pool.stops[1]!.aliases).toEqual(["Felicity Farseer"]);
   });
 
+  it("adopts the base for a station-less stop labelled with the engineer's name", () => {
+    const p = plan({
+      stops: [{ system: "Deciat", kind: "engineer", label: "Felicity Farseer", purpose: "x" }],
+      items: [item("a", "Felicity Farseer", "todo", "grade 5 FSD")],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops).toHaveLength(1);
+    expect(pool.stops[0]).toMatchObject({
+      label: "Felicity Farseer",
+      station: "Farseer Inc",
+      engineer: { name: "Felicity Farseer" },
+    });
+  });
+
   it("adopts the first station-less engineer stop when none mentions the name", () => {
     const p = plan({
       stops: [{ system: "Deciat", kind: "engineer", label: "FSD G5", purpose: "x" }],
