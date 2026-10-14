@@ -337,6 +337,21 @@ describe("route_stops", () => {
       expect(j.stops.map((s: any) => s.plotted)).toEqual([true, true]);
     });
 
+    it("does not re-solve when a plotted leg is only one jump off", async () => {
+      const calls: string[] = [];
+      const slow = { preferences: { travel: { jump_range_ly: 20, seconds_per_jump: 600 } } };
+      const { client } = await setup({
+        route: plotter({ "sol>alpha": 2, "alpha>beta": 3, "sol>beta": 3, "beta>alpha": 2 }, calls),
+      });
+      const r = await callTool(client, "route_stops", {
+        ...slow,
+        stops: [alpha, beta],
+        plot: true,
+      });
+      expect(calls).toEqual(["sol>alpha", "alpha>beta"]);
+      expect(labels(r.json as any)).toEqual(["AlphaShop", "BetaShop"]);
+    });
+
     it("keeps the estimate for a leg whose plot does not finish", async () => {
       const base = (await route({ ...sec, stops: [alpha, beta] })).j;
       const { j } = await run({ stops: [alpha, beta], plot: true }, plotter({ "sol>alpha": 1 }));

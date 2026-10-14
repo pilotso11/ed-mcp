@@ -287,7 +287,7 @@ export function registerRouteTools(
             if (p === undefined) return false;
             const est = leg(f, t);
             return (
-              Math.max(p, est.jumps) >= 2 &&
+              Math.abs(p - est.jumps) >= 2 &&
               Math.abs(legSeconds(f, t) - est.seconds) > PLOT_DIFF * est.seconds
             );
           });
