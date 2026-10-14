@@ -72,7 +72,7 @@ A `StopInput` needs `system` or `engineer`.
 
 ### The stop pool
 
-- **From a plan:** each `plan.stops` entry, and one engineer stop for each distinct `engineer` named in an item that is not `done` or `skipped`. An engineer that already has a stop in `plan.stops` is not added twice.
+- **From a plan:** each `plan.stops` entry, and one engineer stop for each distinct `engineer` named in an item that is not `done` or `skipped`. An engineer that already has a stop in `plan.stops` is not added twice. A station-less `engineer` plan stop in the system of an engineer that an open item names takes that engineer's base as its station, and so merges with the engineer's stop. If another stop or entry already names the engineer, only a stop whose label or purpose contains the engineer's name does this. Each engineer takes at most one stop.
 - **From `stops`:** added to the pool. Without `plan_id`, they are the whole pool.
 - **Labels:** the given `label`. Otherwise the engineer name, then the station name, then the system name. If two labels match, the later one gets a suffix (`-2`, `-3`). Label matching ignores case.
 - **Selection:** `only` keeps the listed labels, then `skip` removes labels. A label in `only` or `skip` that is not in the pool is an error.
