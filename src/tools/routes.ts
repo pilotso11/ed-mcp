@@ -9,7 +9,7 @@ import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { findCycle } from "../routes/optimise.js";
-import { buildPool, type PoolStop, type StopEntry } from "../routes/pool.js";
+import { buildPool, joinPurposes, type PoolStop, type StopEntry } from "../routes/pool.js";
 import { solveRoute } from "../routes/solve.js";
 import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
@@ -47,8 +47,11 @@ const StopEntrySchema = z.union([
 
 interface Node {
   labels: string[];
-  stop: PoolStop;
   place: Place;
+  // Merged from every stop at this node; an engineer wins over a shop at the base.
+  engineer: string | null;
+  kind: PoolStop["kind"];
+  purpose: string | null;
 }
 
 export function registerRouteTools(
@@ -182,10 +185,20 @@ export function registerRouteTools(
           const hit = merge && key ? byStation.get(key) : undefined;
           let idx: number;
           if (hit !== undefined) {
-            nodes[hit]!.labels.push(...names(s));
+            const node = nodes[hit]!;
+            node.labels.push(...names(s));
+            node.engineer ??= s.engineer?.name ?? null;
+            if (s.kind === "engineer" || s.engineer) node.kind = "engineer";
+            node.purpose = joinPurposes(node.purpose, s.purpose);
             idx = hit;
           } else {
-            nodes.push({ labels: names(s), stop: s, place: p });
+            nodes.push({
+              labels: names(s),
+              place: p,
+              engineer: s.engineer?.name ?? null,
+              kind: s.kind,
+              purpose: s.purpose,
+            });
             idx = nodes.length - 1;
             if (merge && key) byStation.set(key, idx);
           }
@@ -364,9 +377,9 @@ export function registerRouteTools(
             labels: node ? node.labels : ["return_to"],
             system: places[t]!.system,
             station: places[t]!.station,
-            engineer: node?.stop.engineer?.name ?? null,
-            kind: node ? node.stop.kind : "other",
-            purpose: node ? node.stop.purpose : null,
+            engineer: node?.engineer ?? null,
+            kind: node ? node.kind : "other",
+            purpose: node ? node.purpose : null,
             meets: allChosen.filter((c) => c.option === t).map((c) => c.group),
             jumps: plottedJumps.get(key(f, t)) ?? l.jumps,
             leg_min: min(seconds),

@@ -54,6 +54,12 @@ type Candidate = { fixed: PoolStop } | { group: string; options: PoolStop[] };
 const lc = (s: string) => s.toLowerCase();
 const namesOf = (s: PoolStop) => [s.label, ...s.aliases];
 
+// Purposes of stops that share one place, each part once.
+export function joinPurposes(a: string | null, b: string | null): string | null {
+  const parts = [a, b].flatMap((p) => (p ? p.split("; ") : []));
+  return parts.length ? [...new Set(parts)].join("; ") : null;
+}
+
 export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null): Pool {
   const used = new Set<string>();
   const unique = (label: string): string => {
@@ -86,9 +92,8 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
     if (hit) {
       if (!namesOf(hit).some((n) => lc(n) === lc(name))) hit.aliases.push(unique(name));
       if (input.after) hit.after = [...new Set([...(hit.after ?? []), ...input.after])];
-      if (over.purpose && hit.purpose !== over.purpose) {
-        hit.purpose = hit.purpose ? `${hit.purpose}; ${over.purpose}` : over.purpose;
-      }
+      hit.purpose = joinPurposes(hit.purpose, over.purpose ?? null);
+      if ((over.kind ?? input.kind) === "engineer") hit.kind = "engineer";
       return hit;
     }
     const stop: PoolStop = {

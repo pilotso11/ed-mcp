@@ -154,6 +154,24 @@ describe("route_stops", () => {
     expect(j.stops[0].purpose).toBe("buy");
   });
 
+  it("keeps the engineer when a plan shop at the engineer's base merges with the engineer", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith(
+        [{ system: "Alpha", station: "Farseer Inc", purpose: "buy", kind: "shop" }],
+        engItem,
+      ),
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p" });
+    const j = r.json as Record<string, any>;
+    expect(labels(j)).toEqual(["Farseer Inc+Felicity Farseer"]);
+    expect(j.stops[0]).toMatchObject({
+      engineer: "Felicity Farseer",
+      kind: "engineer",
+      purpose: "buy; Grade 5",
+    });
+  });
+
   it("lets after: [] put a nearby engineer first", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", {

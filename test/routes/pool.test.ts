@@ -51,6 +51,19 @@ describe("buildPool", () => {
     expect(pool.stops[0]).toMatchObject({ kind: "shop", purpose: "buy mats", engineer: null });
   });
 
+  it("joins purposes of merged stops without repeats and keeps the engineer kind", () => {
+    const p = plan({
+      stops: [
+        { system: "Sol", station: "Daedalus", purpose: "a", kind: "shop" },
+        { system: "Sol", station: "Daedalus", purpose: "b", kind: "engineer" },
+        { system: "Sol", station: "Daedalus", purpose: "b", kind: "trader" },
+      ],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops).toHaveLength(1);
+    expect(pool.stops[0]).toMatchObject({ purpose: "a; b", kind: "engineer" });
+  });
+
   it("ignores done and skipped items", () => {
     const p = plan({
       stops: [{ system: "Sol", purpose: "x" }],
