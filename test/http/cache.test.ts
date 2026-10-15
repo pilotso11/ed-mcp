@@ -45,6 +45,26 @@ describe("TtlCache", () => {
     expect(c.get("k")).toBe("new session");
   });
 
+  it("shares a load but does not store a result that keep rejects", async () => {
+    const c = new TtlCache<string>("x", 1000);
+    let loads = 0;
+    let finish!: (v: string) => void;
+    const load = () => {
+      loads++;
+      return new Promise<string>((r) => (finish = r));
+    };
+    const keep = (v: string) => v !== "partial";
+    const a = c.getOrLoad("k", load, { keep });
+    const b = c.getOrLoad("k", load, { keep });
+    finish("partial");
+    expect([await a, await b, loads]).toEqual(["partial", "partial", 1]);
+    expect(c.get("k")).toBeUndefined();
+    const full = c.getOrLoad("k", load, { keep });
+    finish("full");
+    expect(await full).toBe("full");
+    expect(c.get("k")).toBe("full");
+  });
+
   it("reports stats and clears", () => {
     let t = 0;
     const c = new TtlCache<number>("edsm", 60_000, () => t);

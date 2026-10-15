@@ -269,9 +269,10 @@ function pad(s: RawStation): Pad {
 const MAX_JOBS = 100;
 const SEARCH_PAGE_SIZE = 50;
 const CARRIER_TYPE = "Drake-Class Carrier";
-// Spansh has no "not" filter, so carriers are left out by listing every other type
-// (GET /api/stations/field_values/type, 2026-10-14). Near busy systems most market
-// records are carriers, so dropping them after the fetch would leave few stations.
+// Spansh has no "not" filter, so carriers are left out by listing every other type.
+// Near busy systems most market records are carriers, so dropping them after the
+// fetch would leave few stations. The list is loaded from Spansh; this copy
+// (GET /api/stations/field_values/type, 2026-10-14) is used when that fails.
 const NON_CARRIER_TYPES = [
   "Asteroid base",
   "Coriolis Starport",
@@ -654,7 +655,7 @@ export class SpanshClient {
     })) as { near: string; total: number; stations: CommodityHit[] };
   }
 
-  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has, uncached. */
+  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has; a partial result is not cached. */
   async marketStations(
     q: MarketStationsQuery,
     opts: { deadline?: number } = {},
@@ -665,21 +666,47 @@ export class SpanshClient {
     };
     if (q.largePad) filters.has_large_pad = { value: true };
     if (q.planetary === false) filters.is_planetary = { value: false };
-    if (q.fleetCarriers === false) filters.type = { value: NON_CARRIER_TYPES };
     if (q.maxArrivalLs !== undefined) {
       filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
     }
-    const key = `markets:${JSON.stringify(q)}`;
-    const hit = this.marketCache.get(key) as MarketStations | undefined;
-    if (hit) return hit;
+    // Calls that share a key share one search, so the first caller's deadline applies to both.
+    return (await this.marketCache.getOrLoad(
+      `markets:${JSON.stringify(q)}`,
+      async () => {
+        if (q.fleetCarriers === false) filters.type = { value: await this.nonCarrierTypes() };
+        return this.searchMarkets(q, filters, opts.deadline);
+      },
+      { keep: (r) => !(r as MarketStations).partial },
+    )) as MarketStations;
+  }
 
+  private async nonCarrierTypes(): Promise<string[]> {
+    try {
+      return (await this.systemCache.getOrLoad("station-types", async () => {
+        const body = (await this.get("/stations/field_values/type")) as { values?: unknown };
+        const values = Array.isArray(body?.values)
+          ? body.values.filter((v): v is string => typeof v === "string" && v !== CARRIER_TYPE)
+          : [];
+        if (values.length === 0) throw new UserError("Spansh listed no station types");
+        return values;
+      })) as string[];
+    } catch {
+      return NON_CARRIER_TYPES;
+    }
+  }
+
+  private async searchMarkets(
+    q: MarketStationsQuery,
+    filters: Record<string, unknown>,
+    deadline: number | undefined,
+  ): Promise<MarketStations> {
     const stations: MarketStation[] = [];
     let total = 0;
     let droppedOld = 0;
     let loaded = 0;
     let partial = false;
     for (let page = 0; loaded < q.maxStations; page++) {
-      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+      if (page > 0 && deadline !== undefined && this.now() >= deadline) {
         partial = true;
         break;
       }
@@ -722,9 +749,7 @@ export class SpanshClient {
       }
       if (results.length < SEARCH_PAGE_SIZE) break;
     }
-    const result: MarketStations = { near: q.near, total, stations, droppedOld, partial };
-    if (!partial) this.marketCache.set(key, result);
-    return result;
+    return { near: q.near, total, stations, droppedOld, partial };
   }
 
   async stationMarket(marketId: number): Promise<MarketStation> {

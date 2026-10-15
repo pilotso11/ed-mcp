@@ -1,0 +1,36 @@
+{
+  "min_max": {
+    "Asteroid base": 7087,
+    "Coriolis Starport": 42036,
+    "Dockable Planet Station": 1,
+    "Dodec Starport": 8843,
+    "Drake-Class Carrier": 55775,
+    "Mega ship": 281,
+    "Ocellus Starport": 4372,
+    "Orbis Starport": 12872,
+    "Outpost": 122420,
+    "Planetary Construction Depot": 47719,
+    "Planetary Outpost": 79074,
+    "Planetary Port": 5092,
+    "Settlement": 317710,
+    "Space Construction Depot": 46336,
+    "Surface Settlement": 3
+  },
+  "values": [
+    "Asteroid base",
+    "Coriolis Starport",
+    "Dockable Planet Station",
+    "Dodec Starport",
+    "Drake-Class Carrier",
+    "Mega ship",
+    "Ocellus Starport",
+    "Orbis Starport",
+    "Outpost",
+    "Planetary Construction Depot",
+    "Planetary Outpost",
+    "Planetary Port",
+    "Settlement",
+    "Space Construction Depot",
+    "Surface Settlement"
+  ]
+}
