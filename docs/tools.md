@@ -43,7 +43,8 @@ For installation and setup, see the [README](../README.md).
 | `plan_upsert`              | Create or replace a plan                                     |
 | `plan_update_item`         | Update one plan item                                         |
 | `plan_delete`              | Delete a plan                                                |
-| `plan_export`              | Export a plan as Markdown                                    |
+| `plan_export`              | Export a plan as Markdown or JSON                            |
+| `plan_import`              | Load a plan from a JSON file                                 |
 
 ## Material planning
 
