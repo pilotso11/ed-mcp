@@ -162,6 +162,18 @@ describe("Catalog.material", () => {
   });
 });
 
+describe("Catalog.moduleBySymbol", () => {
+  it("finds a symbol ignoring case with its group, and gives null for an unknown one", () => {
+    expect(cat.moduleBySymbol("int_hyperdrive_size5_class5")).toMatchObject({
+      symbol: "Int_Hyperdrive_Size5_Class5",
+      class: 5,
+      rating: "A",
+      group: "fsd",
+    });
+    expect(cat.moduleBySymbol("int_nonsense")).toBeNull();
+  });
+});
+
 describe("Catalog.module", () => {
   it("finds by symbol and by name with the group", () => {
     expect(cat.module("int_hyperdrive_size5_class5")).toEqual({

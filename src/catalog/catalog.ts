@@ -206,6 +206,14 @@ export class Catalog {
     return { ...m, same_group: same, trade_rules: TRADE_RULES };
   }
 
+  /** Exact symbol lookup that never throws, for callers with many symbols. */
+  moduleBySymbol(symbol: string): (OutfittingItem & { group: string | null }) | null {
+    const q = symbol.toLowerCase();
+    const o = this.d.outfitting.find((x) => x.symbol.toLowerCase() === q);
+    if (!o) return null;
+    return { ...o, group: this.d.groups.find((g) => g.names.includes(o.name))?.id ?? null };
+  }
+
   module(query: string): {
     total: number;
     items: Array<OutfittingItem & { group: string | null }>;

@@ -68,11 +68,13 @@ const MODULES: Record<string, any> = {
   hpt_pulselaser_fixed_small: { name: "Pulse Laser", class: 1, rating: "F", group: "PulseLaser" },
 };
 const fakeCatalog = {
-  get: async () => ({
-    module: (sym: string) => {
+  get: async () => {
+    throw new Error("station_info must not download the catalog");
+  },
+  peek: async () => ({
+    moduleBySymbol: (sym: string) => {
       const m = MODULES[sym];
-      if (!m) throw new Error("Unknown module");
-      return { total: 1, items: [{ symbol: sym, ...m }] };
+      return m ? { symbol: sym, ...m } : null;
     },
   }),
 } as unknown as CatalogService;
@@ -106,7 +108,7 @@ async function setup(o: Opts = {}) {
       ? undefined
       : o.catalog === "broken"
         ? ({
-            get: async () => {
+            peek: async () => {
               throw new Error("offline");
             },
           } as unknown as CatalogService)

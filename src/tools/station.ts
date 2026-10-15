@@ -76,24 +76,13 @@ async function modules(
   catalog: CatalogService | undefined,
   notes: string[],
 ): Promise<Module[]> {
-  let cat: Awaited<ReturnType<CatalogService["get"]>> | undefined;
-  try {
-    cat = await catalog?.get();
-  } catch {
-    // Offline and no cached catalog: fall through to the note.
-  }
+  // Never download here: offline, a first catalog fetch stalls each call for ~30 s.
+  const cat = await catalog?.peek().catch(() => null);
   if (!cat) notes.push(NO_CATALOG);
   return list(file.data.Items).flatMap((i) => {
     const symbol = str(i.Name);
     if (!symbol) return [];
-    let found:
-      | { name: string; class: number | null; rating: string | null; group: string | null }
-      | undefined;
-    try {
-      found = cat?.module(symbol).items[0];
-    } catch {
-      // A symbol the catalog does not know stays in the list under its symbol.
-    }
+    const found = cat?.moduleBySymbol(symbol);
     return [
       {
         symbol,
@@ -234,11 +223,11 @@ export function registerStationTools(
                   }
                 : { ...id, groups };
           } else {
-            const list = ships(file);
+            const priced = ships(file);
             out.shipyard =
               part === "all"
-                ? { ...id, ship_count: list.length, ships: list.map((s) => s.name) }
-                : { ...id, ships: list };
+                ? { ...id, ship_count: priced.length, ships: priced.map((s) => s.name) }
+                : { ...id, ships: priced };
           }
         }
         return notes.length ? { ...out, notes } : out;
