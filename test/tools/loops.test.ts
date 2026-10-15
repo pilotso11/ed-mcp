@@ -85,6 +85,8 @@ interface World {
   droppedOld?: number;
   /** A clock that each station search moves on by searchMs. */
   clock?: { t: number; searchMs: number };
+  /** The station search with this index (0 first) returns partial: true. */
+  partialCall?: number;
 }
 
 function fakeSpansh(w: World) {
@@ -103,7 +105,7 @@ function fakeSpansh(w: World) {
       total: w.total ?? hits.length,
       stations: hits.slice(0, q.maxStations),
       droppedOld: w.droppedOld ?? 0,
-      partial: false,
+      partial: marketStations.mock.calls.length - 1 === w.partialCall,
     };
   });
   const stationMarket = vi.fn(async (id: number) => {
@@ -378,6 +380,32 @@ describe("trade_loops", () => {
       "Search stopped early to stay within the time limit; results cover the stations loaded so far.",
     );
     expect(names(j.loops[0])).toEqual(["Alpha Hub", "Start Port"]);
+  });
+
+  it("stops after a band that Spansh cut short and keeps what it loaded", async () => {
+    const gold = [row("Gold", { buy_price: 100, supply: 10_000 })];
+    const sellGold = [row("Gold", { sell_price: 300, demand: 10_000 })];
+    const zulu = st("Zulu Port", "Zulu", [5, 0, 0], gold);
+    const bravo = st("Bravo Port", "Bravo", [0, 30, 0], sellGold);
+    const whisky = st("Whisky Port", "Whisky", [0, 0, -90], []);
+    const { r, j, marketStations } = await loops(
+      {
+        start: "any",
+        max_stations: 4,
+        max_leg_ly: 200,
+        stops: [2],
+        preferences: { travel: { jump_range_ly: 30 } },
+      },
+      { found: [zulu, bravo, whisky], partialCall: 1 },
+      { docked: false },
+    );
+    expect(r.isError).toBe(false);
+    expect(marketStations).toHaveBeenCalledTimes(2);
+    expect(j.notes).toContain(
+      "Search stopped early to stay within the time limit; results cover the stations loaded so far.",
+    );
+    expect(j.loops.map(names)).toEqual([["Bravo Port", "Zulu Port"]]);
+    expect(j.coverage.candidates).toBe(2);
   });
 
   it("says at least 10000 when Spansh caps the count", async () => {

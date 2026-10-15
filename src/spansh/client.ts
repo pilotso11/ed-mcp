@@ -1,7 +1,7 @@
 import { distance } from "fastest-levenshtein";
 import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
-import type { HttpClient, RequestOptions } from "../http/client.js";
+import { HttpError, type HttpClient, type RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
 
 export type StationService =
@@ -269,9 +269,10 @@ function pad(s: RawStation): Pad {
 const MAX_JOBS = 100;
 const SEARCH_PAGE_SIZE = 50;
 const CARRIER_TYPE = "Drake-Class Carrier";
-// Spansh has no "not" filter, so carriers are left out by listing every other type
-// (GET /api/stations/field_values/type, 2026-10-14). Near busy systems most market
-// records are carriers, so dropping them after the fetch would leave few stations.
+// Spansh has no "not" filter, so carriers are left out by listing every other type.
+// Near busy systems most market records are carriers, so dropping them after the
+// fetch would leave few stations. The list is loaded from Spansh; this copy
+// (GET /api/stations/field_values/type, 2026-10-14) is used when that fails.
 const NON_CARRIER_TYPES = [
   "Asteroid base",
   "Coriolis Starport",
@@ -288,6 +289,13 @@ const NON_CARRIER_TYPES = [
   "Space Construction Depot",
   "Surface Settlement",
 ];
+
+/** Spansh has the route job but no result yet; calling again with the same query resumes it. */
+export class RoutePendingError extends UserError {
+  override name = "RoutePendingError";
+}
+
+const CALL_AGAIN = "call spansh_route again in a minute to collect it.";
 
 export class SpanshClient {
   private readonly baseUrl: string;
@@ -467,17 +475,28 @@ export class SpanshClient {
       let delay = 1000;
       for (;;) {
         const left = deadline - this.now();
-        if (left <= 0) {
-          throw new UserError(
-            "Spansh is still plotting this route; call spansh_route again in a minute to collect it.",
-          );
-        }
+        if (left <= 0)
+          throw new RoutePendingError(`Spansh is still plotting this route; ${CALL_AGAIN}`);
         await this.sleep(Math.min(delay, left));
         delay = Math.min(delay * 2, 16_000);
-        // Network and server errors say nothing about the job, so keep its id for the next call.
-        const res = await this.raw(`/results/${job}`);
+        // Network and server errors say nothing about the job, so keep its id and report it as pending.
+        let res: { status: number; body: unknown };
+        try {
+          res = await this.raw(`/results/${job}`);
+        } catch (err) {
+          if (err instanceof HttpError) {
+            throw new RoutePendingError(
+              `Spansh did not answer while plotting this route (${err.message}); ${CALL_AGAIN}`,
+            );
+          }
+          throw err;
+        }
         if (res.status === 202) continue;
-        if (res.status >= 500) throw new SpanshError(res.status, res.body);
+        if (res.status >= 500) {
+          throw new RoutePendingError(
+            `Spansh had a server error while plotting this route (HTTP ${res.status}); ${CALL_AGAIN}`,
+          );
+        }
         this.routeJobs.delete(key);
         const b = res.body as { status?: string; error?: string; result?: RawRoute };
         if (res.status === 200 && b.status === "ok" && b.result) return mapRoute(b.result);
@@ -636,7 +655,7 @@ export class SpanshClient {
     })) as { near: string; total: number; stations: CommodityHit[] };
   }
 
-  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has, uncached. */
+  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has; a partial result is not cached. */
   async marketStations(
     q: MarketStationsQuery,
     opts: { deadline?: number } = {},
@@ -647,21 +666,47 @@ export class SpanshClient {
     };
     if (q.largePad) filters.has_large_pad = { value: true };
     if (q.planetary === false) filters.is_planetary = { value: false };
-    if (q.fleetCarriers === false) filters.type = { value: NON_CARRIER_TYPES };
     if (q.maxArrivalLs !== undefined) {
       filters.distance_to_arrival = { comparison: "<=>", value: [0, q.maxArrivalLs] };
     }
-    const key = `markets:${JSON.stringify(q)}`;
-    const hit = this.marketCache.get(key) as MarketStations | undefined;
-    if (hit) return hit;
+    // Calls that share a key share one search, so the first caller's deadline applies to both.
+    return (await this.marketCache.getOrLoad(
+      `markets:${JSON.stringify(q)}`,
+      async () => {
+        if (q.fleetCarriers === false) filters.type = { value: await this.nonCarrierTypes() };
+        return this.searchMarkets(q, filters, opts.deadline);
+      },
+      { keep: (r) => !(r as MarketStations).partial },
+    )) as MarketStations;
+  }
 
+  private async nonCarrierTypes(): Promise<string[]> {
+    try {
+      return (await this.systemCache.getOrLoad("station-types", async () => {
+        const body = (await this.get("/stations/field_values/type")) as { values?: unknown };
+        const values = Array.isArray(body?.values)
+          ? body.values.filter((v): v is string => typeof v === "string" && v !== CARRIER_TYPE)
+          : [];
+        if (values.length === 0) throw new UserError("Spansh listed no station types");
+        return values;
+      })) as string[];
+    } catch {
+      return NON_CARRIER_TYPES;
+    }
+  }
+
+  private async searchMarkets(
+    q: MarketStationsQuery,
+    filters: Record<string, unknown>,
+    deadline: number | undefined,
+  ): Promise<MarketStations> {
     const stations: MarketStation[] = [];
     let total = 0;
     let droppedOld = 0;
     let loaded = 0;
     let partial = false;
     for (let page = 0; loaded < q.maxStations; page++) {
-      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+      if (page > 0 && deadline !== undefined && this.now() >= deadline) {
         partial = true;
         break;
       }
@@ -704,9 +749,7 @@ export class SpanshClient {
       }
       if (results.length < SEARCH_PAGE_SIZE) break;
     }
-    const result: MarketStations = { near: q.near, total, stations, droppedOld, partial };
-    if (!partial) this.marketCache.set(key, result);
-    return result;
+    return { near: q.near, total, stations, droppedOld, partial };
   }
 
   async stationMarket(marketId: number): Promise<MarketStation> {
@@ -827,7 +870,8 @@ export class SpanshClient {
     try {
       body = text ? parseSpanshJson(text) : undefined;
     } catch {
-      throw new UserError(`Spansh returned invalid JSON (HTTP ${status})`);
+      // Gateways answer 5xx with HTML; the status is the useful part.
+      if (status < 500) throw new UserError(`Spansh returned invalid JSON (HTTP ${status})`);
     }
     return { status, body };
   }

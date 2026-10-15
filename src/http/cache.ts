@@ -59,7 +59,12 @@ export class TtlCache<V> implements Clearable {
     for (const [k, e] of this.entries) if (e.storedAt <= cutoff) this.entries.delete(k);
   }
 
-  async getOrLoad(key: string, load: () => Promise<V>): Promise<V> {
+  /** Callers that run at the same time share one load. A result that `keep` rejects is returned but not stored. */
+  async getOrLoad(
+    key: string,
+    load: () => Promise<V>,
+    opts: { keep?: (v: V) => boolean } = {},
+  ): Promise<V> {
     const hit = this.get(key);
     if (hit !== undefined) return hit;
     const pending = this.inflight.get(key);
@@ -67,7 +72,7 @@ export class TtlCache<V> implements Clearable {
     const gen = this.generation;
     const p = load()
       .then((v) => {
-        if (gen === this.generation) this.set(key, v);
+        if (gen === this.generation && (opts.keep?.(v) ?? true)) this.set(key, v);
         return v;
       })
       .finally(() => {

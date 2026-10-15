@@ -189,7 +189,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
         // Without a catalog the error is not about this item's engineer.
         if (catalog && e instanceof UserError) {
           throw new UserError(
-            `Plan item "${id}" names an unknown engineer: ${e.message} Fix it with plan_upsert.`,
+            `Plan item "${id}" names an unknown engineer: ${e.message.replace(/[.\s]*$/, "")}. Fix it with plan_upsert.`,
           );
         }
         throw e;

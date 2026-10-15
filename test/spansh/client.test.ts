@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
-import { SpanshClient } from "../../src/spansh/client.js";
+import { RoutePendingError, SpanshClient } from "../../src/spansh/client.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
 import { fakeFetch, stalledBody, type FakeRoute } from "../helpers/fakeFetch.js";
@@ -284,9 +284,9 @@ describe("SpanshClient.route", () => {
         respond: () => text("", 502),
       },
     ]);
-    await expect(client.route({ from: "Sol", to: "Colonia", rangeLy: 50 })).rejects.toThrow(
-      /Spansh: HTTP 502/,
-    );
+    const err = await client.route({ from: "Sol", to: "Colonia", rangeLy: 50 }).catch((e) => e);
+    expect(err.message).toMatch(/Spansh: HTTP 502/);
+    expect(err).not.toBeInstanceOf(RoutePendingError);
     expect(f.calls).toHaveLength(1);
   });
 
@@ -332,9 +332,9 @@ describe("SpanshClient.route", () => {
   it("reports an unknown start system", async () => {
     const body = await raw("route-error.json");
     const { client } = make([{ match: () => true, respond: () => text(body, 400) }]);
-    await expect(client.route({ from: "Nowhere", to: "Sol", rangeLy: 50 })).rejects.toThrow(
-      "Spansh: Could not find starting system",
-    );
+    const err = await client.route({ from: "Nowhere", to: "Sol", rangeLy: 50 }).catch((e) => e);
+    expect(err.message).toBe("Spansh: Could not find starting system");
+    expect(err).not.toBeInstanceOf(RoutePendingError);
   });
 
   // The clock advances only when the client sleeps, so deadlines are deterministic.
@@ -369,9 +369,9 @@ describe("SpanshClient.route", () => {
       { match: isSubmit, respond: () => text(submit, 202) },
       { match: () => true, respond: () => text(pending, 202) },
     ]);
-    await expect(client.route({ from: "Sol", to: "Colonia", rangeLy: 50 })).rejects.toThrow(
-      STILL_PLOTTING,
-    );
+    const err = await client.route({ from: "Sol", to: "Colonia", rangeLy: 50 }).catch((e) => e);
+    expect(err).toBeInstanceOf(RoutePendingError);
+    expect(err.message).toBe(STILL_PLOTTING);
     expect(sleeps).toEqual([1000, 2000, 4000, 8000, 16000, 16000, 3000]);
   });
 
@@ -411,9 +411,10 @@ describe("SpanshClient.route", () => {
   });
 
   it.each([
-    ["a network error", () => Promise.reject(new TypeError("fetch failed"))],
-    ["a server error", () => text("", 503)],
-  ])("keeps the job after %s while polling", async (_name, fail) => {
+    ["a network error", () => Promise.reject(new TypeError("fetch failed")), "fetch failed"],
+    ["a server error", () => text("", 503), "HTTP 503"],
+    ["an HTML gateway error", () => text("<html>Bad Gateway</html>", 502), "HTTP 502"],
+  ])("keeps the job after %s while polling and reports it as pending", async (_n, fail, why) => {
     const submit = await raw("route-submit.json");
     const done = await raw("results-route-ok.json");
     let broken = true;
@@ -422,10 +423,22 @@ describe("SpanshClient.route", () => {
       { match: () => true, respond: () => (broken ? fail() : text(done)) },
     ]);
     const q = { from: "Sol", to: "Colonia", rangeLy: 50 };
-    await expect(client.route(q)).rejects.toThrow();
+    const err = await client.route(q).catch((e) => e);
+    expect(err).toBeInstanceOf(RoutePendingError);
+    expect(err.message).toContain(why);
+    expect(err.message).toContain("call spansh_route again");
     broken = false;
     expect(await client.route(q)).toMatchObject({ total_jumps: 128 });
     expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(1);
+  });
+
+  it("reports a network error on submit as a failure, not as pending", async () => {
+    const { client } = makeTimed([
+      { match: isSubmit, respond: () => Promise.reject(new TypeError("fetch failed")) },
+    ]);
+    const err = await client.route({ from: "Sol", to: "Colonia", rangeLy: 50 }).catch((e) => e);
+    expect(err.message).toContain("fetch failed");
+    expect(err).not.toBeInstanceOf(RoutePendingError);
   });
 
   it("keeps job ids for only the 100 most recent unfinished routes", async () => {
@@ -459,7 +472,9 @@ describe("SpanshClient.route", () => {
       },
     ]);
     const q = { from: "Sol", to: "Colonia", rangeLy: 50 };
-    await expect(client.route(q)).rejects.toThrow("Spansh: Job not found");
+    const err = await client.route(q).catch((e) => e);
+    expect(err.message).toBe("Spansh: Job not found");
+    expect(err).not.toBeInstanceOf(RoutePendingError);
     gone = false;
     expect(await client.route(q)).toMatchObject({ total_jumps: 128 });
     expect(f.calls.filter((c) => isSubmit(c.url, c.init))).toHaveLength(2);

@@ -13,17 +13,32 @@ const fixture = async (name: string) =>
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-function make(routes: FakeRoute[], now: () => number = () => NOW) {
+function make(
+  routes: FakeRoute[],
+  now: () => number = () => NOW,
+  caches: { marketCache?: TtlCache<unknown>; systemCache?: TtlCache<unknown> } = {},
+) {
   const f = fakeFetch(routes);
   const client = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
     new TtlCache("spansh", 300_000),
-    { minIntervalMs: 0, now, sleep: async () => {} },
+    { minIntervalMs: 0, now, sleep: async () => {}, ...caches },
   );
   return { client, f };
 }
 
-// The station types Spansh listed on 2026-10-14 (GET /api/stations/field_values/type), less the carrier.
+const isTypes = (u: string) => u.endsWith("/api/stations/field_values/type");
+const isSearch = (u: string) => u.endsWith("/api/stations/search");
+const typesRoute = (respond: () => Response | Promise<Response>): FakeRoute => ({
+  match: isTypes,
+  respond,
+});
+const emptySearch: FakeRoute = {
+  match: isSearch,
+  respond: () => json({ count: 0, results: [] }),
+};
+
+// The station types in the fixture (GET /api/stations/field_values/type), less the carrier.
 const NON_CARRIER_TYPES = [
   "Asteroid base",
   "Coriolis Starport",
@@ -58,9 +73,8 @@ const pageOf = (init?: RequestInit) => JSON.parse(String(init!.body)).page as nu
 
 describe("SpanshClient.marketStations", () => {
   it("sends the station search with filters, sort, size and page", async () => {
-    const { client, f } = make([
-      { match: () => true, respond: () => json({ count: 0, results: [] }) },
-    ]);
+    const types = await fixture("stations-field-values-type.json");
+    const { client, f } = make([typesRoute(() => json(types)), emptySearch]);
     await client.marketStations({
       ...query,
       largePad: true,
@@ -68,9 +82,10 @@ describe("SpanshClient.marketStations", () => {
       fleetCarriers: false,
       maxArrivalLs: 2000,
     });
-    expect(f.calls[0]!.url).toMatch(/\/api\/stations\/search$/);
-    expect(f.calls[0]!.init!.method).toBe("POST");
-    expect(JSON.parse(String(f.calls[0]!.init!.body))).toEqual({
+    expect(f.calls[0]!.url).toMatch(/\/api\/stations\/field_values\/type$/);
+    expect(f.calls[1]!.url).toMatch(/\/api\/stations\/search$/);
+    expect(f.calls[1]!.init!.method).toBe("POST");
+    expect(JSON.parse(String(f.calls[1]!.init!.body))).toEqual({
       filters: {
         distance: { min: 0, max: 30 },
         has_market: { value: true },
@@ -84,6 +99,89 @@ describe("SpanshClient.marketStations", () => {
       page: 0,
       reference_system: "Lave",
     });
+  });
+
+  it("includes station types that Spansh lists now", async () => {
+    const types = await fixture("stations-field-values-type.json");
+    types.values.push("Orbital Elevator");
+    const { client, f } = make([typesRoute(() => json(types)), emptySearch]);
+    await client.marketStations({ ...query, fleetCarriers: false });
+    const sent = JSON.parse(String(f.calls.find((c) => isSearch(c.url))!.init!.body));
+    expect(sent.filters.type.value).toEqual([...NON_CARRIER_TYPES, "Orbital Elevator"]);
+  });
+
+  it("loads the station types once for many searches", async () => {
+    const types = await fixture("stations-field-values-type.json");
+    const { client, f } = make([typesRoute(() => json(types)), emptySearch]);
+    await client.marketStations({ ...query, fleetCarriers: false });
+    await client.marketStations({ ...query, radiusLy: 60, fleetCarriers: false });
+    expect(f.calls.filter((c) => isTypes(c.url))).toHaveLength(1);
+    expect(f.calls.filter((c) => isSearch(c.url))).toHaveLength(2);
+  });
+
+  it("keeps the station types for 24 hours", async () => {
+    let t = NOW;
+    const types = await fixture("stations-field-values-type.json");
+    const systemCache = new TtlCache<unknown>("spansh-systems", 86_400_000, () => t);
+    const { client, f } = make([typesRoute(() => json(types)), emptySearch], () => t, {
+      systemCache,
+      marketCache: new TtlCache("m", 1, () => t),
+    });
+    await client.marketStations({ ...query, fleetCarriers: false });
+    t += 86_400_000 - 1;
+    await client.marketStations({ ...query, fleetCarriers: false });
+    expect(f.calls.filter((c) => isTypes(c.url))).toHaveLength(1);
+    t += 1;
+    await client.marketStations({ ...query, fleetCarriers: false });
+    expect(f.calls.filter((c) => isTypes(c.url))).toHaveLength(2);
+  });
+
+  it.each([
+    ["a server error", () => json({ error: "down" }, 500)],
+    ["a network error", () => Promise.reject(new TypeError("fetch failed"))],
+    ["an unexpected body", () => json({ values: "nope" })],
+  ])("falls back to the built-in station types after %s", async (_name, respond) => {
+    const { client, f } = make([typesRoute(respond), emptySearch]);
+    await client.marketStations({ ...query, fleetCarriers: false });
+    const sent = JSON.parse(String(f.calls.find((c) => isSearch(c.url))!.init!.body));
+    expect(sent.filters.type.value).toEqual(NON_CARRIER_TYPES);
+  });
+
+  it("does not load station types when carriers are allowed", async () => {
+    const { client, f } = make([emptySearch]);
+    await client.marketStations({ ...query, fleetCarriers: true });
+    expect(f.calls.filter((c) => isTypes(c.url))).toHaveLength(0);
+  });
+
+  it("shares one search between identical calls that run at the same time", async () => {
+    const src = await fixture("trade-stations-search-market-sell.json");
+    const { client, f } = make([{ match: isSearch, respond: () => json(src) }]);
+    const [a, b] = await Promise.all([
+      client.marketStations({ ...query, maxStations: 3 }),
+      client.marketStations({ ...query, maxStations: 3 }),
+    ]);
+    expect(b).toBe(a);
+    expect(f.calls).toHaveLength(1);
+  });
+
+  it("does not cache a search that was running when the cache was cleared", async () => {
+    const src = await fixture("trade-stations-search-market-sell.json");
+    const marketCache = new TtlCache<unknown>("spansh-markets", 600_000);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { client, f } = make(
+      [{ match: isSearch, respond: () => gate.then(() => json(src)) }],
+      () => NOW,
+      { marketCache },
+    );
+    const first = client.marketStations({ ...query, maxStations: 3 });
+    // Let the request start before the clear.
+    await new Promise((r) => setTimeout(r, 0));
+    marketCache.clear();
+    release();
+    await first;
+    await client.marketStations({ ...query, maxStations: 3 });
+    expect(f.calls).toHaveLength(2);
   });
 
   it("sends no is_planetary filter when planetary is true", async () => {

@@ -71,6 +71,20 @@ describe("buildPool", () => {
     );
   });
 
+  it("ends the catalog's message with a full stop before the fix hint", () => {
+    const loose = {
+      engineer: (name: string) => {
+        throw new UserError(
+          `Unknown engineer "${name}". Closest: Felicity Farseer, Elvira Martuuk`,
+        );
+      },
+    };
+    const p = plan({ items: [item("fsd", "Nobody")] });
+    expect(() => buildPool({ ...base, plan: p }, loose)).toThrow(
+      'names an unknown engineer: Unknown engineer "Nobody". Closest: Felicity Farseer, Elvira Martuuk. Fix it with plan_upsert.',
+    );
+  });
+
   it("ignores done and skipped items", () => {
     const p = plan({
       stops: [{ system: "Sol", purpose: "x" }],
