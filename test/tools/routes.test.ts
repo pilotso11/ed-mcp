@@ -7,7 +7,7 @@ import type { CatalogService } from "../../src/catalog/service.js";
 import { UserError } from "../../src/errors.js";
 import type { JournalService } from "../../src/journal/service.js";
 import { PlanStore } from "../../src/plans/store.js";
-import type { SpanshClient, SystemInfo } from "../../src/spansh/client.js";
+import { RoutePendingError, type SpanshClient, type SystemInfo } from "../../src/spansh/client.js";
 import { registerPlanTools } from "../../src/tools/plans.js";
 import { registerRouteTools } from "../../src/tools/routes.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
@@ -469,8 +469,7 @@ describe("route_stops", () => {
         const key = `${q.from}>${q.to}`.toLowerCase();
         calls.push(key);
         const n = jumps[key];
-        if (n === undefined)
-          throw new UserError("Spansh is still plotting this route; call again.");
+        if (n === undefined) throw new RoutePendingError("Spansh is still plotting this route.");
         return { total_jumps: n };
       };
     };
@@ -597,6 +596,26 @@ describe("route_stops", () => {
       expect(budgets).toEqual([40_000, 10_000]);
       expect(j.stops.map((s: any) => s.plotted)).toEqual([true, true, false]);
       expect(j.notes).toContain("Spansh is still plotting; call again to finish.");
+    });
+
+    it("treats any pending error as unfinished, whatever its wording", async () => {
+      const { j } = await run({ stops: [alpha, beta], plot: true }, async (q) => {
+        if (q.to === "Beta") throw new RoutePendingError("Spansh did not answer (HTTP 503).");
+        return { total_jumps: 1 };
+      });
+      expect(j.stops.map((s: any) => s.plotted)).toEqual([true, false]);
+      expect(j.notes).toContain("Spansh is still plotting; call again to finish.");
+      expect(j.notes.some((n: string) => n.startsWith("Spansh could not plot"))).toBe(false);
+    });
+
+    it("does not treat a plain error that says still plotting as pending", async () => {
+      const { j } = await run({ stops: [alpha], plot: true }, async () => {
+        throw new UserError("Spansh is still plotting nothing");
+      });
+      expect(j.notes).not.toContain("Spansh is still plotting; call again to finish.");
+      expect(j.notes).toContain(
+        "Spansh could not plot the leg to AlphaShop: Spansh is still plotting nothing; the estimate is used.",
+      );
     });
 
     it("notes a leg Spansh cannot plot and does not ask to call again", async () => {

@@ -12,7 +12,7 @@ import { refuelsFor } from "../stations/travel.js";
 import { findCycle } from "../routes/optimise.js";
 import { buildPool, joinPurposes, type PoolStop, type StopEntry } from "../routes/pool.js";
 import { countCombinations, solveRoute } from "../routes/solve.js";
-import type { SpanshClient } from "../spansh/client.js";
+import { RoutePendingError, type SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { wrap } from "./result.js";
@@ -324,7 +324,7 @@ export function registerRouteTools(
             } catch (e) {
               const message = e instanceof Error ? e.message : String(e);
               // Only a pending job is worth another call; other failures keep the estimate.
-              if (e instanceof UserError && message.startsWith("Spansh is still plotting")) {
+              if (e instanceof RoutePendingError) {
                 unfinished.add(k);
               } else {
                 failed.set(k, message.replace(/\.$/, ""));

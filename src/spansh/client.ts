@@ -1,7 +1,7 @@
 import { distance } from "fastest-levenshtein";
 import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
-import type { HttpClient, RequestOptions } from "../http/client.js";
+import { HttpError, type HttpClient, type RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
 
 export type StationService =
@@ -289,6 +289,13 @@ const NON_CARRIER_TYPES = [
   "Surface Settlement",
 ];
 
+/** Spansh has the route job but no result yet; calling again with the same query resumes it. */
+export class RoutePendingError extends UserError {
+  override name = "RoutePendingError";
+}
+
+const CALL_AGAIN = "call spansh_route again in a minute to collect it.";
+
 export class SpanshClient {
   private readonly baseUrl: string;
   private readonly minIntervalMs: number;
@@ -467,17 +474,28 @@ export class SpanshClient {
       let delay = 1000;
       for (;;) {
         const left = deadline - this.now();
-        if (left <= 0) {
-          throw new UserError(
-            "Spansh is still plotting this route; call spansh_route again in a minute to collect it.",
-          );
-        }
+        if (left <= 0)
+          throw new RoutePendingError(`Spansh is still plotting this route; ${CALL_AGAIN}`);
         await this.sleep(Math.min(delay, left));
         delay = Math.min(delay * 2, 16_000);
-        // Network and server errors say nothing about the job, so keep its id for the next call.
-        const res = await this.raw(`/results/${job}`);
+        // Network and server errors say nothing about the job, so keep its id and report it as pending.
+        let res: { status: number; body: unknown };
+        try {
+          res = await this.raw(`/results/${job}`);
+        } catch (err) {
+          if (err instanceof HttpError) {
+            throw new RoutePendingError(
+              `Spansh did not answer while plotting this route (${err.message}); ${CALL_AGAIN}`,
+            );
+          }
+          throw err;
+        }
         if (res.status === 202) continue;
-        if (res.status >= 500) throw new SpanshError(res.status, res.body);
+        if (res.status >= 500) {
+          throw new RoutePendingError(
+            `Spansh had a server error while plotting this route (HTTP ${res.status}); ${CALL_AGAIN}`,
+          );
+        }
         this.routeJobs.delete(key);
         const b = res.body as { status?: string; error?: string; result?: RawRoute };
         if (res.status === 200 && b.status === "ok" && b.result) return mapRoute(b.result);
@@ -827,7 +845,8 @@ export class SpanshClient {
     try {
       body = text ? parseSpanshJson(text) : undefined;
     } catch {
-      throw new UserError(`Spansh returned invalid JSON (HTTP ${status})`);
+      // Gateways answer 5xx with HTML; the status is the useful part.
+      if (status < 500) throw new UserError(`Spansh returned invalid JSON (HTTP ${status})`);
     }
     return { status, body };
   }
