@@ -185,7 +185,7 @@ export interface MarketStation {
   type: string | null;
   planetary: boolean;
   market_age_hours: number | null;
-  /** Rows with supply or demand only. */
+  /** Spansh rows have supply or demand. Rows swapped in from the journal can list a commodity with neither. */
   market: MarketRow[];
 }
 
