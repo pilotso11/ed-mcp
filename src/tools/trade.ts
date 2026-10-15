@@ -49,7 +49,8 @@ export function registerTradeTools(
   // The station file is optional; a journal that cannot be read leaves the Spansh data as is.
   const withLocalPrices = async (
     hits: CommodityHit[],
-    a: { commodity: string; mode: "sell" | "buy" },
+    a: { commodity: string; mode: "sell" | "buy"; amount?: number },
+    notes: string[],
   ): Promise<{ hits: CommodityHit[]; journalIds: Set<number | null> }> => {
     const journalIds = new Set<number | null>();
     const local = await deps.journal?.localMarket().catch(() => null);
@@ -58,18 +59,27 @@ export function registerTradeTools(
     if (!local || !row || Number.isNaN(localAt)) return { hits, journalIds };
     return {
       journalIds,
-      hits: hits.map((h) => {
-        if (h.market_id !== local.market_id) return h;
+      hits: hits.flatMap((h) => {
+        if (h.market_id !== local.market_id) return [h];
         const spanshAt = h.market_updated_at ? Date.parse(h.market_updated_at) : NaN;
-        if (!Number.isNaN(spanshAt) && spanshAt >= localAt) return h;
+        if (!Number.isNaN(spanshAt) && spanshAt >= localAt) return [h];
+        // The newer file says the station fails the stock rule that Spansh applied to old data.
+        if ((a.mode === "sell" ? row.demand : row.supply) < (a.amount ?? 1)) {
+          notes.push(
+            `${h.name} no longer ${a.mode === "sell" ? "buys" : "sells"} ${a.commodity} (journal, ${local.updated_at}).`,
+          );
+          return [];
+        }
         journalIds.add(h.market_id);
-        return {
-          ...h,
-          price: a.mode === "sell" ? row.sell_price : row.buy_price,
-          supply: row.supply,
-          demand: row.demand,
-          market_updated_at: local.updated_at,
-        };
+        return [
+          {
+            ...h,
+            price: a.mode === "sell" ? row.sell_price : row.buy_price,
+            supply: row.supply,
+            demand: row.demand,
+            market_updated_at: local.updated_at,
+          },
+        ];
       }),
     };
   };
@@ -311,7 +321,7 @@ export function registerTradeTools(
           maxAgeDays: a.max_price_age_days,
           minStock: a.amount ?? 1,
         });
-        const { hits, journalIds } = await withLocalPrices(found.stations, a);
+        const { hits, journalIds } = await withLocalPrices(found.stations, a, notes);
         const ranked = rankCommodityStations(
           hits,
           a.mode,

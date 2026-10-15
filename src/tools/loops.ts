@@ -4,7 +4,7 @@ import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import { createPlacer, legBetween, STATION_LIMIT, type Place } from "../routes/legs.js";
+import { createPlacer, legBetween, PLANETARY, STATION_LIMIT, type Place } from "../routes/legs.js";
 import type {
   MarketStation,
   MarketStationsQuery,
@@ -292,7 +292,7 @@ export function registerLoopTools(
                     coords: info.coords,
                     pad: entry.pad,
                     type: entry.type,
-                    planetary: false,
+                    planetary: PLANETARY.test(entry.type ?? ""),
                     market_age_hours: null,
                     market: [],
                   }

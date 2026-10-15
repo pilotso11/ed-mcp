@@ -676,11 +676,11 @@ describe("commodity_prices with the local market", () => {
     supply: 0,
     demand: 777,
   });
-  const run = async (o: Parameters<typeof commodity>[0]) => {
+  const run = async (o: Parameters<typeof commodity>[0], mode: "sell" | "buy" = "sell") => {
     const { client } = commodity(o);
     const r = await callTool(await client, "commodity_prices", {
       commodity: "Bauxite",
-      mode: "sell",
+      mode,
       near: "Lave",
       preferences: open,
     });
@@ -734,5 +734,35 @@ describe("commodity_prices with the local market", () => {
     const j = await run({ localBroken: true });
     expect(j.stations.map((s: any) => s.name)[0]).toBe("Janes Horizons");
     expect(j.stations.every((s: any) => s.price_source === "spansh")).toBe(true);
+  });
+
+  it("drops a stale Spansh hit that the local file shows has no stock to buy", async () => {
+    const j = await run(
+      {
+        local: {
+          market_id: FERRARO,
+          updated_at: "2026-10-13T06:00:00Z",
+          rows: [{ ...bauxite(0), demand: 777, supply: 0 }],
+        },
+      },
+      "buy",
+    );
+    expect(j.stations.map((s: any) => s.name)).not.toContain("Ferraro Control");
+    expect(j.recommended.name).not.toBe("Ferraro Control");
+    expect(j.notes).toContain(
+      "Ferraro Control no longer sells Bauxite (journal, 2026-10-13T06:00:00Z).",
+    );
+  });
+
+  it("swaps in the local row when Spansh has no update time", async () => {
+    const body = JSON.parse(fixture("trade-stations-search-market-sell.json"));
+    for (const s of body.results) {
+      if (s.market_id === FERRARO) delete s.market_updated_at;
+    }
+    const j = await run({
+      body: JSON.stringify(body),
+      local: { market_id: FERRARO, updated_at: "2026-10-13T06:00:00Z", rows: [bauxite(20000)] },
+    });
+    expect(byName(j, "Ferraro Control")).toMatchObject({ price: 20000, price_source: "journal" });
   });
 });
