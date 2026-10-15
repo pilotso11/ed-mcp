@@ -20,7 +20,7 @@ Spec: `docs/superpowers/specs/2026-10-15-station-info-design.md`.
   - `No <part> data. Open the <part> screen at a station first.`
   - `<Part> last opened at <station> (<system>), not the station where you are docked.`
   - `<Part> data is <n> hours old.` (when older than 24 h)
-  - `Module names need the game data catalog.`
+  - `Module names need the game data catalog. Call any catalog tool (for example catalog_module) or cache_refresh with source "catalog".`
   - `Start station prices come from your journal (as of <time>).`
 - `vs_mean_pct = round((price − mean) / mean × 100)`, or null when the mean is 0.
 - A file that is missing or invalid counts as not available. Reading never throws. Reading never writes to the journal folder.
@@ -42,7 +42,7 @@ Spec: `docs/superpowers/specs/2026-10-15-station-info-design.md`.
   stationFile(kind: StationFile["kind"]): Promise<StationFile | null>
   localMarket(): Promise<{ market_id: number; station: string; system: string; updated_at: string; rows: MarketRow[] } | null>   // MarketRow from src/spansh/client.ts
   ```
-- The tool follows the spec's input, output and notes. For module names, read how `catalog_module` resolves a symbol (`src/tools/catalog.ts`, `src/catalog/catalog.ts`) and use the same method on the `Catalog` from `deps.catalog.get()`. If loading the catalog fails or there is no catalog, add the "Module names need the game data catalog." note.
+- The tool follows the spec's input, output and notes. For module names, read how `catalog_module` resolves a symbol (`src/tools/catalog.ts`, `src/catalog/catalog.ts`) and use the same method on the `Catalog` from `deps.catalog.get()`. If loading the catalog fails or there is no catalog, add the "Module names need the game data catalog. Call any catalog tool (for example catalog_module) or cache_refresh with source "catalog"." note.
 - The docked station comes from `journal.state()` (`location.docked`, `location.station`). A failure to read the state only drops the other-station note.
 
 - [ ] **Step 1: Tests first:**

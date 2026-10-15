@@ -36,7 +36,7 @@ Input: `{ part?: "all" | "market" | "outfitting" | "shipyard", commodity?: strin
 
 - **`market`:**
   - `sells`: rows with `Stock > 0` and `BuyPrice > 0`, sorted by category, then name.
-  - `buys`: rows with `Demand > 0`, sorted the same way.
+  - `buys`: rows with demand, sorted the same way. Demand counts only when `DemandBracket > 0`, or, without a bracket, when `Demand > 1`: the game writes `Demand: 1, DemandBracket: 0` for goods that the station only exports.
   - Each row has `name`, `category`, `buy_price` or `sell_price`, `stock` or `demand`, `mean_price`, and `vs_mean_pct`: `round((price − mean) / mean × 100)`, or null when `MeanPrice` is 0.
   - `commodity` filters both lists to a name match that ignores case.
 - **`outfitting`:**
@@ -44,12 +44,14 @@ Input: `{ part?: "all" | "market" | "outfitting" | "shipyard", commodity?: strin
   - Modules are grouped by group, then sorted by class and rating.
   - `search` keeps modules whose name, group, symbol or `<class><rating>` (for example "5A") contains the text, ignoring case.
   - A symbol that the catalog does not know is kept, with its symbol as the name and null class and rating.
-  - Without a catalog, symbols are kept and a note says "Module names need the game data catalog."
+  - Without a catalog, symbols are kept and a note says "Module names need the game data catalog. Call any catalog tool (for example catalog_module) or cache_refresh with source "catalog"."
 - **`shipyard`:** `ships` with `name` and `price`, sorted by price.
 - **`all`:** a summary of each available part:
   - market: the counts, plus the top 5 sells and top 5 buys by `vs_mean_pct`;
   - outfitting: the module count, plus the count per group;
-  - shipyard: the ship count, plus the ship names.
+  - shipyard: the ship count, plus each ship as "Name (price cr)".
+  - `commodity` and `search` also apply to the summary.
+- A ship without `ShipType_Localised` gets its symbol in title case ("empire_courier" gives "Empire Courier").
 
 **Notes:**
 
@@ -59,14 +61,15 @@ Input: `{ part?: "all" | "market" | "outfitting" | "shipyard", commodity?: strin
 
 ## Fresher prices in other tools
 
-`JournalService.localMarket(): Promise<{ market_id, station, system, updated_at: string, rows: MarketRow[] } | null>` maps `Market.json` to the `MarketRow` shape from `src/spansh/client.ts`: `{ commodity, buy_price, sell_price, supply: Stock, demand: Demand }`, with rows that have neither stock nor demand dropped.
+`JournalService.localMarket(): Promise<{ market_id, station, system, updated_at: string, rows: MarketRow[] } | null>` maps `Market.json` to the `MarketRow` shape from `src/spansh/client.ts`: `{ commodity, buy_price, sell_price, supply: Stock, demand }`, with demand by the same rule as `station_info`. Rows with neither stock nor demand stay, so that the tools can tell a listed commodity from one the file does not list.
 
 - **`commodity_prices`:**
   - For a station in the results whose `market_id` matches the local market, and whose Spansh `market_updated_at` is older than the local `timestamp`, the tool takes the commodity's price, supply and demand from the local file.
   - Each station gets `price_source: "journal" | "spansh"`.
+  - If the local file lists the commodity but the station fails the stock rule (including no stock and no demand), the hit is dropped with a "no longer buys/sells" note.
   - If the commodity is not in the local file, the Spansh row stays.
   - Ranking runs after the swap.
-- **`trade_loops`:** when the start station's market id matches the local market and the local file is newer, the tool uses the local market for the start station and makes no `stationMarket` call. The note `Start station prices come from your journal (as of <time>).` says so.
+- **`trade_loops`:** when the start station's market id matches the local market and the local file is newer, the tool uses the local market for the start station. When the search did not return the start station, the tool skips `stationMarket` only if the local file is within `max_price_age_days`; otherwise it asks Spansh and compares the two. The note `Start station prices come from your journal (as of <time>).` says so. Local names are matched to the candidate markets' names, ignoring case. If fewer than half of the local rows with stock or demand match, Spansh prices are used, with the note `Local market names do not match Spansh; using Spansh prices for the start station.`
 - **Errors:** a journal that cannot be read changes nothing. Both tools work as before.
 
 ## Out of scope
