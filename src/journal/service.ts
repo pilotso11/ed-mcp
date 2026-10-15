@@ -280,18 +280,16 @@ export class JournalService {
       : [];
     const num = (v: unknown) => (typeof v === "number" ? v : 0);
     const rows: MarketRow[] = [];
+    // Rows with no stock or demand stay: they show that the station lists the commodity.
     for (const i of items) {
-      const supply = num(i.Stock);
-      const demand = num(i.Demand);
-      if (supply <= 0 && demand <= 0) continue;
       const name = i.Name_Localised ?? i.Name;
       if (typeof name !== "string") continue;
       rows.push({
         commodity: name,
         buy_price: num(i.BuyPrice),
         sell_price: num(i.SellPrice),
-        supply,
-        demand,
+        supply: num(i.Stock),
+        demand: marketDemand(i),
       });
     }
     return {
@@ -313,6 +311,13 @@ export class JournalService {
       return null;
     }
   }
+}
+
+// The game writes Demand 1 with DemandBracket 0 for goods that the station only exports.
+export function marketDemand(item: Record<string, unknown>): number {
+  const demand = typeof item.Demand === "number" ? item.Demand : 0;
+  if (typeof item.DemandBracket === "number") return item.DemandBracket > 0 ? demand : 0;
+  return demand > 1 ? demand : 0;
 }
 
 // The game keeps settings in AppData and the journal in Saved Games; both folders are named

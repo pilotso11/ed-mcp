@@ -11,6 +11,9 @@ import { ev, writeJournal } from "../helpers/journal.js";
 
 const NOW = Date.parse("2026-10-15T12:00:00Z");
 const STAMP = "2026-10-15T11:30:00Z";
+const NO_CATALOG =
+  "Module names need the game data catalog. Call any catalog tool (for example catalog_module) " +
+  'or cache_refresh with source "catalog".';
 const head = { timestamp: STAMP, MarketID: 3228, StarSystem: "Sol" };
 
 const item = (name: string, category: string, o: Record<string, unknown>) => ({
@@ -177,6 +180,21 @@ describe("station_info market", () => {
     ]);
   });
 
+  it("ignores the demand of 1 that the game writes for exported goods", async () => {
+    const odd = {
+      ...market,
+      Items: [
+        item("Palladium", "Metals", { BuyPrice: 50, Stock: 323, Demand: 1, DemandBracket: 0 }),
+        item("Water", "Chemicals", { SellPrice: 300, Demand: 3, DemandBracket: 2 }),
+        item("Beer", "Foods", { SellPrice: 200, Demand: 1 }),
+        item("Wine", "Foods", { SellPrice: 250, Demand: 2 }),
+      ],
+    };
+    const r = await run({ part: "market" }, { files: { "Market.json": odd } });
+    expect(r.market.sells.map((x: any) => x.name)).toEqual(["Palladium"]);
+    expect(r.market.buys.map((x: any) => x.name)).toEqual(["Water", "Wine"]);
+  });
+
   it("filters by commodity, ignoring case", async () => {
     const r = await run({ part: "market", commodity: "gOLD" });
     expect(r.market.sells.map((x: any) => x.name)).toEqual(["Gold"]);
@@ -255,7 +273,7 @@ describe("station_info outfitting", () => {
 
   it("keeps symbols and adds a note without a catalog", async () => {
     const r = await run({ part: "outfitting" }, { catalog: "none" });
-    expect(r.notes).toContain("Module names need the game data catalog.");
+    expect(r.notes).toContain(NO_CATALOG);
     const mods = r.outfitting.groups.flatMap((g: any) => g.modules);
     expect(mods).toHaveLength(4);
     expect(mods[0]).toMatchObject({ name: mods[0].symbol, class: null, rating: null });
@@ -263,7 +281,7 @@ describe("station_info outfitting", () => {
 
   it("adds the same note when the catalog fails to load", async () => {
     const r = await run({ part: "outfitting" }, { catalog: "broken" });
-    expect(r.notes).toContain("Module names need the game data catalog.");
+    expect(r.notes).toContain(NO_CATALOG);
   });
 });
 
@@ -272,9 +290,15 @@ describe("station_info shipyard", () => {
     const r = await run({ part: "shipyard" });
     expect(r.shipyard.ships).toEqual([
       { name: "Sidewinder", price: 5 },
-      { name: "python", price: 90 },
+      { name: "Python", price: 90 },
       { name: "Imperial Cutter", price: 200 },
     ]);
+  });
+
+  it("title-cases a symbol with more than one word", async () => {
+    const yard = { ...shipyard, PriceList: [{ id: 1, ShipType: "empire_courier", ShipPrice: 9 }] };
+    const r = await run({ part: "shipyard" }, { files: { "Shipyard.json": yard } });
+    expect(r.shipyard.ships).toEqual([{ name: "Empire Courier", price: 9 }]);
   });
 });
 
@@ -289,7 +313,30 @@ describe("station_info all", () => {
     expect(r.outfitting.module_count).toBe(4);
     expect(r.outfitting.groups).toEqual({ FSD: 2, PulseLaser: 1, Other: 1 });
     expect(r.shipyard.ship_count).toBe(3);
-    expect(r.shipyard.ships).toEqual(["Sidewinder", "python", "Imperial Cutter"]);
+    expect(r.shipyard.ships).toEqual([
+      "Sidewinder (5 cr)",
+      "Python (90 cr)",
+      "Imperial Cutter (200 cr)",
+    ]);
+  });
+
+  it("applies commodity and search to the summary", async () => {
+    const r = await run({ commodity: "gold", search: "fsd" });
+    expect(r.market).toMatchObject({ sells_count: 1, buys_count: 0, top_buys: [] });
+    expect(r.market.top_sells.map((x: any) => x.name)).toEqual(["Gold"]);
+    expect(r.outfitting).toMatchObject({ module_count: 2, groups: { FSD: 2 } });
+  });
+
+  it("tells ships of the same name apart by price", async () => {
+    const yard = {
+      ...shipyard,
+      PriceList: [
+        { id: 1, ShipType: "python", ShipPrice: 1_000_000 },
+        { id: 2, ShipType: "python", ShipPrice: 990_000 },
+      ],
+    };
+    const r = await run({ part: "all" }, { files: { "Shipyard.json": yard } });
+    expect(r.shipyard.ships).toEqual(["Python (990,000 cr)", "Python (1,000,000 cr)"]);
   });
 
   it("caps the top lists at 5", async () => {

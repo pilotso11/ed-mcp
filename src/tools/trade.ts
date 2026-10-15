@@ -51,8 +51,8 @@ export function registerTradeTools(
     hits: CommodityHit[],
     a: { commodity: string; mode: "sell" | "buy"; amount?: number },
     notes: string[],
-  ): Promise<{ hits: CommodityHit[]; journalIds: Set<number | null> }> => {
-    const journalIds = new Set<number | null>();
+  ): Promise<{ hits: CommodityHit[]; journalIds: Set<number> }> => {
+    const journalIds = new Set<number>();
     const local = await deps.journal?.localMarket().catch(() => null);
     const row = local?.rows.find((r) => r.commodity.toLowerCase() === a.commodity.toLowerCase());
     const localAt = Date.parse(local?.updated_at ?? "");
@@ -70,7 +70,7 @@ export function registerTradeTools(
           );
           return [];
         }
-        journalIds.add(h.market_id);
+        journalIds.add(local.market_id);
         return [
           {
             ...h,
@@ -349,7 +349,8 @@ export function registerTradeTools(
           matched: ranked.stations.length,
           stations: ranked.stations.slice(0, a.limit).map((st) => ({
             ...st,
-            price_source: journalIds.has(st.market_id) ? "journal" : "spansh",
+            price_source:
+              st.market_id !== null && journalIds.has(st.market_id) ? "journal" : "spansh",
           })),
           recommended: ranked.recommended,
           relaxed: ranked.relaxed,

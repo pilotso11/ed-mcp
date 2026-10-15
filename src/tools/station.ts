@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CatalogService } from "../catalog/service.js";
 import { UserError } from "../errors.js";
-import type { JournalService, StationFile } from "../journal/service.js";
+import { marketDemand, type JournalService, type StationFile } from "../journal/service.js";
 import { wrap } from "./result.js";
 
 type Kind = StationFile["kind"];
@@ -11,7 +11,9 @@ type Obj = Record<string, unknown>;
 const KINDS: Kind[] = ["market", "outfitting", "shipyard"];
 const OLD_HOURS = 24;
 const TOP = 5;
-const NO_CATALOG = "Module names need the game data catalog.";
+const NO_CATALOG =
+  "Module names need the game data catalog. Call any catalog tool (for example catalog_module) " +
+  'or cache_refresh with source "catalog".';
 
 interface Module {
   symbol: string;
@@ -23,6 +25,7 @@ interface Module {
 }
 
 const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
+const titleCase = (symbol: string) => symbol.split("_").filter(Boolean).map(cap).join(" ");
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
 const list = (v: unknown): Obj[] => (Array.isArray(v) ? (v as Obj[]) : []);
@@ -53,12 +56,12 @@ function marketRows(file: StationFile, commodity?: string) {
       vs_mean_pct: vsMean(num(r.i.BuyPrice), num(r.i.MeanPrice)),
     }));
   const buys = rows
-    .filter((r) => num(r.i.Demand) > 0)
+    .filter((r) => marketDemand(r.i) > 0)
     .map((r) => ({
       name: r.name,
       category: r.category,
       sell_price: num(r.i.SellPrice),
-      demand: num(r.i.Demand),
+      demand: marketDemand(r.i),
       mean_price: num(r.i.MeanPrice),
       vs_mean_pct: vsMean(num(r.i.SellPrice), num(r.i.MeanPrice)),
     }));
@@ -125,7 +128,7 @@ function groupModules(mods: Module[]) {
 function ships(file: StationFile) {
   return list(file.data.PriceList)
     .map((s) => ({
-      name: str(s.ShipType_Localised) ?? str(s.ShipType) ?? "?",
+      name: str(s.ShipType_Localised) ?? titleCase(str(s.ShipType) ?? "?"),
       price: num(s.ShipPrice),
     }))
     .sort((a, b) => a.price - b.price);
@@ -226,7 +229,12 @@ export function registerStationTools(
             const priced = ships(file);
             out.shipyard =
               part === "all"
-                ? { ...id, ship_count: priced.length, ships: priced.map((s) => s.name) }
+                ? {
+                    ...id,
+                    ship_count: priced.length,
+                    // A station can sell two ships of one type at different prices.
+                    ships: priced.map((s) => `${s.name} (${s.price.toLocaleString("en-US")} cr)`),
+                  }
                 : { ...id, ships: priced };
           }
         }

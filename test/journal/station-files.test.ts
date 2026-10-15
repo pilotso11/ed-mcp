@@ -62,7 +62,7 @@ describe("JournalService.stationFile", () => {
 });
 
 describe("JournalService.localMarket", () => {
-  it("maps items to market rows and drops rows with no stock or demand", async () => {
+  it("maps items to market rows and keeps rows with no stock or demand", async () => {
     const d = await dir({
       "Market.json": {
         ...head,
@@ -103,8 +103,29 @@ describe("JournalService.localMarket", () => {
       rows: [
         { commodity: "Gold", buy_price: 100, sell_price: 90, supply: 5, demand: 0 },
         { commodity: "Tea", buy_price: 0, sell_price: 7, supply: 0, demand: 9 },
+        { commodity: "Sugar", buy_price: 1, sell_price: 1, supply: 0, demand: 0 },
       ],
     });
+  });
+
+  it("gives no demand for the demand of 1 that the game writes for exported goods", async () => {
+    const d = await dir({
+      "Market.json": {
+        ...head,
+        Items: [
+          { Name_Localised: "Palladium", BuyPrice: 50, Stock: 323, Demand: 1, DemandBracket: 0 },
+          { Name_Localised: "Water", SellPrice: 300, Stock: 0, Demand: 3, DemandBracket: 2 },
+          { Name_Localised: "Beer", SellPrice: 200, Stock: 0, Demand: 1 },
+          { Stock: 5, Demand: 5 },
+        ],
+      },
+    });
+    const m = await new JournalService(d, { now: () => NOW }).localMarket();
+    expect(m?.rows.map((r) => [r.commodity, r.demand])).toEqual([
+      ["Palladium", 0],
+      ["Water", 3],
+      ["Beer", 0],
+    ]);
   });
 
   it("gives null without a market file", async () => {

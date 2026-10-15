@@ -754,6 +754,20 @@ describe("commodity_prices with the local market", () => {
     );
   });
 
+  it("drops a stale Spansh hit for a commodity that the local file lists with no demand", async () => {
+    const j = await run({
+      local: {
+        market_id: FERRARO,
+        updated_at: "2026-10-13T06:00:00Z",
+        rows: [{ ...bauxite(20000), demand: 0 }],
+      },
+    });
+    expect(j.stations.map((s: any) => s.name)).not.toContain("Ferraro Control");
+    expect(j.notes).toContain(
+      "Ferraro Control no longer buys Bauxite (journal, 2026-10-13T06:00:00Z).",
+    );
+  });
+
   it("swaps in the local row when Spansh has no update time", async () => {
     const body = JSON.parse(fixture("trade-stations-search-market-sell.json"));
     for (const s of body.results) {
