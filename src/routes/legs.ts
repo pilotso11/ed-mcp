@@ -13,7 +13,7 @@ export interface Place {
 }
 
 // Spansh system records carry no planetary flag, only the station type.
-const PLANETARY = /planetary|surface|settlement/i;
+export const PLANETARY = /planetary|surface|settlement/i;
 
 const same = (a: string | null, b: string | null) =>
   a !== null && b !== null && a.toLowerCase() === b.toLowerCase();

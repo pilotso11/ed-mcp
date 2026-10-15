@@ -20,6 +20,7 @@ For installation and setup, see the [README](../README.md).
 | `journal_materials`        | Materials held, by kind, from the journal                    |
 | `journal_missions`         | Accepted missions (active and complete), soonest expiry first |
 | `journal_engineers`        | Engineer progress from the journal                           |
+| `station_info`             | Market, outfitting and shipyard of the last station you opened |
 | `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
 | `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
@@ -154,7 +155,7 @@ Inputs (all optional):
 - `limit`: loops to return, 1 to 30. The default is 10.
 - `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
 
-The tool searches Spansh for stations with a market within `radius_ly` of `near`, nearest first. With `"here"`, it loads the nearest `max_stations`. With `"any"`, it splits `radius_ly` into 4 equal distance bands and loads the nearest quarter of `max_stations` in each band, so the stations around a busy centre cannot take every place. A band with fewer stations leaves its places empty. Stations with prices older than `max_price_age_days` are left out. If the start station's market comes from a separate lookup and is older than `max_price_age_days`, a note says so.
+The tool searches Spansh for stations with a market within `radius_ly` of `near`, nearest first. With `"here"`, it loads the nearest `max_stations`. With `"any"`, it splits `radius_ly` into 4 equal distance bands and loads the nearest quarter of `max_stations` in each band, so the stations around a busy centre cannot take every place. A band with fewer stations leaves its places empty. Stations with prices older than `max_price_age_days` are left out. If the start station's market comes from a separate lookup and is older than `max_price_age_days`, a note says so. With `"here"`, if the start station is the one in your local `Market.json` and the file is newer than the Spansh record, the tool uses the file for the start prices. If the search did not find the start station and the file is within `max_price_age_days`, the tool uses the file and does not ask Spansh for that market. The note is "Start station prices come from your journal (as of <time>)." The file has the names from your game language. The tool matches them to the Spansh names, ignoring case. If fewer than half of the file's commodities with stock or demand match, the tool uses Spansh prices, and the note is "Local market names do not match Spansh; using Spansh prices for the start station." A file that cannot be read is ignored.
 
 Loading stops about 40 s after the call starts, so that the client does not time out. The note "Search stopped early to stay within the time limit; results cover the stations loaded so far." then says that the loops use only the stations loaded so far.
 
@@ -183,11 +184,32 @@ The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your t
 
 With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
 
+If `Market.json` is for a station in the results and is newer than the Spansh data for it (or Spansh has no time), the tool takes the price, supply and demand from the file, if the file lists the commodity. If the file lists the commodity but the station fails the demand or supply rule, the tool drops the station, and a note such as "Ferraro Control no longer buys Gold (journal, <time>)." says so. If the file does not list the commodity, the Spansh data stays. Ranking runs after this. Each station has `market_id` (the same id as in `station_info`) and `price_source`: `journal` for a value from the file, `spansh` for all others. If the file cannot be read, the tool uses Spansh data only.
+
 ### Limits
 
 - `trade_route` plans a route from a start to the last hop. It does not plan loops back to the start. Use `trade_loops` for loops.
 - `trade_loops` carries one commodity on each leg and considers loops of two or three stations only. Its scores use one price snapshot. Prices fall as you repeat a loop, so `laps_supported` is the only guard.
 - Market data can be old. Check `market_age_hours` and `oldest_price_hours`. `max_price_age_days` sets the oldest prices the tools use. Prices can change before you arrive.
+
+## Station info
+
+`station_info` shows what the game wrote when you last opened the market, outfitting or shipyard screen. The files are `Market.json`, `Outfitting.json` and `Shipyard.json` in the journal folder. They are complete and current, but each holds one station. There is no price history and no data for other stations.
+
+Inputs:
+
+- `part`: `all` (default), `market`, `outfitting` or `shipyard`.
+- `commodity`: keeps the market rows whose name contains the text. It ignores case.
+- `search`: keeps the modules whose name, group, symbol or class and rating (for example `5A`) contains the text. It ignores case.
+
+Results:
+
+- Each part gives `station`, `system`, `market_id`, `as_of` and `age_minutes`.
+- `market` gives `sells` (stock above 0) and `buys` (demand above 0), sorted by category and name. The game writes a demand of 1 for goods that the station only exports. The tool ignores that demand: it counts demand only when `DemandBracket` is above 0, or, without a bracket, when the demand is above 1. Each row has the price, the stock or demand, `mean_price` and `vs_mean_pct`, the price against the galactic mean in percent (null when the mean is 0).
+- `outfitting` gives modules by group, sorted by class and rating, with `price`. The tool names modules with the game data catalog. A symbol that the catalog does not know keeps its symbol as the name. Without the catalog, the note is `Module names need the game data catalog. Call any catalog tool (for example catalog_module) or cache_refresh with source "catalog".`
+- `shipyard` gives `ships` sorted by price. A ship without a localised name gets its symbol in title case, for example `Empire Courier`.
+- `all` gives a summary: counts, the top 5 sells (lowest `vs_mean_pct`) and top 5 buys (highest `vs_mean_pct`), the module count per group, and each ship as "Name (price cr)". `commodity` and `search` also apply to the summary counts and top lists.
+- `notes` flags a part from a station other than the one where you are docked, a part older than 24 hours, and a part with no file. With no file at all, the tool returns an error.
 
 ## Game journal
 

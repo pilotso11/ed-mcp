@@ -22,6 +22,7 @@ import { registerEdsmTools } from "./tools/edsm.js";
 import { registerRouteTools } from "./tools/routes.js";
 import { registerPlanTools } from "./tools/plans.js";
 import { registerPrefsTools } from "./tools/prefs.js";
+import { registerStationTools } from "./tools/station.js";
 import { registerSpanshTools } from "./tools/spansh.js";
 import { registerTradeTools } from "./tools/trade.js";
 import { VERSION } from "./version.js";
@@ -110,6 +111,7 @@ export function createServer(deps: ServerDeps): McpServer {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }
   if (deps.journal) registerJournalTools(server, { journal: deps.journal, catalog: deps.catalog });
+  if (deps.journal) registerStationTools(server, { journal: deps.journal, catalog: deps.catalog });
   registerBuildTools(server, { catalog: deps.catalog });
   return server;
 }

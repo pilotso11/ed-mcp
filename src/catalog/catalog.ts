@@ -59,6 +59,7 @@ function nearest(query: string, options: string[], n = 5): string[] {
 export class Catalog {
   private readonly materialByKey = new Map<string, Material>();
   private readonly engineerByKey = new Map<string, Engineer>();
+  private readonly outfittingBySymbol = new Map<string, OutfittingItem>();
 
   constructor(
     private readonly d: {
@@ -75,6 +76,7 @@ export class Catalog {
       this.materialByKey.set(normKey(m.symbol), m);
     }
     for (const e of d.engineers) this.engineerByKey.set(normKey(e.name), e);
+    for (const o of d.outfitting) this.outfittingBySymbol.set(o.symbol.toLowerCase(), o);
   }
 
   counts() {
@@ -204,6 +206,13 @@ export class Catalog {
           .sort((a, b) => a.grade - b.grade)
       : [m];
     return { ...m, same_group: same, trade_rules: TRADE_RULES };
+  }
+
+  /** Exact symbol lookup that never throws, for callers with many symbols. */
+  moduleBySymbol(symbol: string): (OutfittingItem & { group: string | null }) | null {
+    const o = this.outfittingBySymbol.get(symbol.toLowerCase());
+    if (!o) return null;
+    return { ...o, group: this.d.groups.find((g) => g.names.includes(o.name))?.id ?? null };
   }
 
   module(query: string): {

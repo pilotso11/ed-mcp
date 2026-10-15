@@ -158,6 +158,7 @@ interface Journal {
   credits?: number | null;
   broken?: boolean;
   none?: boolean;
+  local?: { market_id: number; updated_at: string; rows: MarketRow[] } | "broken";
 }
 
 async function loops(args: Record<string, unknown>, world: World, j: Journal = {}) {
@@ -172,6 +173,10 @@ async function loops(args: Record<string, unknown>, world: World, j: Journal = {
         location: { system: "Home", station: docked ? "Start Port" : null, docked },
         ship: { cargo_capacity: j.cargo === undefined ? 100 : j.cargo },
       };
+    },
+    localMarket: async () => {
+      if (j.local === "broken") throw new Error("Market.json is unreadable");
+      return j.local ? { station: "Start Port", system: "Home", ...j.local } : null;
     },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
@@ -584,5 +589,142 @@ describe("trade_loops", () => {
 
   it("is listed in manifest.json", () => {
     expect(manifest.tools.map((t) => t.name)).toContain("trade_loops");
+  });
+});
+
+describe("trade_loops with the local market", () => {
+  const NOTE = "Start station prices come from your journal (as of 2026-10-13T06:00:00Z).";
+  // Gold is cheap at the local start, so a loop through Alpha Hub pays well.
+  const localRows = [
+    row("Gold", { buy_price: 50, supply: 10_000 }),
+    row("Tea", { sell_price: 500, demand: 10_000 }),
+  ];
+  const clock = () => ({ t: Date.parse("2026-10-13T07:00:00Z"), searchMs: 0 });
+  const first = (j: Record<string, any>) => j.loops[0].legs[0].cargo;
+
+  it("uses a fresher local start market with no stationMarket call", async () => {
+    const s = start();
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: localRows } },
+    );
+    expect(stationMarket).not.toHaveBeenCalled();
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 50 });
+    expect(j.notes).toContain(NOTE);
+  });
+
+  it("replaces the market of a found start record that is older", async () => {
+    const s = { ...start(), market_age_hours: 30 };
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [s, alpha(), beta()], clock: clock() },
+      {
+        local: {
+          market_id: s.market_id,
+          updated_at: "2026-10-13T06:00:00Z",
+          rows: localRows,
+        },
+      },
+    );
+    expect(stationMarket).not.toHaveBeenCalled();
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 50 });
+    expect(j.notes.some((n: string) => n.startsWith("Start station prices come from"))).toBe(true);
+  });
+
+  it("uses Spansh when the local file is older than the start record", async () => {
+    const s = start();
+    const { j } = await loops(
+      { stops: [2] },
+      { found: [s, alpha(), beta()], clock: clock() },
+      {
+        local: {
+          market_id: s.market_id,
+          updated_at: "2026-10-11T06:00:00Z",
+          rows: localRows,
+        },
+      },
+    );
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 100 });
+    expect(j.notes.some((n: string) => n.startsWith("Start station prices come from"))).toBe(false);
+  });
+
+  it("uses Spansh when the local market is another station", async () => {
+    const s = start();
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: 9999, updated_at: "2026-10-13T06:00:00Z", rows: localRows } },
+    );
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    expect(first(j)).toMatchObject({ buy_price: 100 });
+  });
+
+  it("matches lower-case local names to the Spansh names", async () => {
+    const s = start();
+    const lower = localRows.map((r) => ({ ...r, commodity: r.commodity.toLowerCase() }));
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: lower } },
+    );
+    expect(stationMarket).not.toHaveBeenCalled();
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 50 });
+  });
+
+  it("uses Spansh when the local names do not match Spansh", async () => {
+    const s = start();
+    const french = [
+      row("Or", { buy_price: 50, supply: 10_000 }),
+      row("Thé", { sell_price: 500, demand: 10_000 }),
+      row("Gold", { buy_price: 50, supply: 0 }),
+    ];
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: french } },
+    );
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 100 });
+    expect(j.notes).toContain(
+      "Local market names do not match Spansh; using Spansh prices for the start station.",
+    );
+    expect(j.notes).not.toContain(NOTE);
+  });
+
+  it("asks Spansh when the local file is older than max_price_age_days", async () => {
+    const s = { ...start(), market_age_hours: 100 };
+    const { j, stationMarket } = await loops(
+      { stops: [2], max_price_age_days: 1 },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-11T06:00:00Z", rows: localRows } },
+    );
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    // The Spansh record is older still, so the local file wins the comparison.
+    expect(first(j)).toMatchObject({ buy_price: 50 });
+    expect(j.notes).toContain(
+      "Start station prices come from your journal (as of 2026-10-11T06:00:00Z).",
+    );
+  });
+
+  it("gives a local file stamped in the future an age of 0", async () => {
+    const s = start();
+    const { j } = await loops(
+      { stops: [2] },
+      { found: [{ ...alpha(), market_age_hours: null }], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T08:00:00Z", rows: localRows } },
+    );
+    expect(j.loops[0].oldest_price_hours).toBe(0);
+  });
+
+  it("works as before when the local market cannot be read", async () => {
+    const s = start();
+    const { r, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: "broken" },
+    );
+    expect(r.isError).toBe(false);
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
   });
 });

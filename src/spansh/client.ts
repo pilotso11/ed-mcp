@@ -160,6 +160,7 @@ export interface CommodityQuery {
 }
 
 export interface CommodityHit extends StationHit {
+  market_id: number | null;
   price: number | null;
   demand: number | null;
   supply: number | null;
@@ -184,7 +185,7 @@ export interface MarketStation {
   type: string | null;
   planetary: boolean;
   market_age_hours: number | null;
-  /** Rows with supply or demand only. */
+  /** Spansh rows have supply or demand. Rows swapped in from the journal can list a commodity with neither. */
   market: MarketRow[];
 }
 
@@ -646,6 +647,7 @@ export class SpanshClient {
         const row = (s.market ?? []).find((m) => m.commodity.toLowerCase() === want);
         return {
           ...this.hit(s, { near: q.near, limit: q.size }),
+          market_id: s.market_id ?? null,
           price: (q.mode === "sell" ? row?.sell_price : row?.buy_price) ?? null,
           demand: row?.demand ?? null,
           supply: row?.supply ?? null,

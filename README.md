@@ -27,6 +27,8 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 - "Find me a trade route from here. I have 400 t of cargo."
 - "Where can I sell 200 t of gold near Atlas?"
 - "Find me a trade loop from this station that I can run for an hour."
+- "What does this station sell, and is anything cheap?"
+- "Which modules can I buy at this outfitting?"
 - "Plan the best order for my passenger missions."
 - "Plan the route for my Corsair build plan."
 - "From now on, ignore stations more than 2,000 ls from the star."
@@ -106,6 +108,8 @@ Elite Dangerous writes a journal while you play. ed-mcp reads it and never chang
 6. Ask Claude "What is my journal status?". While you play, the newest journal is a few minutes old.
 
 Do not share `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous`. That folder has the same name, but it holds only the game's settings. If you share it by mistake, the journal status tells you.
+
+The game also writes `Market.json`, `Outfitting.json` and `Shipyard.json` to the same folder when you open those screens. ed-mcp reads them to show what the station you last opened sells, with current prices.
 
 The journal tools warn you when the newest entry is more than 30 minutes old. Then the game is not running, or Syncthing has stopped.
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import { NotConfiguredError, UserError } from "../errors.js";
 import { listJournals, type JournalFile } from "./files.js";
 import { JournalReader, type JournalEvent } from "./reader.js";
+import type { MarketRow } from "../spansh/client.js";
 import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.js";
 
 export interface JournalStatus {
@@ -29,6 +30,22 @@ function staleWarning(minutes: number): string {
 const STATE_WINDOW_MS = 14 * 86_400_000;
 const FRESH_MS = 86_400_000;
 const MEMO_MS = 1_000;
+
+export interface StationFile {
+  kind: "market" | "outfitting" | "shipyard";
+  station: string;
+  system: string;
+  market_id: number;
+  as_of: string;
+  age_minutes: number;
+  data: Record<string, unknown>;
+}
+
+const STATION_FILES = {
+  market: "Market.json",
+  outfitting: "Outfitting.json",
+  shipyard: "Shipyard.json",
+} as const;
 
 type JournalSnapshot = JournalState & { age_minutes: number | null; warnings: string[] };
 
@@ -217,6 +234,73 @@ export class JournalService {
     }
   }
 
+  // The game rewrites these files each time a screen opens, so read them on every call.
+  async stationFile(kind: StationFile["kind"]): Promise<StationFile | null> {
+    let j: Record<string, unknown>;
+    try {
+      j = JSON.parse(await readFile(path.join(this.requireDir(), STATION_FILES[kind]), "utf8"));
+    } catch (err) {
+      if (err instanceof NotConfiguredError) throw err;
+      // Missing is normal; a half-written file is retried on the next call.
+      return null;
+    }
+    if (
+      j === null ||
+      typeof j !== "object" ||
+      typeof j.StationName !== "string" ||
+      typeof j.StarSystem !== "string" ||
+      typeof j.MarketID !== "number" ||
+      typeof j.timestamp !== "string" ||
+      Number.isNaN(Date.parse(j.timestamp))
+    ) {
+      return null;
+    }
+    return {
+      kind,
+      station: j.StationName,
+      system: j.StarSystem,
+      market_id: j.MarketID,
+      as_of: j.timestamp,
+      age_minutes: Math.max(0, Math.round((this.now() - Date.parse(j.timestamp)) / 60_000)),
+      data: j,
+    };
+  }
+
+  async localMarket(): Promise<{
+    market_id: number;
+    station: string;
+    system: string;
+    updated_at: string;
+    rows: MarketRow[];
+  } | null> {
+    const f = await this.stationFile("market");
+    if (!f) return null;
+    const items = Array.isArray(f.data.Items)
+      ? (f.data.Items as Array<Record<string, unknown>>)
+      : [];
+    const num = (v: unknown) => (typeof v === "number" ? v : 0);
+    const rows: MarketRow[] = [];
+    // Rows with no stock or demand stay: they show that the station lists the commodity.
+    for (const i of items) {
+      const name = i.Name_Localised ?? i.Name;
+      if (typeof name !== "string") continue;
+      rows.push({
+        commodity: name,
+        buy_price: num(i.BuyPrice),
+        sell_price: num(i.SellPrice),
+        supply: num(i.Stock),
+        demand: marketDemand(i),
+      });
+    }
+    return {
+      market_id: f.market_id,
+      station: f.station,
+      system: f.system,
+      updated_at: f.as_of,
+      rows,
+    };
+  }
+
   async freshShip(): Promise<{ type: string; max_jump_range: number | null } | null> {
     try {
       const s = await this.state();
@@ -227,6 +311,13 @@ export class JournalService {
       return null;
     }
   }
+}
+
+// The game writes Demand 1 with DemandBracket 0 for goods that the station only exports.
+export function marketDemand(item: Record<string, unknown>): number {
+  const demand = typeof item.Demand === "number" ? item.Demand : 0;
+  if (typeof item.DemandBracket === "number") return item.DemandBracket > 0 ? demand : 0;
+  return demand > 1 ? demand : 0;
 }
 
 // The game keeps settings in AppData and the journal in Saved Games; both folders are named
