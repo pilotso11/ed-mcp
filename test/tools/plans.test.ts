@@ -184,4 +184,159 @@ describe("plan tools", () => {
     expect(ok.isError).toBe(false);
     expect(await readFile(target, "utf8")).toMatch(/^# Cutter trade/);
   });
+
+  it("exports JSON inline and to a file", async () => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const stored = (await callTool(client, "plan_get", { id: "cutter" })).json;
+    const inline = await callTool(client, "plan_export", { id: "cutter", format: "json" });
+    expect(inline.json).toEqual({ json: stored });
+
+    const target = path.join(dir, "out", "cutter.json");
+    const written = await callTool(client, "plan_export", {
+      id: "cutter",
+      format: "json",
+      path: target,
+    });
+    expect(written.json).toMatchObject({ path: target });
+    expect(JSON.parse(await readFile(target, "utf8"))).toEqual(stored);
+  });
+
+  it("refuses to overwrite a JSON export unless overwrite is true", async () => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const target = path.join(dir, "cutter.json");
+    await writeFile(target, "old");
+    const refused = await callTool(client, "plan_export", {
+      id: "cutter",
+      format: "json",
+      path: target,
+    });
+    expect(refused.text).toContain("exists; pass overwrite: true to replace it");
+    expect(await readFile(target, "utf8")).toBe("old");
+  });
+
+  it("refuses to export JSON over the store file", async () => {
+    const { client, dir } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const store = path.join(dir, "plans.json");
+    const before = await readFile(store, "utf8");
+    const r = await callTool(client, "plan_export", {
+      id: "cutter",
+      format: "json",
+      path: store,
+      overwrite: true,
+    });
+    expect(r).toMatchObject({ isError: true, text: expect.stringContaining("plan store file") });
+    expect(await readFile(store, "utf8")).toBe(before);
+  });
+
+  describe("plan_import", () => {
+    async function exported() {
+      const ctx = await setup();
+      await callTool(ctx.client, "plan_upsert", { plan });
+      const file = path.join(ctx.dir, "cutter.json");
+      await callTool(ctx.client, "plan_export", { id: "cutter", format: "json", path: file });
+      return { ...ctx, file };
+    }
+
+    it("round-trips a plan under a new id", async () => {
+      const { client, file } = await exported();
+      const r = await callTool(client, "plan_import", { path: file, id: "cutter-2" });
+      expect(r.isError).toBe(false);
+      expect(r.json).toMatchObject({ id: "cutter-2", name: "Cutter trade", items: [{ id: "a" }] });
+      expect((await callTool(client, "plan_list")).json).toMatchObject([
+        { id: "cutter" },
+        { id: "cutter-2" },
+      ]);
+    });
+
+    it("ignores created_at and updated_at in the file", async () => {
+      const { client, dir } = await setup();
+      const file = path.join(dir, "p.json");
+      await writeFile(
+        file,
+        JSON.stringify({ ...plan, created_at: "2001-01-01", updated_at: "2001-01-02" }),
+      );
+      const r = await callTool(client, "plan_import", { path: file });
+      expect(r.isError).toBe(false);
+      expect((r.json as { created_at: string }).created_at).not.toBe("2001-01-01");
+    });
+
+    it("refuses to replace an existing plan unless overwrite is true", async () => {
+      const { client, file } = await exported();
+      const refused = await callTool(client, "plan_import", { path: file });
+      expect(refused).toMatchObject({
+        isError: true,
+        text: "Plan cutter exists; pass overwrite: true to replace it",
+      });
+      const ok = await callTool(client, "plan_import", { path: file, overwrite: true });
+      expect(ok.isError).toBe(false);
+    });
+
+    it("reports a missing file", async () => {
+      const { client, dir } = await setup();
+      const missing = path.join(dir, "nope.json");
+      const r = await callTool(client, "plan_import", { path: missing });
+      expect(r).toMatchObject({ isError: true, text: `${missing} not found` });
+    });
+
+    it("reports a directory path", async () => {
+      const { client, dir } = await setup();
+      const r = await callTool(client, "plan_import", { path: dir });
+      expect(r).toMatchObject({ isError: true, text: `${dir} is a directory, not a plan file` });
+    });
+
+    it("refuses an id override that collides with another plan unless overwrite is true", async () => {
+      const { client, dir } = await setup();
+      await callTool(client, "plan_upsert", { plan });
+      await callTool(client, "plan_upsert", { plan: { ...plan, id: "other", name: "Other" } });
+      const file = path.join(dir, "p.json");
+      await writeFile(file, JSON.stringify({ ...plan, name: "Imported" }));
+      const refused = await callTool(client, "plan_import", { path: file, id: "other" });
+      expect(refused).toMatchObject({
+        isError: true,
+        text: "Plan other exists; pass overwrite: true to replace it",
+      });
+      expect((await callTool(client, "plan_get", { id: "other" })).json).toMatchObject({
+        name: "Other",
+      });
+      const ok = await callTool(client, "plan_import", {
+        path: file,
+        id: "other",
+        overwrite: true,
+      });
+      expect(ok.isError).toBe(false);
+      expect((await callTool(client, "plan_get", { id: "other" })).json).toMatchObject({
+        name: "Imported",
+      });
+      expect((await callTool(client, "plan_get", { id: "cutter" })).json).toMatchObject({
+        name: "Cutter trade",
+      });
+    });
+
+    it("reports invalid JSON", async () => {
+      const { client, dir } = await setup();
+      const file = path.join(dir, "bad.json");
+      await writeFile(file, "{ nope");
+      const r = await callTool(client, "plan_import", { path: file });
+      expect(r).toMatchObject({ isError: true, text: `${file} is not valid JSON` });
+    });
+
+    it("reports schema errors", async () => {
+      const { client, dir } = await setup();
+      const file = path.join(dir, "bad.json");
+      await writeFile(file, JSON.stringify({ id: "Bad Id", name: "" }));
+      const r = await callTool(client, "plan_import", { path: file });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("Invalid plan:");
+      expect(r.text).toContain("id must be lowercase");
+    });
+
+    it("rejects a relative path", async () => {
+      const { client } = await setup();
+      const r = await callTool(client, "plan_import", { path: "cutter.json" });
+      expect(r).toMatchObject({ isError: true, text: expect.stringContaining("absolute path") });
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -87,37 +87,91 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
     "plan_export",
     {
       description:
-        "Export a plan as Markdown. Without path, returns the Markdown. With path (absolute or ~/...), " +
-        "writes the file.",
+        "Export a plan as Markdown (default) or JSON. Without path, returns the text (markdown) or the plan (json). " +
+        "With path (absolute or ~/...), writes the file. A JSON file can be loaded again with plan_import.",
       inputSchema: {
         id: z.string(),
+        format: z.enum(["markdown", "json"]).optional(),
         path: z.string().optional(),
         overwrite: z.boolean().optional(),
       },
     },
-    wrap(async (a: { id: string; path?: string; overwrite?: boolean }) => {
-      const markdown = planToMarkdown(await plans.get(a.id));
-      if (!a.path) return { markdown };
-      const target = resolveUserPath(a.path);
-      if (await sameFile(target, plans.file)) {
-        throw new UserError(`${target} is the plan store file; choose another path`);
+    wrap(
+      async (a: {
+        id: string;
+        format?: "markdown" | "json";
+        path?: string;
+        overwrite?: boolean;
+      }) => {
+        const plan = await plans.get(a.id);
+        const json = a.format === "json";
+        if (!a.path) return json ? { json: plan } : { markdown: planToMarkdown(plan) };
+        const text = json ? JSON.stringify(plan, null, 2) + "\n" : planToMarkdown(plan);
+        const target = resolveUserPath(a.path);
+        if (await sameFile(target, plans.file)) {
+          throw new UserError(`${target} is the plan store file; choose another path`);
+        }
+        // Windows fails concurrent renames onto one file, so exports to a path run one at a time.
+        await serialise(target, async () => {
+          if (!a.overwrite && (await exists(target))) {
+            throw new UserError(`${target} exists; pass overwrite: true to replace it`);
+          }
+          await mkdir(path.dirname(target), { recursive: true });
+          const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
+          try {
+            await writeFile(tmp, text);
+            await rename(tmp, target);
+          } catch (err) {
+            await unlink(tmp).catch(() => undefined);
+            throw err;
+          }
+        });
+        return { path: target, bytes: Buffer.byteLength(text) };
+      },
+    ),
+  );
+
+  server.registerTool(
+    "plan_import",
+    {
+      description:
+        "Load a plan from a JSON file written by plan_export (absolute or ~/... path). " +
+        "id replaces the id in the file. Refuses to replace an existing plan unless overwrite is true.",
+      inputSchema: {
+        path: z.string(),
+        id: z.string().optional(),
+        overwrite: z.boolean().optional(),
+      },
+    },
+    wrap(async (a: { path: string; id?: string; overwrite?: boolean }) => {
+      const source = resolveUserPath(a.path);
+      let raw: string;
+      try {
+        // stat first: readFile on a directory raises EPERM on Windows, EISDIR elsewhere.
+        if ((await stat(source)).isDirectory()) {
+          throw new UserError(`${source} is a directory, not a plan file`);
+        }
+        raw = await readFile(source, "utf8");
+      } catch (err) {
+        if (err instanceof UserError) throw err;
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          throw new UserError(`${source} not found`);
+        }
+        throw err;
       }
-      // Windows fails concurrent renames onto one file, so exports to a path run one at a time.
-      await serialise(target, async () => {
-        if (!a.overwrite && (await exists(target))) {
-          throw new UserError(`${target} exists; pass overwrite: true to replace it`);
-        }
-        await mkdir(path.dirname(target), { recursive: true });
-        const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
-        try {
-          await writeFile(tmp, markdown);
-          await rename(tmp, target);
-        } catch (err) {
-          await unlink(tmp).catch(() => undefined);
-          throw err;
-        }
-      });
-      return { path: target, bytes: Buffer.byteLength(markdown) };
+      let json: unknown;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new UserError(`${source} is not valid JSON`);
+      }
+      if (a.id !== undefined && json !== null && typeof json === "object" && !Array.isArray(json)) {
+        json = { ...json, id: a.id };
+      }
+      const parsed = PlanInputSchema.safeParse(json);
+      if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+      // The existence check runs inside the store's locked write so concurrent imports cannot race.
+      return plans.upsert(parsed.data, { overwrite: a.overwrite === true });
     }),
   );
 }

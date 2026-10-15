@@ -52,12 +52,15 @@ export class PlanStore {
     return plan;
   }
 
-  upsert(input: PlanInput): Promise<Plan> {
+  upsert(input: PlanInput, opts: { overwrite?: boolean } = {}): Promise<Plan> {
     return this.mutate((data) => {
       const parsed = PlanInputSchema.safeParse(input);
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
       const stamp = this.now().toISOString();
       const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
+      if (idx >= 0 && opts.overwrite === false) {
+        throw new UserError(`Plan ${parsed.data.id} exists; pass overwrite: true to replace it`);
+      }
       const plan: Plan = {
         ...parsed.data,
         created_at: idx >= 0 ? data.plans[idx]!.created_at : stamp,

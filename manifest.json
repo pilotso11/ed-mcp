@@ -96,7 +96,8 @@
     { "name": "plan_upsert", "description": "Create or replace a plan" },
     { "name": "plan_update_item", "description": "Update one plan item" },
     { "name": "plan_delete", "description": "Delete a plan" },
-    { "name": "plan_export", "description": "Export a plan as Markdown" }
+    { "name": "plan_export", "description": "Export a plan as Markdown or JSON" },
+    { "name": "plan_import", "description": "Load a plan from a JSON file" }
   ],
   "tools_generated": false,
   "user_config": {
