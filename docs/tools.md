@@ -20,6 +20,7 @@ For installation and setup, see the [README](../README.md).
 | `journal_materials`        | Materials held, by kind, from the journal                    |
 | `journal_missions`         | Accepted missions (active and complete), soonest expiry first |
 | `journal_engineers`        | Engineer progress from the journal                           |
+| `station_info`             | Market, outfitting and shipyard of the last station you opened |
 | `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
 | `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
@@ -188,6 +189,25 @@ With `amount`, each station gets a `value`: price × amount, minus the travel co
 - `trade_route` plans a route from a start to the last hop. It does not plan loops back to the start. Use `trade_loops` for loops.
 - `trade_loops` carries one commodity on each leg and considers loops of two or three stations only. Its scores use one price snapshot. Prices fall as you repeat a loop, so `laps_supported` is the only guard.
 - Market data can be old. Check `market_age_hours` and `oldest_price_hours`. `max_price_age_days` sets the oldest prices the tools use. Prices can change before you arrive.
+
+## Station info
+
+`station_info` shows what the game wrote when you last opened the market, outfitting or shipyard screen. The files are `Market.json`, `Outfitting.json` and `Shipyard.json` in the journal folder. They are complete and current, but each holds one station. There is no price history and no data for other stations.
+
+Inputs:
+
+- `part`: `all` (default), `market`, `outfitting` or `shipyard`.
+- `commodity`: keeps the market rows whose name contains the text. It ignores case.
+- `search`: keeps the modules whose name, group, symbol or class and rating (for example `5A`) contains the text. It ignores case.
+
+Results:
+
+- Each part gives `station`, `system`, `market_id`, `as_of` and `age_minutes`.
+- `market` gives `sells` (stock above 0) and `buys` (demand above 0), sorted by category and name. Each row has the price, the stock or demand, `mean_price` and `vs_mean_pct`, the price against the galactic mean in percent (null when the mean is 0).
+- `outfitting` gives modules by group, sorted by class and rating, with `price`. The tool names modules with the game data catalog. A symbol that the catalog does not know keeps its symbol as the name. Without the catalog, a note says so.
+- `shipyard` gives `ships` sorted by price.
+- `all` gives a summary: counts, the top 5 sells (lowest `vs_mean_pct`) and top 5 buys (highest `vs_mean_pct`), the module count per group, and the ship names.
+- `notes` flags a part from a station other than the one where you are docked, a part older than 24 hours, and a part with no file. With no file at all, the tool returns an error.
 
 ## Game journal
 

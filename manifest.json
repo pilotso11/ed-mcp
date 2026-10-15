@@ -89,6 +89,10 @@
       "description": "Accepted missions (active and complete) from the journal"
     },
     { "name": "journal_engineers", "description": "Engineer progress from the journal" },
+    {
+      "name": "station_info",
+      "description": "Market, outfitting and shipyard of the station you last opened, from the journal folder"
+    },
     { "name": "cache_refresh", "description": "Clear cached data or refresh game data" },
     { "name": "cache_status", "description": "Cache and game data status" },
     { "name": "plan_list", "description": "List saved plans" },
