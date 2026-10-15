@@ -147,11 +147,16 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       const source = resolveUserPath(a.path);
       let raw: string;
       try {
+        // stat first: readFile on a directory raises EPERM on Windows, EISDIR elsewhere.
+        if ((await stat(source)).isDirectory()) {
+          throw new UserError(`${source} is a directory, not a plan file`);
+        }
         raw = await readFile(source, "utf8");
       } catch (err) {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === "ENOENT") throw new UserError(`${source} not found`);
-        if (code === "EISDIR") throw new UserError(`${source} is a directory, not a plan file`);
+        if (err instanceof UserError) throw err;
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          throw new UserError(`${source} not found`);
+        }
         throw err;
       }
       let json: unknown;
