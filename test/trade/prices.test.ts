@@ -19,6 +19,7 @@ const rules = (over: Partial<Rules["prefs"]["stations"]> = {}): Rules => ({
 
 const hit = (name: string, over: Partial<CommodityHit>): CommodityHit => ({
   name,
+  market_id: null,
   system: "Sys",
   distance_ly: 5,
   arrival_ls: 100,

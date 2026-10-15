@@ -155,7 +155,7 @@ Inputs (all optional):
 - `limit`: loops to return, 1 to 30. The default is 10.
 - `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`.
 
-The tool searches Spansh for stations with a market within `radius_ly` of `near`, nearest first. With `"here"`, it loads the nearest `max_stations`. With `"any"`, it splits `radius_ly` into 4 equal distance bands and loads the nearest quarter of `max_stations` in each band, so the stations around a busy centre cannot take every place. A band with fewer stations leaves its places empty. Stations with prices older than `max_price_age_days` are left out. If the start station's market comes from a separate lookup and is older than `max_price_age_days`, a note says so.
+The tool searches Spansh for stations with a market within `radius_ly` of `near`, nearest first. With `"here"`, it loads the nearest `max_stations`. With `"any"`, it splits `radius_ly` into 4 equal distance bands and loads the nearest quarter of `max_stations` in each band, so the stations around a busy centre cannot take every place. A band with fewer stations leaves its places empty. Stations with prices older than `max_price_age_days` are left out. If the start station's market comes from a separate lookup and is older than `max_price_age_days`, a note says so. With `"here"`, if the start station is the one in your local `Market.json` and the file is newer than the Spansh record (or Spansh has none), the tool uses the file for the start prices and does not ask Spansh for that market. The note is "Start station prices come from your journal (as of <time>)." A file that cannot be read is ignored.
 
 Loading stops about 40 s after the call starts, so that the client does not time out. The note "Search stopped early to stay within the time limit; results cover the stations loaded so far." then says that the loops use only the stations loaded so far.
 
@@ -183,6 +183,8 @@ Inputs:
 The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). A station must have a demand (sell) or supply (buy) of at least `amount`, or at least 1 without `amount`. Each station shows its price, its demand or supply, `market_age_hours` and `travel_min`. If Spansh finds no station, a note asks you to check the commodity name.
 
 With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
+
+If you are docked at a station in the results and `Market.json` is newer than the Spansh data for it (or Spansh has no time), the tool takes the price, supply and demand from the file, if the file lists the commodity. Ranking runs after this. Each station has `price_source`: `journal` for a value from the file, `spansh` for all others. If the file cannot be read, the tool uses Spansh data only.
 
 ### Limits
 

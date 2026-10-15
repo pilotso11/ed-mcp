@@ -253,6 +253,20 @@ export function registerLoopTools(
           (st) => applyRules([asHit(st)], local, false).stations.length > 0,
         );
 
+        // The market file is optional, so one that cannot be read is skipped.
+        const journalMarket = here ? await deps.journal?.localMarket().catch(() => null) : null;
+        const withLocal = (m: MarketStation): MarketStation => {
+          const at = Date.parse(journalMarket?.updated_at ?? "");
+          if (!journalMarket || journalMarket.market_id !== m.market_id || Number.isNaN(at))
+            return m;
+          const hours = tenth((now() - at) / 3_600_000);
+          if (m.market_age_hours !== null && m.market_age_hours <= hours) return m;
+          notes.push(
+            `Start station prices come from your journal (as of ${journalMarket.updated_at}).`,
+          );
+          return { ...m, market: journalMarket.rows, market_age_hours: hours };
+        };
+
         let candidates: MarketStation[];
         if (here) {
           const name = centre.station!;
@@ -265,13 +279,33 @@ export function registerLoopTools(
             if (id === undefined) {
               throw new UserError(`Spansh has no market for ${name} in ${info.name}.`);
             }
-            startMarket = await spansh.stationMarket(id);
+            const entry = info.stations.find((st) => same(st.name, name))!;
+            // The local file can stand in for the station record, so Spansh is not asked for it.
+            startMarket = withLocal(
+              journalMarket?.market_id === id
+                ? {
+                    name: entry.name,
+                    system: info.name,
+                    market_id: id,
+                    distance_ly: null,
+                    arrival_ls: entry.arrival_ls,
+                    coords: info.coords,
+                    pad: entry.pad,
+                    type: entry.type,
+                    planetary: false,
+                    market_age_hours: null,
+                    market: [],
+                  }
+                : await spansh.stationMarket(id),
+            );
             const age = startMarket.market_age_hours;
             if (age !== null && age > a.max_price_age_days * 24) {
               notes.push(
                 `Prices at ${startMarket.name} are ${age} hours old, older than max_price_age_days (${a.max_price_age_days}).`,
               );
             }
+          } else {
+            startMarket = withLocal(startMarket);
           }
           const id = startMarket.market_id;
           candidates = [startMarket, ...allowed.filter((st) => st.market_id !== id)];

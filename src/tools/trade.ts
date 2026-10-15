@@ -4,7 +4,7 @@ import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import type { SpanshClient, TradeForm } from "../spansh/client.js";
+import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { rankCommodityStations } from "../trade/prices.js";
@@ -44,6 +44,34 @@ export function registerTradeTools(
       notes.push(`Journal unavailable: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
+  };
+
+  // The station file is optional; a journal that cannot be read leaves the Spansh data as is.
+  const withLocalPrices = async (
+    hits: CommodityHit[],
+    a: { commodity: string; mode: "sell" | "buy" },
+  ): Promise<{ hits: CommodityHit[]; journalIds: Set<number | null> }> => {
+    const journalIds = new Set<number | null>();
+    const local = await deps.journal?.localMarket().catch(() => null);
+    const row = local?.rows.find((r) => r.commodity.toLowerCase() === a.commodity.toLowerCase());
+    const localAt = Date.parse(local?.updated_at ?? "");
+    if (!local || !row || Number.isNaN(localAt)) return { hits, journalIds };
+    return {
+      journalIds,
+      hits: hits.map((h) => {
+        if (h.market_id !== local.market_id) return h;
+        const spanshAt = h.market_updated_at ? Date.parse(h.market_updated_at) : NaN;
+        if (!Number.isNaN(spanshAt) && spanshAt >= localAt) return h;
+        journalIds.add(h.market_id);
+        return {
+          ...h,
+          price: a.mode === "sell" ? row.sell_price : row.buy_price,
+          supply: row.supply,
+          demand: row.demand,
+          market_updated_at: local.updated_at,
+        };
+      }),
+    };
   };
 
   const pending = new Map<
@@ -283,8 +311,9 @@ export function registerTradeTools(
           maxAgeDays: a.max_price_age_days,
           minStock: a.amount ?? 1,
         });
+        const { hits, journalIds } = await withLocalPrices(found.stations, a);
         const ranked = rankCommodityStations(
-          found.stations,
+          hits,
           a.mode,
           a.amount,
           rules,
@@ -308,7 +337,10 @@ export function registerTradeTools(
           near: found.near,
           total: found.total,
           matched: ranked.stations.length,
-          stations: ranked.stations.slice(0, a.limit),
+          stations: ranked.stations.slice(0, a.limit).map((st) => ({
+            ...st,
+            price_source: journalIds.has(st.market_id) ? "journal" : "spansh",
+          })),
           recommended: ranked.recommended,
           relaxed: ranked.relaxed,
           inputs: {

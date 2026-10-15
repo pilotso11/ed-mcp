@@ -416,7 +416,27 @@ describe("trade_route", () => {
 
 const C_NOW = Date.parse("2026-10-13T06:35:18Z");
 
-function commodity(opts: { journal?: boolean; body?: string; broken?: boolean } = {}) {
+interface LocalMarket {
+  market_id: number;
+  updated_at: string;
+  rows: Array<{
+    commodity: string;
+    buy_price: number;
+    sell_price: number;
+    supply: number;
+    demand: number;
+  }>;
+}
+
+function commodity(
+  opts: {
+    journal?: boolean;
+    body?: string;
+    broken?: boolean;
+    local?: LocalMarket | null;
+    localBroken?: boolean;
+  } = {},
+) {
   const f = fakeFetch([
     {
       match: () => true,
@@ -436,6 +456,10 @@ function commodity(opts: { journal?: boolean; body?: string; broken?: boolean } 
     state: async () => {
       if (opts.broken) throw new NotConfiguredError("Journal", ["ED_JOURNAL_DIR"]);
       return { location: { system: "Lave", station: null, docked: false } };
+    },
+    localMarket: async () => {
+      if (opts.localBroken) throw new Error("Market.json is unreadable");
+      return opts.local ? { station: "x", system: "y", ...opts.local } : null;
     },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
@@ -635,5 +659,80 @@ describe("commodity_prices", () => {
     expect(b.text).toBe(
       "Give near, or set up the journal to use the current system (Journal unavailable: Journal not configured: set ED_JOURNAL_DIR)",
     );
+  });
+});
+
+describe("commodity_prices with the local market", () => {
+  const open = {
+    stations: { max_arrival_ls: { mode: "off" }, planetary: "allow" },
+    travel: { jump_range_ly: 30, credits_per_hour: 1_000_000 },
+  };
+  // Ferraro Control: Spansh data from 2026-07-31, sell price 12914, demand 1330870.
+  const FERRARO = 4280534787;
+  const bauxite = (sell_price: number) => ({
+    commodity: "bauxite",
+    buy_price: 0,
+    sell_price,
+    supply: 0,
+    demand: 777,
+  });
+  const run = async (o: Parameters<typeof commodity>[0]) => {
+    const { client } = commodity(o);
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: open,
+    });
+    expect(r.isError).toBe(false);
+    return r.json as Record<string, any>;
+  };
+  const byName = (j: Record<string, any>, name: string) =>
+    j.stations.find((s: any) => s.name === name);
+
+  it("replaces a stale Spansh row and ranks with the local price", async () => {
+    const j = await run({
+      local: { market_id: FERRARO, updated_at: "2026-10-13T06:00:00Z", rows: [bauxite(20000)] },
+    });
+    expect(j.stations.map((s: any) => s.name)[0]).toBe("Ferraro Control");
+    expect(byName(j, "Ferraro Control")).toMatchObject({
+      price: 20000,
+      demand: 777,
+      price_source: "journal",
+      market_age_hours: 0.6,
+    });
+    expect(byName(j, "Janes Horizons").price_source).toBe("spansh");
+    expect(j.recommended.name).toBe("Ferraro Control");
+  });
+
+  it("keeps a Spansh row that is newer than the local file", async () => {
+    const j = await run({
+      local: { market_id: FERRARO, updated_at: "2026-07-01T00:00:00Z", rows: [bauxite(20000)] },
+    });
+    expect(byName(j, "Ferraro Control")).toMatchObject({ price: 12914, price_source: "spansh" });
+  });
+
+  it("keeps the Spansh row when the local file lacks the commodity", async () => {
+    const j = await run({
+      local: {
+        market_id: FERRARO,
+        updated_at: "2026-10-13T06:00:00Z",
+        rows: [{ ...bauxite(20000), commodity: "Gold" }],
+      },
+    });
+    expect(byName(j, "Ferraro Control")).toMatchObject({ price: 12914, price_source: "spansh" });
+  });
+
+  it("ignores a local market at another station", async () => {
+    const j = await run({
+      local: { market_id: 1, updated_at: "2026-10-13T06:00:00Z", rows: [bauxite(20000)] },
+    });
+    expect(j.stations.every((s: any) => s.price_source === "spansh")).toBe(true);
+  });
+
+  it("works as before when the local market cannot be read", async () => {
+    const j = await run({ localBroken: true });
+    expect(j.stations.map((s: any) => s.name)[0]).toBe("Janes Horizons");
+    expect(j.stations.every((s: any) => s.price_source === "spansh")).toBe(true);
   });
 });
