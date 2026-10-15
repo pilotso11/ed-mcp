@@ -29,6 +29,27 @@ beforeEach(async () => {
 });
 
 describe("PlanStore", () => {
+  it("refuses to replace an existing plan when overwrite is false, even under concurrency", async () => {
+    const s = new PlanStore(file, now);
+    const results = await Promise.allSettled([
+      s.upsert(input({ name: "first" }), { overwrite: false }),
+      s.upsert(input({ name: "second" }), { overwrite: false }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(rejected.reason.message).toBe(
+      "Plan python-mk2 exists; pass overwrite: true to replace it",
+    );
+    expect(await s.list()).toHaveLength(1);
+  });
+
+  it("replaces an existing plan when overwrite is true", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(input());
+    const p = await s.upsert(input({ name: "New" }), { overwrite: true });
+    expect(p.name).toBe("New");
+  });
+
   it("lists nothing when the file does not exist", async () => {
     expect(await new PlanStore(file, now).list()).toEqual([]);
   });

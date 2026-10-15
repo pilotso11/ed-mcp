@@ -165,11 +165,8 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       }
       const parsed = PlanInputSchema.safeParse(json);
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
-      const id = parsed.data.id;
-      if (!a.overwrite && (await plans.list()).some((p) => p.id === id)) {
-        throw new UserError(`Plan ${id} exists; pass overwrite: true to replace it`);
-      }
-      return plans.upsert(parsed.data);
+      // The existence check runs inside the store's locked write so concurrent imports cannot race.
+      return plans.upsert(parsed.data, { overwrite: a.overwrite === true });
     }),
   );
 }
