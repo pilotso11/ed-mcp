@@ -281,6 +281,40 @@ describe("plan tools", () => {
       expect(r).toMatchObject({ isError: true, text: `${missing} not found` });
     });
 
+    it("reports a directory path", async () => {
+      const { client, dir } = await setup();
+      const r = await callTool(client, "plan_import", { path: dir });
+      expect(r).toMatchObject({ isError: true, text: `${dir} is a directory, not a plan file` });
+    });
+
+    it("refuses an id override that collides with another plan unless overwrite is true", async () => {
+      const { client, dir } = await setup();
+      await callTool(client, "plan_upsert", { plan });
+      await callTool(client, "plan_upsert", { plan: { ...plan, id: "other", name: "Other" } });
+      const file = path.join(dir, "p.json");
+      await writeFile(file, JSON.stringify({ ...plan, name: "Imported" }));
+      const refused = await callTool(client, "plan_import", { path: file, id: "other" });
+      expect(refused).toMatchObject({
+        isError: true,
+        text: "Plan other exists; pass overwrite: true to replace it",
+      });
+      expect((await callTool(client, "plan_get", { id: "other" })).json).toMatchObject({
+        name: "Other",
+      });
+      const ok = await callTool(client, "plan_import", {
+        path: file,
+        id: "other",
+        overwrite: true,
+      });
+      expect(ok.isError).toBe(false);
+      expect((await callTool(client, "plan_get", { id: "other" })).json).toMatchObject({
+        name: "Imported",
+      });
+      expect((await callTool(client, "plan_get", { id: "cutter" })).json).toMatchObject({
+        name: "Cutter trade",
+      });
+    });
+
     it("reports invalid JSON", async () => {
       const { client, dir } = await setup();
       const file = path.join(dir, "bad.json");
