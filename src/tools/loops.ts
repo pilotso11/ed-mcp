@@ -6,6 +6,7 @@ import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { createPlacer, legBetween, PLANETARY, STATION_LIMIT, type Place } from "../routes/legs.js";
 import type {
+  MarketRow,
   MarketStation,
   MarketStationsQuery,
   SpanshClient,
@@ -30,6 +31,8 @@ const STOPPED =
   "Search stopped early to stay within the time limit; results cover the stations loaded so far.";
 const ZERO_CAPITAL = "Capital is 0 cr; no cargo can be bought.";
 const LEGALITY = "Legality is not checked; make sure that a commodity is legal where you sell it.";
+const NAMES_MISMATCH =
+  "Local market names do not match Spansh; using Spansh prices for the start station.";
 const NO_LOOPS =
   "No profitable loop found. Try a larger radius, another centre, or include stations.";
 
@@ -255,16 +258,44 @@ export function registerLoopTools(
 
         // The market file is optional, so one that cannot be read is skipped.
         const journalMarket = here ? await deps.journal?.localMarket().catch(() => null) : null;
-        const withLocal = (m: MarketStation): MarketStation => {
-          const at = Date.parse(journalMarket?.updated_at ?? "");
-          if (!journalMarket || journalMarket.market_id !== m.market_id || Number.isNaN(at))
-            return m;
-          const hours = tenth((now() - at) / 3_600_000);
-          if (m.market_age_hours !== null && m.market_age_hours <= hours) return m;
+        const localAt = Date.parse(journalMarket?.updated_at ?? "");
+        const localHours = Number.isNaN(localAt)
+          ? null
+          : Math.max(0, tenth((now() - localAt) / 3_600_000));
+        // The file has the game's localised names, and bestCargo matches names exactly. A
+        // game in another language matches few Spansh names, so its file is not used.
+        let localRows: MarketRow[] | null | undefined;
+        const renamedLocalRows = (): MarketRow[] | null => {
+          if (localRows !== undefined) return localRows;
+          const spanshNames = new Map<string, string>();
+          for (const st of allowed) {
+            for (const r of st.market) spanshNames.set(r.commodity.toLowerCase(), r.commodity);
+          }
+          const rows = journalMarket!.rows;
+          const active = rows.filter((r) => r.supply > 0 || r.demand > 0);
+          const matched = active.filter((r) => spanshNames.has(r.commodity.toLowerCase()));
+          if (matched.length * 2 < active.length) {
+            notes.push(NAMES_MISMATCH);
+            localRows = null;
+          } else {
+            localRows = rows.map((r) => ({
+              ...r,
+              commodity: spanshNames.get(r.commodity.toLowerCase()) ?? r.commodity,
+            }));
+          }
+          return localRows;
+        };
+        const fromJournal = (m: MarketStation, rows: MarketRow[]): MarketStation => {
           notes.push(
-            `Start station prices come from your journal (as of ${journalMarket.updated_at}).`,
+            `Start station prices come from your journal (as of ${journalMarket!.updated_at}).`,
           );
-          return { ...m, market: journalMarket.rows, market_age_hours: hours };
+          return { ...m, market: rows, market_age_hours: localHours };
+        };
+        const withLocal = (m: MarketStation): MarketStation => {
+          if (journalMarket?.market_id !== m.market_id || localHours === null) return m;
+          if (m.market_age_hours !== null && m.market_age_hours <= localHours) return m;
+          const rows = renamedLocalRows();
+          return rows ? fromJournal(m, rows) : m;
         };
 
         let candidates: MarketStation[];
@@ -275,15 +306,20 @@ export function registerLoopTools(
           );
           if (!startMarket) {
             const info = await spansh.system(centre.system, STATION_LIMIT);
-            const id = info.stations.find((st) => same(st.name, name))?.market_id ?? undefined;
-            if (id === undefined) {
+            const entry = info.stations.find((st) => same(st.name, name));
+            if (entry?.market_id == null) {
               throw new UserError(`Spansh has no market for ${name} in ${info.name}.`);
             }
-            const entry = info.stations.find((st) => same(st.name, name))!;
-            // The local file can stand in for the station record, so Spansh is not asked for it.
-            startMarket = withLocal(
-              journalMarket?.market_id === id
-                ? {
+            const id = entry.market_id;
+            const fresh =
+              journalMarket?.market_id === id &&
+              localHours !== null &&
+              localHours <= a.max_price_age_days * 24;
+            // A recent local file stands in for the station record, so Spansh is not asked for it.
+            const rows = fresh ? renamedLocalRows() : null;
+            startMarket = rows
+              ? fromJournal(
+                  {
                     name: entry.name,
                     system: info.name,
                     market_id: id,
@@ -295,9 +331,10 @@ export function registerLoopTools(
                     planetary: PLANETARY.test(entry.type ?? ""),
                     market_age_hours: null,
                     market: [],
-                  }
-                : await spansh.stationMarket(id),
-            );
+                  },
+                  rows,
+                )
+              : withLocal(await spansh.stationMarket(id));
             const age = startMarket.market_age_hours;
             if (age !== null && age > a.max_price_age_days * 24) {
               notes.push(

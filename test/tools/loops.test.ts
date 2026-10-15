@@ -660,6 +660,63 @@ describe("trade_loops with the local market", () => {
     expect(first(j)).toMatchObject({ buy_price: 100 });
   });
 
+  it("matches lower-case local names to the Spansh names", async () => {
+    const s = start();
+    const lower = localRows.map((r) => ({ ...r, commodity: r.commodity.toLowerCase() }));
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: lower } },
+    );
+    expect(stationMarket).not.toHaveBeenCalled();
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 50 });
+  });
+
+  it("uses Spansh when the local names do not match Spansh", async () => {
+    const s = start();
+    const french = [
+      row("Or", { buy_price: 50, supply: 10_000 }),
+      row("Thé", { sell_price: 500, demand: 10_000 }),
+      row("Gold", { buy_price: 50, supply: 0 }),
+    ];
+    const { j, stationMarket } = await loops(
+      { stops: [2] },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: french } },
+    );
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    expect(first(j)).toMatchObject({ commodity: "Gold", buy_price: 100 });
+    expect(j.notes).toContain(
+      "Local market names do not match Spansh; using Spansh prices for the start station.",
+    );
+    expect(j.notes).not.toContain(NOTE);
+  });
+
+  it("asks Spansh when the local file is older than max_price_age_days", async () => {
+    const s = { ...start(), market_age_hours: 100 };
+    const { j, stationMarket } = await loops(
+      { stops: [2], max_price_age_days: 1 },
+      { found: [alpha(), beta()], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-11T06:00:00Z", rows: localRows } },
+    );
+    expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+    // The Spansh record is older still, so the local file wins the comparison.
+    expect(first(j)).toMatchObject({ buy_price: 50 });
+    expect(j.notes).toContain(
+      "Start station prices come from your journal (as of 2026-10-11T06:00:00Z).",
+    );
+  });
+
+  it("gives a local file stamped in the future an age of 0", async () => {
+    const s = start();
+    const { j } = await loops(
+      { stops: [2] },
+      { found: [{ ...alpha(), market_age_hours: null }], extra: [s], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T08:00:00Z", rows: localRows } },
+    );
+    expect(j.loops[0].oldest_price_hours).toBe(0);
+  });
+
   it("works as before when the local market cannot be read", async () => {
     const s = start();
     const { r, stationMarket } = await loops(
