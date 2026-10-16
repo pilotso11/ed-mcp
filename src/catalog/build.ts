@@ -57,7 +57,7 @@ export function buildCatalog(
   const bpJson = json(raw.blueprints, "blueprints");
   const spJson = json(raw.specials, "specials");
   const modJson = json(raw.modifications, "modifications");
-  const actJson = json(raw.actions, "actions");
+  const actJson = raw.actions === undefined ? null : json(raw.actions, "actions");
 
   const blueprints: Blueprint[] = Object.entries(bpJson).map(([id, v]) => {
     const b = v as {
@@ -87,7 +87,7 @@ export function buildCatalog(
       name: s.name ?? id,
       description: s.description ?? "",
       materials: counts(s.components),
-      effects: numbers(actJson[edname]),
+      ...(actJson ? { effects: numbers(actJson[edname]) } : {}),
     };
   });
 
@@ -154,6 +154,8 @@ export function buildCatalog(
   });
 
   const warnings: string[] = [];
+  if (!actJson)
+    warnings.push("No modifierActions.json: experimental effects have no fixed values.");
   const known = new Set(materials.map((m) => normKey(m.name)));
   const unknownMats = new Set<string>();
   for (const list of [

@@ -144,6 +144,7 @@ Assumptions and limits:
 
 - Shield recovery time (`broken_regen_s`) and `time_to_empty_s` assume 2 SYS and 2 WEP pips.
 - The tool does not model heat, fuel scoop rates, damage falloff or target hardness.
+- The fixed values of experimental effects come from coriolis-data `modifierActions.json`. If the catalog does not have that file, experimental effects from changes and from builds without modifier values are left out, and a note names each slot. The next catalog refresh downloads the file.
 - The SLEF output does not hold the cargo hatch. When you load it again, the cargo hatch is on at priority 1.
 
 ## Build routes

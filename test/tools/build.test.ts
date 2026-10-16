@@ -50,11 +50,12 @@ interface Opts {
   capiShip?: CapiProfile["ship"];
   plan?: Record<string, unknown>;
   catalogError?: string;
+  noActions?: boolean;
 }
 
 async function client(o: Opts = {}) {
   const server = new McpServer({ name: "t", version: "0" });
-  const cat = catalog();
+  const cat = catalog({ actions: !o.noActions });
   registerBuildStatsTool(server, {
     ships: (o.ships ?? { get: async () => shipData() }) as ShipDataService,
     catalog: {
@@ -154,6 +155,34 @@ describe("build_stats sources", () => {
       "Slot FrameShiftDrive: the catalog is not available, so its engineering is not applied.",
       "The game data catalog failed to load: offline",
     ]);
+  });
+
+  it("notes an experimental effect that the catalog has no values for", async () => {
+    const fsd = capiShip.modules[0]!;
+    const ship = {
+      ...capiShip,
+      modules: [
+        { ...fsd, engineering: { ...fsd.engineering!, experimental: "special_fsd_heavy" } },
+      ],
+    };
+    const j = (await stats({ build: { capi: true } }, { capiShip: ship, noActions: true }))
+      .json as any;
+    expect(j.notes).toContain(
+      "Slot FrameShiftDrive: the catalog has no fixed values for special_fsd_heavy (modifierActions.json is missing), so its effect is left out.",
+    );
+  });
+
+  it("notes an experimental effect from a change that the catalog has no values for", async () => {
+    const change = {
+      slot: "fsd",
+      module: "5A",
+      blueprint: "increased range",
+      experimental: "Mass Manager",
+    };
+    const j = (await stats({ changes: [change] }, { noActions: true })).json as any;
+    expect(j.notes).toContain(
+      "Slot FrameShiftDrive: the catalog has no fixed values for special_fsd_heavy (modifierActions.json is missing), so its effect is left out.",
+    );
   });
 
   it("reads a plan's target_build", async () => {

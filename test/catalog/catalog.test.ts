@@ -52,6 +52,16 @@ describe("Catalog engineering effects", () => {
       optmass: 0.04,
     });
     expect(cat.experimentalEffects("special_auto_loader")).toEqual({});
+    expect(cat.experimentalEffects("special_nothing")).toBeNull();
+  });
+
+  it("has no experimental values without modifierActions.json", async () => {
+    const { actions: _, ...raw } = await rawFixture();
+    const { catalog, warnings } = buildCatalog(raw, staticsFixture, SMALL);
+    expect(catalog.experimentalEffects("special_fsd_heavy")).toBeNull();
+    expect(warnings).toContain(
+      "No modifierActions.json: experimental effects have no fixed values.",
+    );
   });
 
   it("lists the blueprints and experimentals for a module group", () => {

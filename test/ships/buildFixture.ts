@@ -15,13 +15,14 @@ export function shipData(): ShipData {
   return buildShipData("fixture", JSON.parse(builds("coriolis-data.json")));
 }
 
-export function catalog(): Catalog {
+/** With `actions: false`, the catalog has no modifierActions.json, as an old cache. */
+export function catalog(opts: { actions?: boolean } = {}): Catalog {
   return buildCatalog(
     {
       blueprints: builds("catalog-blueprints.json"),
       specials: builds("catalog-specials.json"),
       modifications: builds("catalog-modules.json"),
-      actions: builds("catalog-modifierActions.json"),
+      ...(opts.actions === false ? {} : { actions: builds("catalog-modifierActions.json") }),
       materials: read("catalog", "fdevids-material.csv"),
       outfitting: read("catalog", "fdevids-outfitting.csv"),
     },

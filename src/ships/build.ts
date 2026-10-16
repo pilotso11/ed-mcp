@@ -76,6 +76,13 @@ export interface SlotInfo {
 
 export const BEST_ROLL_NOTE = "Engineering on changed modules assumes best rolls.";
 
+/** A note when the catalog has no fixed values for an experimental effect, or null. */
+function noValuesNote(slot: string, experimental: string, catalog: Catalog): string | null {
+  return catalog.experimentalEffects(experimental)
+    ? null
+    : `Slot ${slot}: the catalog has no fixed values for ${experimental} (modifierActions.json is missing), so its effect is left out.`;
+}
+
 const GROUP_NAMES = groupNames as Record<string, string[]>;
 const STANDARD: Array<[string, string]> = [
   ["PowerPlant", "pp"],
@@ -324,7 +331,11 @@ function assemble(
           ? experimentalId(e.experimental, module, catalog)
           : null;
         let modifiers = bestRoll(blueprint, e.grade, module, catalog);
-        if (experimental) modifiers = applyExperimental(modifiers, experimental, module, catalog);
+        if (experimental) {
+          modifiers = applyExperimental(modifiers, experimental, module, catalog);
+          const note = noValuesNote(info.slot, experimental, catalog);
+          if (note) notes.push(note);
+        }
         engineering = { blueprint, grade: e.grade, experimental, modifiers };
         bestRolled.push(info.slot);
       } catch (err) {
@@ -688,8 +699,13 @@ export function applyChanges(
       if (!next) {
         throw new UserError(`Slot ${info.slot} is empty. Give a module to engineer.`);
       }
-      next = { ...next, engineering: engineer(c, next, catalog) };
+      const engineering = engineer(c, next, catalog);
+      next = { ...next, engineering };
       rolled = true;
+      const note = engineering.experimental
+        ? noValuesNote(info.slot, engineering.experimental, catalog)
+        : null;
+      if (note && !notes.includes(note)) notes.push(note);
     }
     if (i >= 0) modules[i] = next!;
     else modules.push(next!);

@@ -327,7 +327,7 @@ export function applyExperimental(
   catalog: Catalog,
 ): Record<string, number> {
   const out = { ...modifiers };
-  for (const [feature, a] of Object.entries(catalog.experimentalEffects(experimental))) {
+  for (const [feature, a] of Object.entries(catalog.experimentalEffects(experimental) ?? {})) {
     const current = out[feature];
     const value = current ?? base(module, feature) ?? 0;
     switch (kind(feature)) {

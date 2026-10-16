@@ -214,9 +214,12 @@ export class Catalog {
     return b?.features?.[String(grade)] ?? null;
   }
 
-  /** The fixed numeric changes an experimental effect makes, by coriolis feature. */
-  experimentalEffects(experimentalId: string): Record<string, number> {
-    return this.d.experimentals.find((e) => e.id === experimentalId)?.effects ?? {};
+  /**
+   * The fixed numeric changes an experimental effect makes, by coriolis feature. Null when the
+   * effect is unknown or the catalog has no modifierActions.json.
+   */
+  experimentalEffects(experimentalId: string): Record<string, number> | null {
+    return this.d.experimentals.find((e) => e.id === experimentalId)?.effects ?? null;
   }
 
   /** Blueprint ids that apply to a coriolis module group. */

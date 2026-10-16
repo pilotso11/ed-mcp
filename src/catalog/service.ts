@@ -23,6 +23,8 @@ export const CATALOG_SOURCES: Record<keyof RawSources, string> = {
 };
 
 const KEYS = Object.keys(CATALOG_SOURCES) as Array<keyof RawSources>;
+// Optional: caches from before build_stats lack it, and without it only experimental values go.
+const OPTIONAL = new Set<keyof RawSources>(["actions"]);
 const DEFAULT_STATICS: Statics = {
   engineers: engineers as Engineer[],
   groups: groups as Record<string, string[]>,
@@ -131,7 +133,15 @@ export class CatalogService implements Refreshable {
     try {
       const meta = JSON.parse(await readFile(path.join(this.dir, "meta.json"), "utf8")) as Meta;
       const texts = {} as RawSources;
-      for (const k of KEYS) texts[k] = await readFile(path.join(this.dir, `${k}.raw`), "utf8");
+      for (const k of KEYS) {
+        const file = path.join(this.dir, `${k}.raw`);
+        // A missing optional file stays undefined, so the next refresh fetches it with no etag.
+        const text = await readFile(file, "utf8").catch((err: NodeJS.ErrnoException) => {
+          if (OPTIONAL.has(k) && err.code === "ENOENT") return undefined;
+          throw err;
+        });
+        if (text !== undefined) texts[k] = text;
+      }
       const built = buildCatalog(texts, this.statics, this.minimums);
       this.catalog = built.catalog;
       this.warnings = built.warnings;
@@ -161,6 +171,7 @@ export class CatalogService implements Refreshable {
       const files = { ...(this.meta?.files ?? {}) };
       const changed: string[] = [];
       const unchanged: string[] = [];
+      const missing: string[] = [];
       const stamp = new Date(this.now()).toISOString();
       for (const k of KEYS) {
         const etag = files[k]?.etag;
@@ -174,6 +185,11 @@ export class CatalogService implements Refreshable {
         }
         if (res.status === 304) {
           unchanged.push(k);
+          continue;
+        }
+        if (res.status === 404 && OPTIONAL.has(k)) {
+          await res.body?.cancel().catch(() => undefined);
+          missing.push(`${k}: HTTP 404`);
           continue;
         }
         if (res.status !== 200) {
@@ -191,15 +207,15 @@ export class CatalogService implements Refreshable {
       const built = buildCatalog(next, this.statics, this.minimums);
       await mkdir(this.dir, { recursive: true });
       for (const k of changed)
-        await atomicWrite(path.join(this.dir, `${k}.raw`), next[k as keyof RawSources]);
+        await atomicWrite(path.join(this.dir, `${k}.raw`), next[k as keyof RawSources]!);
       const meta: Meta = { version: 1, checked_at: stamp, files };
       await atomicWrite(path.join(this.dir, "meta.json"), JSON.stringify(meta, null, 2));
       this.catalog = built.catalog;
-      this.warnings = built.warnings;
+      this.warnings = [...missing, ...built.warnings];
       this.texts = next;
       this.meta = meta;
       this.lastError = null;
-      return { changed, unchanged, warnings: built.warnings.length };
+      return { changed, unchanged, warnings: this.warnings.length };
     } catch (err) {
       this.lastError = (err as Error).message;
       throw new UserError(`Catalog refresh failed, keeping current data: ${this.lastError}`);

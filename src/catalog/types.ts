@@ -22,7 +22,10 @@ export interface Experimental {
   name: string;
   description: string;
   materials: MaterialCount[];
-  /** Fixed numeric changes by coriolis feature, from coriolis-data modifierActions.json. */
+  /**
+   * Fixed numeric changes by coriolis feature, from coriolis-data modifierActions.json. Missing
+   * when the catalog has no modifierActions.json.
+   */
   effects?: Record<string, number>;
 }
 export interface ModuleGroup {
@@ -59,8 +62,11 @@ export interface RawSources {
   modifications: string;
   materials: string;
   outfitting: string;
-  /** coriolis-data modifierActions.json: the fixed values of experimental effects. */
-  actions: string;
+  /**
+   * coriolis-data modifierActions.json: the fixed values of experimental effects. Caches from
+   * before build_stats lack it, so it can be missing.
+   */
+  actions?: string;
 }
 export interface Statics {
   engineers: Engineer[];
