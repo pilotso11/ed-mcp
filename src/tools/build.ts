@@ -83,8 +83,11 @@ export function registerBuildStatsTool(server: McpServer, deps: Deps): void {
     },
     wrap(async ({ build, changes }: { build?: BuildArg; changes?: Change[] }) => {
       const data = await deps.ships.get();
-      const catalog = await loadCatalog(deps, Boolean(changes?.length));
+      const { catalog, error } = await loadCatalog(deps, Boolean(changes?.length));
       const original = await load(build ?? { journal: true }, deps, data, catalog);
+      if (error && original.notes.some((n) => n.includes("the catalog is not available"))) {
+        original.notes.push(`The game data catalog failed to load: ${error}`);
+      }
 
       if (!changes?.length) {
         return output(original, statsOf(original));
@@ -102,18 +105,20 @@ export function registerBuildStatsTool(server: McpServer, deps: Deps): void {
   );
 }
 
-async function loadCatalog(deps: Deps, required: boolean): Promise<Catalog | null> {
+async function loadCatalog(
+  deps: Deps,
+  required: boolean,
+): Promise<{ catalog: Catalog | null; error?: string }> {
   if (!deps.catalog) {
     if (required) throw new UserError("Changes need the game data catalog.");
-    return null;
+    return { catalog: null };
   }
   try {
-    return await deps.catalog.get();
+    return { catalog: await deps.catalog.get() };
   } catch (err) {
-    if (required) {
-      throw new UserError(`Changes need the game data catalog: ${(err as Error).message}`);
-    }
-    return null;
+    const error = (err as Error).message;
+    if (required) throw new UserError(`Changes need the game data catalog: ${error}`);
+    return { catalog: null, error };
   }
 }
 

@@ -33,6 +33,17 @@ describe("manifest.json", () => {
 });
 
 describe("package contents", () => {
+  it("keeps the Coriolis licence scope and the Frontier IP sentence in NOTICE", () => {
+    const notice = readFileSync("NOTICE", "utf8").replace(/\s+/g, " ");
+    expect(notice).toContain(
+      "The code (Javascript, CSS, HTML, and SVG files only) specificially for Coriolis.io is released under the MIT License.",
+    );
+    expect(notice).toContain("copy of this software (Javascript, CSS, HTML, and SVG files only)");
+    expect(notice).toContain(
+      "files are intellectual property and copyright of Frontier Developments plc ('Frontier', 'Frontier Developments') and are subject to their [terms and conditions](https://www.frontierstore.net/terms-and-conditions/).",
+    );
+  });
+
   it("ships the Apache-2.0 text that NOTICE references", () => {
     expect(pkg.files).toContain("LICENSES");
     expect(readFileSync("NOTICE", "utf8")).toContain("LICENSES/Apache-2.0.txt");

@@ -49,6 +49,7 @@ interface Opts {
   noJournal?: boolean;
   capiShip?: CapiProfile["ship"];
   plan?: Record<string, unknown>;
+  catalogError?: string;
 }
 
 async function client(o: Opts = {}) {
@@ -56,7 +57,12 @@ async function client(o: Opts = {}) {
   const cat = catalog();
   registerBuildStatsTool(server, {
     ships: (o.ships ?? { get: async () => shipData() }) as ShipDataService,
-    catalog: { get: async () => cat } as unknown as CatalogService,
+    catalog: {
+      get: async () => {
+        if (o.catalogError) throw new Error(o.catalogError);
+        return cat;
+      },
+    } as unknown as CatalogService,
     journal: o.noJournal
       ? undefined
       : ({
@@ -142,6 +148,14 @@ describe("build_stats sources", () => {
     ]);
   });
 
+  it("names the catalog error when the catalog does not load", async () => {
+    const j = (await stats({ build: { capi: true } }, { catalogError: "offline" })).json as any;
+    expect(j.notes).toEqual([
+      "Slot FrameShiftDrive: the catalog is not available, so its engineering is not applied.",
+      "The game data catalog failed to load: offline",
+    ]);
+  });
+
   it("reads a plan's target_build", async () => {
     const plan = { id: "krait", name: "Krait", items: [], target_build: JSON.parse(slefText) };
     const j = (await stats({ build: { plan_id: "krait" } }, { plan })).json as any;
@@ -167,6 +181,12 @@ describe("build_stats changes", () => {
       },
     ]);
     expect(j.notes).toContain(BEST_ROLL_NOTE);
+    // The game's values stay those of the build before the changes.
+    expect(j.game_reported).toEqual(before.game_reported);
+    expect(j.game_reported).toEqual({
+      unladen_t: loadout("mamba").UnladenMass,
+      max_jump_ly: loadout("mamba").MaxJumpRange,
+    });
 
     // Four 0A boosters at 0.2 each (resistive engineering leaves the boost alone). Heavy duty G5
     // ranges shieldboost over [0.31, 0.38]; the best roll gives (1 + 0.2) * 1.38 - 1 = 0.656.
