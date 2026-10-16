@@ -117,6 +117,25 @@ describe("jumpRange", () => {
     }
   });
 
+  it("limits the fuel for one jump to a tank smaller than the FSD's maximum", () => {
+    // The Anaconda's FSD burns up to 8 t a jump; a 2 t tank leaves 2 t for the jump.
+    const b = build("anaconda");
+    const tiny = withModule(b, "FuelTank", { module: { ...slot(b, "FuelTank").module, fuel: 2 } });
+    const fsd = slot(b, "FrameShiftDrive");
+    const m = massFuel(tiny);
+    expect(m.fuel_capacity_t).toBe(2);
+    const at = (mass: number) =>
+      (Math.pow(2 / Number(fsd.module.fuelmul), 1 / Number(fsd.module.fuelpower)) *
+        moduleStat(fsd, "optmass")) /
+        mass +
+      10.5;
+    const r = jumpRange(tiny);
+    expect(r.max).toBeCloseTo(at(m.unladen_t + 2), 9);
+    expect(r.unladen).toBeCloseTo(at(m.unladen_t + 2), 9);
+    expect(r.laden).toBeCloseTo(at(m.unladen_t + 2 + m.cargo_t), 9);
+    expect(r.total_full_tank).toBeCloseTo(r.max, 9);
+  });
+
   it("is zero without an FSD", () => {
     expect(jumpRange(without(build("mamba"), "FrameShiftDrive"))).toEqual({
       unladen: 0,
@@ -198,6 +217,18 @@ describe("speed", () => {
     expect(heavy.top).toBeGreaterThan(0);
     const tooHeavy = speed(withHullMass(b, hull + 5000));
     expect(tooHeavy).toMatchObject({ top: 0, boost: 0, boost_sustainable: false });
+  });
+
+  it("does not move with thrusters that are off or unpowered", () => {
+    const stopped = { top: 0, boost: 0, boost_sustainable: false, boost_interval_s: null };
+    const b = build("mamba");
+    expect(speed(withModule(b, "MainEngines", { on: false }))).toEqual(stopped);
+    const pp = slot(b, "PowerPlant");
+    const weak = withModule(b, "PowerPlant", {
+      engineering: null,
+      module: { ...pp.module, pgen: 1 },
+    });
+    expect(speed(weak)).toEqual(stopped);
   });
 
   it("boosts every cooldown when the distributor recharges a boost in time", () => {

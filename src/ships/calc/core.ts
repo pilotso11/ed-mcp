@@ -44,6 +44,10 @@ export function moduleStat(m: BuiltModule, feature: string): number {
 const sum = (b: Build, feature: string, round: (v: number) => number = (v) => v) =>
   b.modules.reduce((s, m) => s + round(moduleStat(m, feature)), 0);
 
+/**
+ * Masses in tonnes. `laden_t` is unladen + fuel_t (main tank and reserve) + cargo; jump ranges
+ * use masses without the reserve tank (see jumpRange).
+ */
 export function massFuel(b: Build) {
   const hull_t = prop(b, "hullMass");
   const modules_t = sum(b, "mass");
@@ -127,6 +131,11 @@ function jump(fsd: BuiltModule, mass: number, fuel: number, boost: number): numb
   return (Math.pow(f / fuelmul, 1 / fuelpower) * moduleStat(fsd, "optmass")) / mass + boost;
 }
 
+/**
+ * Jump ranges in LY. The masses here leave out the reserve tank, unlike massFuel's laden_t:
+ * `unladen` and `laden` carry the main tank full (laden adds the cargo), `max` carries only the
+ * fuel for one jump, and `total_full_tank` burns the main tank in repeated jumps.
+ */
 export function jumpRange(b: Build) {
   const fsd = find(b, "fsd");
   if (!fsd) return { unladen: 0, laden: 0, max: 0, total_full_tank: 0 };
@@ -138,6 +147,8 @@ export function jumpRange(b: Build) {
   // Unlike Coriolis, jump masses leave out the reserve tank: the game's MaxJumpRange in all
   // three golden Loadouts matches only without it (with it, the Anaconda is 0.13 LY short).
   const full = m.unladen_t + m.fuel_capacity_t;
+  // A tank smaller than the FSD's maximum limits the fuel for one jump.
+  const oneJump = Math.min(maxfuel, m.fuel_capacity_t);
 
   let total_full_tank = 0;
   let mass = full;
@@ -148,10 +159,10 @@ export function jumpRange(b: Build) {
     left -= f;
   }
   return {
-    unladen: jump(fsd, full, maxfuel, boost),
-    laden: jump(fsd, full + m.cargo_t, maxfuel, boost),
+    unladen: jump(fsd, full, oneJump, boost),
+    laden: jump(fsd, full + m.cargo_t, oneJump, boost),
     // The game's MaxJumpRange: unladen with only the fuel for one jump.
-    max: jump(fsd, m.unladen_t + Math.min(maxfuel, m.fuel_capacity_t), maxfuel, boost),
+    max: jump(fsd, m.unladen_t + oneJump, oneJump, boost),
     total_full_tank,
   };
 }
@@ -159,7 +170,8 @@ export function jumpRange(b: Build) {
 export function speed(b: Build) {
   const none = { top: 0, boost: 0, boost_sustainable: false, boost_interval_s: null };
   const t = find(b, "t");
-  if (!t) return none;
+  // Coriolis canThrust: thrusters that are off or unpowered do not move the ship.
+  if (!t || !online(b, t)) return none;
   const m = massFuel(b);
   // Coriolis updateMovement: dry mass plus a full tank and the reserve, no cargo.
   const mass = m.unladen_t + m.fuel_t;
