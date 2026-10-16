@@ -28,6 +28,7 @@ type Pad = "L" | "M" | "S" | null;
 export interface StationHit {
   name: string;
   system: string;
+  system_id64: string | null;
   distance_ly: number;
   arrival_ls: number | null;
   type: string | null;
@@ -177,6 +178,7 @@ export interface MarketRow {
 export interface MarketStation {
   name: string;
   system: string;
+  system_id64: string | null;
   market_id: number;
   distance_ly: number | null;
   arrival_ls: number | null;
@@ -217,6 +219,7 @@ interface RawStation {
   name: string;
   market_id?: number;
   system_name?: string;
+  system_id64?: number | string;
   system_x?: number;
   system_y?: number;
   system_z?: number;
@@ -447,6 +450,14 @@ export class SpanshClient {
         services: (s.services ?? []).map((x) => (typeof x === "string" ? x : x.name)),
       })),
     };
+  }
+
+  /** One request per new system: station records carry the id64, so no name search is needed. */
+  async systemPermit(id64: string): Promise<boolean | null> {
+    const detail = (await this.systemCache.getOrLoad(`system:${id64}`, () =>
+      this.get(`/system/${id64}`),
+    )) as { record: { needs_permit?: boolean } };
+    return detail.record.needs_permit ?? null;
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {
@@ -779,6 +790,7 @@ export class SpanshClient {
     return {
       name: s.name,
       system: s.system_name ?? "",
+      system_id64: s.system_id64 == null ? null : String(s.system_id64),
       market_id,
       distance_ly: s.distance ?? null,
       arrival_ls: s.distance_to_arrival ?? null,
@@ -817,6 +829,7 @@ export class SpanshClient {
     return {
       name: s.name,
       system: s.system_name ?? "",
+      system_id64: s.system_id64 == null ? null : String(s.system_id64),
       distance_ly: s.distance ?? 0,
       arrival_ls: s.distance_to_arrival ?? null,
       type: s.type ?? null,
@@ -877,6 +890,12 @@ export class SpanshClient {
     }
     return { status, body };
   }
+}
+
+/** A network failure, timeout or Spansh server error, as opposed to an answer such as "not found". */
+export function isTransportError(err: unknown): boolean {
+  if (err instanceof SpanshError) return err.status >= 500;
+  return err instanceof HttpError || !(err instanceof UserError);
 }
 
 class SpanshError extends UserError {

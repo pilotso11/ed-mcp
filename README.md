@@ -130,6 +130,7 @@ ed-mcp ranks stations by travel time and price. Your preferences control which s
 | Fleet carriers                   | Excluded                                                                   |
 | Megaships                        | Allowed                                                                    |
 | Landing pad size                 | Taken from your current ship                                               |
+| Permit-locked systems            | Excluded, for example Sol. Tell Claude when you hold a permit.             |
 | Jump range                       | Taken from your current ship (85% of its best range)                      |
 | Value of your time               | 20M credits an hour                                                        |
 

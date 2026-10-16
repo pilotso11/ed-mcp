@@ -52,10 +52,24 @@ export function rankCommodityStations(
     const order = x === null || y === null ? nullsLast(x, y) : mode === "sell" ? y - x : x - y;
     return order || a.travel_s - b.travel_s;
   });
+  const sorted = ranked.map((r) => r.hit);
+  return {
+    stations: sorted,
+    recommended: recommendCommodityStation(sorted, mode, maxAgeHours),
+    relaxed,
+  };
+}
+
+// `stations` must be ranked best first, as rankCommodityStations returns them.
+export function recommendCommodityStation(
+  stations: RankedCommodityHit[],
+  mode: "sell" | "buy",
+  maxAgeHours = Infinity,
+): { name: string; system: string; reason: string } | null {
   // Old prices may have moved, so such a station stays listed but is never the pick.
-  const best = ranked.find(
-    (r) => r.hit.market_age_hours === null || r.hit.market_age_hours <= maxAgeHours,
-  )?.hit;
+  const best = stations.find(
+    (h) => h.market_age_hours === null || h.market_age_hours <= maxAgeHours,
+  );
   const reason = (b: RankedCommodityHit) => {
     const trip = `about ${b.travel_min} min`;
     if (b.value === null) {
@@ -66,9 +80,5 @@ export function rankCommodityStations(
     }
     return `best ${mode === "sell" ? "net return" : "total cost"} after travel time: ${credits(b.value)} cr, ${trip}`;
   };
-  return {
-    stations: ranked.map((r) => r.hit),
-    recommended: best ? { name: best.name, system: best.system, reason: reason(best) } : null,
-    relaxed,
-  };
+  return best ? { name: best.name, system: best.system, reason: reason(best) } : null;
 }

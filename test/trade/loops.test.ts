@@ -14,6 +14,7 @@ const row = (commodity: string, r: Partial<MarketRow>): MarketRow => ({
 const station = (name: string, market: MarketRow[] = [], distance_ly = 0): MarketStation => ({
   name,
   system: `${name} System`,
+  system_id64: null,
   market_id: name.length,
   distance_ly,
   arrival_ls: 100,

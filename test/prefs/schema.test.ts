@@ -18,6 +18,7 @@ describe("prefs schema", () => {
         fleet_carriers: "exclude",
         megaships: "allow",
         min_pad: "auto",
+        permit_systems: "exclude",
       },
       travel: {
         jump_range_ly: "auto",
@@ -35,13 +36,14 @@ describe("prefs schema", () => {
     });
   });
 
-  it("OFF_PREFS turns every rule off", () => {
+  it("OFF_PREFS turns every rule off but still keeps permit systems out", () => {
     expect(OFF_PREFS.stations).toEqual({
       max_arrival_ls: { value: 1000, mode: "off" },
       planetary: "allow",
       fleet_carriers: "allow",
       megaships: "allow",
       min_pad: "none",
+      permit_systems: "exclude",
     });
     expect(OFF_PREFS.travel).toEqual(DEFAULT_PREFS.travel);
   });
@@ -55,6 +57,19 @@ describe("prefs schema", () => {
     expect(p.travel.credits_per_hour).toBe(50_000_000);
     expect(p.travel.supercruise).toEqual({ ...DEFAULT_PREFS.travel.supercruise, speed_factor: 2 });
     expect(p.stations.planetary).toBe("avoid");
+  });
+
+  it("reads a file saved before permit_systems existed as exclude", () => {
+    const { permit_systems: _p, ...stations } = DEFAULT_PREFS.stations;
+    const old = PrefsSchema.parse({ ...DEFAULT_PREFS, stations });
+    expect(old.stations.permit_systems).toBe("exclude");
+  });
+
+  it("patches permit_systems and rejects other values", () => {
+    expect(
+      applyPatch(DEFAULT_PREFS, { stations: { permit_systems: "allow" } }).stations.permit_systems,
+    ).toBe("allow");
+    expect(() => parsePatch({ stations: { permit_systems: "avoid" } })).toThrow(UserError);
   });
 
   it("rejects unknown keys and bad values", () => {

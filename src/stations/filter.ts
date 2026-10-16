@@ -140,6 +140,7 @@ export function describeRules(rules: Rules): Record<string, unknown> {
       : rules.pad.source === "none"
         ? "none"
         : `none (${rules.pad.source})`,
+    permit_systems: s.permit_systems,
     travel:
       `range ${rules.travel.jump_range_ly} LY (${rules.jumpRangeSource}), ${rules.travel.seconds_per_jump} s per jump, ` +
       `time valued at ${rules.travel.credits_per_hour.toLocaleString("en-US")} cr/h`,

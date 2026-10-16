@@ -9,7 +9,7 @@ import { HttpClient } from "../../src/http/client.js";
 import { PreferencesStore } from "../../src/prefs/store.js";
 import { registerSpanshTools } from "../../src/tools/spansh.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
-import { fakeFetch } from "../helpers/fakeFetch.js";
+import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
 
 const raw = (n: string) => readFile(new URL(`../fixtures/spansh/${n}`, import.meta.url), "utf8");
 
@@ -20,11 +20,33 @@ async function setup(
     currentShip?: () => Promise<string | null>;
     stations?: string;
     jumpRange?: () => Promise<number | null>;
+    permits?: Record<string, boolean>;
   } = {},
 ) {
   const stations = opts.stations ?? (await raw("stations-search-material-trader.json"));
+  const permits = opts.permits ?? {};
+  const names = new Map<string, string>(
+    JSON.parse(stations).results.map((r: any) => [String(r.system_id64), r.system_name]),
+  );
   const f = fakeFetch([
     { match: (u) => u.endsWith("/stations/search"), respond: () => new Response(stations) },
+    // System lookups for the permit check: the id64 is the system name.
+    {
+      match: (u) => u.includes("/search/systems?"),
+      respond: (u) => {
+        const name = new URL(u).searchParams.get("q")!;
+        return jsonResponse({ results: [{ id64: name, name }] });
+      },
+    },
+    {
+      match: (u) => u.includes("/system/"),
+      respond: (u) => {
+        const id = decodeURIComponent(u.split("/system/")[1]!);
+        const name = names.get(id) ?? id;
+        const record = { name, id64: id, x: 0, y: 0, z: 0, needs_permit: !!permits[name] };
+        return jsonResponse({ record });
+      },
+    },
   ]);
   const spansh = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f }),
@@ -61,6 +83,56 @@ describe("spansh tools", () => {
       expect(typeof s.travel_min).toBe("number");
     }
     expect(JSON.parse(String(f.calls[0]!.init!.body)).size).toBe(50);
+  });
+
+  it("leaves out stations in permit systems and says so", async () => {
+    const { client, f } = await setup({ permits: { "82 Eridani": true } });
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      limit: 3,
+      preferences: { stations: { min_pad: "none" } },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Broglie Terminal", "Hooper Relay"]);
+    expect(j.notes).toEqual([
+      "Left out 1 station in permit-locked systems (82 Eridani). Set permit_systems to allow if you hold the permit.",
+    ]);
+    expect(j.applied_preferences.permit_systems).toBe("exclude");
+    // One system record per system, by the id64 on the station; no name search.
+    expect(f.calls.filter((c) => c.url.includes("/system/"))).toHaveLength(3);
+    expect(f.calls.filter((c) => c.url.includes("/search/systems"))).toEqual([]);
+  });
+
+  it("keeps and marks stations in permit systems with permit_systems allow", async () => {
+    const { client } = await setup({ permits: { "82 Eridani": true } });
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "material_trader_raw",
+      limit: 3,
+      preferences: { stations: { min_pad: "none", permit_systems: "allow" } },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => [s.name, s.needs_permit ?? false])).toEqual([
+      ["Broglie Terminal", false],
+      ["Bresnik Port", true],
+      ["Hooper Relay", false],
+    ]);
+    expect(j.notes).toEqual([]);
+  });
+
+  it("keeps permit systems out with use_preferences false unless the call allows them", async () => {
+    const { client } = await setup({ permits: { "82 Eridani": true } });
+    const args = { near: "Sol", service: "material_trader_raw", use_preferences: false };
+    const off = (await callTool(client, "spansh_find_stations", args)).json as Record<string, any>;
+    expect(off.stations.map((s: any) => s.name)).not.toContain("Bresnik Port");
+    const allowed = (
+      await callTool(client, "spansh_find_stations", {
+        ...args,
+        preferences: { stations: { permit_systems: "allow" } },
+      })
+    ).json as Record<string, any>;
+    expect(allowed.stations.map((s: any) => s.name)).toContain("Bresnik Port");
   });
 
   it("applies stored preferences and reports them", async () => {

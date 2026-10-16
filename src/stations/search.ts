@@ -8,6 +8,7 @@ import {
   type PadResolution,
   type Rules,
 } from "./filter.js";
+import { screenPermits } from "./permits.js";
 import { rankStations, recommendStation, type RankedHit } from "./travel.js";
 
 const FETCH_SIZE = 50;
@@ -17,11 +18,12 @@ export interface StationSearchResult {
   total: number;
   matched: number;
   total_capped: boolean;
-  stations: RankedHit[];
+  stations: Array<RankedHit & { needs_permit?: true }>;
   recommended: { name: string; system: string; reason: string } | null;
   relaxed: string[];
   relax_attempted: boolean;
   applied_preferences: Record<string, unknown>;
+  notes: string[];
 }
 
 const SHIP_LOOKUP_TIMEOUT_MS = 3_000;
@@ -69,10 +71,11 @@ export async function autoPad(
 }
 
 export async function searchStations(
-  spansh: Pick<SpanshClient, "findStations">,
+  spansh: Pick<SpanshClient, "findStations" | "system" | "systemPermit">,
   query: Omit<StationQuery, "limit" | "largePad" | "maxArrivalLs">,
   rules: Rules,
   limit: number,
+  permits: { deadline?: number; now?: () => number } = {},
 ): Promise<StationSearchResult> {
   const arrival = rules.prefs.stations.max_arrival_ls;
   const base = { ...query, limit: FETCH_SIZE, largePad: rules.pad.size === "L" || undefined };
@@ -99,13 +102,27 @@ export async function searchStations(
     source = wider;
   }
   const ranked = rankStations(withDiscounts(outcome.stations), rules.travel);
-  const recommended = recommendStation(ranked, rules.travel);
-  // Ranking puts the recommended station first, so it is always in the page.
-  const page = ranked.slice(0, limit);
+  const mode = rules.prefs.stations.permit_systems;
+  const screen = await screenPermits({
+    items: ranked,
+    limit,
+    mode,
+    systemsOf: (h) => [{ name: h.system, id64: h.system_id64 }],
+    spansh,
+    ...permits,
+  });
+  const page = screen.kept.map((h) =>
+    screen.locked(h.system) ? { ...h, needs_permit: true as const } : h,
+  );
+  const open = mode === "exclude" ? ranked.filter((h) => !screen.locked(h.system)) : ranked;
+  // Only a station whose permit was checked is recommended: the first such one in the page.
+  const recommended = screen.checkedOpen.length
+    ? recommendStation(screen.checkedOpen, rules.travel)
+    : null;
   return {
     near: source.near,
     total: source.total,
-    matched: ranked.length,
+    matched: open.length,
     total_capped: source.total_capped,
     stations: page,
     recommended,
@@ -113,6 +130,7 @@ export async function searchStations(
     relaxed: relaxAttempted ? brokenRules(page, rules) : [],
     relax_attempted: relaxAttempted,
     applied_preferences: describeRules(rules),
+    notes: screen.notes,
   };
 }
 

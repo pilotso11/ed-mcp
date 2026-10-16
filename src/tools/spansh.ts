@@ -4,6 +4,7 @@ import type { SpanshClient, StationService } from "../spansh/client.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { resolveSearchRules } from "../stations/rules.js";
+import { PERMIT_TIME_MS } from "../stations/permits.js";
 import { searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
@@ -24,9 +25,11 @@ export function registerSpanshTools(
     prefs?: PreferencesStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
+    now?: () => number;
   },
 ): void {
   const { spansh } = deps;
+  const now = deps.now ?? Date.now;
 
   server.registerTool(
     "spansh_find_stations",
@@ -42,7 +45,8 @@ export function registerSpanshTools(
         "Stations are ranked by estimated travel time (jumps plus supercruise, docking and planetary time) " +
         "and, for purchases, by effective cost = price + travel time × the commander's credits_per_hour. " +
         "Each station has jumps, travel_s, travel_min, arrival_assumed, effective_cost and discount_pct (versus the median price); " +
-        "recommended explains the trade-off. Also returns any relaxed rules and the applied preferences. Cached 5 min.",
+        "recommended explains the trade-off. Stations in permit-locked systems are left out unless permit_systems is allow, " +
+        "which keeps them with needs_permit: true. Also returns any relaxed rules, the applied preferences and notes. Cached 5 min.",
       inputSchema: {
         near: z.string().describe("Exact reference system name"),
         module: z
@@ -76,6 +80,7 @@ export function registerSpanshTools(
         use_preferences: boolean;
         limit: number;
       }) => {
+        const deadline = now() + PERMIT_TIME_MS;
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences, a.large_pad);
         return searchStations(
           spansh,
@@ -88,6 +93,7 @@ export function registerSpanshTools(
           },
           rules,
           a.limit,
+          { deadline, now },
         );
       },
     ),

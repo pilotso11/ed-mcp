@@ -435,9 +435,33 @@ function commodity(
     broken?: boolean;
     local?: LocalMarket | null;
     localBroken?: boolean;
+    permits?: Record<string, boolean>;
   } = {},
 ) {
+  const body = opts.body ?? fixture("trade-stations-search-market-sell.json");
+  const names = new Map<string, string>(
+    (JSON.parse(body).results ?? []).map((r: any) => [String(r.system_id64), r.system_name]),
+  );
   const f = fakeFetch([
+    // System lookups for the permit check: the id64 is the system name.
+    {
+      match: (u) => u.includes("/search/systems?"),
+      respond: (u) => {
+        const name = new URL(u).searchParams.get("q")!;
+        return json(JSON.stringify({ results: [{ id64: name, name }] }));
+      },
+    },
+    {
+      match: (u) => u.includes("/system/"),
+      respond: (u) => {
+        const id = decodeURIComponent(u.split("/system/")[1]!);
+        const name = names.get(id) ?? id;
+        const needs_permit = !!opts.permits?.[name];
+        return json(
+          JSON.stringify({ record: { name, id64: name, x: 0, y: 0, z: 0, needs_permit } }),
+        );
+      },
+    },
     {
       match: () => true,
       respond: () =>
@@ -534,6 +558,102 @@ describe("commodity_prices", () => {
       "Gardner Settlement",
     ]);
     expect(j.relaxed).toEqual(["max_arrival_ls"]);
+  });
+
+  it("leaves out stations in permit systems and refills from the rest", async () => {
+    const { client } = commodity({ permits: { Arexe: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      limit: 1,
+      preferences: open,
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Ferraro Control"]);
+    // The fixture's other prices are weeks old, so no station is left to recommend.
+    expect(j.recommended).toBeNull();
+    expect(j.matched).toBe(2);
+    expect(j.notes).toEqual([
+      "Left out 1 station in permit-locked systems (Arexe). Set permit_systems to allow if you hold the permit.",
+    ]);
+  });
+
+  // The fixture's stations: Janes Horizons (Arexe, 1 h old), Ferraro Control (Placet,
+  // planetary) and Gardner Settlement (Neganhot), ranked in that order; the last two are weeks old.
+  const withAges = (ages: Record<string, string>) => {
+    const body = JSON.parse(fixture("trade-stations-search-market-sell.json"));
+    for (const r of body.results) r.market_updated_at = ages[r.name] ?? r.market_updated_at;
+    return JSON.stringify(body);
+  };
+  const FRESH = "2026-10-13T05:35:18Z";
+  const OLD = "2026-07-31T01:00:20Z";
+
+  it("never recommends a station whose permit was not checked", async () => {
+    const body = withAges({
+      "Janes Horizons": OLD,
+      "Ferraro Control": OLD,
+      "Gardner Settlement": FRESH,
+    });
+    const { client } = commodity({ body, permits: { Neganhot: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      limit: 2,
+      preferences: open,
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Janes Horizons", "Ferraro Control"]);
+    // Gardner Settlement is the only fresh price, but its permit-locked system is past the page.
+    expect(j.recommended).toBeNull();
+  });
+
+  it("moves the recommendation to the next open station with a fresh price", async () => {
+    const body = withAges({ "Ferraro Control": FRESH });
+    const { client } = commodity({ body, permits: { Arexe: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      limit: 2,
+      preferences: open,
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Ferraro Control", "Gardner Settlement"]);
+    expect(j.recommended.name).toBe("Ferraro Control");
+  });
+
+  it("lists only the relaxed rules that a returned station breaks", async () => {
+    const { client } = commodity({ permits: { Placet: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: { stations: { max_arrival_ls: { value: 100, mode: "soft" } } },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Janes Horizons", "Gardner Settlement"]);
+    // Only the left-out Ferraro Control is planetary.
+    expect(j.relaxed).toEqual(["max_arrival_ls"]);
+  });
+
+  it("keeps and marks stations in permit systems with permit_systems allow", async () => {
+    const { client } = commodity({ permits: { Arexe: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: { ...open, stations: { ...open.stations, permit_systems: "allow" } },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => [s.name, s.needs_permit ?? false])).toEqual([
+      ["Janes Horizons", true],
+      ["Ferraro Control", false],
+      ["Gardner Settlement", false],
+    ]);
+    expect(j.recommended.name).toBe("Janes Horizons");
+    expect(j.notes).toEqual([]);
   });
 
   it("values the cargo when an amount is given", async () => {

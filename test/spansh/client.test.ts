@@ -80,6 +80,7 @@ describe("SpanshClient.findStations", () => {
     expect(r.stations[0]).toEqual({
       name: "Columbus",
       system: "Sol",
+      system_id64: "10477373803",
       distance_ly: 0,
       arrival_ls: 2614.741906,
       type: "Ocellus Starport",
@@ -210,6 +211,20 @@ describe("SpanshClient.system", () => {
     // Spansh lists station services as plain strings, not {name} objects.
     expect(s.stations.flatMap((st) => st.services).every((x) => typeof x === "string")).toBe(true);
     expect(s.stations.some((st) => st.services.includes("Dock"))).toBe(true);
+  });
+
+  it("reads a system's permit by id64 with one request, sharing system()'s cache entry", async () => {
+    const search = await raw("search-systems.json");
+    const detail = await raw("system.json");
+    const { client, f } = make([
+      { match: (u) => u.includes("/search/systems?"), respond: () => text(search) },
+      { match: (u) => u.includes("/system/3932277478106"), respond: () => text(detail) },
+    ]);
+    expect(await client.systemPermit("3932277478106")).toBe(true);
+    expect(f.calls).toHaveLength(1);
+    await client.system("shinrarta dezhra", 2);
+    // Only the name search is new; the system record comes from the cache.
+    expect(f.calls).toHaveLength(2);
   });
 
   it("keeps system lookups in the long-lived cache", async () => {

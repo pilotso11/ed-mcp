@@ -50,6 +50,7 @@ async function setup(
     route?: RouteFn;
     now?: () => number;
     systemCalls?: string[];
+    permits?: string[];
   } = {},
 ) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "routes-"));
@@ -62,6 +63,7 @@ async function setup(
       return {
         name: name[0]!.toUpperCase() + name.slice(1).toLowerCase(),
         coords: { x, y: 0, z: 0 },
+        needs_permit: opts.permits?.includes(name.toLowerCase()) ?? null,
         stations: (stationNames[name.toLowerCase()] ?? []).map((s) => ({
           name: s,
           type: "Orbis Starport",
@@ -441,6 +443,35 @@ describe("route_stops", () => {
   it("notes a permit-locked engineer", async () => {
     const { j } = await route({ stops: [{ engineer: "Lock" }] });
     expect(j.notes).toContain("Lock Smith is in a permit-locked system.");
+  });
+
+  it("keeps stops in permit systems and names them in a note", async () => {
+    const { j } = await route(
+      { stops: [alpha, beta], return_to: { system: "Far" } },
+      { permits: ["beta", "far", "sol"] },
+    );
+    expect(labels(j)).toEqual(["AlphaShop", "BetaShop", "return_to"]);
+    expect(j.notes).toContain("BetaShop is in a permit-locked system.");
+    expect(j.notes).toContain("return_to (Far) is in a permit-locked system.");
+    expect(j.notes.filter((n: string) => n.includes("permit"))).toHaveLength(2);
+  });
+
+  it("still names stops in permit systems with permit_systems allow", async () => {
+    const { j } = await route(
+      {
+        stops: [alpha, beta],
+        preferences: { ...range.preferences, stations: { permit_systems: "allow" } },
+      },
+      { permits: ["beta"] },
+    );
+    expect(j.notes).toContain("BetaShop is in a permit-locked system.");
+  });
+
+  it("notes a permit-locked engineer once", async () => {
+    const { j } = await route({ stops: [{ engineer: "Lock" }] }, { permits: ["gamma"] });
+    expect(j.notes.filter((n: string) => n.includes("permit"))).toEqual([
+      "Lock Smith is in a permit-locked system.",
+    ]);
   });
 
   it("notes a permit only for an engineer in the route", async () => {

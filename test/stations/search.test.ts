@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
-import type { StationHit, StationQuery, StationResult } from "../../src/spansh/client.js";
+import type {
+  StationHit,
+  StationQuery,
+  StationResult,
+  SystemInfo,
+} from "../../src/spansh/client.js";
 import { resolveRules } from "../../src/stations/filter.js";
 import { autoPad, searchStations } from "../../src/stations/search.js";
 
 const hit = (o: Partial<StationHit>): StationHit => ({
   name: "S",
   system: "Sys",
+  system_id64: null,
   distance_ly: 1,
   arrival_ls: 100,
   type: "Coriolis Starport",
@@ -19,17 +25,29 @@ const hit = (o: Partial<StationHit>): StationHit => ({
   ...o,
 });
 
-function fakeSpansh(pages: Array<StationHit[]>) {
+function fakeSpansh(pages: Array<StationHit[]>, permits: Record<string, boolean> = {}) {
   const calls: StationQuery[] = [];
+  const systemCalls: string[] = [];
   return {
     calls,
+    systemCalls,
     findStations: async (q: StationQuery): Promise<StationResult> => {
       calls.push(q);
       const stations = pages[calls.length - 1] ?? [];
       return { near: q.near, total: stations.length, total_capped: false, stations };
     },
+    system: async (name: string): Promise<SystemInfo> => {
+      systemCalls.push(name);
+      return { name, needs_permit: permits[name] ?? false } as SystemInfo;
+    },
+    systemPermit: async (id64: string) => {
+      systemCalls.push(`id64 ${id64}`);
+      return false;
+    },
   };
 }
+const LEFT_OUT_SOL =
+  "Left out 1 station in permit-locked systems (Sol). Set permit_systems to allow if you hold the permit.";
 const AUTO = { size: "M" as const, source: "auto: current ship Corsair" };
 const rules = resolveRules(DEFAULT_PREFS, undefined, true, AUTO);
 
@@ -154,6 +172,90 @@ describe("ranking and recommendation", () => {
     expect(r.stations.map((s) => s.name)).toEqual(["far", "near"]);
     expect(r.recommended).toMatchObject({ name: "far" });
     expect(r.stations[0]).toMatchObject({ jumps: 2 });
+  });
+
+  it("leaves out a station in a permit system and refills the page", async () => {
+    const sp = fakeSpansh(
+      [
+        [
+          hit({ name: "Abraham Lincoln", system: "Sol", distance_ly: 1 }),
+          hit({ name: "a", system: "Alpha", distance_ly: 2 }),
+          hit({ name: "b", system: "Beta", distance_ly: 3 }),
+          hit({ name: "c", system: "Gamma", distance_ly: 4 }),
+        ],
+      ],
+      { Sol: true },
+    );
+    const r = await searchStations(sp, query, rules, 2);
+    expect(r.stations.map((s) => s.name)).toEqual(["a", "b"]);
+    expect(r.recommended).toMatchObject({ name: "a" });
+    expect(r.matched).toBe(3);
+    expect(r.notes).toEqual([LEFT_OUT_SOL]);
+    expect(sp.systemCalls).toEqual(["Sol", "Alpha", "Beta"]);
+  });
+
+  it("keeps permit systems with allow and marks their stations", async () => {
+    const sp = fakeSpansh(
+      [
+        [
+          hit({ name: "Abraham Lincoln", system: "Sol", distance_ly: 1 }),
+          hit({ name: "a", system: "Alpha", distance_ly: 2 }),
+        ],
+      ],
+      { Sol: true },
+    );
+    const allow = resolveRules(
+      DEFAULT_PREFS,
+      { stations: { permit_systems: "allow" } },
+      true,
+      AUTO,
+    );
+    const r = await searchStations(sp, query, allow, 10);
+    expect(r.stations.map((s) => [s.name, s.needs_permit])).toEqual([
+      ["Abraham Lincoln", true],
+      ["a", undefined],
+    ]);
+    expect(r.recommended).toMatchObject({ name: "Abraham Lincoln" });
+    expect(r.notes).toEqual([]);
+    expect(r.applied_preferences).toMatchObject({ permit_systems: "allow" });
+  });
+
+  it("looks up by system_id64 when the hit has one", async () => {
+    const sp = fakeSpansh([[hit({ name: "a", system: "Alpha", system_id64: "42" })]]);
+    await searchStations(sp, query, rules, 10);
+    expect(sp.systemCalls).toEqual(["id64 42"]);
+  });
+
+  it("keeps the stations unchecked once the permit deadline has passed", async () => {
+    const sp = fakeSpansh([[hit({ name: "a", system: "Alpha" })]]);
+    const r = await searchStations(sp, query, rules, 10, { deadline: 5, now: () => 10 });
+    expect(r.stations.map((s) => s.name)).toEqual(["a"]);
+    expect(sp.systemCalls).toEqual([]);
+    expect(r.notes).toEqual(["Permits not checked for 1 station (time limit)."]);
+  });
+
+  it("recommends only a station whose permit was checked", async () => {
+    const sp = fakeSpansh([
+      [hit({ name: "a", system: "Alpha", distance_ly: 1 }), hit({ name: "b", system: "Beta" })],
+    ]);
+    let t = 0;
+    const r = await searchStations(sp, query, rules, 10, { deadline: 1, now: () => t++ });
+    expect(r.stations.map((s) => s.name)).toEqual(["a", "b"]);
+    expect(sp.systemCalls).toEqual(["Alpha"]);
+    expect(r.recommended).toMatchObject({ name: "a" });
+
+    const again = fakeSpansh([[hit({ name: "a", system: "Alpha" })]]);
+    const late = await searchStations(again, query, rules, 10, { deadline: 0, now: () => 0 });
+    expect(late.stations.map((s) => s.name)).toEqual(["a"]);
+    expect(late.recommended).toBeNull();
+  });
+
+  it("returns no recommendation when every station is in a permit system", async () => {
+    const sp = fakeSpansh([[hit({ name: "Abraham Lincoln", system: "Sol" })]], { Sol: true });
+    const r = await searchStations(sp, query, rules, 10);
+    expect(r.stations).toEqual([]);
+    expect(r.recommended).toBeNull();
+    expect(r.notes).toEqual([LEFT_OUT_SOL]);
   });
 
   it("orders unpriced results by travel_s", async () => {

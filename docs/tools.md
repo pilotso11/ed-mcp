@@ -171,7 +171,7 @@ Shared candidates: one place can meet several groups, for example an engineer wh
 
 Plot: with `plot: true`, the tool plots each leg of the chosen route with the Spansh neutron plotter, at your jump range. A plotted leg uses the plotted number of jumps, and the refuel stops for that number. If a plotted leg differs from its estimate by more than 20% and by at least 2 jumps, the tool solves again with the plotted times and plots only the new legs. It stops after 2 rounds. All plots share a time budget of about 40 s for the call, so the call ends before MCP clients give up. If Spansh has not finished a leg, the budget runs out before a leg, or Spansh has a network or server error while the leg plots, the tool keeps the estimate, sets `plotted: false` on that stop and adds the note "Spansh is still plotting; call again to finish." Call again to collect the plot. If Spansh cannot plot a leg, for example because it does not know a system or rejects the request, the tool keeps the estimate, sets `plotted: false` and adds the note "Spansh could not plot the leg to <label>: <error>; the estimate is used." Calling again does not help for that leg. Without `plot`, each leg longer than 200 LY gets a note, because a neutron route or a detour can change its time.
 
-The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `meets` (the groups that this visit meets), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. A saved route has `plotted: true` only if every leg was plotted. `plan_export` shows the saved route with its start and whether it was plotted or is an estimate.
+The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `meets` (the groups that this visit meets), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. Stops in permit-locked systems stay in the route, because you chose them. A note such as "BetaShop is in a permit-locked system." names each one, whatever the `permit_systems` setting. For the `return_to` stop, the note names the system: "return_to (Sol) is in a permit-locked system." A saved route has `plotted: true` only if every leg was plotted. `plan_export` shows the saved route with its start and whether it was plotted or is an estimate.
 
 ## Trading
 
@@ -225,6 +225,8 @@ Loading stops about 40 s after the call starts, so that the client does not time
 
 Your travel preferences filter the candidates. A pad size of L, `planetary: "exclude"`, `fleet_carriers: "exclude"` (as a list of the other station types, loaded from Spansh once a day) and a `hard` arrival limit go to the Spansh search. The tool then applies the medium pad size and `megaships: "exclude"` itself. An `avoid` rule keeps those stations, and a note says so when a candidate is affected: loops are ranked by credits per hour, and the travel model already adds the landing time of a surface station. A `soft` arrival limit is not applied, and a note says so. The start station and the `include` stations are never filtered.
 
+With `permit_systems: "exclude"` (the default), a loop is left out if any of its stations is in a permit-locked system, and the next best loop takes its place. The note reads "Left out 3 loops through permit-locked systems (Sol). ..." The tool checks the systems of the best loops only, as described in [Permit-locked systems](#permit-locked-systems). The systems of the start station (with `"here"`) and of the `include` stations are not checked. With `allow`, the loops stay, and each station in a permit-locked system has `needs_permit: true`.
+
 Each leg carries the commodity with the best profit. The amount is the smallest of your cargo, the supply, the demand and what your capital buys. `depth` is the number of full loads that the two markets support. The leg time comes from the travel model. It does not count market and loading time.
 
 The loops are ranked by `sustained_per_hour`. This is the lap profit times the laps you can run in `session_min`, limited by `laps_supported` (the smallest `depth` in the loop), per hour. A thin market that cannot refill your hold every lap ranks low. Ties go to the higher `profit_per_hour` (one lap, repeated). With `"any"`, each loop starts at its alphabetically first station, and `reposition_min` is the time from your location (or `near`) to that station.
@@ -246,7 +248,7 @@ Inputs:
 
 The tool asks Spansh for `limit` + 10 stations (at most 30), then applies your travel preferences (pad size, fleet carriers, planetary stations, megaships, arrival distance). A station must have a demand (sell) or supply (buy) of at least `amount`, or at least 1 without `amount`. Each station shows its price, its demand or supply, `market_age_hours` and `travel_min`. If Spansh finds no station, a note asks you to check the commodity name.
 
-With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is never a station with prices older than `max_price_age_days`. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them.
+With `amount`, each station gets a `value`: price × amount, minus the travel cost when you sell, plus it when you buy. The travel cost is the travel time in hours × `credits_per_hour`. The tool ranks by value (highest first to sell, lowest first to buy). Without `amount`, it ranks by price, and ties go to the shorter trip. `recommended` names the best station and gives the reason. It is always one of the returned stations, never a station with prices older than `max_price_age_days`, and never a station whose permit was not checked. If the best value is negative, the reason says that travel costs more than the trade earns. `relaxed` lists any soft rules the tool dropped because no station met them, and only those that a returned station breaks. Stations in permit-locked systems are left out by default, as for `spansh_find_stations` (see [Permit-locked systems](#permit-locked-systems)).
 
 If `Market.json` is for a station in the results and is newer than the Spansh data for it (or Spansh has no time), the tool takes the price, supply and demand from the file, if the file lists the commodity. If the file lists the commodity but the station fails the demand or supply rule, the tool drops the station, and a note such as "Ferraro Control no longer buys Gold (journal, <time>)." says so. If the file does not list the commodity, the Spansh data stays. Ranking runs after this. Each station has `market_id` (the same id as in `station_info`) and `price_source`: `journal` for a value from the file, `spansh` for all others. If the file cannot be read, the tool uses Spansh data only.
 
@@ -307,28 +309,48 @@ Defaults:
 | `stations.fleet_carriers`       | `exclude`                            |
 | `stations.megaships`            | `allow`                              |
 | `stations.min_pad`              | `auto`                               |
+| `stations.permit_systems`       | `exclude`                            |
 | `travel`                        | See the travel model below           |
 
 - `max_arrival_ls` mode is `soft`, `hard` or `off`.
 - `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
+- `permit_systems` is `allow` or `exclude`. With `exclude`, results leave out stations in systems that need a permit, such as Sol. See [Permit-locked systems](#permit-locked-systems). `use_preferences: false` still leaves them out; only `permit_systems: "allow"` admits them.
 - `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the current ship from the journal when the newest journal event is less than 24 hours old. Otherwise it uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
 
 A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
 
+### Permit-locked systems
+
+Spansh station searches do not show which systems need a permit. Only the system record has this flag. The tools look up the systems of the stations they return. Each new system costs one rate-limited Spansh request, by the system id on the station record. The result is cached for 24 hours.
+
+With `permit_systems: "exclude"` (the default), a station in a permit-locked system is left out, and the next station in the ranking takes its place. A note such as "Left out 2 stations in permit-locked systems (Sol). Set permit_systems to allow if you hold the permit." gives the count. The tools look up the systems of the first `limit` results and of the next stations that they consider as replacements. With `allow`, the stations stay and have `needs_permit: true`.
+
+The lookups are bounded, so that the call ends before the MCP client gives up:
+
+- At most 20 new systems for each call.
+- Station searches (`spansh_find_stations`, `commodity_prices`, `materials_plan`) stop looking up 20 s after the call starts. `trade_loops` stops 8 s after its own 40 s search limit.
+- After a network failure, a timeout or a Spansh server error, the tool stops asking Spansh.
+
+When the lookups stop, unchecked stations on the first page stay, and a note such as "Permits not checked for 3 stations (time limit)." says so. No unchecked station replaces one that was left out. If the page is then short, a note such as "Stopped checking permits (time limit); 8 of 10 stations are listed." says so. If Spansh does not know a system, the station stays, and the note is "Could not check permits for: <systems>."
+
+`trade_route` sends Spansh its own permit option and never includes permit-locked systems.
+
 To change your preferences, ask Claude, for example "from now on ignore stations over 2,000 ls". Claude calls `prefs_set` with a patch such as `{"stations":{"max_arrival_ls":{"value":2000}}}`. The patch is strict: unknown keys are errors. The change applies to future sessions.
 
-For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. `large_pad: true` is the same as `min_pad: "L"`.
+For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. Permit-locked systems stay excluded even then. `large_pad: true` is the same as `min_pad: "L"`.
 
 Each result has these fields:
 
 - `total`: how many stations Spansh matched before preferences. A value of 10000 means "10000 or more".
-- `matched`: how many stations match your preferences among those the server fetched. That is the nearest 50, or up to 100 when the search relaxed the arrival limit and fetched a second page.
+- `matched`: how many stations match your preferences among those the server fetched. That is the nearest 50, or up to 100 when the search relaxed the arrival limit and fetched a second page. Stations found to be in permit-locked systems do not count.
 - `jumps`, `travel_s`, `travel_min`, `effective_cost` and `arrival_assumed` on each station: see the travel model below.
 - `discount_pct` on each station: how far its price is below the median price of the filtered results.
-- `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page.
+- `recommended`: the first station in the ranking, with a reason. The reason says how much cheaper the recommended station is than the fastest station, and how many extra minutes that costs. If the recommended station is also the fastest, the reason gives its travel time. It can also read "lowest cost including travel time". The recommended station is always in the returned page, and its permit was checked.
 - `relaxed`: the rules the search dropped.
 - `relax_attempted`: `true` when no station passed the strict rules and the search tried again with soft rules relaxed. If it is `true` and `relaxed` is empty, nothing matched at all.
 - `applied_preferences`: the rules in effect, including the pad source.
+- `needs_permit: true` on a station in a permit-locked system, with `permit_systems: "allow"`.
+- `notes`: stations left out in permit-locked systems, and systems whose permit could not be checked.
 
 ## Travel model
 

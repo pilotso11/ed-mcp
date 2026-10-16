@@ -15,6 +15,7 @@ const { catalog } = buildCatalog(await rawFixture(), staticsFixture, SMALL);
 const hit: StationHit = {
   name: "Trader Hub",
   system: "Atlas",
+  system_id64: null,
   distance_ly: 12.5,
   arrival_ls: 300,
   type: "Orbis Starport",
@@ -35,6 +36,7 @@ function setup(
     age?: number;
     edsm?: { system: string | null } | "down";
     capi?: string | null;
+    permit?: boolean;
   } = {},
 ) {
   const queries: Array<Record<string, unknown>> = [];
@@ -49,6 +51,7 @@ function setup(
         stations: opts.empty ? [] : [hit],
       };
     },
+    system: async (name: string) => ({ name, needs_permit: opts.permit ?? false }),
   } as unknown as SpanshClient;
   const journal = {
     dir: "/j",
@@ -126,6 +129,16 @@ describe("materials_plan", () => {
     });
     expect(typeof j.traders[0].station.travel_min).toBe("number");
     expect(queries[0]).toMatchObject({ near: "Atlas", service: "material_trader_encoded" });
+  });
+
+  it("passes on the note when the only trader is in a permit system", async () => {
+    const { client } = setup({ system: "Atlas", permit: true });
+    const j = (await callTool(await client, "materials_plan", need)).json as Record<string, any>;
+    expect(j.traders[0]).toMatchObject({ type: "encoded", recommended: null });
+    expect(j.notes).toEqual([
+      "Left out 1 station in permit-locked systems (Atlas). Set permit_systems to allow if you hold the permit.",
+      "No encoded material trader found near Atlas.",
+    ]);
   });
 
   it.each([
@@ -232,6 +245,19 @@ describe("materials_plan", () => {
     const j = r.json as Record<string, any>;
     expect(j.notes).toContain("No encoded material trader found near Atlas.");
     expect(j.traders[0].station).toBeUndefined();
+  });
+
+  it("gives a repeated permit note once", async () => {
+    const { client } = setup({ system: "Atlas", tellurium: 2, permit: true });
+    const r = await callTool(await client, "materials_plan", {
+      needs: [
+        { name: "Datamined Wake Exceptions", count: 1 },
+        { name: "Iron", count: 1 },
+      ],
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.traders).toHaveLength(2);
+    expect(j.notes.filter((n: string) => n.startsWith("Left out"))).toHaveLength(1);
   });
 
   it("looks up one trader per kind traded", async () => {
