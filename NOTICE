@@ -8,5 +8,10 @@ Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
 A copy of the licence is in LICENSES/Apache-2.0.txt.
 The data was converted from C# to JSON.
 
+test/fixtures/builds/coriolis-exports/ holds builds and statistics from the Coriolis
+test fixtures (https://github.com/EDCD/coriolis, __tests__/fixtures/), Copyright (c)
+2015 Coriolis.io, Colin McLeod, licensed under the MIT License. They were cut down to the
+components and statistics that the tests use.
+
 Elite Dangerous game data is the intellectual property of Frontier Developments plc.
 This project is not affiliated with Frontier Developments, Inara, EDSM, Spansh or EDCD.

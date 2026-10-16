@@ -79,12 +79,12 @@
       "source": "Sum of the five weapons' sustained dps."
     },
     "weapons.dps_by_type.kinetic": {
-      "value": 33.83786,
-      "source": "32.18667 (LargeHardpoint1) + 0.1 x 16.51191 (MediumHardpoint2)."
+      "value": 24.10914,
+      "source": "Sustained, as Coriolis breaks damage down by type: 22.66805 (LargeHardpoint1) + 0.1 x 14.41089 (MediumHardpoint2)."
     },
     "weapons.dps_by_type.thermal": {
-      "value": 78.98011,
-      "source": "22.63248 + 30.62485 + 10.86207 + 0.9 x 16.51191."
+      "value": 77.0892,
+      "source": "Sustained: 22.63248 + 30.62485 + 10.86207 + 0.9 x 14.41089."
     },
     "weapons.weapons_drain_mw": {
       "value": 10.42984,

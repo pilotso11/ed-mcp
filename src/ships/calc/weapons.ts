@@ -80,9 +80,9 @@ function weapon(m: BuiltModule) {
 }
 
 /**
- * Damage per second for each powered weapon and in total, by damage type, and the
+ * Damage per second for each powered weapon and in total, sustained damage by type, and the
  * distributor drain. `time_to_empty_s` is how long the WEP capacitor lasts at 2 WEP pips (the
- * Coriolis default), or null when the distributor keeps up.
+ * Coriolis default), or null when the distributor keeps up or there is no distributor.
  */
 export function weapons(b: Build) {
   const all = b.modules
@@ -90,10 +90,11 @@ export function weapons(b: Build) {
     .map(weapon)
     .filter((w) => w.dps > 0);
 
+  // Sustained dps by damage type, as Coriolis breaks it down.
   const dps_by_type: Record<string, number> = {};
   for (const w of all) {
     for (const [t, share] of Object.entries(w.dist)) {
-      dps_by_type[t] = (dps_by_type[t] ?? 0) + w.dps * share;
+      dps_by_type[t] = (dps_by_type[t] ?? 0) + w.sustained_dps * share;
     }
   }
   const weapons_drain_mw = all.reduce((s, w) => s + w.drain_mw, 0);
@@ -106,6 +107,6 @@ export function weapons(b: Build) {
     sustained_dps_total: all.reduce((s, w) => s + w.sustained_dps, 0),
     dps_by_type,
     weapons_drain_mw,
-    time_to_empty_s: net > 0 ? (pd ? moduleStat(pd, "wepcap") : 0) / net : null,
+    time_to_empty_s: pd && net > 0 ? moduleStat(pd, "wepcap") / net : null,
   };
 }

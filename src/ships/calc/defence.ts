@@ -78,21 +78,25 @@ function recoverSeconds(b: Build, sg: BuiltModule, strength: number): number | n
 
 /**
  * Shields, or null without a shield generator. `strength` (MJ) is 0 when the generator is off
- * or unpowered, and null when the hull is heavier than the generator's max mass. Resistances
- * are fractions with shield boosters and diminishing returns, at 0 SYS pips.
+ * or unpowered, and null when the hull is heavier than the generator's max mass; then the
+ * other values are null too, as Coriolis shows an empty shield. Resistances are fractions with
+ * shield boosters and diminishing returns, at 0 SYS pips.
  */
 export function shields(b: Build) {
   const sg = b.modules.find((m) => SHIELD_GENERATORS.has(m.module.grp));
   if (!sg) return null;
+  const generator = online(b, sg) ? generatorStrength(b, sg) : 0;
+  if (!generator) {
+    const none = { explosive: null, kinetic: null, thermal: null };
+    return { strength: generator, ...none, regen_mj_s: null, broken_regen_s: null };
+  }
   const boosters = active(b, new Set(["sb"]));
   const boost = boosters.reduce((s, m) => s + moduleStat(m, "shieldboost"), 0);
   const addition = active(b, new Set(["gsrp"])).reduce(
     (s, m) => s + moduleStat(m, "shieldaddition"),
     0,
   );
-  const generator = generatorStrength(b, sg);
-  const strength =
-    generator === null ? null : online(b, sg) ? generator * (1 + boost) + addition : 0;
+  const strength = generator * (1 + boost) + addition;
 
   const resistance = (feature: string) => {
     const sgDamage = 1 - moduleStat(sg, feature);
@@ -105,7 +109,7 @@ export function shields(b: Build) {
     kinetic: resistance(RESISTANCES.kinetic),
     thermal: resistance(RESISTANCES.thermal),
     regen_mj_s: moduleStat(sg, "regen"),
-    broken_regen_s: strength ? recoverSeconds(b, sg, strength) : null,
+    broken_regen_s: recoverSeconds(b, sg, strength),
   };
 }
 

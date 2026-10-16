@@ -1,0 +1,348 @@
+{
+ "source": "https://github.com/EDCD/coriolis/blob/master/__tests__/fixtures/courier-test-detailed-export-v4.json",
+ "license": "Coriolis, MIT License, Copyright (c) 2015 Coriolis.io, Colin McLeod. Only the components and the stats used here are kept.",
+ "note": "Exported by Coriolis in 2017 with the coriolis-data of the time, so some values differ from today's data and formulas. Each difference is recorded under \"differences\" with its cause.",
+ "resistances": "damage",
+ "notes": "The courier export gives shield and hull resistances as damage multipliers (1 - resistance). ladenRange, topSpeed and topBoost are within tolerance but also gain from the 2 t lighter build.",
+ "tolerance": {
+  "default": {
+   "rel": 0.02,
+   "why": "The exports are from 2017 coriolis-data and Coriolis code; small data and rounding changes since."
+  },
+  "shieldExplRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "shieldKinRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "shieldThermRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "hullExplRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "hullKinRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "hullThermRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  }
+ },
+ "differences": {
+  "shieldExplRes": {
+   "expected": 0.4545,
+   "cause": "Not explained. The export modifies the 3A generator's explres by +4.55% (additive, 0.5 + 0.0455), which gives a damage multiplier of 0.4545; Coriolis exported 0.48. Kinetic (+5.46%: 0.5454, exported 0.55) and thermal (+10.92%: 1.0908, exported 1.09) follow the same rule, so the explosive line looks stale."
+  },
+  "unladenMass": {
+   "expected": 86.25,
+   "cause": "The Advanced Discovery Scanner (2 t) left the game and coriolis-data, so the build no longer has it: 88.25 - 2."
+  },
+  "unladenRange": {
+   "expected": 26.15081,
+   "cause": "2 t less mass (see unladenMass). Range scales with 1/mass: 25.57 x (88.25 + 1.8) / (86.25 + 1.8), where 1.8 t is the 3A FSD's fuel for one jump."
+  },
+  "fullTankRange": {
+   "expected": 24.42759,
+   "cause": "2 t less mass: 23.92 x (88.25 + 8) / (86.25 + 8)."
+  },
+  "totalKinSDps": {
+   "expected": 11.91652,
+   "cause": "Coriolis changed its sustained dps formula after this export: Ship.js (2017) spread a clip over clip/rof + reload seconds; Module.getSustainedFactor now uses (clip - 1)/rof + reload, as the last shot needs no interval. Also the export used 2016 data, where this multi-cannon reloaded in 4 s; it is 5 s now. Today: dps 17.447006 (damage 1.64 x 1.2437, rof 7.6923 x 1.112 = 8.553846), clip 90: 17.447006 x (90/(89/8.553846 + 5))/8.553846 = 11.91652. The 2017 formula with a 4 s reload gives 12.6412, which is Coriolis's 12.64."
+  }
+ },
+ "ship": "imperial_courier",
+ "components": {
+  "standard": {
+   "bulkheads": "Lightweight Alloy",
+   "cargoHatch": {
+    "enabled": false,
+    "priority": 5
+   },
+   "powerPlant": {
+    "class": 4,
+    "rating": "A",
+    "enabled": true,
+    "priority": 2,
+    "modifications": {
+     "pgen": 1052,
+     "integrity": -482,
+     "eff": 974
+    },
+    "blueprint": {
+     "id": 63,
+     "name": "Overcharged",
+     "grade": 1
+    }
+   },
+   "thrusters": {
+    "class": 3,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "name": "Enhanced Performance",
+    "modifications": {
+     "optmul": 2476,
+     "thermload": 7023,
+     "power": 1763,
+     "integrity": 165,
+     "optmass": -667
+    },
+    "blueprint": {
+     "id": 22,
+     "name": "Dirty",
+     "grade": 4
+    }
+   },
+   "frameShiftDrive": {
+    "class": 3,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "modifications": {
+     "mass": 4082,
+     "integrity": -2422,
+     "power": 1782,
+     "optmass": 4927
+    },
+    "blueprint": {
+     "id": 26,
+     "name": "Increased range",
+     "grade": 5
+    }
+   },
+   "lifeSupport": {
+    "class": 1,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1
+   },
+   "powerDistributor": {
+    "class": 3,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1
+   },
+   "sensors": {
+    "class": 2,
+    "rating": "D",
+    "enabled": true,
+    "priority": 1
+   },
+   "fuelTank": {
+    "class": 3,
+    "rating": "C",
+    "enabled": true,
+    "priority": 1
+   }
+  },
+  "hardpoints": [
+   {
+    "class": 2,
+    "rating": "F",
+    "enabled": true,
+    "priority": 1,
+    "group": "Pulse Laser",
+    "mount": "Fixed",
+    "modifications": {
+     "rof": 5931,
+     "damage": -184,
+     "jitter": 50,
+     "distdraw": -4689,
+     "piercing": 3328
+    },
+    "blueprint": {
+     "id": 89,
+     "name": "Rapid fire",
+     "grade": 5
+    },
+    "symbol": "Hpt_PulseLaser_Fixed_Medium",
+    "note": "coriolis-data now rates this module 2E; it was 2F."
+   },
+   {
+    "class": 2,
+    "rating": "F",
+    "enabled": true,
+    "priority": 1,
+    "group": "Pulse Laser",
+    "mount": "Fixed",
+    "modifications": {
+     "rof": 4715,
+     "damage": -97,
+     "jitter": 30,
+     "distdraw": -4548,
+     "piercing": 1057,
+     "integrity": 319
+    },
+    "blueprint": {
+     "id": 89,
+     "name": "Rapid fire",
+     "grade": 5
+    },
+    "symbol": "Hpt_PulseLaser_Fixed_Medium",
+    "note": "coriolis-data now rates this module 2E; it was 2F."
+   },
+   {
+    "class": 2,
+    "rating": "F",
+    "enabled": true,
+    "priority": 1,
+    "group": "Multi-cannon",
+    "mount": "Gimballed",
+    "modifications": {
+     "damage": 2437,
+     "distdraw": 5487,
+     "rof": 1120,
+     "jitter": 58,
+     "thermload": 1346,
+     "power": 1009,
+     "integrity": -202,
+     "ammo": -2000
+    },
+    "blueprint": {
+     "id": 88,
+     "name": "Overcharged",
+     "grade": 3,
+     "special": {
+      "id": 3,
+      "name": "Corrosive shell"
+     }
+    }
+   }
+  ],
+  "utility": [
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Heat Sink Launcher",
+    "modifications": {
+     "ammo": 5000,
+     "mass": 17684,
+     "reload": 9707
+    },
+    "blueprint": {
+     "id": 37,
+     "name": "Ammo capacity",
+     "grade": 3
+    }
+   },
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Heat Sink Launcher",
+    "modifications": {
+     "ammo": 5000,
+     "mass": 18520,
+     "reload": 8715
+    },
+    "blueprint": {
+     "id": 37,
+     "name": "Ammo capacity",
+     "grade": 3
+    }
+   },
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Chaff Launcher"
+   },
+   {
+    "class": 0,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "group": "Frame Shift Wake Scanner"
+   }
+  ],
+  "internal": [
+   {
+    "class": 3,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "group": "Shield Generator",
+    "modifications": {
+     "optmul": 1888,
+     "explres": 455,
+     "kinres": 546,
+     "thermres": 1092,
+     "brokenregen": -2614,
+     "regen": -876,
+     "distdraw": 463
+    },
+    "blueprint": {
+     "id": 77,
+     "name": "Reinforced",
+     "grade": 3
+    }
+   },
+   {
+    "class": 3,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "group": "Fuel Scoop"
+   },
+   {
+    "class": 2,
+    "rating": "E",
+    "enabled": true,
+    "priority": 2,
+    "group": "Cargo Rack"
+   },
+   {
+    "class": 2,
+    "rating": "E",
+    "enabled": true,
+    "priority": 2,
+    "group": "Cargo Rack"
+   },
+   null,
+   {
+    "class": 1,
+    "rating": "C",
+    "enabled": true,
+    "priority": 2,
+    "group": "Scanner",
+    "name": "Advanced Discovery Scanner",
+    "omit": "The Advanced Discovery Scanner (2 t, 0 MW in 2017 coriolis-data) left the game and coriolis-data."
+   }
+  ]
+ },
+ "stats": {
+  "shield": 404.19,
+  "shieldExplRes": 0.48,
+  "shieldKinRes": 0.55,
+  "shieldThermRes": 1.09,
+  "armour": 144,
+  "hullExplRes": 1.4,
+  "hullKinRes": 1.2,
+  "hullThermRes": 1,
+  "totalDps": 53.8,
+  "totalSDps": 48.99,
+  "totalExplSDps": 0,
+  "totalKinSDps": 12.64,
+  "totalThermSDps": 36.35,
+  "powerAvailable": 17.24,
+  "powerRetracted": 11.3,
+  "powerDeployed": 16.41,
+  "unladenMass": 88.25,
+  "ladenMass": 104.25,
+  "unladenRange": 25.57,
+  "ladenRange": 22.09,
+  "fullTankRange": 23.92,
+  "topSpeed": 386.56,
+  "topBoost": 524.62
+ }
+}

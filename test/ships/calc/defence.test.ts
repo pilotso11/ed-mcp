@@ -42,10 +42,10 @@ describe("reference: hand-checked Coriolis values for the EDSY Krait", () => {
   it("matches the shield values", () => {
     const s = shields(krait())!;
     within1pct(s.strength!, ref("shields.strength"));
-    within1pct(s.explosive, ref("shields.explosive"));
-    within1pct(s.kinetic, ref("shields.kinetic"));
-    within1pct(s.thermal, ref("shields.thermal"));
-    within1pct(s.regen_mj_s, ref("shields.regen_mj_s"));
+    within1pct(s.explosive!, ref("shields.explosive"));
+    within1pct(s.kinetic!, ref("shields.kinetic"));
+    within1pct(s.thermal!, ref("shields.thermal"));
+    within1pct(s.regen_mj_s!, ref("shields.regen_mj_s"));
     within1pct(s.broken_regen_s!, ref("shields.broken_regen_s"));
   });
 
@@ -80,7 +80,9 @@ describe("shields", () => {
     const light = shields(withHullMass(krait(), 300))!.strength!;
     const heavy = shields(withHullMass(krait(), 1000))!.strength!;
     expect(heavy).toBeLessThan(light);
-    expect(shields(withHullMass(krait(), 1400))!.strength).toBeNull();
+    const over = shields(withHullMass(krait(), 1400))!;
+    expect(over.strength).toBeNull();
+    expect(over.explosive).toBeNull();
   });
 
   it("leaves out boosters and generators that are off or unpowered", () => {
@@ -91,7 +93,14 @@ describe("shields", () => {
     // The Resistive booster's resistances go with it.
     expect(shields(withModule(b, "TinyHardpoint2", { on: false }))!.explosive).toBeCloseTo(0.5, 9);
 
-    expect(shields(withModule(b, "Slot01_Size6", { on: false }))!.strength).toBe(0);
+    expect(shields(withModule(b, "Slot01_Size6", { on: false }))).toEqual({
+      strength: 0,
+      explosive: null,
+      kinetic: null,
+      thermal: null,
+      regen_mj_s: null,
+      broken_regen_s: null,
+    });
     const weak = withModifiers(b, "PowerPlant", { pgen: 0.01 });
     expect(shields(weak)!.strength).toBe(0);
   });

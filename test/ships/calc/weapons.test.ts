@@ -179,6 +179,18 @@ describe("weapons", () => {
     expect(w.time_to_empty_s).toBeNull();
   });
 
+  it("gives no time to empty without a power distributor", () => {
+    const w = weapons(without(krait(), "PowerDistributor"));
+    expect(w.weapons_drain_mw).toBeGreaterThan(0);
+    expect(w.time_to_empty_s).toBeNull();
+  });
+
+  it("breaks sustained dps down by damage type", () => {
+    const w = weapons(krait());
+    const total = Object.values(w.dps_by_type).reduce((a, x) => a + x, 0);
+    expect(total).toBeCloseTo(w.sustained_dps_total, 9);
+  });
+
   it("ignores utilities such as shield boosters and chaff", () => {
     const slots = weapons(krait()).list.map((x) => x.slot);
     expect(slots.some((s) => s.startsWith("Tiny"))).toBe(false);
