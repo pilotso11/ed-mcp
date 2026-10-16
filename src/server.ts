@@ -9,6 +9,7 @@ import type { SpanshClient } from "./spansh/client.js";
 import type { JournalService } from "./journal/service.js";
 import type { PlanStore } from "./plans/store.js";
 import type { PreferencesStore } from "./prefs/store.js";
+import type { ShipDataService } from "./ships/data.js";
 import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
 import { registerCapiTools } from "./tools/capi.js";
@@ -33,6 +34,7 @@ export interface ServerDeps {
   plans?: PlanStore;
   prefs?: PreferencesStore;
   catalog?: CatalogService;
+  ships?: ShipDataService;
   inara?: InaraClient;
   edsm?: EdsmClient;
   spansh?: SpanshClient;
