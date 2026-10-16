@@ -84,6 +84,10 @@ describe("fromLoadout", () => {
     expect(slot(b, "Slot07_Size4")).toMatchObject({ kind: "internal", slotSize: 4 });
   });
 
+  it("keeps the cargo hatch's power state", () => {
+    expect(fromLoadout(loadout("corsair"), data).cargoHatch).toEqual({ on: true, priority: 3 });
+  });
+
   it("finds the bulkheads from the armour item", () => {
     const corsair = fromLoadout(loadout("corsair"), data);
     expect(slot(corsair, "Armour")!.module.name).toBe("Military Grade Composite");

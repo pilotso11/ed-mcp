@@ -49,6 +49,8 @@ export interface Build {
   modules: BuiltModule[];
   source: "slef" | "journal" | "capi" | "plan";
   gameReported?: { unladen_t: number; max_jump_ly: number };
+  /** Every ship has a cargo hatch. It has no coriolis module, so only its power state is kept. */
+  cargoHatch?: { on: boolean; priority: number };
   notes: string[];
 }
 
@@ -295,8 +297,13 @@ function assemble(
   const notes: string[] = [];
   const bestRolled: string[] = [];
   const modules: BuiltModule[] = [];
+  let cargoHatch: Build["cargoHatch"];
   for (const l of loaded) {
-    if (isCosmeticSlot(l.slot) || l.slot.toLowerCase() === "cargohatch") continue;
+    if (l.slot.toLowerCase() === "cargohatch") {
+      cargoHatch = { on: l.on ?? true, priority: (l.priority ?? 0) + 1 };
+      continue;
+    }
+    if (isCosmeticSlot(l.slot)) continue;
     const info = slotInfo(hull, l.slot, l.item);
     const module = info.group === "bh" ? bulkheadFromItem(hull, l.item) : data.module(l.item);
     if (!module) {
@@ -342,7 +349,7 @@ function assemble(
       `Engineering without modifier values (${bestRolled.join(", ")}) uses the best roll for its blueprint and grade.`,
     );
   }
-  return { ship: hull, modules, source, notes };
+  return { ship: hull, modules, source, notes, ...(cargoHatch ? { cargoHatch } : {}) };
 }
 
 const slefModifiers = (list: SlefModifier[]) =>
