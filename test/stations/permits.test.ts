@@ -36,7 +36,7 @@ const one = (s: { system: string }): SystemRef[] => [{ name: s.system, id64: `id
 const refs = (l: { systems: string[] }): SystemRef[] =>
   l.systems.map((name) => ({ name, id64: `id:${name}` }));
 const LEFT_OUT = (n: number, what: string, systems: string) =>
-  `Left out ${n} ${what} in permit-locked systems (${systems}). Set permit_systems to allow if you hold the permit.`;
+  `Left out ${n} ${what} ${what.startsWith("loop") ? "through" : "in"} permit-locked systems (${systems}). Set permit_systems to allow if you hold the permit.`;
 const many = (n: number, permit: boolean) => {
   const permits: Record<string, boolean> = {};
   const items = Array.from({ length: n }, (_, i) => {
@@ -134,6 +134,7 @@ describe("screenPermits", () => {
       systemsOf: refs,
       spansh,
       noun: "loop",
+      preposition: "through",
     });
     expect(r.kept).toEqual([loops[1]]);
     expect(r.notes).toEqual([LEFT_OUT(1, "loop", "Sol")]);

@@ -116,7 +116,8 @@ export function registerMaterialsTools(
                   { deadline, now },
                 );
                 const s = r.stations[0];
-                notes.push(...r.notes);
+                // Traders of several kinds often share a station, so a note can repeat.
+                for (const n of r.notes) if (!notes.includes(n)) notes.push(n);
                 traders.push({
                   type,
                   recommended: r.recommended,

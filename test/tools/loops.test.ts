@@ -271,7 +271,7 @@ describe("trade_loops", () => {
     expect(names(j.loops[0])).toEqual(["Start Port", "Beta Dock"]);
     const leftOut = j.notes.find((n: string) => n.startsWith("Left out"));
     expect(leftOut).toMatch(
-      /^Left out \d+ loops? in permit-locked systems \(Alpha\)\. Set permit_systems to allow if you hold the permit\.$/,
+      /^Left out \d+ loops? through permit-locked systems \(Alpha\)\. Set permit_systems to allow if you hold the permit\.$/,
     );
     expect(Number(leftOut.split(" ")[2])).toBeGreaterThanOrEqual(2);
   });
@@ -292,6 +292,24 @@ describe("trade_loops", () => {
     expect(system).not.toHaveBeenCalled();
     expect(j.loops.length).toBe(2);
     expect(j.notes).toContain("Permits not checked for 2 loops (time limit).");
+  });
+
+  it("does not check the permit of an include station's system", async () => {
+    const gamma = st(
+      "Gamma Market",
+      "Gamma",
+      [0, 0, 10],
+      [row("Gold", { sell_price: 400, demand: 10_000 })],
+    );
+    const { j, system } = await loops(
+      { include: [{ system: "Gamma", station: "Gamma Market" }] },
+      { found: [start(), alpha()], extra: [gamma], permits: ["Gamma"] },
+    );
+    expect(j.loops.flatMap(names)).toContain("Gamma Market");
+    expect(system.mock.calls.filter((c) => c[0] === "Gamma" && (c as unknown[])[1] === 0)).toEqual(
+      [],
+    );
+    expect(j.notes.some((n: string) => n.startsWith("Left out"))).toBe(false);
   });
 
   it("does not check the permit of the docked station's system", async () => {

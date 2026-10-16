@@ -432,6 +432,7 @@ export function registerLoopTools(
           // The user chose these, so they must be able to reach them.
           exempt: [...(here ? [centre.system] : []), ...(a.include ?? []).map((i) => i.system)],
           noun: "loop",
+          preposition: "through",
           deadline: deadline + PERMIT_EXTRA_MS,
           now,
         });

@@ -80,6 +80,8 @@ export async function screenPermits<T>(a: {
   /** Systems the user chose, such as the docked station's; never looked up or left out. */
   exempt?: string[];
   noun?: string;
+  /** How an item relates to a system: a station is "in" one, a loop runs "through" it. */
+  preposition?: string;
   maxSystems?: number;
   /** Time in ms, as from `now`, after which no new system is looked up. */
   deadline?: number;
@@ -149,7 +151,7 @@ export async function screenPermits<T>(a: {
   const notes: string[] = [];
   if (dropped) {
     notes.push(
-      `Left out ${plural(dropped, noun)} in permit-locked systems (${listSystems([...locked.values()])}). ` +
+      `Left out ${plural(dropped, noun)} ${a.preposition ?? "in"} permit-locked systems (${listSystems([...locked.values()])}). ` +
         "Set permit_systems to allow if you hold the permit.",
     );
   }

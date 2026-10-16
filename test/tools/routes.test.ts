@@ -452,8 +452,19 @@ describe("route_stops", () => {
     );
     expect(labels(j)).toEqual(["AlphaShop", "BetaShop", "return_to"]);
     expect(j.notes).toContain("BetaShop is in a permit-locked system.");
-    expect(j.notes).toContain("return_to is in a permit-locked system.");
+    expect(j.notes).toContain("return_to (Far) is in a permit-locked system.");
     expect(j.notes.filter((n: string) => n.includes("permit"))).toHaveLength(2);
+  });
+
+  it("still names stops in permit systems with permit_systems allow", async () => {
+    const { j } = await route(
+      {
+        stops: [alpha, beta],
+        preferences: { ...range.preferences, stations: { permit_systems: "allow" } },
+      },
+      { permits: ["beta"] },
+    );
+    expect(j.notes).toContain("BetaShop is in a permit-locked system.");
   });
 
   it("notes a permit-locked engineer once", async () => {

@@ -247,6 +247,19 @@ describe("materials_plan", () => {
     expect(j.traders[0].station).toBeUndefined();
   });
 
+  it("gives a repeated permit note once", async () => {
+    const { client } = setup({ system: "Atlas", tellurium: 2, permit: true });
+    const r = await callTool(await client, "materials_plan", {
+      needs: [
+        { name: "Datamined Wake Exceptions", count: 1 },
+        { name: "Iron", count: 1 },
+      ],
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.traders).toHaveLength(2);
+    expect(j.notes.filter((n: string) => n.startsWith("Left out"))).toHaveLength(1);
+  });
+
   it("looks up one trader per kind traded", async () => {
     const { client, queries } = setup({ system: "Atlas", tellurium: 2 });
     const r = await callTool(await client, "materials_plan", {
