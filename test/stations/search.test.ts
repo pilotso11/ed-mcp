@@ -234,6 +234,22 @@ describe("ranking and recommendation", () => {
     expect(r.notes).toEqual(["Permits not checked for 1 station (time limit)."]);
   });
 
+  it("recommends only a station whose permit was checked", async () => {
+    const sp = fakeSpansh([
+      [hit({ name: "a", system: "Alpha", distance_ly: 1 }), hit({ name: "b", system: "Beta" })],
+    ]);
+    let t = 0;
+    const r = await searchStations(sp, query, rules, 10, { deadline: 1, now: () => t++ });
+    expect(r.stations.map((s) => s.name)).toEqual(["a", "b"]);
+    expect(sp.systemCalls).toEqual(["Alpha"]);
+    expect(r.recommended).toMatchObject({ name: "a" });
+
+    const again = fakeSpansh([[hit({ name: "a", system: "Alpha" })]]);
+    const late = await searchStations(again, query, rules, 10, { deadline: 0, now: () => 0 });
+    expect(late.stations.map((s) => s.name)).toEqual(["a"]);
+    expect(late.recommended).toBeNull();
+  });
+
   it("returns no recommendation when every station is in a permit system", async () => {
     const sp = fakeSpansh([[hit({ name: "Abraham Lincoln", system: "Sol" })]], { Sol: true });
     const r = await searchStations(sp, query, rules, 10);

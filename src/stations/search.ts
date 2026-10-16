@@ -115,8 +115,10 @@ export async function searchStations(
     screen.locked(h.system) ? { ...h, needs_permit: true as const } : h,
   );
   const open = mode === "exclude" ? ranked.filter((h) => !screen.locked(h.system)) : ranked;
-  // Ranking puts the recommended station first, so it is the first one in the page.
-  const recommended = page.length ? recommendStation(open, rules.travel) : null;
+  // Only a station whose permit was checked is recommended: the first such one in the page.
+  const recommended = screen.checkedOpen.length
+    ? recommendStation(screen.checkedOpen, rules.travel)
+    : null;
   return {
     near: source.near,
     total: source.total,

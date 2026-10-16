@@ -5,7 +5,7 @@ import type { JournalService } from "../journal/service.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
-import { describeRules } from "../stations/filter.js";
+import { brokenRules, describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { PERMIT_TIME_MS, screenPermits } from "../stations/permits.js";
 import { rankCommodityStations, recommendCommodityStation } from "../trade/prices.js";
@@ -376,11 +376,14 @@ export function registerTradeTools(
             price_source:
               st.market_id !== null && journalIds.has(st.market_id) ? "journal" : "spansh",
           })),
-          recommended:
-            mode === "exclude" && open.length < ranked.stations.length
-              ? recommendCommodityStation(open, a.mode, a.max_price_age_days * 24)
-              : ranked.recommended,
-          relaxed: ranked.relaxed,
+          // Only a station whose permit was checked is recommended.
+          recommended: recommendCommodityStation(
+            screen.checkedOpen,
+            a.mode,
+            a.max_price_age_days * 24,
+          ),
+          // Only the returned page counts, so every listed rule is broken by a station shown.
+          relaxed: ranked.relaxed.length ? brokenRules(screen.kept, rules) : [],
           inputs: {
             commodity: a.commodity,
             mode: a.mode,
