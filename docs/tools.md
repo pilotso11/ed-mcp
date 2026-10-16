@@ -96,7 +96,7 @@ Inputs:
   - `{ slef }`: a SLEF build, as text or as an object. Without modifier values, engineered modules use the best roll, with a note. If the SLEF holds more than one build, the tool uses the first, with a note.
   - `{ plan_id }`: the plan's `target_build`, which must be SLEF.
 - `changes`: what-if changes, applied in order. Each change has a `slot` and at least one of `module`, `blueprint`, `grade`, `experimental` or `remove`.
-  - `slot`: a journal slot name, such as `FrameShiftDrive`, `Slot03_Size5` or `TinyHardpoint2`, or an alias: `fsd`, `thrusters`, `power plant`, `distributor`, `sensors`, `life support`, `fuel tank`, `armour`, `hardpoint N`, `utility N` or `internal N`.
+  - `slot`: a journal slot name, such as `FrameShiftDrive`, `Slot03_Size5` or `TinyHardpoint2`, or an alias: `fsd`, `thrusters`, `power plant`, `distributor`, `sensors`, `life support`, `fuel tank`, `armour`, `hardpoint N`, `utility N` or `internal N`. `N` counts the slots of that kind in Coriolis order, and `internal N` counts named slots too. For example, on the Panther Clipper Mk II `internal 3` is `Cargo02`.
   - `module`: a symbol, a coriolis id, a class and rating for the slot's module type (`5A`), or a name with class and rating (`shield booster 0A`).
   - `blueprint`: a blueprint name or key, as in `catalog_blueprint`. `grade` is 1 to 5, and 5 when not given.
   - `experimental`: an experimental effect key or name.
@@ -139,7 +139,7 @@ Statistics:
 - `armour`: `hull` (with bulkheads and hull reinforcement), the `explosive`, `kinetic`, `thermal` and `caustic` resistances as fractions, and `module_protection`, the share of module damage that module reinforcement absorbs.
 - `weapons`: `list` holds each powered weapon with `slot`, `name`, damage `type`, `dps`, `sustained_dps` and `drain_mw`. The totals are `dps_total`, `sustained_dps_total`, `dps_by_type`, `weapons_drain_mw` and `time_to_empty_s`.
   - `dps_by_type` uses sustained DPS, as Coriolis does.
-  - `time_to_empty_s` is how long the WEP capacitor lasts while all weapons fire. It is null when the distributor keeps up.
+  - `time_to_empty_s` is how long the WEP capacitor lasts while all weapons fire. It is null when the distributor keeps up or the build has no distributor.
 
 Assumptions and limits:
 
