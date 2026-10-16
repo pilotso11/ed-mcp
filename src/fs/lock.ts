@@ -46,25 +46,28 @@ export async function acquireLock(
         }
         throw err;
       }
+      pendingSince = undefined;
       if (Date.now() >= deadline) throw new UserError(lockedMessage);
       await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
       continue;
     }
     const token = randomUUID();
+    // If we stalled past LOCK_STALE_MS, another process may have broken our lock and
+    // taken a fresh one. Only remove the lock while it still holds our token.
+    const release = async () => {
+      const held = await readFile(lock, "utf8").catch(() => undefined);
+      if (held === token) await unlink(lock).catch(() => undefined);
+    };
     try {
       await handle.writeFile(token);
       await handle.close();
     } catch (err) {
       await handle.close().catch(() => undefined);
-      await unlink(lock).catch(() => undefined);
+      // A lock left without our token is broken as stale after LOCK_STALE_MS.
+      await release();
       throw err;
     }
-    // If we stalled past LOCK_STALE_MS, another process may have broken our lock and
-    // taken a fresh one. Only remove the lock while it still holds our token.
-    return async () => {
-      const held = await readFile(lock, "utf8").catch(() => undefined);
-      if (held === token) await unlink(lock).catch(() => undefined);
-    };
+    return release;
   }
 }
 

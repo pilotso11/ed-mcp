@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { lockedWrite } from "../../src/fs/lock.js";
 
-const pending = vi.hoisted(() => ({ eperms: 0, statEperms: 0, closeEperm: false, code: "EPERM" }));
+const pending = vi.hoisted(() => ({
+  eperms: 0,
+  statEperms: 0,
+  renameEperms: 0,
+  closeEperm: false,
+  code: "EPERM",
+}));
 
 const eperm = (code: string) =>
   Object.assign(new Error(`${code}: operation not permitted`), { code });
@@ -37,6 +43,13 @@ vi.mock("node:fs/promises", async (importOriginal) => {
       }
       return actual.stat(...args);
     }) as typeof actual.stat,
+    rename: (async (...args: Parameters<typeof actual.rename>) => {
+      if (String(args[0]).endsWith(".lock") && pending.renameEperms > 0) {
+        pending.renameEperms--;
+        throw eperm("EPERM");
+      }
+      return actual.rename(...args);
+    }) as typeof actual.rename,
   };
 });
 
@@ -49,6 +62,7 @@ describe("lockedWrite on Windows", () => {
     Object.defineProperty(process, "platform", platform);
     pending.eperms = 0;
     pending.statEperms = 0;
+    pending.renameEperms = 0;
     pending.closeEperm = false;
     pending.code = "EPERM";
   });
@@ -95,6 +109,36 @@ describe("lockedWrite on Windows", () => {
       lockedWrite(file, opts, async () => ({ content: "x", result: undefined })),
     ).rejects.toThrow("locked");
     expect(pending.statEperms).toBe(0);
+  });
+
+  it("retries while breaking a stale lock reports a pending delete", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-win-"));
+    const file = path.join(dir, "data.json");
+    await writeFile(`${file}.lock`, "");
+    const old = new Date(Date.now() - 60_000);
+    await utimes(`${file}.lock`, old, old);
+    pending.renameEperms = 2;
+    await lockedWrite(file, opts, async () => ({ content: "x", result: undefined }));
+    expect(await readFile(file, "utf8")).toBe("x");
+    expect(pending.renameEperms).toBe(0);
+  });
+
+  it("gives each pending delete its own budget", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-win-"));
+    const file = path.join(dir, "data.json");
+    await writeFile(`${file}.lock`, "");
+    // A pending delete, then a held lock for longer than the budget, then another pending delete.
+    pending.statEperms = 1;
+    const held = lockedWrite(file, { timeoutMs: 5_000, lockedMessage: "locked" }, async () => ({
+      content: "x",
+      result: undefined,
+    }));
+    await new Promise((r) => setTimeout(r, 1_200));
+    pending.eperms = 1;
+    await rm(`${file}.lock`);
+    await held;
+    expect(await readFile(file, "utf8")).toBe("x");
+    expect(pending.eperms).toBe(0);
   });
 
   it("does not retry an EPERM from closing its own lock", async () => {
