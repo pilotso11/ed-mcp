@@ -5,6 +5,7 @@ ed-mcp connects Claude to Elite Dangerous. Claude can then read your commander d
 With ed-mcp, Claude can:
 
 - plan a ship build: the modules to buy, the engineering, the materials and the engineers to visit, and the route to all of them,
+- model a ship build: jump range, power, defences and damage, and the effect of changes,
 - work out which materials you are short of and the trades that cover them,
 - find the best station for a module, ship or service, ranked by travel time and price,
 - plan trade runs and loops, and find where to sell or buy a commodity,
@@ -22,6 +23,7 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 ## What you can ask
 
 - "Here is my build from EDSY. Make a plan for the modules I need to buy or engineer. Tell me the materials I am short of and where to trade for them."
+- "What jump range do I get if I fit a 5A FSD with grade 5 increased range?"
 - "Where is the nearest Guardian technology broker?"
 - "What do I need for grade 5 dirty drives?"
 - "Find me a trade route from here. I have 400 t of cargo."
@@ -162,12 +164,22 @@ The files are in these folders:
 | Windows | `%APPDATA%\ed-mcp\Config`      | `%LOCALAPPDATA%\ed-mcp\Cache`      |
 | Linux   | `~/.config/ed-mcp`             | `~/.cache/ed-mcp`                  |
 
-ed-mcp sends your API keys only to the service that they belong to. On first use, it downloads game data (modules, blueprints and materials) from the coriolis-data and FDevIDs projects on GitHub. Then it looks for new versions once a week. To get new data at once, ask Claude to refresh the game data.
+ed-mcp sends your API keys only to the service that they belong to. On first use, it downloads game data from the coriolis-data and FDevIDs projects on GitHub: modules, blueprints and materials, and the ship and module data for build statistics. Then it looks for new versions once a week. To get new data at once, ask Claude to refresh the game data.
 
 ## More information
 
 - [Tool reference](docs/tools.md): what each tool does, its inputs and its results.
 - [Contributing](CONTRIBUTING.md): development, releases and service registrations.
+
+## Acknowledgements
+
+- **Coriolis** ([coriolis.io](https://coriolis.io), [GitHub](https://github.com/EDCD/coriolis)): `build_stats` ports the Coriolis ship calculations for jump range, power, speed, shields, armour and weapon damage. The Coriolis test builds check our results. Thank you to Colin McLeod and the Coriolis contributors. The Coriolis code is MIT licensed. `NOTICE` holds its licence, and we credit it here too.
+- **coriolis-data** ([EDCD](https://github.com/EDCD/coriolis-data)): the ship, module and blueprint data. ed-mcp downloads it at run time. The data is the intellectual property of Frontier Developments.
+- **EDCD FDevIDs** ([GitHub](https://github.com/EDCD/FDevIDs)): the material and outfitting names.
+- **EliteDangerousCore** ([EDDiscovery](https://github.com/EDDiscovery/EliteDangerousCore)): the engineer table, under the Apache-2.0 licence (see `NOTICE`).
+- **Spansh, Inara and EDSM**: the services that ed-mcp reads from.
+- **The Elite Dangerous community wikis** (Alioth): the material trader rules.
+- **Elite Dangerous** is a trademark of Frontier Developments plc. ed-mcp is not affiliated with Frontier Developments.
 
 ## Licence
 

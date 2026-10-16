@@ -1,0 +1,98 @@
+{
+  "build": "test/fixtures/slef/edsy-krait-mkii-combat.json",
+  "about": "Coriolis.io could not be reached from the build machine, so these values were computed by hand from the Coriolis formulas (Calculations.js shieldStrength, shieldMetrics, armourMetrics, _weaponSustainedDps, timeToDrainWep; Module.js getRoF, getDps, getSustainedFactor, getEps), with the base values from coriolis-data and the modifier values (Value / OriginalValue) from the SLEF. Pips are the Coriolis default, 2 SYS and 2 WEP. Resistances are fractions.",
+  "values": {
+    "shields.strength": {
+      "value": 550.6268,
+      "source": "6C bi-weave shield generator, Int_ShieldGenerator_Size6_Class3_Fast (grp bsg; minmass 270, optmass 540, maxmass 1350; minmul 0.4, optmul 0.9, maxmul 1.4). ShieldGenStrength 95.4/90 = 1.06 scales all three multipliers: 0.424, 0.954, 1.484. Hull mass 320: xnorm = (1350-320)/(1350-270) = 0.953704; exponent = ln((0.954-0.424)/(1.484-0.424)) / ln((1350-540)/(1350-270)) = ln 0.5 / ln 0.75 = 2.409421; mul = 0.424 + 0.953704^2.409421 x 1.06 = 1.369593; generator = 220 x 1.369593 = 301.3105 MJ. Boosters 0.63944 + 0.188 = 0.82744; strength = 301.3105 x 1.82744 = 550.6268 MJ."
+    },
+    "shields.explosive": {
+      "value": 0.5933,
+      "source": "Generator explres 0.5 (damage 0.5). Boosters: (1-0) x (1-0.1866) = 0.8134. Combined 0.5 x 0.8134 = 0.4067, above the diminishing-returns start 0.5 x 0.7 = 0.35, so unchanged. Resistance 1 - 0.4067."
+    },
+    "shields.kinetic": {
+      "value": 0.4024,
+      "source": "Generator kinres 0.28 (damage 0.72). Boosters: 1 x (1-0.17) = 0.83. Combined 0.5976, above 0.504. Resistance 1 - 0.5976."
+    },
+    "shields.thermal": {
+      "value": 0.51196,
+      "source": "Generator thermres 0.40 (damage 0.6). Boosters: (1-0.02) x (1-0.17) = 0.8134. Combined 0.48804, above 0.42. Resistance 1 - 0.48804."
+    },
+    "shields.regen_mj_s": {
+      "value": 3.2,
+      "source": "Generator regen 3.2, no modifier."
+    },
+    "shields.broken_regen_s": {
+      "value": 76.0893,
+      "source": "Recover to 50%: 550.6268 / 2 = 275.3134 MJ. distdraw 0.6 x 0.75/0.6 = 0.75; brokenregen 8. Distributor syscap 37.392, sysrate 6.032; at 2 SYS pips the recharge is 6.032 x (2/4)^1.1 = 2.814028. Capacitor drain 8 x 0.75 - 2.814028 = 3.185972, so it lasts 37.392 / 3.185972 = 11.736448 s and gives 11.736448 x 8 = 93.8916 MJ. The rest, 181.4218 MJ, comes at 2.814028 / 0.75 = 3.752037 MJ/s: 48.3529 s. Total 16 + 11.736448 + 48.3529 = 76.0893 s."
+    },
+    "armour.hull": {
+      "value": 2702.232,
+      "source": "Bulkheads: 220 x (1 + 3.9896) = 1097.712 (DefenceModifierHealthMultiplier 398.96%). HRPs: 390 x 637.26/390 twice, plus an unengineered 4D at 330: 1604.52. Total 2702.232."
+    },
+    "armour.explosive": {
+      "value": 0.077934,
+      "source": "Damage multipliers: bulkheads 1 - (-0.3699) = 1.3699; HRPs 0.82875, 0.82875, 0.98. Product 0.922066. Diminished value 0.35 + (0.7 - 0.35) x 0.922066 / 0.7 = 0.811 is not below 0.7, so the product stands. Resistance 1 - 0.922066."
+    },
+    "armour.kinetic": {
+      "value": 0.225465,
+      "source": "1.1742 x 0.812175 x 0.82875 x 0.98 = 0.774535 (diminished 0.737 is not below 0.7). Resistance 1 - 0.774535."
+    },
+    "armour.thermal": {
+      "value": 0.327277,
+      "source": "0.9785 x 0.82875 x 0.812175 x 0.98 = 0.645446. Diminished: 0.35 + 0.35 x 0.645446 / 0.7 = 0.672723, below 0.7, so it is used. Resistance 1 - 0.672723."
+    },
+    "armour.caustic": {
+      "value": 0,
+      "source": "Bulkheads and HRPs have no caustic resistance."
+    },
+    "armour.module_protection": {
+      "value": 0.6,
+      "source": "One 5D MRP, protection 0.6: 1 - (1 - 0.6)."
+    },
+    "weapons.LargeHardpoint1": {
+      "value": { "dps": 32.18667, "sustained_dps": 22.66805, "drain_mw": 1.570242 },
+      "source": "Gimballed large multi-cannon, Overcharged G5 with Corrosive Shell. rof 1/0.15 = 6.666667; damage 2.84 x 1.7 = 4.828; dps 32.18667 (the SLEF's DamagePerSecond is 32.186667). Clip 90 x 77/90 = 77, reload 5: sustained rof 77 / (76/6.666667 + 5) = 4.695122; factor 0.704268; sustained 22.66805. Draw 0.25 x 1.35 = 0.3375 MJ per shot, 2.25 MW firing; over a clip and reload (77 x 2.25 / 6.666667) / (77/6.666667 + 5) = 1.570242 MW."
+    },
+    "weapons.LargeHardpoint2": {
+      "value": { "dps": 22.63248, "sustained_dps": 22.63248, "drain_mw": 3.069 },
+      "source": "Gimballed large beam, Efficient G5. A beam has no rate of fire (rof 1). EDSY gives only DamagePerSecond 22.6548 / 20.3 = 1.116, so damage 20.28 x 1.116 = 22.63248 (coriolis-data base 20.28 against EDSY's 20.3). Draw 5.58 x 3.069/5.58 = 3.069 MW."
+    },
+    "weapons.LargeHardpoint3": {
+      "value": { "dps": 30.62485, "sustained_dps": 30.62485, "drain_mw": 3.518182 },
+      "source": "Fixed large pulse, Overcharged G5. rof 1/0.33 = 3.030303; damage 10.1062; dps 30.62485 (SLEF 30.624848). Draw 1.161 x 3.030303."
+    },
+    "weapons.MediumHardpoint1": {
+      "value": { "dps": 10.86207, "sustained_dps": 10.86207, "drain_mw": 1.551724 },
+      "source": "Fixed medium pulse, Long Range G5. RateOfFire 3.103448/3.448276 = 0.9, so rof 3.448276 x 0.9 = 3.103448. DamagePerSecond 10.862069/12.068966 = 0.9 is all rate of fire, so damage stays 3.5. dps 3.5 x 3.103448 = 10.86207. Draw 0.5 x 3.103448."
+    },
+    "weapons.MediumHardpoint2": {
+      "value": { "dps": 16.51191, "sustained_dps": 14.41089, "drain_mw": 0.72069 },
+      "source": "Fixed medium multi-cannon, High Capacity G5 with Incendiary Rounds (damage 90% thermal, 10% kinetic, from coriolis-data modifierActions). rof 7.142857 x 1.055556 = 7.539683; damage 2.19; dps 16.51191 (SLEF 16.511905). Clip 200, reload 4: sustained rof 200 / (199/7.539683 + 4) = 6.580158; sustained 14.41089. Draw 0.11 x 7.539683 = 0.829365 MW firing; (200 x 0.829365 / 7.539683) / (200/7.539683 + 4) = 0.72069 MW."
+    },
+    "weapons.dps_total": {
+      "value": 112.818,
+      "source": "Sum of the five weapons' dps."
+    },
+    "weapons.sustained_dps_total": {
+      "value": 101.1983,
+      "source": "Sum of the five weapons' sustained dps."
+    },
+    "weapons.dps_by_type.kinetic": {
+      "value": 24.10914,
+      "source": "Sustained, as Coriolis breaks damage down by type: 22.66805 (LargeHardpoint1) + 0.1 x 14.41089 (MediumHardpoint2)."
+    },
+    "weapons.dps_by_type.thermal": {
+      "value": 77.0892,
+      "source": "Sustained: 22.63248 + 30.62485 + 10.86207 + 0.9 x 14.41089."
+    },
+    "weapons.weapons_drain_mw": {
+      "value": 10.42984,
+      "source": "Sum of the five weapons' drain."
+    },
+    "weapons.time_to_empty_s": {
+      "value": 9.06288,
+      "source": "Distributor wepcap 61 x 55.632/61 = 55.632 MJ, weprate 9.1988; at 2 WEP pips the recharge is 9.1988 x (2/4)^1.1 = 4.291392 MW. 55.632 / (10.42984 - 4.291392) = 9.06288 s."
+    }
+  }
+}

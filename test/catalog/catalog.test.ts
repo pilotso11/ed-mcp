@@ -39,6 +39,38 @@ describe("Catalog.blueprint", () => {
   });
 });
 
+describe("Catalog engineering effects", () => {
+  it("gives a blueprint's feature ranges for a grade", () => {
+    expect(cat.blueprintFeatures("FSD_LongRange", 5)).toMatchObject({ optmass: [0.45, 0.55] });
+    expect(cat.blueprintFeatures("FSD_LongRange", 9)).toBeNull();
+    expect(cat.blueprintFeatures("Nothing", 1)).toBeNull();
+  });
+
+  it("gives an experimental effect's numeric values", () => {
+    expect(cat.experimentalEffects("special_fsd_heavy")).toEqual({
+      integrity: -0.08,
+      optmass: 0.04,
+    });
+    expect(cat.experimentalEffects("special_auto_loader")).toEqual({});
+    expect(cat.experimentalEffects("special_nothing")).toBeNull();
+  });
+
+  it("has no experimental values without modifierActions.json", async () => {
+    const { actions: _, ...raw } = await rawFixture();
+    const { catalog, warnings } = buildCatalog(raw, staticsFixture, SMALL);
+    expect(catalog.experimentalEffects("special_fsd_heavy")).toBeNull();
+    expect(warnings).toContain(
+      "No modifierActions.json: experimental effects have no fixed values.",
+    );
+  });
+
+  it("lists the blueprints and experimentals for a module group", () => {
+    expect(cat.blueprintsForGroup("fsd")).toEqual(["FSD_LongRange"]);
+    expect(cat.experimentalsForGroup("fsd").map((e) => e.id)).toEqual(["special_fsd_heavy"]);
+    expect(cat.blueprintsForGroup("nope")).toEqual([]);
+  });
+});
+
 describe("Catalog.blueprint with a shared name", () => {
   const shared = new Catalog({
     blueprints: [

@@ -1,0 +1,3326 @@
+{
+ "modules/hardpoints/beam_laser.json": {
+  "bl": [
+   {
+    "breachdmg": 16.2,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 3,
+    "cost": 2396160,
+    "damage": 20.28,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 5.58,
+    "edID": 128049434,
+    "falloff": 600,
+    "grp": "bl",
+    "id": "0v",
+    "integrity": 64,
+    "mass": 8,
+    "mount": "G",
+    "piercing": 50,
+    "power": 1.6,
+    "range": 3000,
+    "rating": "C",
+    "symbol": "Hpt_BeamLaser_Gimbal_Large",
+    "thermload": 7.6
+   },
+   {
+    "breachdmg": 11.5,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 3,
+    "cost": 19399600,
+    "damage": 14.34,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 3.51,
+    "edID": 128049437,
+    "falloff": 600,
+    "grp": "bl",
+    "id": "0o",
+    "integrity": 64,
+    "mass": 8,
+    "mount": "T",
+    "piercing": 50,
+    "power": 1.51,
+    "range": 3000,
+    "rating": "D",
+    "thermload": 5.1,
+    "symbol": "Hpt_BeamLaser_Turret_Large"
+   },
+   {
+    "breachdmg": 4.3,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 1,
+    "cost": 500000,
+    "damage": 5.4,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 1.32,
+    "edID": 128049435,
+    "falloff": 600,
+    "eps": 1.32,
+    "grp": "bl",
+    "hps": 2.4,
+    "id": "0q",
+    "integrity": 40,
+    "mass": 2,
+    "mount": "T",
+    "piercing": 18,
+    "power": 0.57,
+    "range": 3000,
+    "rating": "F",
+    "thermload": 2.4,
+    "symbol": "Hpt_BeamLaser_Turret_Small"
+   }
+  ]
+ },
+ "modules/hardpoints/cannon.json": {
+  "c": [
+   {
+    "ammo": 100,
+    "breachdmg": 16.3,
+    "breachmax": 0.8,
+    "breachmin": 0.6,
+    "class": 2,
+    "clip": 5,
+    "cost": 4051200,
+    "damage": 19.77,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.34,
+    "edID": 128049446,
+    "falloff": 3500,
+    "fireint": 2.5,
+    "grp": "c",
+    "id": "1m",
+    "integrity": 51,
+    "mass": 4,
+    "mount": "T",
+    "piercing": 50,
+    "power": 0.45,
+    "range": 3500,
+    "rating": "E",
+    "reload": 4,
+    "shotspeed": 875,
+    "thermload": 1,
+    "symbol": "Hpt_Cannon_Turret_Medium"
+   }
+  ]
+ },
+ "modules/hardpoints/cargo_scanner.json": {
+  "cs": [
+   {
+    "angle": 15,
+    "class": 0,
+    "cost": 121899,
+    "edID": 128662522,
+    "grp": "cs",
+    "id": "0b",
+    "integrity": 40,
+    "mass": 1.3,
+    "power": 0.8,
+    "range": 3000,
+    "rating": "C",
+    "scantime": 10,
+    "symbol": "Hpt_CargoScanner_Size0_Class3"
+   }
+  ]
+ },
+ "modules/hardpoints/chaff_launcher.json": {
+  "ch": [
+   {
+    "ammo": 10,
+    "ammocost": 100,
+    "class": 0,
+    "clip": 1,
+    "cost": 8500,
+    "distdraw": 4,
+    "duration": 20,
+    "edID": 128049513,
+    "fireint": 1.0,
+    "grp": "ch",
+    "id": "00",
+    "integrity": 20,
+    "mass": 1.3,
+    "name": "Chaff Launcher",
+    "passive": 1,
+    "power": 0.2,
+    "rating": "I",
+    "reload": 10,
+    "symbol": "Hpt_ChaffLauncher_Tiny",
+    "thermload": 4
+   }
+  ]
+ },
+ "modules/hardpoints/electronic_countermeasure.json": {
+  "ec": [
+   {
+    "activepower": 4,
+    "chargeup": 3,
+    "class": 0,
+    "cooldown": 10,
+    "cost": 12500,
+    "edID": 128049516,
+    "grp": "ec",
+    "id": "01",
+    "integrity": 20,
+    "mass": 1.3,
+    "name": "Electronic Countermeasure",
+    "power": 0.2,
+    "range": 3000,
+    "rating": "F",
+    "reload": 10,
+    "thermload": 4,
+    "symbol": "Hpt_ElectronicCountermeasure_Tiny"
+   }
+  ]
+ },
+ "modules/hardpoints/frame_shift_wake_scanner.json": {
+  "ws": [
+   {
+    "class": 0,
+    "cost": 1097095,
+    "edID": 128662529,
+    "grp": "ws",
+    "id": "0e",
+    "integrity": 48,
+    "mass": 1.3,
+    "power": 3.2,
+    "range": 4000,
+    "rating": "A",
+    "scantime": 10,
+    "symbol": "Hpt_CloudScanner_Size0_Class5"
+   }
+  ]
+ },
+ "modules/hardpoints/guardian_gauss_cannon.json": {
+  "ggc": [
+   {
+    "ammo": 80,
+    "breachdmg": 35,
+    "breachmax": 0.4,
+    "breachmin": 0.2,
+    "burst": 1,
+    "class": 2,
+    "clip": 1,
+    "cost": 543800,
+    "damage": 70,
+    "damagedist": {
+     "AX": 0.5,
+     "T": 0.5
+    },
+    "distdraw": 7.2,
+    "edID": 128833687,
+    "experimental": true,
+    "falloff": 1500,
+    "fireint": 0.83,
+    "grp": "ggc",
+    "id": "0H",
+    "integrity": 42,
+    "mass": 4,
+    "mount": "F",
+    "piercing": 140,
+    "power": 2.61,
+    "range": 3000,
+    "rating": "B",
+    "reload": 1,
+    "requirements": {
+     "horizons": true
+    },
+    "symbol": "Hpt_Guardian_GaussCannon_Fixed_Medium",
+    "thermload": 25
+   },
+   {
+    "ammo": 200,
+    "breachdmg": 35,
+    "breachmax": 0.4,
+    "breachmin": 0.2,
+    "burst": 1,
+    "class": 2,
+    "clip": 2,
+    "cost": 0,
+    "damage": 18.3,
+    "damagedist": {
+     "AX": 0.5,
+     "T": 0.5
+    },
+    "distdraw": 7.2,
+    "experimental": true,
+    "falloff": 1200,
+    "fireint": 1.15,
+    "grp": "ggc",
+    "id": "6F",
+    "integrity": 42,
+    "mass": 4,
+    "mount": "F",
+    "name": "Gauss (HCap + RFire)",
+    "piercing": 140,
+    "power": 2.61,
+    "preEngineered": {
+     "blueprints": [
+      "Weapon_HighCapacity",
+      "Weapon_RapidFire"
+     ],
+     "canApplyExperimental": false,
+     "description": "This module has been pre-engineered with Grade 1 High Capacity and Rapid Fire modifications.",
+     "experimentalEffects": [],
+     "grade": 1,
+     "gradeChangeable": false,
+     "modifiers": {
+      "ammo": 4.0,
+      "breachdmg": -0.752,
+      "clip": 3.0,
+      "damage": -0.752,
+      "distdraw": -0.75,
+      "falloff": -0.2,
+      "rof": 3.035,
+      "thermload": -0.75
+     },
+     "reengineerable": false
+    },
+    "range": 3000,
+    "rating": "B",
+    "reload": 2.87,
+    "requirements": {
+     "horizons": true
+    },
+    "symbol": "Hpt_Guardian_GaussCannon_Fixed_Medium",
+    "thermload": 25
+   }
+  ]
+ },
+ "modules/hardpoints/heat_sink_launcher.json": {
+  "hs": [
+   {
+    "ammo": 3,
+    "ammocost": 25,
+    "class": 0,
+    "clip": 1,
+    "cost": 3500,
+    "distdraw": 2,
+    "drain": 100,
+    "duration": 10,
+    "edID": 128049519,
+    "eps": 0.4,
+    "fireint": 5.0,
+    "grp": "hs",
+    "id": "02",
+    "integrity": 20,
+    "mass": 1.3,
+    "name": "Heat Sink Launcher",
+    "passive": 1,
+    "power": 0.2,
+    "rating": "I",
+    "reload": 10,
+    "symbol": "Hpt_HeatSinkLauncher_Turret_Tiny"
+   },
+   {
+    "ammo": 3,
+    "ammocost": 25,
+    "class": 0,
+    "clip": 1,
+    "cost": 0,
+    "distdraw": 2,
+    "drain": 100,
+    "duration": 10,
+    "eps": 0.4,
+    "fireint": 5.0,
+    "grp": "hs",
+    "id": "5W",
+    "integrity": 20,
+    "mass": 0.65,
+    "name": "Heat Sink Launcher (Sirius)",
+    "passive": 1,
+    "power": 0.2,
+    "preEngineered": {
+     "blueprints": [
+      "Misc_HeatSinkCapacity"
+     ],
+     "canApplyExperimental": false,
+     "description": "This module has been pre-engineered with Grade 1 Expanded Heat Sink Capacity modifications.",
+     "grade": 1,
+     "gradeChangeable": false,
+     "reengineerable": false
+    },
+    "rating": "I",
+    "reload": 10,
+    "symbol": "Hpt_HeatSinkLauncher_Turret_Tiny"
+   }
+  ]
+ },
+ "modules/hardpoints/kill_warrant_scanner.json": {
+  "kw": [
+   {
+    "class": 0,
+    "cost": 121899,
+    "edID": 128662532,
+    "grp": "kw",
+    "id": "0l",
+    "integrity": 40,
+    "mass": 1.3,
+    "power": 0.8,
+    "range": 3000,
+    "rating": "C",
+    "scantime": 10,
+    "symbol": "Hpt_CrimeScanner_Size0_Class3"
+   }
+  ]
+ },
+ "modules/hardpoints/multi_cannon.json": {
+  "mc": [
+   {
+    "ammo": 2100,
+    "breachdmg": 2,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 2,
+    "clip": 100,
+    "cost": 38000,
+    "damage": 2.19,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.11,
+    "edID": 128049456,
+    "falloff": 2000,
+    "fireint": 0.14,
+    "grp": "mc",
+    "id": "26",
+    "integrity": 51,
+    "mass": 4,
+    "mount": "F",
+    "piercing": 37,
+    "power": 0.46,
+    "range": 4000,
+    "rating": "E",
+    "reload": 4,
+    "shotspeed": 1600,
+    "symbol": "Hpt_MultiCannon_Fixed_Medium",
+    "thermload": 0.18
+   },
+   {
+    "ammo": 2100,
+    "breachdmg": 2.6,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 3,
+    "clip": 90,
+    "cost": 578436,
+    "damage": 2.84,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.25,
+    "edID": 128049461,
+    "falloff": 2000,
+    "fireint": 0.15,
+    "grp": "mc",
+    "id": "7l",
+    "integrity": 64,
+    "mass": 8,
+    "mount": "G",
+    "piercing": 54,
+    "power": 0.97,
+    "range": 4000,
+    "rating": "C",
+    "reload": 5,
+    "shotspeed": 1600,
+    "symbol": "Hpt_MultiCannon_Gimbal_Large",
+    "thermload": 0.34
+   },
+   {
+    "ammo": 2100,
+    "breachdmg": 3.1,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 4,
+    "clip": 90,
+    "cost": 6377600,
+    "damage": 3.46,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.37,
+    "edID": 128681996,
+    "falloff": 2000,
+    "fireint": 0.297,
+    "grp": "mc",
+    "id": "7o",
+    "integrity": 80,
+    "mass": 16,
+    "mount": "G",
+    "piercing": 68,
+    "power": 1.22,
+    "range": 4000,
+    "rating": "A",
+    "reload": 5,
+    "roundspershot": 2,
+    "shotspeed": 1600,
+    "symbol": "Hpt_MultiCannon_Gimbal_Huge",
+    "thermload": 0.51
+   },
+   {
+    "ammo": 4706,
+    "breachdmg": 2,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 2,
+    "clip": 294,
+    "cost": 0,
+    "damage": 2.15,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.11,
+    "falloff": 1800,
+    "fireint": 0.1115,
+    "grp": "mc",
+    "id": "6D",
+    "integrity": 51,
+    "mass": 3.33,
+    "mount": "F",
+    "name": "MC (HCap+RFire+Phase)",
+    "piercing": 37,
+    "power": 0.46,
+    "preEngineered": {
+     "availability": "CG",
+     "blueprints": [
+      "Weapon_HighCapacity",
+      "Weapon_RapidFire"
+     ],
+     "canApplyExperimental": false,
+     "description": "This module has been pre-engineered with Grade 5 High Cap & Rapid Fire modifications, and Phasing Sequence Experimental Effect.",
+     "experimentalEffects": [
+      "special_phasing_sequence"
+     ],
+     "grade": 1,
+     "gradeChangeable": true,
+     "reengineerable": false
+    },
+    "range": 2000,
+    "rating": "E",
+    "reload": 5.33,
+    "shotspeed": 1600,
+    "symbol": "Hpt_MultiCannon_Fixed_Medium",
+    "thermload": 0.18
+   },
+   {
+    "ammo": 2530,
+    "breachdmg": 1.8,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 2,
+    "clip": 130,
+    "cost": 0,
+    "damage": 1.971,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.11,
+    "falloff": 315,
+    "fireint": 0.13,
+    "grp": "mc",
+    "id": "zF",
+    "integrity": 51,
+    "jitter": 0.75,
+    "mass": 4,
+    "mercCoin": 850,
+    "mercModule": true,
+    "mount": "F",
+    "name": "Rapid Phase",
+    "piercing": 37,
+    "power": 0.46,
+    "preEngineered": {
+     "availability": "MercCoin",
+     "blueprints": [
+      "Weapon_RapidPhase"
+     ],
+     "canApplyExperimental": false,
+     "description": "Pre-engineered Rapid Phase Multi-Cannon with Phasing Sequence effect. Increased rate of fire, ammo clip and capacity at the cost of reduced damage, range and damage falloff.",
+     "experimentalEffects": [
+      "special_phasing_sequence"
+     ],
+     "grade": 1,
+     "gradeChangeable": true,
+     "reengineerable": false
+    },
+    "range": 3500,
+    "rating": "E",
+    "reload": 4,
+    "shotspeed": 1600,
+    "symbol": "Hpt_MultiCannon_Fixed_Medium",
+    "thermload": 0.18
+   },
+   {
+    "ammo": 2100,
+    "breachdmg": 1.5,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 2,
+    "clip": 90,
+    "cost": 57000,
+    "damage": 1.64,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.14,
+    "edID": 128049460,
+    "falloff": 2000,
+    "fireint": 0.13,
+    "grp": "mc",
+    "id": "27",
+    "integrity": 51,
+    "mass": 4,
+    "mount": "G",
+    "piercing": 37,
+    "power": 0.64,
+    "range": 4000,
+    "rating": "F",
+    "reload": 5,
+    "shotspeed": 1600,
+    "thermload": 0.2,
+    "symbol": "Hpt_MultiCannon_Gimbal_Medium"
+   }
+  ]
+ },
+ "modules/hardpoints/multi_cannon_advanced.json": {
+  "advmc": [
+   {
+    "ammo": 2100,
+    "breachdmg": 1,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 1,
+    "clip": 100,
+    "cost": 9500,
+    "damage": 1.12,
+    "damagedist": {
+     "K": 1
+    },
+    "distdraw": 0.06,
+    "edID": 128935981,
+    "falloff": 2000,
+    "fireint": 0.13,
+    "grp": "advmc",
+    "id": "5C",
+    "integrity": 40,
+    "mass": 2,
+    "mount": "F",
+    "piercing": 22,
+    "power": 0.28,
+    "range": 4000,
+    "rating": "F",
+    "reload": 4,
+    "shotspeed": 1600,
+    "symbol": "Hpt_MultiCannon_Fixed_Small_Advanced",
+    "thermload": 0.09
+   }
+  ]
+ },
+ "modules/hardpoints/plasma_accelerator.json": {
+  "pa": [
+   {
+    "ammo": 100,
+    "breachdmg": 102,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 4,
+    "clip": 5,
+    "cost": 13793600,
+    "damage": 125.2,
+    "damagedist": {
+     "A": 0.6,
+     "K": 0.2,
+     "T": 0.2
+    },
+    "distdraw": 21.04,
+    "edID": 128049467,
+    "falloff": 2000,
+    "fireint": 4.0,
+    "grp": "pa",
+    "id": "2c",
+    "integrity": 80,
+    "mass": 16,
+    "mount": "F",
+    "piercing": 100,
+    "power": 2.63,
+    "range": 3500,
+    "rating": "A",
+    "reload": 6,
+    "shotspeed": 875,
+    "thermload": 29.5,
+    "symbol": "Hpt_PlasmaAccelerator_Fixed_Huge"
+   }
+  ]
+ },
+ "modules/hardpoints/point_defence.json": {
+  "po": [
+   {
+    "ammo": 10000,
+    "burst": 4,
+    "burstrof": 15,
+    "class": 0,
+    "clip": 12,
+    "cost": 18550,
+    "damage": 0.2,
+    "damagedist": {
+     "K": 1
+    },
+    "edID": 128049522,
+    "fireint": 0.2,
+    "grp": "po",
+    "id": "03",
+    "integrity": 30,
+    "jitter": 0.75,
+    "mass": 0.5,
+    "name": "Point Defence",
+    "passive": 1,
+    "power": 0.2,
+    "range": 2500,
+    "rating": "I",
+    "reload": 0.4,
+    "shotspeed": 1000,
+    "thermload": 0.1,
+    "symbol": "Hpt_PlasmaPointDefence_Turret_Tiny"
+   }
+  ]
+ },
+ "modules/hardpoints/pulse_laser.json": {
+  "pl": [
+   {
+    "breachdmg": 1,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 1,
+    "cost": 26000,
+    "damage": 1.19,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 0.19,
+    "edID": 128049388,
+    "falloff": 500,
+    "fireint": 0.3,
+    "grp": "pl",
+    "id": "19",
+    "integrity": 40,
+    "mass": 2,
+    "mount": "T",
+    "piercing": 20,
+    "power": 0.38,
+    "range": 3000,
+    "rating": "G",
+    "symbol": "Hpt_PulseLaser_Turret_Small",
+    "thermload": 0.19
+   },
+   {
+    "breachdmg": 3,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 2,
+    "cost": 17600,
+    "damage": 3.5,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 0.5,
+    "edID": 128049382,
+    "falloff": 500,
+    "fireint": 0.29,
+    "grp": "pl",
+    "id": "1a",
+    "integrity": 51,
+    "mass": 4,
+    "mount": "F",
+    "piercing": 35,
+    "power": 0.6,
+    "range": 3000,
+    "rating": "E",
+    "symbol": "Hpt_PulseLaser_Fixed_Medium",
+    "thermload": 0.56
+   },
+   {
+    "breachdmg": 5.1,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 3,
+    "cost": 70400,
+    "damage": 5.98,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 0.86,
+    "edID": 128049383,
+    "falloff": 500,
+    "fireint": 0.33,
+    "grp": "pl",
+    "id": "1d",
+    "integrity": 64,
+    "mass": 8,
+    "mount": "F",
+    "piercing": 52,
+    "power": 0.9,
+    "range": 3000,
+    "rating": "D",
+    "symbol": "Hpt_PulseLaser_Fixed_Large",
+    "thermload": 0.96
+   },
+   {
+    "breachdmg": 3.9,
+    "breachmax": 0.8,
+    "breachmin": 0.4,
+    "class": 3,
+    "cost": 140600,
+    "damage": 4.58,
+    "damagedist": {
+     "T": 1
+    },
+    "distdraw": 0.92,
+    "edID": 128049387,
+    "falloff": 500,
+    "fireint": 0.31,
+    "grp": "pl",
+    "id": "1e",
+    "integrity": 64,
+    "mass": 8,
+    "mount": "G",
+    "piercing": 52,
+    "power": 0.92,
+    "range": 3000,
+    "rating": "E",
+    "symbol": "Hpt_PulseLaser_Gimbal_Large",
+    "thermload": 0.92
+   }
+  ]
+ },
+ "modules/hardpoints/remote_release_flak_launcher.json": {
+  "rfl": [
+   {
+    "ammo": 32,
+    "breachdmg": 1.7,
+    "breachmax": 1,
+    "breachmin": 1,
+    "class": 2,
+    "clip": 1,
+    "cost": 1259200,
+    "damage": 34,
+    "damagedist": {
+     "E": 1
+    },
+    "distdraw": 0.24,
+    "edID": 128793058,
+    "falloff": 100000,
+    "fireint": 2.0,
+    "grp": "rfl",
+    "id": "x9",
+    "integrity": 51,
+    "mass": 4,
+    "mount": "T",
+    "piercing": 60,
+    "power": 1.2,
+    "rating": "B",
+    "reload": 2,
+    "shotspeed": 550,
+    "symbol": "Hpt_FlakMortar_Turret_Medium",
+    "thermload": 3.6
+   }
+  ]
+ },
+ "modules/hardpoints/shield_booster.json": {
+  "sb": [
+   {
+    "class": 0,
+    "cost": 281000,
+    "edID": 128668536,
+    "explres": 0,
+    "grp": "sb",
+    "id": "04",
+    "integrity": 48,
+    "kinres": 0,
+    "mass": 3.5,
+    "passive": 1,
+    "power": 1.2,
+    "rating": "A",
+    "shieldboost": 0.2,
+    "symbol": "Hpt_ShieldBooster_Size0_Class5",
+    "thermres": 0
+   }
+  ]
+ },
+ "modules/internal/auto_field_maintenance_unit.json": {
+  "am": [
+   {
+    "ammo": 4000,
+    "ammocost": 1,
+    "class": 3,
+    "cost": 2624400,
+    "edID": 128667632,
+    "grp": "am",
+    "id": "0i",
+    "power": 1.89,
+    "rating": "A",
+    "repair": 112,
+    "symbol": "Int_Repairer_Size3_Class5"
+   },
+   {
+    "ammo": 5500,
+    "ammocost": 1,
+    "class": 5,
+    "cost": 314928,
+    "edID": 128667610,
+    "grp": "am",
+    "id": "0v",
+    "power": 1.56,
+    "rating": "D",
+    "repair": 88,
+    "symbol": "Int_Repairer_Size5_Class2"
+   },
+   {
+    "ammo": 6700,
+    "ammocost": 1,
+    "class": 6,
+    "cost": 566870,
+    "edID": 128667611,
+    "grp": "am",
+    "id": "14",
+    "power": 1.86,
+    "rating": "D",
+    "repair": 107.2,
+    "symbol": "Int_Repairer_Size6_Class2"
+   }
+  ]
+ },
+ "modules/internal/bi_weave_shield_generator.json": {
+  "bsg": [
+   {
+    "brokenregen": 5.6,
+    "class": 5,
+    "cost": 850659,
+    "distdraw": 0.6,
+    "edID": 128671335,
+    "explres": 0.5,
+    "grp": "bsg",
+    "id": "B2",
+    "integrity": 96,
+    "kinres": 0.4,
+    "mass": 20,
+    "maxmass": 1013,
+    "maxmul": 1.4,
+    "minmass": 203,
+    "minmul": 0.4,
+    "optmass": 405,
+    "optmul": 0.9,
+    "power": 2.6,
+    "rating": "C",
+    "regen": 2.2,
+    "symbol": "Int_ShieldGenerator_Size5_Class3_Fast",
+    "thermres": -0.2
+   },
+   {
+    "brokenregen": 8,
+    "class": 6,
+    "cost": 2696589,
+    "distdraw": 0.6,
+    "edID": 128671336,
+    "explres": 0.5,
+    "grp": "bsg",
+    "id": "B1",
+    "integrity": 113,
+    "kinres": 0.4,
+    "mass": 40,
+    "maxmass": 1350,
+    "maxmul": 1.4,
+    "minmass": 270,
+    "minmul": 0.4,
+    "optmass": 540,
+    "optmul": 0.9,
+    "power": 3.1,
+    "rating": "C",
+    "regen": 3.2,
+    "symbol": "Int_ShieldGenerator_Size6_Class3_Fast",
+    "thermres": -0.2
+   }
+  ]
+ },
+ "modules/internal/cargo_rack.json": {
+  "cr": [
+   {
+    "cargo": 4,
+    "class": 2,
+    "cost": 3250,
+    "edID": 128064339,
+    "engineering": false,
+    "grp": "cr",
+    "id": "01",
+    "mass": 0,
+    "rating": "E",
+    "symbol": "Int_CargoRack_Size2_Class1"
+   },
+   {
+    "cargo": 8,
+    "class": 3,
+    "cost": 10563,
+    "edID": 128064340,
+    "engineering": false,
+    "grp": "cr",
+    "id": "02",
+    "mass": 0,
+    "rating": "E",
+    "symbol": "Int_CargoRack_Size3_Class1"
+   },
+   {
+    "cargo": 16,
+    "class": 4,
+    "cost": 34328,
+    "edID": 128064341,
+    "engineering": false,
+    "grp": "cr",
+    "id": "03",
+    "mass": 0,
+    "rating": "E",
+    "symbol": "Int_CargoRack_Size4_Class1"
+   },
+   {
+    "cargo": 64,
+    "class": 6,
+    "cost": 362591,
+    "edID": 128064343,
+    "grp": "cr",
+    "id": "05",
+    "rating": "E",
+    "mass": 0,
+    "symbol": "Int_CargoRack_Size6_Class1",
+    "engineering": false
+   },
+   {
+    "cargo": 32,
+    "class": 5,
+    "cost": 111566,
+    "edID": 128064342,
+    "grp": "cr",
+    "id": "04",
+    "rating": "E",
+    "mass": 0,
+    "symbol": "Int_CargoRack_Size5_Class1",
+    "engineering": false
+   }
+  ]
+ },
+ "modules/internal/docking_computer.json": {
+  "dc": [
+   {
+    "class": 1,
+    "cost": 13507,
+    "edID": 128935155,
+    "grp": "dc",
+    "id": "3x",
+    "integrity": 10,
+    "name": "Advanced Docking Computer",
+    "power": 0.45,
+    "rating": "E",
+    "symbol": "Int_DockingComputer_Advanced"
+   }
+  ]
+ },
+ "modules/internal/frame_shift_drive_interdictor.json": {
+  "fi": [
+   {
+    "boot": 15,
+    "class": 2,
+    "cost": 2721600,
+    "edID": 128666721,
+    "facinglimit": 50,
+    "grp": "fi",
+    "id": "6b",
+    "integrity": 61,
+    "mass": 2.5,
+    "power": 0.39,
+    "ranget": 10,
+    "rating": "A",
+    "symbol": "Int_FSDInterdictor_Size2_Class5"
+   }
+  ]
+ },
+ "modules/internal/fuel_scoop.json": {
+  "fs": [
+   {
+    "class": 3,
+    "cost": 902954,
+    "edID": 128666678,
+    "grp": "fs",
+    "id": "2t",
+    "power": 0.48,
+    "rate": 176,
+    "rating": "A",
+    "symbol": "Int_FuelScoop_Size3_Class5"
+   },
+   {
+    "class": 5,
+    "cost": 567106,
+    "edID": 128666664,
+    "grp": "fs",
+    "id": "39",
+    "power": 0.5,
+    "rate": 412,
+    "rating": "C",
+    "symbol": "Int_FuelScoop_Size5_Class3"
+   },
+   {
+    "class": 5,
+    "cost": 9073694,
+    "edID": 128666680,
+    "grp": "fs",
+    "id": "37",
+    "power": 0.7,
+    "rate": 577,
+    "rating": "A",
+    "symbol": "Int_FuelScoop_Size5_Class5"
+   },
+   {
+    "class": 7,
+    "cost": 91180644,
+    "edID": 128666682,
+    "grp": "fs",
+    "id": "3h",
+    "power": 0.97,
+    "rate": 1245,
+    "rating": "A",
+    "symbol": "Int_FuelScoop_Size7_Class5"
+   },
+   {
+    "class": 4,
+    "cost": 2862364,
+    "edID": 128666679,
+    "grp": "fs",
+    "id": "32",
+    "power": 0.57,
+    "rate": 342,
+    "rating": "A",
+    "symbol": "Int_FuelScoop_Size4_Class5"
+   },
+   {
+    "class": 6,
+    "cost": 28763610,
+    "edID": 128666681,
+    "grp": "fs",
+    "id": "3c",
+    "power": 0.83,
+    "rate": 878,
+    "rating": "A",
+    "symbol": "Int_FuelScoop_Size6_Class5"
+   }
+  ]
+ },
+ "modules/internal/guardian_fsd_booster.json": {
+  "gfsb": [
+   {
+    "class": 4,
+    "cost": 3245013,
+    "edID": 128833978,
+    "grp": "gfsb",
+    "id": "1P",
+    "integrity": 32,
+    "jumpboost": 9.25,
+    "mass": 1.3,
+    "power": 1.65,
+    "rating": "H",
+    "symbol": "Int_GuardianFSDBooster_Size4"
+   },
+   {
+    "class": 5,
+    "cost": 6483101,
+    "edID": 128833979,
+    "grp": "gfsb",
+    "id": "1O",
+    "integrity": 32,
+    "jumpboost": 10.5,
+    "mass": 1.3,
+    "power": 2.14,
+    "rating": "H",
+    "symbol": "Int_GuardianFSDBooster_Size5"
+   }
+  ]
+ },
+ "modules/internal/hull_reinforcement_package.json": {
+  "hr": [
+   {
+    "causres": 0,
+    "class": 4,
+    "cost": 195000,
+    "edID": 128668544,
+    "explres": 0.02,
+    "grp": "hr",
+    "hullreinforcement": 330,
+    "id": "2b",
+    "kinres": 0.02,
+    "mass": 8,
+    "rating": "D",
+    "symbol": "Int_HullReinforcement_Size4_Class2",
+    "thermres": 0.02
+   },
+   {
+    "causres": 0,
+    "class": 5,
+    "cost": 450000,
+    "edID": 128668546,
+    "explres": 0.025,
+    "grp": "hr",
+    "hullreinforcement": 390,
+    "id": "2d",
+    "kinres": 0.025,
+    "mass": 16,
+    "rating": "D",
+    "symbol": "Int_HullReinforcement_Size5_Class2",
+    "thermres": 0.025
+   }
+  ]
+ },
+ "modules/internal/internal_fuel_tank.json": {
+  "ft": [
+   {
+    "class": 3,
+    "cost": 7060,
+    "edID": 128064348,
+    "fuel": 8,
+    "grp": "ft",
+    "id": "f3",
+    "rating": "C",
+    "symbol": "Int_FuelTank_Size3_Class3"
+   },
+   {
+    "class": 5,
+    "cost": 97750,
+    "edID": 128064350,
+    "fuel": 32,
+    "grp": "ft",
+    "id": "f5",
+    "rating": "C",
+    "symbol": "Int_FuelTank_Size5_Class3"
+   }
+  ]
+ },
+ "modules/internal/module_reinforcement_package.json": {
+  "mrp": [
+   {
+    "class": 2,
+    "cost": 36000,
+    "edID": 128737273,
+    "grp": "mrp",
+    "id": "m3",
+    "integrity": 105,
+    "mass": 2,
+    "protection": 0.6,
+    "rating": "D",
+    "symbol": "Int_ModuleReinforcement_Size2_Class2"
+   },
+   {
+    "class": 5,
+    "cost": 450000,
+    "edID": 128737279,
+    "grp": "mrp",
+    "id": "m9",
+    "integrity": 350,
+    "mass": 16,
+    "protection": 0.6,
+    "rating": "D",
+    "symbol": "Int_ModuleReinforcement_Size5_Class2"
+   },
+   {
+    "class": 5,
+    "cost": 0,
+    "grp": "mrp",
+    "id": "zT",
+    "integrity": 350,
+    "mass": 16,
+    "mercCoin": 450,
+    "mercModule": true,
+    "name": "Heavy Duty MRP",
+    "preEngineered": {
+     "availability": "MercCoin",
+     "blueprints": [
+      "MRP_HeavyDuty"
+     ],
+     "canApplyExperimental": false,
+     "description": "Pre-engineered Heavy Duty Module Reinforcement Package. Increased module protection at the cost of increased mass.",
+     "experimentalEffects": [],
+     "grade": 1,
+     "gradeChangeable": true,
+     "reengineerable": false
+    },
+    "protection": 0.6,
+    "rating": "D",
+    "symbol": "Int_ModuleReinforcement_Size5_Class2"
+   }
+  ]
+ },
+ "modules/internal/planetary_approach_suite.json": {
+  "pas": [
+   {
+    "class": 1,
+    "cost": 500,
+    "edID": 128975719,
+    "grp": "pas",
+    "id": "4F",
+    "mass": 0,
+    "name": "Advanced Planetary Approach Suite (Odyssey)",
+    "power": 0,
+    "rating": "I",
+    "special": "Adv PAS (Odyssey)",
+    "symbol": "int_planetapproachsuite_advanced"
+   }
+  ]
+ },
+ "modules/internal/planetary_vehicle_hanger.json": {
+  "pv": [
+   {
+    "bays": 1,
+    "class": 2,
+    "cost": 21600,
+    "edID": 128672289,
+    "grp": "pv",
+    "id": "v6",
+    "integrity": 30,
+    "mass": 6,
+    "power": 0.75,
+    "rating": "G",
+    "symbol": "Int_BuggyBay_Size2_Class2"
+   }
+  ]
+ },
+ "modules/internal/repair_limpet_controller.json": {
+  "rpl": [
+   {
+    "class": 1,
+    "cost": 1200,
+    "edID": 128777328,
+    "grp": "rpl",
+    "id": "9q",
+    "mass": 0.5,
+    "maximum": 1,
+    "power": 0.14,
+    "range": 0.8,
+    "rating": "D",
+    "symbol": "Int_DroneControl_Repair_Size1_Class2"
+   },
+   {
+    "class": 3,
+    "cost": 86400,
+    "edID": 128777336,
+    "grp": "rpl",
+    "id": "9r",
+    "mass": 5,
+    "maximum": 2,
+    "power": 0.41,
+    "range": 1.54,
+    "rating": "A",
+    "symbol": "Int_DroneControl_Repair_Size3_Class5"
+   }
+  ]
+ },
+ "modules/internal/shield_cell_bank.json": {
+  "scb": [
+   {
+    "ammo": 4,
+    "ammocost": 300,
+    "boot": 25,
+    "class": 6,
+    "clip": 1,
+    "cost": 3475688,
+    "duration": 8,
+    "edID": 128064327,
+    "grp": "scb",
+    "id": "5n",
+    "integrity": 136,
+    "mass": 40,
+    "power": 2.48,
+    "rating": "A",
+    "shieldreinforcement": 46,
+    "rechargerating": "A",
+    "spinup": 5,
+    "thermload": 640,
+    "symbol": "Int_ShieldCellBank_Size6_Class5"
+   }
+  ]
+ },
+ "modules/internal/shield_generator.json": {
+  "sg": [
+   {
+    "brokenregen": 3.75,
+    "class": 5,
+    "cost": 189035,
+    "distdraw": 0.6,
+    "edID": 128064279,
+    "explres": 0.5,
+    "grp": "sg",
+    "id": "4d",
+    "integrity": 58,
+    "kinres": 0.4,
+    "mass": 8,
+    "maxmass": 1013,
+    "maxmul": 1.4,
+    "minmass": 203,
+    "minmul": 0.4,
+    "optmass": 405,
+    "optmul": 0.9,
+    "power": 2.08,
+    "rating": "D",
+    "regen": 1,
+    "symbol": "Int_ShieldGenerator_Size5_Class2",
+    "thermres": -0.2
+   },
+   {
+    "brokenregen": 3.75,
+    "class": 5,
+    "cost": 5103953,
+    "distdraw": 0.6,
+    "edID": 128064282,
+    "explres": 0.5,
+    "grp": "sg",
+    "id": "4a",
+    "integrity": 115,
+    "kinres": 0.4,
+    "mass": 20,
+    "maxmass": 1013,
+    "maxmul": 1.7,
+    "minmass": 203,
+    "minmul": 0.7,
+    "optmass": 405,
+    "optmul": 1.2,
+    "power": 3.64,
+    "rating": "A",
+    "regen": 1,
+    "symbol": "Int_ShieldGenerator_Size5_Class5",
+    "thermres": -0.2
+   },
+   {
+    "brokenregen": 5.33,
+    "class": 6,
+    "cost": 599242,
+    "distdraw": 0.6,
+    "edID": 128064284,
+    "explres": 0.5,
+    "grp": "sg",
+    "id": "4i",
+    "integrity": 68,
+    "kinres": 0.4,
+    "mass": 16,
+    "maxmass": 1350,
+    "maxmul": 1.4,
+    "minmass": 270,
+    "minmul": 0.4,
+    "optmass": 540,
+    "optmul": 0.9,
+    "power": 2.48,
+    "rating": "D",
+    "regen": 1.3,
+    "symbol": "Int_ShieldGenerator_Size6_Class2",
+    "thermres": -0.2
+   },
+   {
+    "brokenregen": 5.33,
+    "class": 6,
+    "cost": 16179531,
+    "distdraw": 0.6,
+    "edID": 128064287,
+    "explres": 0.5,
+    "grp": "sg",
+    "id": "4f",
+    "integrity": 136,
+    "kinres": 0.4,
+    "mass": 40,
+    "maxmass": 1350,
+    "maxmul": 1.7,
+    "minmass": 270,
+    "minmul": 0.7,
+    "optmass": 540,
+    "optmul": 1.2,
+    "power": 4.34,
+    "rating": "A",
+    "regen": 1.3,
+    "symbol": "Int_ShieldGenerator_Size6_Class5",
+    "thermres": -0.2
+   },
+   {
+    "brokenregen": 7.33,
+    "class": 7,
+    "cost": 51289112,
+    "distdraw": 0.6,
+    "edID": 128064292,
+    "explres": 0.5,
+    "grp": "sg",
+    "id": "4k",
+    "integrity": 157,
+    "kinres": 0.4,
+    "mass": 80,
+    "maxmass": 2650,
+    "maxmul": 1.7,
+    "minmass": 530,
+    "minmul": 0.7,
+    "optmass": 1060,
+    "optmul": 1.2,
+    "power": 4.9,
+    "rating": "A",
+    "regen": 1.8,
+    "thermres": -0.2,
+    "symbol": "Int_ShieldGenerator_Size7_Class5"
+   },
+   {
+    "brokenregen": 1.87,
+    "class": 3,
+    "cost": 507912,
+    "distdraw": 0.6,
+    "edID": 128064272,
+    "explres": 0.5,
+    "grp": "sg",
+    "id": "40",
+    "integrity": 77,
+    "kinres": 0.4,
+    "mass": 5,
+    "maxmass": 413,
+    "maxmul": 1.7,
+    "minmass": 83,
+    "minmul": 0.7,
+    "optmass": 165,
+    "optmul": 1.2,
+    "power": 2.52,
+    "rating": "A",
+    "regen": 1,
+    "thermres": -0.2,
+    "symbol": "Int_ShieldGenerator_Size3_Class5"
+   }
+  ]
+ },
+ "modules/internal/supercruise_assist.json": {
+  "sua": [
+   {
+    "class": 1,
+    "cost": 9121,
+    "edID": 128932273,
+    "grp": "sua",
+    "id": "3w",
+    "mass": 0,
+    "name": "Supercruise Assist",
+    "power": 0.3,
+    "rating": "E",
+    "symbol": "Int_SupercruiseAssist"
+   }
+  ]
+ },
+ "modules/internal/surface_scanner.json": {
+  "ss": [
+   {
+    "class": 1,
+    "cost": 250000,
+    "edID": 128666634,
+    "grp": "ss",
+    "id": "2i",
+    "mass": 0,
+    "name": "Detailed Surface Scanner",
+    "power": 0,
+    "proberadius": 0.2,
+    "rating": "I",
+    "symbol": "Int_DetailedSurfaceScanner_Tiny"
+   },
+   {
+    "class": 1,
+    "cost": 0,
+    "grp": "ss",
+    "id": "5V",
+    "mass": 0,
+    "name": "Detailed Surface Scanner V1",
+    "power": 0,
+    "preEngineered": {
+     "blueprints": [
+      "Sensor_Expanded"
+     ],
+     "canApplyExperimental": false,
+     "description": "This module has been pre-engineered with Grade 5 Expanded Probe Radius modifications.",
+     "grade": 1,
+     "gradeChangeable": false,
+     "reengineerable": false
+    },
+    "proberadius": 0.2,
+    "rating": "I",
+    "symbol": "Int_DetailedSurfaceScanner_Tiny"
+   },
+   {
+    "class": 1,
+    "cost": 0,
+    "grp": "ss",
+    "id": "zS",
+    "mass": 0,
+    "mercCoin": 350,
+    "mercModule": true,
+    "name": "Long Range DSS",
+    "power": 0,
+    "preEngineered": {
+     "availability": "MercCoin",
+     "blueprints": [
+      "Sensor_LongRangeDSS"
+     ],
+     "canApplyExperimental": false,
+     "description": "Pre-engineered Long Range Detailed Surface Scanner. Increased probe radius at the cost of increased mass and power draw.",
+     "experimentalEffects": [],
+     "grade": 1,
+     "gradeChangeable": true,
+     "reengineerable": false
+    },
+    "proberadius": 0.2,
+    "rating": "I",
+    "symbol": "Int_DetailedSurfaceScanner_Tiny"
+   }
+  ]
+ },
+ "modules/standard/frame_shift_drive.json": {
+  "fsd": [
+   {
+    "class": 7,
+    "cost": 51289112,
+    "edID": 128064132,
+    "fuelmul": 0.012,
+    "fuelpower": 2.75,
+    "grp": "fsd",
+    "id": "Fp",
+    "integrity": 164,
+    "mass": 80,
+    "maxfuel": 12.8,
+    "optmass": 2700,
+    "power": 0.9,
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Size7_Class5"
+   },
+   {
+    "class": 6,
+    "cost": 16179531,
+    "edID": 128064127,
+    "fuelmul": 0.012,
+    "fuelpower": 2.6,
+    "grp": "fsd",
+    "id": "Fk",
+    "integrity": 141,
+    "mass": 40,
+    "maxfuel": 8,
+    "optmass": 1800,
+    "power": 0.75,
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Size6_Class5"
+   },
+   {
+    "class": 5,
+    "cost": 5103953,
+    "edID": 128064122,
+    "fuelmul": 0.012,
+    "fuelpower": 2.45,
+    "grp": "fsd",
+    "id": "Ff",
+    "integrity": 120,
+    "mass": 20,
+    "maxfuel": 5,
+    "optmass": 1050,
+    "power": 0.6,
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Size5_Class5"
+   },
+   {
+    "class": 5,
+    "cost": 0,
+    "fuelmul": 0.012,
+    "fuelpower": 2.45,
+    "grp": "fsd",
+    "id": "5O",
+    "integrity": 120,
+    "mass": 20,
+    "maxfuel": 5,
+    "name": "FSD PreEng (V1)",
+    "optmass": 1050,
+    "power": 0.6,
+    "preEngineered": {
+     "blueprints": [
+      "FSD_LongRange",
+      "FSD_FastBoot"
+     ],
+     "canApplyExperimental": true,
+     "description": "This module has been pre-engineered with Grade 5 Increased Range and Faster Boot Sequence modifications.",
+     "grade": 5,
+     "gradeChangeable": false,
+     "reengineerable": false
+    },
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Size5_Class5"
+   },
+   {
+    "class": 4,
+    "cost": 1610080,
+    "edID": 128064117,
+    "fuelmul": 0.012,
+    "fuelpower": 2.3,
+    "grp": "fsd",
+    "id": "Fa",
+    "integrity": 100,
+    "mass": 10,
+    "maxfuel": 3,
+    "optmass": 525,
+    "power": 0.45,
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Size4_Class5"
+   },
+   {
+    "class": 5,
+    "cost": 6124743,
+    "edID": 129030592,
+    "fuelmul": 0.013,
+    "fuelpower": 2.45,
+    "grp": "fsd",
+    "id": "FJ",
+    "integrity": 120,
+    "mass": 20,
+    "maxfuel": 5.2,
+    "name": "Frame Shift Drive (SCO)",
+    "optmass": 1175,
+    "power": 0.6,
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Overcharge_Size5_Class5"
+   },
+   {
+    "boot": 2,
+    "class": 5,
+    "fuelmul": 0.013,
+    "fuelpower": 2.45,
+    "grp": "fsd",
+    "id": "5R",
+    "integrity": 120,
+    "mass": 20,
+    "maxfuel": 5.2,
+    "name": "FSD (SCO) PreEng (V1)",
+    "optmass": 1175,
+    "power": 0.6,
+    "preEngineered": {
+     "blueprints": [
+      "FSD_LongRange",
+      "FSD_FastBoot"
+     ],
+     "canApplyExperimental": true,
+     "description": "This module has been pre-engineered with Grade 5 Increased Range and Faster Boot Sequence modifications.",
+     "grade": 5,
+     "gradeChangeable": false,
+     "reengineerable": false
+    },
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Overcharge_Size5_Class5"
+   },
+   {
+    "class": 3,
+    "cost": 507912,
+    "edID": 128064112,
+    "fuelmul": 0.012,
+    "fuelpower": 2.15,
+    "grp": "fsd",
+    "id": "F5",
+    "integrity": 80,
+    "mass": 5,
+    "maxfuel": 1.8,
+    "optmass": 150,
+    "power": 0.45,
+    "rating": "A",
+    "symbol": "Int_Hyperdrive_Size3_Class5"
+   }
+  ]
+ },
+ "modules/standard/fuel_tank.json": {
+  "ft": [
+   {
+    "class": 3,
+    "cost": 7063,
+    "edID": 128064348,
+    "fuel": 8,
+    "grp": "ft",
+    "id": "f3",
+    "mass": 0,
+    "rating": "C",
+    "symbol": "Int_FuelTank_Size3_Class3"
+   },
+   {
+    "class": 5,
+    "cost": 97754,
+    "edID": 128064350,
+    "fuel": 32,
+    "grp": "ft",
+    "id": "f5",
+    "mass": 0,
+    "rating": "C",
+    "symbol": "Int_FuelTank_Size5_Class3"
+   }
+  ]
+ },
+ "modules/standard/life_support.json": {
+  "ls": [
+   {
+    "boot": 1,
+    "class": 5,
+    "cost": 79444,
+    "edID": 128064159,
+    "grp": "ls",
+    "id": "ln",
+    "integrity": 86,
+    "mass": 8,
+    "power": 0.64,
+    "rating": "D",
+    "symbol": "Int_LifeSupport_Size5_Class2",
+    "time": 450
+   },
+   {
+    "boot": 1,
+    "class": 4,
+    "cost": 28373,
+    "edID": 128064154,
+    "grp": "ls",
+    "id": "li",
+    "integrity": 72,
+    "mass": 4,
+    "power": 0.56,
+    "rating": "D",
+    "symbol": "Int_LifeSupport_Size4_Class2",
+    "time": 450
+   },
+   {
+    "boot": 1,
+    "class": 5,
+    "cost": 1241317,
+    "edID": 128064162,
+    "grp": "ls",
+    "id": "lk",
+    "integrity": 115,
+    "mass": 20,
+    "power": 0.85,
+    "rating": "A",
+    "time": 1500,
+    "symbol": "Int_LifeSupport_Size5_Class5"
+   },
+   {
+    "boot": 1,
+    "class": 4,
+    "cost": 443328,
+    "edID": 128064157,
+    "grp": "ls",
+    "id": "lf",
+    "integrity": 96,
+    "mass": 10,
+    "power": 0.74,
+    "rating": "A",
+    "time": 1500,
+    "symbol": "Int_LifeSupport_Size4_Class5"
+   },
+   {
+    "boot": 1,
+    "class": 1,
+    "cost": 20195,
+    "edID": 128064142,
+    "grp": "ls",
+    "id": "l0",
+    "integrity": 48,
+    "mass": 1.3,
+    "power": 0.48,
+    "rating": "A",
+    "time": 1500,
+    "symbol": "Int_LifeSupport_Size1_Class5"
+   }
+  ]
+ },
+ "modules/standard/power_distributor.json": {
+  "pd": [
+   {
+    "class": 7,
+    "cost": 9731925,
+    "edID": 128064212,
+    "engcap": 41,
+    "engrate": 4,
+    "grp": "pd",
+    "id": "du",
+    "integrity": 144,
+    "mass": 80,
+    "power": 0.89,
+    "rating": "A",
+    "symbol": "Int_PowerDistributor_Size7_Class5",
+    "syscap": 41,
+    "sysrate": 4,
+    "wepcap": 61,
+    "weprate": 6.1
+   },
+   {
+    "class": 5,
+    "cost": 79444,
+    "edID": 128064199,
+    "engcap": 22,
+    "engrate": 1.9,
+    "grp": "pd",
+    "id": "dn",
+    "integrity": 77,
+    "mass": 8,
+    "power": 0.56,
+    "rating": "D",
+    "symbol": "Int_PowerDistributor_Size5_Class2",
+    "syscap": 22,
+    "sysrate": 1.9,
+    "wepcap": 31,
+    "weprate": 3.2
+   },
+   {
+    "class": 5,
+    "cost": 1241317,
+    "edID": 128064202,
+    "engcap": 29,
+    "engrate": 2.5,
+    "grp": "pd",
+    "id": "dk",
+    "integrity": 106,
+    "mass": 20,
+    "power": 0.74,
+    "rating": "A",
+    "symbol": "Int_PowerDistributor_Size5_Class5",
+    "syscap": 29,
+    "sysrate": 2.5,
+    "wepcap": 41,
+    "weprate": 4.3
+   },
+   {
+    "class": 5,
+    "cost": 0,
+    "engcap": 29,
+    "engrate": 2.5,
+    "grp": "pd",
+    "id": "zL",
+    "integrity": 106,
+    "mass": 20,
+    "mercCoin": 500,
+    "mercModule": true,
+    "name": "Balanced",
+    "power": 0.74,
+    "preEngineered": {
+     "availability": "MercCoin",
+     "blueprints": [
+      "PowerDistributor_Balanced"
+     ],
+     "canApplyExperimental": false,
+     "description": "Pre-engineered Balanced Power Distributor. Moderate distributor capacity and charge increase with reduced power draw, at the cost of increased mass and reduced integrity.",
+     "experimentalEffects": [],
+     "grade": 1,
+     "gradeChangeable": true,
+     "reengineerable": false
+    },
+    "rating": "A",
+    "symbol": "Int_PowerDistributor_Size5_Class5",
+    "syscap": 29,
+    "sysrate": 2.5,
+    "wepcap": 41,
+    "weprate": 4.3
+   },
+   {
+    "class": 8,
+    "cost": 27249391,
+    "edID": 128064217,
+    "engcap": 48,
+    "engrate": 4.8,
+    "grp": "pd",
+    "id": "dz",
+    "integrity": 165,
+    "mass": 160,
+    "power": 0.96,
+    "rating": "A",
+    "syscap": 48,
+    "sysrate": 4.8,
+    "wepcap": 72,
+    "weprate": 7.2,
+    "symbol": "Int_PowerDistributor_Size8_Class5"
+   },
+   {
+    "class": 3,
+    "cost": 10133,
+    "edID": 128064189,
+    "engcap": 14,
+    "engrate": 1,
+    "grp": "pd",
+    "id": "dd",
+    "integrity": 51,
+    "mass": 2,
+    "power": 0.45,
+    "rating": "D",
+    "syscap": 14,
+    "sysrate": 1,
+    "wepcap": 18,
+    "weprate": 2.1,
+    "symbol": "Int_PowerDistributor_Size3_Class2"
+   },
+   {
+    "class": 3,
+    "cost": 158331,
+    "edID": 128064192,
+    "engcap": 18,
+    "engrate": 1.3,
+    "grp": "pd",
+    "id": "da",
+    "integrity": 70,
+    "mass": 5,
+    "power": 0.6,
+    "rating": "A",
+    "syscap": 18,
+    "sysrate": 1.3,
+    "wepcap": 24,
+    "weprate": 2.8,
+    "symbol": "Int_PowerDistributor_Size3_Class5"
+   }
+  ]
+ },
+ "modules/standard/power_plant.json": {
+  "pp": [
+   {
+    "class": 7,
+    "cost": 38913291,
+    "edID": 128064062,
+    "eff": 0.4,
+    "grp": "pp",
+    "id": "pp",
+    "integrity": 144,
+    "mass": 40,
+    "pgen": 30,
+    "rating": "A",
+    "symbol": "Int_Powerplant_Size7_Class5"
+   },
+   {
+    "class": 6,
+    "cost": 12971097,
+    "edID": 128064057,
+    "eff": 0.4,
+    "grp": "pp",
+    "id": "pk",
+    "integrity": 124,
+    "mass": 20,
+    "pgen": 25.2,
+    "rating": "A",
+    "symbol": "Int_Powerplant_Size6_Class5"
+   },
+   {
+    "class": 5,
+    "cost": 4323699,
+    "edID": 128064052,
+    "eff": 0.4,
+    "grp": "pp",
+    "id": "pf",
+    "integrity": 106,
+    "mass": 10,
+    "pgen": 20.4,
+    "rating": "A",
+    "symbol": "Int_Powerplant_Size5_Class5"
+   },
+   {
+    "class": 8,
+    "cost": 116739873,
+    "edID": 128064067,
+    "eff": 0.4,
+    "grp": "pp",
+    "id": "pu",
+    "integrity": 165,
+    "mass": 80,
+    "pgen": 36,
+    "rating": "A",
+    "symbol": "Int_Powerplant_Size8_Class5"
+   },
+   {
+    "class": 4,
+    "cost": 1441233,
+    "edID": 128064047,
+    "eff": 0.4,
+    "grp": "pp",
+    "id": "pa",
+    "integrity": 88,
+    "mass": 5,
+    "pgen": 15.6,
+    "rating": "A",
+    "symbol": "Int_Powerplant_Size4_Class5"
+   }
+  ]
+ },
+ "modules/standard/sensors.json": {
+  "s": [
+   {
+    "angle": 30,
+    "class": 8,
+    "cost": 1743961,
+    "edID": 128064254,
+    "grp": "s",
+    "id": "sx",
+    "integrity": 120,
+    "mass": 64,
+    "power": 0.62,
+    "range": 5.76,
+    "rating": "D",
+    "symbol": "Int_Sensors_Size8_Class2"
+   },
+   {
+    "angle": 30,
+    "class": 6,
+    "cost": 222444,
+    "edID": 128064244,
+    "grp": "s",
+    "id": "ss",
+    "integrity": 90,
+    "mass": 16,
+    "power": 0.45,
+    "range": 5.4,
+    "rating": "D",
+    "symbol": "Int_Sensors_Size6_Class2"
+   },
+   {
+    "angle": 30,
+    "class": 4,
+    "cost": 28373,
+    "edID": 128064234,
+    "grp": "s",
+    "id": "si",
+    "integrity": 64,
+    "mass": 4,
+    "power": 0.31,
+    "range": 5.04,
+    "rating": "D",
+    "symbol": "Int_Sensors_Size4_Class2"
+   },
+   {
+    "angle": 30,
+    "class": 8,
+    "cost": 27249391,
+    "edID": 128064257,
+    "grp": "s",
+    "id": "su",
+    "integrity": 165,
+    "mass": 160,
+    "power": 2.07,
+    "range": 7.68,
+    "rating": "A",
+    "symbol": "Int_Sensors_Size8_Class5"
+   },
+   {
+    "angle": 30,
+    "class": 5,
+    "cost": 79444,
+    "edID": 128064239,
+    "grp": "s",
+    "id": "sn",
+    "integrity": 77,
+    "mass": 8,
+    "power": 0.37,
+    "range": 5.22,
+    "rating": "D",
+    "symbol": "Int_Sensors_Size5_Class2"
+   },
+   {
+    "angle": 30,
+    "class": 2,
+    "cost": 3619,
+    "edID": 128064224,
+    "grp": "s",
+    "id": "s8",
+    "integrity": 41,
+    "mass": 1,
+    "power": 0.21,
+    "range": 4.68,
+    "rating": "D",
+    "symbol": "Int_Sensors_Size2_Class2"
+   }
+  ]
+ },
+ "modules/standard/thrusters.json": {
+  "t": [
+   {
+    "class": 7,
+    "cost": 51289112,
+    "edID": 128064097,
+    "grp": "t",
+    "id": "tp",
+    "integrity": 144,
+    "mass": 80,
+    "maxmass": 3240,
+    "maxmul": 1.16,
+    "minmass": 1080,
+    "minmul": 0.96,
+    "optmass": 2160,
+    "optmul": 1,
+    "power": 9.12,
+    "rating": "A",
+    "symbol": "Int_Engine_Size7_Class5"
+   },
+   {
+    "class": 6,
+    "cost": 16179531,
+    "edID": 128064092,
+    "grp": "t",
+    "id": "tk",
+    "integrity": 124,
+    "mass": 40,
+    "maxmass": 2160,
+    "maxmul": 1.16,
+    "minmass": 720,
+    "minmul": 0.96,
+    "optmass": 1440,
+    "optmul": 1,
+    "power": 7.56,
+    "rating": "A",
+    "symbol": "Int_Engine_Size6_Class5"
+   },
+   {
+    "class": 5,
+    "cost": 189035,
+    "edID": 128064084,
+    "grp": "t",
+    "id": "ti",
+    "integrity": 77,
+    "mass": 8,
+    "maxmass": 945,
+    "maxmul": 1.06,
+    "minmass": 315,
+    "minmul": 0.86,
+    "optmass": 630,
+    "optmul": 1,
+    "power": 4.59,
+    "rating": "D",
+    "symbol": "Int_Engine_Size5_Class2"
+   },
+   {
+    "class": 5,
+    "cost": 5103953,
+    "edID": 128064087,
+    "grp": "t",
+    "id": "tf",
+    "integrity": 106,
+    "mass": 20,
+    "maxmass": 1260,
+    "maxmul": 1.16,
+    "minmass": 420,
+    "minmul": 0.96,
+    "optmass": 840,
+    "optmul": 1,
+    "power": 6.12,
+    "rating": "A",
+    "symbol": "Int_Engine_Size5_Class5"
+   },
+   {
+    "class": 3,
+    "cost": 5103950,
+    "edID": 128682013,
+    "grp": "t",
+    "id": "tz",
+    "integrity": 55,
+    "mass": 5,
+    "maxmass": 200,
+    "maxmul": 1.367,
+    "maxmulacceleration": 1.2,
+    "maxmulrotation": 1.3,
+    "maxmulspeed": 1.6,
+    "minmass": 70,
+    "minmul": 0.9,
+    "minmulacceleration": 0.9,
+    "minmulrotation": 0.9,
+    "minmulspeed": 0.9,
+    "name": "Enhanced Performance",
+    "optmass": 90,
+    "optmul": 1.15,
+    "optmulacceleration": 1.1,
+    "optmulrotation": 1.1,
+    "optmulspeed": 1.25,
+    "power": 5,
+    "rating": "A",
+    "symbol": "Int_Engine_Size3_Class5_Fast"
+   }
+  ]
+ },
+ "ships/anaconda.json": {
+  "anaconda": {
+   "bulkheads": [
+    {
+     "causres": 0,
+     "cost": 0,
+     "edID": 128049364,
+     "eddbID": 818,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 0.8,
+     "id": "bT",
+     "kinres": -0.2,
+     "mass": 0,
+     "name": "Lightweight Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 58787780,
+     "edID": 128049365,
+     "eddbID": 819,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 1.52,
+     "id": "bU",
+     "kinres": -0.2,
+     "mass": 30,
+     "name": "Reinforced Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 132272505,
+     "edID": 128049366,
+     "eddbID": 820,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "bV",
+     "kinres": -0.2,
+     "mass": 60,
+     "name": "Military Grade Composite",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 312604021,
+     "edID": 128049367,
+     "eddbID": 821,
+     "explres": -0.5,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "bW",
+     "kinres": -0.75,
+     "mass": 60,
+     "name": "Mirrored Surface Composite",
+     "thermres": 0.5
+    },
+    {
+     "causres": 0,
+     "cost": 346406995,
+     "edID": 128049368,
+     "eddbID": 822,
+     "explres": 0.2,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "bX",
+     "kinres": 0.25,
+     "mass": 60,
+     "name": "Reactive Surface Composite",
+     "thermres": -0.4
+    }
+   ],
+   "defaults": {
+    "hardpoints": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     17,
+     17,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     "05",
+     "04",
+     "4j",
+     0,
+     "03",
+     0,
+     0,
+     0,
+     0,
+     0,
+     "",
+     "00",
+     0,
+     "4F"
+    ],
+    "standard": [
+     "8E",
+     "7E",
+     "6E",
+     "5E",
+     "8E",
+     "8E",
+     "5C"
+    ]
+   },
+   "edID": 128049363,
+   "eddbID": 2,
+   "properties": {
+    "baseArmour": 525,
+    "baseShieldStrength": 350,
+    "boost": 240,
+    "boostEnergy": 27,
+    "boostInt": 6,
+    "class": 3,
+    "crew": 4,
+    "fighterHangars": true,
+    "hardness": 65,
+    "heatCapacity": 334,
+    "hullCost": 142456440,
+    "hullMass": 400,
+    "manufacturer": "Faulcon DeLacy",
+    "masslock": 23,
+    "minthrust": 44.444,
+    "name": "Anaconda",
+    "pipSpeed": 0.13888888888889,
+    "pitch": 25,
+    "reserveFuelCapacity": 1.07,
+    "roll": 60,
+    "speed": 180,
+    "yaw": 10
+   },
+   "retailCost": 146969451,
+   "slots": {
+    "hardpoints": [
+     4,
+     3,
+     3,
+     3,
+     2,
+     2,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     7,
+     6,
+     6,
+     6,
+     5,
+     5,
+     5,
+     {
+      "class": 5,
+      "eligible": {
+       "ghrp": 1,
+       "gmrp": 1,
+       "gsrp": 1,
+       "hr": 1,
+       "mahr": 1,
+       "mrp": 1,
+       "scb": 1
+      },
+      "name": "Military"
+     },
+     4,
+     4,
+     4,
+     2,
+     1,
+     {
+      "class": 1,
+      "eligible": {
+       "pas": 1
+      },
+      "name": "PlanetaryApproachSuite"
+     }
+    ],
+    "standard": [
+     8,
+     7,
+     6,
+     5,
+     8,
+     8,
+     5
+    ]
+   }
+  }
+ },
+ "ships/asp.json": {
+  "asp": {
+   "edID": 128049303,
+   "properties": {
+    "name": "Asp Explorer",
+    "manufacturer": "Lakon",
+    "class": 2,
+    "hullCost": 6145793,
+    "speed": 250,
+    "boost": 340,
+    "minthrust": 48.0,
+    "boostEnergy": 13,
+    "boostInt": 4.5,
+    "baseShieldStrength": 140,
+    "heatCapacity": 272,
+    "baseArmour": 210,
+    "hardness": 52,
+    "hullMass": 280,
+    "masslock": 11,
+    "pipSpeed": 0.13,
+    "pitch": 38,
+    "roll": 100,
+    "yaw": 10,
+    "crew": 2,
+    "reserveFuelCapacity": 0.63
+   },
+   "retailCost": 6661154,
+   "bulkheads": [
+    {
+     "id": "BH",
+     "edID": 128049304,
+     "eddbID": 778,
+     "grp": "bh",
+     "cost": 0,
+     "mass": 0,
+     "causres": 0,
+     "explres": -0.4,
+     "kinres": -0.2,
+     "thermres": 0,
+     "hullboost": 0.8,
+     "name": "Lightweight Alloy"
+    },
+    {
+     "id": "BI",
+     "edID": 128049305,
+     "eddbID": 779,
+     "grp": "bh",
+     "cost": 2664461,
+     "mass": 21,
+     "causres": 0,
+     "explres": -0.4,
+     "kinres": -0.2,
+     "thermres": 0,
+     "hullboost": 1.52,
+     "name": "Reinforced Alloy"
+    },
+    {
+     "id": "BJ",
+     "edID": 128049306,
+     "eddbID": 780,
+     "grp": "bh",
+     "cost": 5995038,
+     "mass": 42,
+     "causres": 0,
+     "explres": -0.4,
+     "kinres": -0.2,
+     "thermres": 0,
+     "hullboost": 2.5,
+     "name": "Military Grade Composite"
+    },
+    {
+     "id": "BK",
+     "edID": 128049307,
+     "eddbID": 781,
+     "grp": "bh",
+     "cost": 14168274,
+     "mass": 42,
+     "causres": 0,
+     "explres": -0.5,
+     "kinres": -0.75,
+     "thermres": 0.5,
+     "hullboost": 2.5,
+     "name": "Mirrored Surface Composite"
+    },
+    {
+     "id": "BL",
+     "edID": 128049308,
+     "eddbID": 782,
+     "grp": "bh",
+     "cost": 15700339,
+     "mass": 42,
+     "causres": 0,
+     "explres": 0.2,
+     "kinres": 0.25,
+     "thermres": -0.4,
+     "hullboost": 2.5,
+     "name": "Reactive Surface Composite"
+    }
+   ],
+   "slots": {
+    "standard": [
+     5,
+     5,
+     5,
+     4,
+     4,
+     5,
+     5
+    ],
+    "hardpoints": [
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     6,
+     5,
+     3,
+     3,
+     3,
+     2,
+     2,
+     1,
+     {
+      "class": 1,
+      "name": "PlanetaryApproachSuite",
+      "eligible": {
+       "pas": 1
+      }
+     }
+    ]
+   },
+   "defaults": {
+    "standard": [
+     "5E",
+     "5E",
+     "5E",
+     "4E",
+     "4E",
+     "5E",
+     "5C"
+    ],
+    "hardpoints": [
+     0,
+     0,
+     17,
+     17,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     "04",
+     "4e",
+     "01",
+     0,
+     0,
+     "00",
+     "",
+     0,
+     "4F"
+    ]
+   }
+  }
+ },
+ "ships/imperial_corsair.json": {
+  "imperial_corsair": {
+   "bulkheads": [
+    {
+     "causres": 0,
+     "cost": 0,
+     "edID": 129031322,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 0.8,
+     "id": "bf",
+     "kinres": -0.2,
+     "mass": 0,
+     "name": "Lightweight Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 31721900,
+     "edID": 129031323,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 1.52,
+     "id": "bg",
+     "kinres": -0.2,
+     "mass": 32,
+     "name": "Reinforced Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 71374270,
+     "edID": 129031324,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "bh",
+     "kinres": -0.2,
+     "mass": 63,
+     "name": "Military Grade Composite",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 166539970,
+     "edID": 129031325,
+     "explres": -0.5,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "bi",
+     "kinres": -0.75,
+     "mass": 63,
+     "name": "Mirrored Surface Composite",
+     "thermres": 0.5
+    },
+    {
+     "causres": 0,
+     "cost": 186921290,
+     "edID": 129031326,
+     "explres": 0.2,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "bj",
+     "kinres": 0.25,
+     "mass": 63,
+     "name": "Reactive Surface Composite",
+     "thermres": -0.4
+    }
+   ],
+   "defaults": {
+    "hardpoints": [
+     0,
+     0,
+     0,
+     17,
+     17,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     "04",
+     "4e",
+     "",
+     "03",
+     "",
+     "",
+     "",
+     "",
+     "3w",
+     "4F"
+    ],
+    "standard": [
+     "7E",
+     "7E",
+     "FN",
+     "4E",
+     "7E",
+     "6E",
+     "5C"
+    ]
+   },
+   "edID": 129031321,
+   "properties": {
+    "baseArmour": 270,
+    "baseShieldStrength": 235,
+    "boost": 355,
+    "boostEnergy": 19,
+    "boostInt": 5,
+    "class": 2,
+    "crew": 2,
+    "hardness": 65,
+    "heatCapacity": 230,
+    "hullCost": 76884160,
+    "hullMass": 265,
+    "manufacturer": "Gutamaya",
+    "masslock": 17,
+    "minthrust": 65,
+    "name": "Corsair",
+    "pipSpeed": 0.053571428571429,
+    "pitch": 26,
+    "reserveFuelCapacity": 0.41,
+    "roll": 80,
+    "speed": 280,
+    "yaw": 10
+   },
+   "requirements": {
+    "empireRank": 0
+   },
+   "retailCost": 79304750,
+   "slots": {
+    "hardpoints": [
+     3,
+     3,
+     3,
+     2,
+     2,
+     2,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     6,
+     6,
+     6,
+     5,
+     5,
+     5,
+     4,
+     3,
+     2,
+     1,
+     {
+      "class": 1,
+      "eligible": {
+       "pas": 1
+      },
+      "name": "PlanetaryApproachSuite"
+     }
+    ],
+    "standard": [
+     7,
+     7,
+     5,
+     4,
+     7,
+     6,
+     5
+    ]
+   }
+  }
+ },
+ "ships/imperial_courier.json": {
+  "imperial_courier": {
+   "edID": 128671223,
+   "properties": {
+    "name": "Imperial Courier",
+    "manufacturer": "Gutamaya",
+    "class": 1,
+    "hullCost": 2484137,
+    "speed": 280,
+    "boost": 380,
+    "minthrust": 78.571,
+    "boostEnergy": 10,
+    "boostInt": 4,
+    "baseShieldStrength": 200,
+    "baseArmour": 80,
+    "hardness": 30,
+    "hullMass": 35,
+    "masslock": 7,
+    "heatCapacity": 230,
+    "pipSpeed": 0.053571428571429,
+    "pitch": 38,
+    "roll": 90,
+    "yaw": 16,
+    "crew": 1,
+    "reserveFuelCapacity": 0.41
+   },
+   "retailCost": 2542931,
+   "requirements": {
+    "empireRank": 3
+   },
+   "bulkheads": [
+    {
+     "id": "6X",
+     "edID": 128671224,
+     "eddbID": 1389,
+     "grp": "bh",
+     "cost": 0,
+     "mass": 0,
+     "causres": 0,
+     "explres": -0.4,
+     "kinres": -0.2,
+     "thermres": 0,
+     "hullboost": 0.8,
+     "name": "Lightweight Alloy"
+    },
+    {
+     "id": "6Y",
+     "edID": 128671225,
+     "eddbID": 1390,
+     "grp": "bh",
+     "cost": 1017172,
+     "mass": 4,
+     "causres": 0,
+     "explres": -0.4,
+     "kinres": -0.2,
+     "thermres": 0,
+     "hullboost": 1.52,
+     "name": "Reinforced Alloy"
+    },
+    {
+     "id": "6Z",
+     "edID": 128671226,
+     "eddbID": 1391,
+     "grp": "bh",
+     "cost": 2288637,
+     "mass": 8,
+     "causres": 0,
+     "explres": -0.4,
+     "kinres": -0.2,
+     "thermres": 0,
+     "hullboost": 2.5,
+     "name": "Military Grade Composite"
+    },
+    {
+     "id": "70",
+     "edID": 128671227,
+     "eddbID": 1392,
+     "grp": "bh",
+     "cost": 5408814,
+     "mass": 8,
+     "causres": 0,
+     "explres": -0.5,
+     "kinres": -0.75,
+     "thermres": 0.5,
+     "hullboost": 2.5,
+     "name": "Mirrored Surface Composite"
+    },
+    {
+     "id": "71",
+     "edID": 128671228,
+     "eddbID": 1393,
+     "grp": "bh",
+     "cost": 5993688,
+     "mass": 8,
+     "causres": 0,
+     "explres": 0.2,
+     "kinres": 0.25,
+     "thermres": -0.4,
+     "hullboost": 2.5,
+     "name": "Reactive Surface Composite"
+    }
+   ],
+   "slots": {
+    "standard": [
+     4,
+     3,
+     3,
+     1,
+     3,
+     2,
+     3
+    ],
+    "hardpoints": [
+     2,
+     2,
+     2,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     3,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     {
+      "class": 1,
+      "name": "PlanetaryApproachSuite",
+      "eligible": {
+       "pas": 1
+      }
+     }
+    ]
+   },
+   "defaults": {
+    "standard": [
+     "4E",
+     "3E",
+     "3E",
+     "1E",
+     "3E",
+     "2E",
+     "3C"
+    ],
+    "hardpoints": [
+     17,
+     17,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     "01",
+     "01",
+     "3v",
+     "00",
+     "00",
+     "",
+     0,
+     0,
+     "4F"
+    ]
+   }
+  }
+ },
+ "ships/krait_mkii.json": {
+  "krait_mkii": {
+   "bulkheads": [
+    {
+     "causres": 0,
+     "cost": 0,
+     "edID": 128816569,
+     "eddbID": 1645,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 0.8,
+     "id": "2T",
+     "kinres": -0.2,
+     "mass": 0,
+     "name": "Lightweight Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 18325682,
+     "edID": 128816570,
+     "eddbID": 1646,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 1.52,
+     "id": "2U",
+     "kinres": -0.2,
+     "mass": 36,
+     "name": "Reinforced Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 41232784,
+     "edID": 128816571,
+     "eddbID": 1647,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "2V",
+     "kinres": -0.2,
+     "mass": 67,
+     "name": "Military Grade Composite",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 97446814,
+     "edID": 128816572,
+     "eddbID": 1648,
+     "explres": -0.5,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "2W",
+     "kinres": -0.75,
+     "mass": 67,
+     "name": "Mirrored Surface Composite",
+     "thermres": 0.5
+    },
+    {
+     "causres": 0,
+     "cost": 88322097,
+     "edID": 128816573,
+     "eddbID": 1649,
+     "explres": 0.2,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "2X",
+     "kinres": 0.25,
+     "mass": 67,
+     "name": "Reactive Surface Composite",
+     "thermres": -0.4
+    }
+   ],
+   "defaults": {
+    "hardpoints": [
+     0,
+     0,
+     0,
+     17,
+     17,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     "4j",
+     "04",
+     "04",
+     "03",
+     0,
+     "",
+     0,
+     "00",
+     0,
+     "4F"
+    ],
+    "standard": [
+     "7E",
+     "6E",
+     "5E",
+     "4E",
+     "7E",
+     "6E",
+     "5C"
+    ]
+   },
+   "edID": 128816567,
+   "eddbID": 35,
+   "properties": {
+    "baseArmour": 220,
+    "baseShieldStrength": 220,
+    "boost": 330,
+    "boostEnergy": 13,
+    "boostInt": 4.5,
+    "class": 2,
+    "crew": 3,
+    "fighterHangars": true,
+    "hardness": 55,
+    "heatCapacity": 300,
+    "hullCost": 44160710,
+    "hullMass": 320,
+    "manufacturer": "Faulcon DeLacy",
+    "masslock": 16,
+    "minthrust": 62.3,
+    "name": "Krait Mk II",
+    "pipSpeed": 0.09375,
+    "pitch": 26,
+    "reserveFuelCapacity": 0.63,
+    "roll": 90,
+    "speed": 240,
+    "yaw": 10
+   },
+   "retailCost": 45814205,
+   "slots": {
+    "hardpoints": [
+     3,
+     3,
+     3,
+     2,
+     2,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     6,
+     6,
+     5,
+     5,
+     4,
+     3,
+     3,
+     2,
+     1,
+     {
+      "class": 1,
+      "eligible": {
+       "pas": 1
+      },
+      "name": "PlanetaryApproachSuite"
+     }
+    ],
+    "standard": [
+     7,
+     6,
+     5,
+     4,
+     7,
+     6,
+     5
+    ]
+   }
+  }
+ },
+ "ships/mamba.json": {
+  "mamba": {
+   "bulkheads": [
+    {
+     "causres": 0,
+     "cost": 0,
+     "edID": 128915981,
+     "eddbID": 1798,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 0.8,
+     "id": "1A",
+     "kinres": -0.2,
+     "mass": 0,
+     "name": "Lightweight Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 22346816,
+     "edID": 128915982,
+     "eddbID": 1799,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 1.52,
+     "id": "1B",
+     "kinres": -0.2,
+     "mass": 19,
+     "name": "Reinforced Alloy",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 50280336,
+     "edID": 128915983,
+     "eddbID": 1800,
+     "explres": -0.4,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "1C",
+     "kinres": -0.2,
+     "mass": 38,
+     "name": "Military Grade Composite",
+     "thermres": 0
+    },
+    {
+     "causres": 0,
+     "cost": 118829194,
+     "edID": 128915984,
+     "eddbID": 1801,
+     "explres": -0.5,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "1D",
+     "kinres": -0.75,
+     "mass": 38,
+     "name": "Mirrored Surface Composite",
+     "thermres": 0.5
+    },
+    {
+     "causres": 0,
+     "cost": 131678613,
+     "edID": 128915985,
+     "eddbID": 1802,
+     "explres": 0.2,
+     "grp": "bh",
+     "hullboost": 2.5,
+     "id": "3A",
+     "kinres": 0.25,
+     "mass": 38,
+     "name": "Reactive Surface Composite",
+     "thermres": -0.4
+    }
+   ],
+   "defaults": {
+    "hardpoints": [
+     0,
+     0,
+     0,
+     "17",
+     "17",
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     "03",
+     "49",
+     "01",
+     0,
+     0,
+     0,
+     "4F"
+    ],
+    "standard": [
+     "6E",
+     "5E",
+     "4E",
+     "4E",
+     "6E",
+     "4E",
+     "3C"
+    ]
+   },
+   "edID": 128915979,
+   "eddbID": 38,
+   "properties": {
+    "baseArmour": 230,
+    "baseShieldStrength": 270,
+    "boost": 380,
+    "boostEnergy": 17,
+    "boostInt": 5,
+    "class": 2,
+    "crew": 2,
+    "hardness": 70,
+    "heatCapacity": 165,
+    "hullCost": 55442918,
+    "hullMass": 250,
+    "manufacturer": "Zorgon Peterson",
+    "masslock": 12,
+    "minthrust": 77.42,
+    "name": "Mamba",
+    "pipSpeed": 0.056451612903226,
+    "pitch": 27,
+    "reserveFuelCapacity": 0.5,
+    "roll": 80,
+    "speed": 310,
+    "yaw": 10
+   },
+   "retailCost": 55867040,
+   "slots": {
+    "hardpoints": [
+     4,
+     3,
+     3,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "internal": [
+     5,
+     4,
+     3,
+     2,
+     2,
+     1,
+     {
+      "class": 1,
+      "eligible": {
+       "pas": 1
+      },
+      "name": "PlanetaryApproachSuite"
+     }
+    ],
+    "standard": [
+     6,
+     5,
+     4,
+     4,
+     6,
+     4,
+     3
+    ]
+   }
+  }
+ }
+}

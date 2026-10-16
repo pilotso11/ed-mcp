@@ -6,7 +6,7 @@ import { loadConfig } from "../src/config.js";
 import { buildDeps } from "../src/deps.js";
 import type { JournalService } from "../src/journal/service.js";
 import { createServer } from "../src/server.js";
-import { connectTestClient } from "./helpers/client.js";
+import { callTool, connectTestClient } from "./helpers/client.js";
 import { fakeFetch, fixture, jsonResponse } from "./helpers/fakeFetch.js";
 
 describe("buildDeps", () => {
@@ -36,6 +36,25 @@ describe("buildDeps", () => {
     const client = await connectTestClient(createServer(deps));
     const status = await client.callTool({ name: "cache_status", arguments: {} });
     expect(JSON.stringify(status)).toContain("spansh-systems");
+  });
+
+  it("lists the ship data in cache_status and accepts it in cache_refresh", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+    const fetchFn = fakeFetch([
+      { match: () => true, respond: () => new Response("", { status: 404 }) },
+    ]);
+    const deps = buildDeps(loadConfig({}, { config: dir, cache: dir }), { fetchFn });
+    expect(deps.ships).toBeDefined();
+    const client = await connectTestClient(createServer(deps));
+    const status = await callTool(client, "cache_status");
+    expect((status.json as { refreshables: Record<string, unknown> }).refreshables.ships).toEqual({
+      state: "empty",
+      commit: null,
+      fetched_at: null,
+      last_error: null,
+    });
+    const r = await callTool(client, "cache_refresh", { source: "ships" });
+    expect(r).toMatchObject({ isError: true, text: "codeload.github.com returned HTTP 404" });
   });
 
   it("clears the CAPI profile cache on logout", async () => {

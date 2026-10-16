@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { CatalogService } from "../../src/catalog/service.js";
@@ -14,6 +14,7 @@ const SOURCES: Record<keyof RawSources, string> = {
   modifications: "https://raw.test/modules.json",
   materials: "https://raw.test/material.csv",
   outfitting: "https://raw.test/outfitting.csv",
+  actions: "https://raw.test/modifierActions.json",
 };
 const DAY = 86_400_000;
 
@@ -36,7 +37,7 @@ function upstream(texts: () => RawSources, failKey?: keyof RawSources) {
           (k) => SOURCES[k] === url,
         )!;
         if (key === failKey) return new Response("", { status: 404 });
-        const body = texts()[key];
+        const body = texts()[key]!;
         const etag = `"${key}-${body.length}"`;
         if (new Headers(init?.headers).get("if-none-match") === etag) {
           return new Response(null, { status: 304, headers: { etag } });
@@ -61,7 +62,7 @@ describe("CatalogService", () => {
     const s = service(f);
     const cat = await s.get();
     expect(cat.counts().blueprints).toBe(3);
-    expect(f.calls).toHaveLength(5);
+    expect(f.calls).toHaveLength(6);
     expect(await readFile(path.join(dir, "catalog", "materials.raw"), "utf8")).toBe(raw.materials);
     const meta = JSON.parse(await readFile(path.join(dir, "catalog", "meta.json"), "utf8"));
     expect(meta.files.blueprints.etag).toMatch(/^"blueprints-/);
@@ -80,7 +81,7 @@ describe("CatalogService", () => {
     await s.get();
     expect(await s.refresh()).toEqual({
       changed: [],
-      unchanged: ["blueprints", "specials", "modifications", "materials", "outfitting"],
+      unchanged: ["blueprints", "specials", "modifications", "materials", "outfitting", "actions"],
       warnings: expect.any(Number),
     });
   });
@@ -141,7 +142,7 @@ describe("CatalogService", () => {
     await s.get();
     // The refresh runs in the background; a slow CI runner needs more than a fixed delay.
     await vi.waitFor(() => expect(s.status().checked_at).toBe(new Date(t).toISOString()));
-    expect(f.calls.length).toBe(10);
+    expect(f.calls.length).toBe(12);
   });
 
   it("peek returns null without fetching when nothing is cached", async () => {
@@ -174,6 +175,58 @@ describe("CatalogService", () => {
     await writeFile(path.join(dir, "catalog", "blueprints.raw"), "{");
     const f2 = upstream(() => raw);
     expect((await service(f2).get()).counts().blueprints).toBe(3);
-    expect(f2.calls.length).toBe(5);
+    expect(f2.calls.length).toBe(6);
+  });
+
+  it("loads a cache from before modifierActions.json and fetches it on the next refresh", async () => {
+    await service(upstream(() => raw)).get();
+    await rm(path.join(dir, "catalog", "actions.raw"));
+    const metaFile = path.join(dir, "catalog", "meta.json");
+    const meta = JSON.parse(await readFile(metaFile, "utf8"));
+    delete meta.files.actions;
+    await writeFile(metaFile, JSON.stringify(meta));
+
+    const f = upstream(() => raw);
+    const s = service(f);
+    const cat = await s.get();
+    expect(f.calls).toHaveLength(0);
+    expect(cat.counts().blueprints).toBe(3);
+    expect(cat.experimentalEffects("special_fsd_heavy")).toBeNull();
+    expect(s.status().warnings).toContain(
+      "No modifierActions.json: experimental effects have no fixed values.",
+    );
+
+    const r = await s.refresh();
+    expect(r.changed).toEqual(["actions"]);
+    const actions = f.calls.find((c) => c.url === SOURCES.actions)!;
+    expect(new Headers(actions.init?.headers).get("if-none-match")).toBeNull();
+    expect((await s.get()).experimentalEffects("special_fsd_heavy")).toEqual({
+      integrity: -0.08,
+      optmass: 0.04,
+    });
+    expect(await readFile(path.join(dir, "catalog", "actions.raw"), "utf8")).toBe(raw.actions);
+  });
+
+  it("builds the catalog without experimental values when modifierActions.json is missing", async () => {
+    const s = service(upstream(() => raw, "actions"));
+    const cat = await s.get();
+    expect(cat.counts().blueprints).toBe(3);
+    expect(cat.experimentalEffects("special_fsd_heavy")).toBeNull();
+    expect(s.status()).toMatchObject({ state: "ready", last_error: null });
+    expect(s.status().warnings).toContain("actions: HTTP 404");
+    expect(s.status().warnings).toContain(
+      "No modifierActions.json: experimental effects have no fixed values.",
+    );
+    // The next start uses the cache and still lacks only the actions.
+    expect((await service(fakeFetch([])).get()).counts().blueprints).toBe(3);
+  });
+
+  it("keeps cached experimental values when modifierActions.json goes missing", async () => {
+    await service(upstream(() => raw)).get();
+    const s = service(upstream(() => raw, "actions"));
+    await s.get();
+    await s.refresh();
+    expect((await s.get()).experimentalEffects("special_fsd_heavy")).not.toBeNull();
+    expect(s.status().warnings).toContain("actions: HTTP 404");
   });
 });

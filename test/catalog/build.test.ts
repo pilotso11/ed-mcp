@@ -57,5 +57,6 @@ function tooLittleRaw() {
     modifications: "{}",
     materials: "id,symbol,rarity,type,category,name\n",
     outfitting: "id,symbol,category,name,mount,guidance,ship,class,rating,entitlement\n",
+    actions: "{}",
   };
 }

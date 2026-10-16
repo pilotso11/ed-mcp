@@ -1,0 +1,253 @@
+{
+ "source": "https://github.com/EDCD/coriolis/blob/master/__tests__/fixtures/asp-test-detailed-export-v4.json",
+ "license": "Coriolis, MIT License, Copyright (c) 2015 Coriolis.io, Colin McLeod. Only the components and the stats used here are kept.",
+ "note": "Exported by Coriolis in 2017 with the coriolis-data of the time, so some values differ from today's data and formulas. Each difference is recorded under \"differences\" with its cause.",
+ "resistances": "damage",
+ "notes": "The asp export gives shield and hull resistances as damage multipliers (1 - resistance). The Advanced Discovery Scanner (2 t) left coriolis-data and the Detailed Surface Scanner is now 0 t (was 1.3 t), so masses are 3.3 t lower and ranges about 0.9% longer; within tolerance. ladenMass also gains the 0.63 t reserve tank.",
+ "tolerance": {
+  "default": {
+   "rel": 0.02,
+   "why": "The exports are from 2017 coriolis-data and Coriolis code; small data and rounding changes since."
+  },
+  "shieldExplRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "shieldKinRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "shieldThermRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "hullExplRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "hullKinRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  },
+  "hullThermRes": {
+   "abs": 0.0051,
+   "why": "Coriolis rounded this value to 2 decimals in the export (half a unit is 0.005)."
+  }
+ },
+ "differences": {},
+ "ship": "asp",
+ "components": {
+  "standard": {
+   "bulkheads": "Lightweight Alloy",
+   "cargoHatch": {
+    "enabled": false,
+    "priority": 5
+   },
+   "powerPlant": {
+    "class": 5,
+    "rating": "A",
+    "enabled": true,
+    "priority": 2,
+    "modifications": {
+     "eff": -1850,
+     "pgen": 6,
+     "mass": 431
+    },
+    "blueprint": {
+     "id": 64,
+     "name": "Low emissions",
+     "grade": 1
+    }
+   },
+   "thrusters": {
+    "class": 5,
+    "rating": "D",
+    "enabled": true,
+    "priority": 1,
+    "modifications": {
+     "optmul": 440,
+     "integrity": -266,
+     "thermload": -1326,
+     "optmass": 520,
+     "power": 241
+    },
+    "blueprint": {
+     "id": 24,
+     "name": "Clean",
+     "grade": 1
+    }
+   },
+   "frameShiftDrive": {
+    "class": 5,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "modifications": {
+     "mass": 5025,
+     "integrity": -1539,
+     "power": 2437,
+     "optmass": 4870,
+     "maxfuel": 370
+    },
+    "blueprint": {
+     "id": 26,
+     "name": "Increased range",
+     "grade": 5
+    }
+   },
+   "lifeSupport": {
+    "class": 4,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "modifications": {
+     "mass": -3923,
+     "integrity": -1797
+    },
+    "blueprint": {
+     "id": 49,
+     "name": "Lightweight",
+     "grade": 1
+    }
+   },
+   "powerDistributor": {
+    "class": 3,
+    "rating": "D",
+    "enabled": true,
+    "priority": 1
+   },
+   "sensors": {
+    "class": 5,
+    "rating": "D",
+    "enabled": true,
+    "priority": 1
+   },
+   "fuelTank": {
+    "class": 5,
+    "rating": "C",
+    "enabled": true,
+    "priority": 1
+   }
+  },
+  "hardpoints": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "utility": [
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Heat Sink Launcher"
+   },
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Heat Sink Launcher"
+   },
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Heat Sink Launcher"
+   },
+   {
+    "class": 0,
+    "rating": "I",
+    "enabled": true,
+    "priority": 1,
+    "group": "Point Defence"
+   }
+  ],
+  "internal": [
+   {
+    "class": 6,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "group": "Fuel Scoop"
+   },
+   {
+    "class": 5,
+    "rating": "E",
+    "enabled": true,
+    "priority": 2,
+    "group": "Cargo Rack"
+   },
+   {
+    "class": 3,
+    "rating": "A",
+    "enabled": true,
+    "priority": 1,
+    "group": "Shield Generator"
+   },
+   {
+    "class": 3,
+    "rating": "E",
+    "enabled": true,
+    "priority": 2,
+    "group": "Cargo Rack"
+   },
+   {
+    "class": 2,
+    "rating": "G",
+    "enabled": true,
+    "priority": 1,
+    "group": "Planetary Vehicle Hangar"
+   },
+   {
+    "class": 1,
+    "rating": "C",
+    "enabled": true,
+    "priority": 2,
+    "group": "Scanner",
+    "name": "Advanced Discovery Scanner",
+    "omit": "The Advanced Discovery Scanner (2 t, 0 MW in 2017 coriolis-data) left the game and coriolis-data."
+   },
+   {
+    "class": 1,
+    "rating": "C",
+    "enabled": true,
+    "priority": 2,
+    "group": "Scanner",
+    "name": "Detailed Surface Scanner",
+    "symbol": "Int_DetailedSurfaceScanner_Tiny",
+    "grp": "ss",
+    "note": "The Detailed Surface Scanner is now 1I and 0 t; it was 1C and 1.3 t."
+   }
+  ]
+ },
+ "stats": {
+  "shield": 113.43,
+  "shieldExplRes": 0.5,
+  "shieldKinRes": 0.6,
+  "shieldThermRes": 1.2,
+  "armour": 378,
+  "hullExplRes": 1.4,
+  "hullKinRes": 1.2,
+  "hullThermRes": 1,
+  "totalDps": 0,
+  "totalSDps": 0,
+  "totalExplSDps": 0,
+  "totalKinSDps": 0,
+  "totalThermSDps": 0,
+  "powerAvailable": 20.41,
+  "powerRetracted": 11.91,
+  "powerDeployed": 11.91,
+  "unladenMass": 363.26,
+  "ladenMass": 435.26,
+  "unladenRange": 50.45,
+  "ladenRange": 42.71,
+  "fullTankRange": 47.03,
+  "topSpeed": 274.01,
+  "topBoost": 372.65
+ }
+}

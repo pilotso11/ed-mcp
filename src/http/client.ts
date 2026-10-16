@@ -90,6 +90,15 @@ export class HttpClient {
     }
   }
 
+  /** Like readText, for binary bodies. */
+  async readBytes(url: string, res: Response): Promise<Buffer> {
+    try {
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      throw this.wrap(url, err);
+    }
+  }
+
   private async once(url: string, init: RequestInit): Promise<Response> {
     const headers = new Headers(init.headers);
     headers.set("user-agent", this.opts.userAgent);

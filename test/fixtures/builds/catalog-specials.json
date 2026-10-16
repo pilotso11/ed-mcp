@@ -1,0 +1,62 @@
+{
+ "special_fsd_heavy": {
+  "name": "Mass Manager",
+  "description": "Complex software upgrade and internal sensor suite able to optimise frame shift operation by analysing and accounting for ship loadout. Increases optimised mass at the cost of module health.",
+  "id": 120,
+  "edname": "special_fsd_heavy",
+  "uuid": "4d7d30c3-970b-4c6e-a507-89ac7e6441bd",
+  "components": {
+   "Atypical Disrupted Wake Echoes": 5,
+   "Galvanising Alloys": 3,
+   "Eccentric Hyperspace Trajectories": 1
+  }
+ },
+ "special_fsd_lightweight": {
+  "name": "Stripped Down",
+  "description": "Key components replaced with versions crafted from lightweight materials and all extraneous parts removed entirely to reduce mass.",
+  "id": 122,
+  "edname": "special_fsd_lightweight",
+  "uuid": "6ab9d9d4-d488-4de8-9c1b-089a31f290a0",
+  "components": {
+   "Atypical Disrupted Wake Echoes": 5,
+   "Galvanising Alloys": 3,
+   "Proto Light Alloys": 1
+  }
+ },
+ "special_engine_overloaded": {
+  "name": "Drag Drives",
+  "description": "Removal of safety protocols in controller software to increase drive thrust output at the cost of additional heat generation.",
+  "id": 116,
+  "edname": "special_engine_overloaded",
+  "uuid": "68998b16-7b65-4f58-8bc0-6e0f2686c367",
+  "components": {
+   "Iron": 5,
+   "Hybrid Capacitors": 3,
+   "Security Firmware Patch": 1
+  }
+ },
+ "special_armour_chunky": {
+  "name": "Deep Plating",
+  "description": "Increased depth of plating increases the ship's overall structural integrity, at the cost of resistance against all types of damage.",
+  "id": 146,
+  "edname": "special_armour_chunky",
+  "uuid": "b51706cc-d412-4559-8654-f812d2eb44b9",
+  "components": {
+   "Compact Composites": 5,
+   "Mechanical Equipment": 3,
+   "Molybdenum": 2
+  }
+ },
+ "special_shieldbooster_thermic": {
+  "name": "Thermo Block",
+  "description": "Improved feedback protection and reinforced projection nodes increase resistance to thermal damage, at the cost of overall shield strength.",
+  "id": 151,
+  "edname": "special_shieldbooster_thermic",
+  "uuid": "c3340df8-c6da-49c9-b236-8f1cc4209088",
+  "components": {
+   "Anomalous Bulk Scan Data": 5,
+   "Conductive Ceramics": 3,
+   "Heat Vanes": 3
+  }
+ }
+}

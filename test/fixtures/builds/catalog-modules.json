@@ -1,0 +1,245 @@
+{
+ "fsd": {
+  "blueprints": {
+   "FSD_LongRange": {
+    "grades": {
+     "1": {
+      "engineers": [
+       "Colonel Bris Dekker",
+       "Elvira Martuuk",
+       "Felicity Farseer",
+       "Professor Palin",
+       "Chloe Sedesi",
+       "Mel Brandon"
+      ]
+     },
+     "2": {
+      "engineers": [
+       "Colonel Bris Dekker",
+       "Elvira Martuuk",
+       "Felicity Farseer",
+       "Professor Palin",
+       "Chloe Sedesi",
+       "Mel Brandon"
+      ]
+     },
+     "3": {
+      "engineers": [
+       "Colonel Bris Dekker",
+       "Elvira Martuuk",
+       "Felicity Farseer",
+       "Professor Palin",
+       "Chloe Sedesi",
+       "Mel Brandon"
+      ]
+     },
+     "4": {
+      "engineers": [
+       "Elvira Martuuk",
+       "Felicity Farseer",
+       "Mel Brandon"
+      ]
+     },
+     "5": {
+      "engineers": [
+       "Elvira Martuuk",
+       "Felicity Farseer",
+       "Mel Brandon"
+      ]
+     }
+    }
+   }
+  },
+  "modifications": [
+   "boot",
+   "integrity",
+   "mass",
+   "maxfuel",
+   "optmass",
+   "power",
+   "thermload"
+  ],
+  "specials": [
+   "special_fsd_fuelcapacity",
+   "special_fsd_heavy",
+   "special_fsd_toughened",
+   "special_fsd_lightweight",
+   "special_fsd_cooled"
+  ]
+ },
+ "t": {
+  "blueprints": {
+   "Engine_Dirty": {
+    "grades": {
+     "1": {
+      "engineers": [
+       "Elvira Martuuk",
+       "Felicty Farseer",
+       "Professor Palin",
+       "Mel Brandon",
+       "Chloe Sedesi"
+      ]
+     },
+     "2": {
+      "engineers": [
+       "Elvira Martuuk",
+       "Felicty Farseer",
+       "Professor Palin",
+       "Mel Brandon",
+       "Chloe Sedesi"
+      ]
+     },
+     "3": {
+      "engineers": [
+       "Felicty Farseer",
+       "Professor Palin",
+       "Mel Brandon",
+       "Chloe Sedesi"
+      ]
+     },
+     "4": {
+      "engineers": [
+       "Professor Palin",
+       "Mel Brandon",
+       "Chloe Sedesi"
+      ]
+     },
+     "5": {
+      "engineers": [
+       "Professor Palin",
+       "Mel Brandon",
+       "Chloe Sedesi"
+      ]
+     }
+    }
+   }
+  },
+  "modifications": [
+   "integrity",
+   "mass",
+   "optmass",
+   "optmul",
+   "power",
+   "thermload"
+  ],
+  "specials": [
+   "special_engine_cooled",
+   "special_engine_haulage",
+   "special_engine_overloaded",
+   "special_engine_toughened",
+   "special_engine_lightweight"
+  ]
+ },
+ "sb": {
+  "blueprints": {
+   "ShieldBooster_HeavyDuty": {
+    "grades": {
+     "1": {
+      "engineers": [
+       "Didi Vatermann",
+       "Felicity Farseer",
+       "Lei Cheung",
+       "Mel Brandon"
+      ]
+     },
+     "2": {
+      "engineers": [
+       "Didi Vatermann",
+       "Lei Cheung",
+       "Mel Brandon"
+      ]
+     },
+     "3": {
+      "engineers": [
+       "Didi Vatermann",
+       "Lei Cheung",
+       "Mel Brandon"
+      ]
+     },
+     "4": {
+      "engineers": [
+       "Didi Vatermann",
+       "Mel Brandon"
+      ]
+     },
+     "5": {
+      "engineers": [
+       "Didi Vatermann",
+       "Mel Brandon"
+      ]
+     }
+    }
+   }
+  },
+  "modifications": [
+   "explres",
+   "integrity",
+   "kinres",
+   "mass",
+   "power",
+   "shieldboost",
+   "thermres"
+  ],
+  "specials": [
+   "special_shieldbooster_thermic",
+   "special_shieldbooster_kinetic",
+   "special_shieldbooster_explosive",
+   "special_shieldbooster_efficient",
+   "special_shieldbooster_toughened",
+   "special_shieldbooster_chunky"
+  ]
+ },
+ "bh": {
+  "blueprints": {
+   "Armour_HeavyDuty": {
+    "grades": {
+     "1": {
+      "engineers": [
+       "Liz Ryder",
+       "Selene Jean",
+       "Petra Olmanova"
+      ]
+     },
+     "2": {
+      "engineers": [
+       "Selene Jean",
+       "Petra Olmanova"
+      ]
+     },
+     "3": {
+      "engineers": [
+       "Selene Jean",
+       "Petra Olmanova"
+      ]
+     },
+     "4": {
+      "engineers": [
+       "Selene Jean",
+       "Petra Olmanova"
+      ]
+     },
+     "5": {
+      "engineers": [
+       "Selene Jean",
+       "Petra Olmanova"
+      ]
+     }
+    }
+   }
+  },
+  "modifications": [
+   "causres",
+   "explres",
+   "hullboost",
+   "kinres",
+   "mass",
+   "thermres"
+  ],
+  "specials": [
+   "special_armour_kinetic",
+   "special_armour_explosive",
+   "special_armour_chunky",
+   "special_armour_thermic"
+  ]
+ }
+}

@@ -2,11 +2,19 @@ import { UserError } from "../errors.js";
 
 export type SlotKind = "core" | "hardpoint" | "utility" | "internal" | "military" | "other";
 
+export interface SlefModifier {
+  label: string;
+  value: number;
+  original_value: number | null;
+}
+
 export interface SlefEngineering {
   blueprint: string;
   grade: number;
   quality: number | null;
   experimental: string | null;
+  /** The game's modifier values, when the SLEF has them. */
+  modifiers?: SlefModifier[];
 }
 
 export interface SlefModule {
@@ -58,10 +66,11 @@ interface RawModule {
     Level?: unknown;
     Quality?: unknown;
     ExperimentalEffect?: unknown;
+    Modifiers?: unknown;
   };
 }
 
-function classify(slot: string, item: string): { kind: SlotKind; size: number | null } {
+export function classifySlot(slot: string, item: string): { kind: SlotKind; size: number | null } {
   const s = slot.toLowerCase();
   const itemSize = item.match(/_size(\d+)/i);
   if (CORE.has(s)) return { kind: "core", size: itemSize ? Number(itemSize[1]) : null };
@@ -83,9 +92,10 @@ function parseModule(m: RawModule): SlefModule | null {
   const slot = str(m.Slot);
   const item = str(m.Item)?.toLowerCase();
   if (!slot || !item || isCosmeticSlot(slot)) return null;
-  const { kind, size } = classify(slot, item);
+  const { kind, size } = classifySlot(slot, item);
   const e = m.Engineering;
   const blueprint = str(e?.BlueprintName);
+  const modifiers = Array.isArray(e?.Modifiers) ? parseModifiers(e.Modifiers) : [];
   return {
     slot,
     kind,
@@ -101,9 +111,20 @@ function parseModule(m: RawModule): SlefModule | null {
             grade: num(e.Level) ?? 0,
             quality: num(e.Quality),
             experimental: str(e.ExperimentalEffect),
+            ...(modifiers.length ? { modifiers } : {}),
           }
         : null,
   };
+}
+
+function parseModifiers(list: unknown[]): SlefModifier[] {
+  return list.flatMap((m) => {
+    const o = m as { Label?: unknown; Value?: unknown; OriginalValue?: unknown };
+    const label = str(o?.Label);
+    const value = num(o?.Value);
+    // Text modifiers, such as GuardianModuleResistance, have no Value.
+    return label && value !== null ? [{ label, value, original_value: num(o.OriginalValue) }] : [];
+  });
 }
 
 function parseEntry(entry: unknown): SlefBuild {

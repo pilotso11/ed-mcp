@@ -19,6 +19,8 @@ export interface CapiProfile {
       item: string;
       name: string | null;
       on: boolean | null;
+      /** Zero-based, as in the journal. */
+      priority: number | null;
       engineering: {
         blueprint: string;
         grade: number;
@@ -48,7 +50,7 @@ interface RawShip {
   modules?: Record<
     string,
     {
-      module?: { name?: string; locName?: string; on?: boolean };
+      module?: { name?: string; locName?: string; on?: boolean; priority?: number };
       engineer?: { engineerName?: string; recipeName?: string; recipeLevel?: number };
       specialModifications?: Record<string, string> | unknown[];
     }
@@ -147,6 +149,7 @@ function mapShip(s: RawShip): NonNullable<CapiProfile["ship"]> {
           item: String(m.module?.name ?? "").toLowerCase(),
           name: m.module?.locName ?? null,
           on: m.module?.on ?? null,
+          priority: typeof m.module?.priority === "number" ? m.module.priority : null,
           engineering: m.engineer?.recipeName
             ? {
                 blueprint: m.engineer.recipeName,

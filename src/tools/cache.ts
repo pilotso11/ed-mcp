@@ -21,7 +21,7 @@ export function registerCacheTools(
     {
       description:
         "Clear cached data so the next call fetches fresh data. source: a source name or 'all' (default). " +
-        "For 'catalog' this also checks upstream for new game data.",
+        "For 'catalog' and 'ships' this also checks upstream for new game data.",
       inputSchema: { source: z.string().optional() },
     },
     wrap(async ({ source = "all" }: { source?: string }) => {
@@ -59,7 +59,10 @@ export function registerCacheTools(
 
   server.registerTool(
     "cache_status",
-    { description: "Show cached entries and their age per source, and catalog version." },
+    {
+      description:
+        "Show cached entries and their age per source, and the catalog and ship data versions.",
+    },
     wrap(async () => ({
       caches: deps.caches.stats(),
       refreshables: Object.fromEntries(refreshables.map((r) => [r.name, r.status()])),

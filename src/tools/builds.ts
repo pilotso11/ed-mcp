@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { Catalog } from "../catalog/catalog.js";
 import type { CatalogService } from "../catalog/service.js";
-import { parseSlef } from "../slef/parse.js";
+import { parseSlef, type SlefEngineering } from "../slef/parse.js";
 import { wrap } from "./result.js";
 
 export function registerBuildTools(server: McpServer, deps: { catalog?: CatalogService }): void {
@@ -33,12 +33,21 @@ export function registerBuildTools(server: McpServer, deps: { catalog?: CatalogS
       return {
         builds: builds.map((b) => ({
           ...b,
-          modules: b.modules.map((m) => ({ ...m, module: lookup(catalog, m.item) })),
+          modules: b.modules.map((m) => ({
+            ...m,
+            engineering: m.engineering && withoutModifiers(m.engineering),
+            module: lookup(catalog, m.item),
+          })),
         })),
         warnings,
       };
     }),
   );
+}
+
+// The raw modifier values are for build_stats; here they would only bloat the reply.
+function withoutModifiers({ modifiers: _, ...e }: SlefEngineering): SlefEngineering {
+  return e;
 }
 
 function lookup(catalog: Catalog | null, item: string) {

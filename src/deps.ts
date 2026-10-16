@@ -12,6 +12,7 @@ import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
 import { PlanStore } from "./plans/store.js";
 import { PreferencesStore } from "./prefs/store.js";
+import { ShipDataService } from "./ships/data.js";
 import type { ServerDeps } from "./server.js";
 import { VERSION } from "./version.js";
 
@@ -22,6 +23,7 @@ export function buildDeps(
   const caches = new CacheRegistry();
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
+  const ships = new ShipDataService({ cacheDir: config.cacheDir, http });
   const inaraCache = new TtlCache<unknown>("inara", 60_000);
   caches.register(inaraCache);
   const inara = new InaraClient(http, config.inara, inaraCache);
@@ -51,8 +53,9 @@ export function buildDeps(
   const journal = opts.journal ?? new JournalService(config.journalDir);
   return {
     caches,
-    refreshables: [catalog],
+    refreshables: [catalog, ships],
     catalog,
+    ships,
     inara,
     edsm,
     spansh,

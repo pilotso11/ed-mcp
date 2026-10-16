@@ -51,6 +51,22 @@ describe("build_parse_slef", () => {
     });
   });
 
+  it("leaves the raw modifier values out of the reply", async () => {
+    const withModifiers = JSON.parse(slef);
+    withModifiers[0].data.Modules[0].Engineering.Modifiers = [
+      { Label: "Mass", Value: 26, OriginalValue: 20 },
+    ];
+    const r = (
+      await callTool(await client(), "build_parse_slef", { slef: JSON.stringify(withModifiers) })
+    ).json as any;
+    expect(r.builds[0].modules[0].engineering).toEqual({
+      blueprint: "FSD_LongRange",
+      grade: 5,
+      quality: 1,
+      experimental: null,
+    });
+  });
+
   it("still parses when the catalog is unavailable", async () => {
     const r = await callTool(
       await client({
