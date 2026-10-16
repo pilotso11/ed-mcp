@@ -334,7 +334,12 @@ export function registerTradeTools(
         if (!found.stations.length) {
           notes.push("No stations found; check the exact English commodity name");
         } else if (!ranked.stations.length) {
-          const { travel: _travel, ...stationRules } = applied_preferences;
+          // Permits are checked after these rules, only for the stations that pass them.
+          const {
+            travel: _travel,
+            permit_systems: _permits,
+            ...stationRules
+          } = applied_preferences;
           const listed = Object.entries(stationRules)
             .map(([k, v]) => `${k}: ${String(v)}`)
             .join(", ");

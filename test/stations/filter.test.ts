@@ -65,6 +65,7 @@ describe("resolveRules", () => {
     expect(d).toMatchObject({
       min_pad: "M (auto: current ship Corsair)",
       max_arrival_ls: "1000 ls (soft)",
+      permit_systems: "exclude",
       travel: "range 30 LY (auto: default 30 LY), 60 s per jump, time valued at 20,000,000 cr/h",
     });
   });

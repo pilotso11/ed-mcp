@@ -4,6 +4,7 @@ import { UserError } from "../errors.js";
 export const Mode = z.enum(["soft", "hard", "off"]);
 export const TypeRule = z.enum(["allow", "avoid", "exclude"]);
 export const PadPref = z.enum(["auto", "S", "M", "L", "none"]);
+const PermitRule = z.enum(["allow", "exclude"]);
 
 const Arrival = z.object({ value: z.number().positive(), mode: Mode });
 const Supercruise = z.object({
@@ -38,6 +39,8 @@ export const PrefsSchema = z.object({
     fleet_carriers: z.enum(["allow", "exclude"]),
     megaships: TypeRule,
     min_pad: PadPref,
+    // Files saved before permit_systems existed lack it.
+    permit_systems: PermitRule.default("exclude"),
   }),
   // Files saved before auto_range_factor existed lack it.
   travel: Travel.extend({ auto_range_factor: AutoRangeFactor.default(0.85) }),
@@ -53,6 +56,7 @@ export const PrefsPatchSchema = z
         fleet_carriers: z.enum(["allow", "exclude"]).optional(),
         megaships: TypeRule.optional(),
         min_pad: PadPref.optional(),
+        permit_systems: PermitRule.optional(),
       })
       .strict()
       .optional(),
@@ -90,6 +94,7 @@ export const DEFAULT_PREFS: Prefs = {
     fleet_carriers: "exclude",
     megaships: "allow",
     min_pad: "auto",
+    permit_systems: "exclude",
   },
   travel: structuredClone(DEFAULT_TRAVEL),
 };
@@ -102,6 +107,7 @@ export const OFF_PREFS: Prefs = {
     fleet_carriers: "allow",
     megaships: "allow",
     min_pad: "none",
+    permit_systems: "allow",
   },
   travel: structuredClone(DEFAULT_TRAVEL),
 };
