@@ -166,6 +166,12 @@ describe("ShipDataService", () => {
       now: () => t,
     });
     expect((await slow.get()).commit).toBe(C1);
+    // A second call while the background check is still running gets the cached data at once.
+    const second = await Promise.race([
+      slow.get().then((d) => d.commit),
+      new Promise<string>((r) => setTimeout(() => r("waited"), 50)),
+    ]);
+    expect(second).toBe(C1);
     release();
     await slow.refresh();
   });
