@@ -4,6 +4,7 @@ import type { SpanshClient, StationService } from "../spansh/client.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { resolveSearchRules } from "../stations/rules.js";
+import { PERMIT_TIME_MS } from "../stations/permits.js";
 import { searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
@@ -24,9 +25,11 @@ export function registerSpanshTools(
     prefs?: PreferencesStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
+    now?: () => number;
   },
 ): void {
   const { spansh } = deps;
+  const now = deps.now ?? Date.now;
 
   server.registerTool(
     "spansh_find_stations",
@@ -77,6 +80,7 @@ export function registerSpanshTools(
         use_preferences: boolean;
         limit: number;
       }) => {
+        const deadline = now() + PERMIT_TIME_MS;
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences, a.large_pad);
         return searchStations(
           spansh,
@@ -89,6 +93,7 @@ export function registerSpanshTools(
           },
           rules,
           a.limit,
+          { deadline, now },
         );
       },
     ),

@@ -1,26 +1,54 @@
 import { describe, expect, it, vi } from "vitest";
 import { UserError } from "../../src/errors.js";
+import { HttpError } from "../../src/http/client.js";
 import type { SpanshClient, SystemInfo } from "../../src/spansh/client.js";
-import { permitLookup, screenPermits } from "../../src/stations/permits.js";
+import { permitLookup, screenPermits, type SystemRef } from "../../src/stations/permits.js";
 
-function fakeSpansh(permits: Record<string, boolean | "fail">) {
-  const system = vi.fn(async (name: string): Promise<SystemInfo> => {
+type Permit = boolean | "missing" | "down";
+
+// Systems are looked up by id64 `id:<name>`, or by name when an item has no id64.
+function fakeSpansh(permits: Record<string, Permit>, clock?: { t: number; ms: number }) {
+  const answer = (name: string) => {
+    if (clock) clock.t += clock.ms;
     const p = permits[name];
-    if (p === undefined || p === "fail")
+    if (p === undefined || p === "missing")
       throw new UserError(`System "${name}" not found on Spansh.`);
-    return { name, needs_permit: p } as unknown as SystemInfo;
+    if (p === "down") throw new HttpError("spansh.co.uk: timed out after 20000 ms");
+    return p;
+  };
+  const systemPermit = vi.fn(async (id64: string) => answer(id64.replace(/^id:/, "")));
+  const system = vi.fn(async (name: string): Promise<SystemInfo> => {
+    return { name, needs_permit: answer(name) } as unknown as SystemInfo;
   });
-  return { spansh: { system } as unknown as Pick<SpanshClient, "system">, system };
+  const spansh = { system, systemPermit } as unknown as Pick<
+    SpanshClient,
+    "system" | "systemPermit"
+  >;
+  const looked = () => [
+    ...systemPermit.mock.calls.map((c) => c[0].replace(/^id:/, "")),
+    ...system.mock.calls.map((c) => c[0]),
+  ];
+  return { spansh, systemPermit, system, looked };
 }
 
 const at = (system: string, name = `${system} Port`) => ({ name, system });
-const one = (s: { system: string }) => [s.system];
+const one = (s: { system: string }): SystemRef[] => [{ name: s.system, id64: `id:${s.system}` }];
+const refs = (l: { systems: string[] }): SystemRef[] =>
+  l.systems.map((name) => ({ name, id64: `id:${name}` }));
 const LEFT_OUT = (n: number, what: string, systems: string) =>
   `Left out ${n} ${what} in permit-locked systems (${systems}). Set permit_systems to allow if you hold the permit.`;
+const many = (n: number, permit: boolean) => {
+  const permits: Record<string, boolean> = {};
+  const items = Array.from({ length: n }, (_, i) => {
+    permits[`S${i}`] = permit;
+    return at(`S${i}`);
+  });
+  return { permits, items };
+};
 
 describe("screenPermits", () => {
   it("leaves out stations in permit systems and refills from the next ones", async () => {
-    const { spansh, system } = fakeSpansh({ Sol: true, Lave: false, Diso: false, Leesti: false });
+    const { spansh, looked } = fakeSpansh({ Sol: true, Lave: false, Diso: false, Leesti: false });
     const r = await screenPermits({
       items: [at("Sol"), at("Lave"), at("Diso"), at("Leesti")],
       limit: 2,
@@ -29,15 +57,30 @@ describe("screenPermits", () => {
       spansh,
     });
     expect(r.kept.map((s) => s.system)).toEqual(["Lave", "Diso"]);
+    expect(r.checkedOpen.map((s) => s.system)).toEqual(["Lave", "Diso"]);
     expect(r.notes).toEqual([LEFT_OUT(1, "station", "Sol")]);
     expect(r.locked("sol")).toBe(true);
     expect(r.locked("Lave")).toBe(false);
     // Leesti is past the refill, so it is not looked up.
-    expect(system.mock.calls.map((c) => c[0])).toEqual(["Sol", "Lave", "Diso"]);
+    expect(looked()).toEqual(["Sol", "Lave", "Diso"]);
+  });
+
+  it("looks up by id64 and falls back to the name without one", async () => {
+    const { spansh, systemPermit, system } = fakeSpansh({ Sol: true, Lave: false });
+    const r = await screenPermits({
+      items: [at("Sol"), at("Lave")],
+      limit: 2,
+      mode: "exclude",
+      systemsOf: (s) => [{ name: s.system, id64: s.system === "Sol" ? "id:Sol" : null }],
+      spansh,
+    });
+    expect(r.kept.map((s) => s.system)).toEqual(["Lave"]);
+    expect(systemPermit.mock.calls.map((c) => c[0])).toEqual(["id:Sol"]);
+    expect(system.mock.calls.map((c) => c[0])).toEqual(["Lave"]);
   });
 
   it("looks up each system once", async () => {
-    const { spansh, system } = fakeSpansh({ Sol: true, Lave: false });
+    const { spansh, looked } = fakeSpansh({ Sol: true, Lave: false });
     const r = await screenPermits({
       items: [at("Sol", "Abraham Lincoln"), at("Sol", "Daedalus"), at("Lave"), at("Lave", "B")],
       limit: 2,
@@ -47,11 +90,11 @@ describe("screenPermits", () => {
     });
     expect(r.kept.map((s) => s.name)).toEqual(["Lave Port", "B"]);
     expect(r.notes).toEqual([LEFT_OUT(2, "stations", "Sol")]);
-    expect(system).toHaveBeenCalledTimes(2);
+    expect(looked()).toEqual(["Sol", "Lave"]);
   });
 
   it("keeps permit systems with allow and checks only the returned page", async () => {
-    const { spansh, system } = fakeSpansh({ Sol: true, Lave: false, Diso: false });
+    const { spansh, looked } = fakeSpansh({ Sol: true, Lave: false, Diso: false });
     const r = await screenPermits({
       items: [at("Sol"), at("Lave"), at("Diso")],
       limit: 2,
@@ -60,13 +103,14 @@ describe("screenPermits", () => {
       spansh,
     });
     expect(r.kept.map((s) => s.system)).toEqual(["Sol", "Lave"]);
+    expect(r.checkedOpen.map((s) => s.system)).toEqual(["Sol", "Lave"]);
     expect(r.locked("Sol")).toBe(true);
     expect(r.notes).toEqual([]);
-    expect(system).toHaveBeenCalledTimes(2);
+    expect(looked()).toHaveLength(2);
   });
 
-  it("keeps a station whose system cannot be checked and says so", async () => {
-    const { spansh } = fakeSpansh({ Lave: false, Gone: "fail" });
+  it("keeps a station whose system Spansh does not know and says so", async () => {
+    const { spansh } = fakeSpansh({ Lave: false, Gone: "missing" });
     const r = await screenPermits({
       items: [at("Gone"), at("Lave")],
       limit: 2,
@@ -75,6 +119,7 @@ describe("screenPermits", () => {
       spansh,
     });
     expect(r.kept.map((s) => s.system)).toEqual(["Gone", "Lave"]);
+    expect(r.checkedOpen.map((s) => s.system)).toEqual(["Lave"]);
     expect(r.locked("Gone")).toBe(false);
     expect(r.notes).toEqual(["Could not check permits for: Gone."]);
   });
@@ -86,7 +131,7 @@ describe("screenPermits", () => {
       items: loops,
       limit: 1,
       mode: "exclude",
-      systemsOf: (l) => l.systems,
+      systemsOf: refs,
       spansh,
       noun: "loop",
     });
@@ -94,78 +139,161 @@ describe("screenPermits", () => {
     expect(r.notes).toEqual([LEFT_OUT(1, "loop", "Sol")]);
   });
 
-  it("does not look up exempt systems", async () => {
-    const { spansh, system } = fakeSpansh({ Sol: true, Lave: false });
+  it("does not look up exempt systems and counts them as open", async () => {
+    const { spansh, looked } = fakeSpansh({ Sol: true, Lave: false });
+    const loops = [{ systems: ["Sol", "Lave"] }];
     const r = await screenPermits({
-      items: [{ systems: ["Sol", "Lave"] }],
+      items: loops,
       limit: 1,
       mode: "exclude",
-      systemsOf: (l) => l.systems,
+      systemsOf: refs,
       spansh,
       exempt: ["sol"],
     });
-    expect(r.kept).toHaveLength(1);
-    expect(system.mock.calls.map((c) => c[0])).toEqual(["Lave"]);
+    expect(r.kept).toEqual(loops);
+    expect(r.checkedOpen).toEqual(loops);
+    expect(looked()).toEqual(["Lave"]);
   });
 
-  it("stops refilling after checking 30 systems", async () => {
-    const permits: Record<string, boolean> = {};
-    const items = Array.from({ length: 50 }, (_, i) => {
-      permits[`S${i}`] = true;
-      return at(`S${i}`);
+  it("stops refilling at the system cap", async () => {
+    const { permits, items } = many(50, true);
+    const { spansh, looked } = fakeSpansh(permits);
+    const r = await screenPermits({
+      items,
+      limit: 2,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+      maxSystems: 20,
     });
-    const { spansh, system } = fakeSpansh(permits);
-    const r = await screenPermits({ items, limit: 2, mode: "exclude", systemsOf: one, spansh });
-    expect(system).toHaveBeenCalledTimes(30);
+    expect(looked()).toHaveLength(20);
     expect(r.kept).toEqual([]);
     expect(r.notes).toEqual([
-      LEFT_OUT(30, "stations", "S0, S1, S2, S3, S4 and 25 more"),
-      "Stopped checking permits after 30 systems; 0 of 2 stations are listed.",
+      LEFT_OUT(20, "stations", "S0, S1, S2, S3, S4 and 15 more"),
+      "Stopped checking permits (limit of 20 systems); 0 of 2 stations are listed.",
     ]);
   });
 
-  it("keeps refilling from systems already checked after the cap", async () => {
-    const permits: Record<string, boolean> = {};
-    const items = Array.from({ length: 30 }, (_, i) => {
-      permits[`S${i}`] = true;
-      return at(`S${i}`);
+  it("applies the cap to the first page and keeps its unchecked stations", async () => {
+    const { permits, items } = many(30, false);
+    const { spansh, looked } = fakeSpansh(permits);
+    const r = await screenPermits({
+      items,
+      limit: 25,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+      maxSystems: 20,
     });
+    expect(looked()).toHaveLength(20);
+    expect(r.kept).toHaveLength(25);
+    expect(r.checkedOpen).toHaveLength(20);
+    expect(r.notes).toEqual(["Permits not checked for 5 stations (limit of 20 systems)."]);
+  });
+
+  it("keeps refilling from systems already checked after the cap", async () => {
+    const { permits, items } = many(20, true);
     permits.Open = false;
     items.splice(1, 0, at("Open"));
     items.push(at("Open", "Second"));
-    const { spansh, system } = fakeSpansh(permits);
-    const r = await screenPermits({ items, limit: 2, mode: "exclude", systemsOf: one, spansh });
-    expect(system).toHaveBeenCalledTimes(30);
+    const { spansh, looked } = fakeSpansh(permits);
+    const r = await screenPermits({
+      items,
+      limit: 2,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+      maxSystems: 20,
+    });
+    expect(looked()).toHaveLength(20);
     expect(r.kept.map((s) => s.name)).toEqual(["Open Port", "Second"]);
     expect(r.notes).toHaveLength(1);
   });
 
-  it("always checks the systems of the first limit items", async () => {
-    const permits: Record<string, boolean> = {};
-    const items = Array.from({ length: 40 }, (_, i) => {
-      permits[`S${i}`] = false;
-      return at(`S${i}`);
+  it("stops looking up at the deadline", async () => {
+    const clock = { t: 0, ms: 1_000 };
+    const { permits, items } = many(10, false);
+    const { spansh, looked } = fakeSpansh(permits, clock);
+    const r = await screenPermits({
+      items,
+      limit: 5,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+      deadline: 3_000,
+      now: () => clock.t,
     });
-    const { spansh, system } = fakeSpansh(permits);
-    const r = await screenPermits({ items, limit: 35, mode: "exclude", systemsOf: one, spansh });
-    expect(system).toHaveBeenCalledTimes(35);
-    expect(r.kept).toHaveLength(35);
-    expect(r.notes).toEqual([]);
+    // Lookups start at 0, 1 and 2 s; the one due at 3 s is not made.
+    expect(looked()).toEqual(["S0", "S1", "S2"]);
+    expect(r.kept).toHaveLength(5);
+    expect(r.checkedOpen).toHaveLength(3);
+    expect(r.notes).toEqual(["Permits not checked for 2 stations (time limit)."]);
+  });
+
+  it("does not refill once the deadline has passed", async () => {
+    const clock = { t: 0, ms: 1_000 };
+    const { spansh, looked } = fakeSpansh({ Sol: true, Lave: false, Diso: false }, clock);
+    const r = await screenPermits({
+      items: [at("Sol"), at("Lave"), at("Diso")],
+      limit: 2,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+      deadline: 2_000,
+      now: () => clock.t,
+    });
+    expect(looked()).toEqual(["Sol", "Lave"]);
+    expect(r.kept.map((s) => s.system)).toEqual(["Lave"]);
+    expect(r.notes).toEqual([
+      LEFT_OUT(1, "station", "Sol"),
+      "Stopped checking permits (time limit); 1 of 2 stations are listed.",
+    ]);
+  });
+
+  it("stops calling Spansh after a transport failure", async () => {
+    const { spansh, looked } = fakeSpansh({ S0: false, S1: "down", S2: false, S3: false });
+    const r = await screenPermits({
+      items: [at("S0"), at("S1"), at("S2"), at("S3")],
+      limit: 4,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+    });
+    expect(looked()).toEqual(["S0", "S1"]);
+    expect(r.kept).toHaveLength(4);
+    expect(r.checkedOpen.map((s) => s.system)).toEqual(["S0"]);
+    expect(r.notes).toEqual([
+      "Permits not checked for 2 stations (lookup failed).",
+      "Could not check permits for: S1.",
+    ]);
+  });
+
+  it("keeps calling Spansh after a not-found answer", async () => {
+    const { spansh, looked } = fakeSpansh({ S0: "missing", S1: false });
+    await screenPermits({
+      items: [at("S0"), at("S1")],
+      limit: 2,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+    });
+    expect(looked()).toEqual(["S0", "S1"]);
   });
 });
 
 describe("permitLookup", () => {
   it("reads needs_permit, treats a missing value as no permit and a failure as unknown", async () => {
-    const { spansh, system } = fakeSpansh({ Sol: true, Lave: false, Gone: "fail" });
+    const { spansh, system } = fakeSpansh({ Sol: true, Lave: false, Gone: "missing" });
     system.mockImplementationOnce(
       async (name: string) => ({ name, needs_permit: null }) as unknown as SystemInfo,
     );
     const lookup = permitLookup(spansh);
-    expect(await lookup.check("Achenar")).toBe(false);
-    expect(await lookup.check("Sol")).toBe(true);
-    expect(await lookup.check("SOL")).toBe(true);
-    expect(await lookup.check("Gone")).toBe(null);
+    expect(await lookup.check({ name: "Achenar", id64: null })).toBe(false);
+    expect(await lookup.check({ name: "Sol", id64: null })).toBe(true);
+    expect(await lookup.check({ name: "SOL", id64: null })).toBe(true);
+    expect(await lookup.check({ name: "Gone", id64: null })).toBe(null);
     expect(lookup.unknown()).toEqual(["Gone"]);
     expect(lookup.checked()).toBe(3);
+    expect(lookup.failed()).toBe(false);
   });
 });

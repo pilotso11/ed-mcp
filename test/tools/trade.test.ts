@@ -438,6 +438,10 @@ function commodity(
     permits?: Record<string, boolean>;
   } = {},
 ) {
+  const body = opts.body ?? fixture("trade-stations-search-market-sell.json");
+  const names = new Map<string, string>(
+    (JSON.parse(body).results ?? []).map((r: any) => [String(r.system_id64), r.system_name]),
+  );
   const f = fakeFetch([
     // System lookups for the permit check: the id64 is the system name.
     {
@@ -450,7 +454,8 @@ function commodity(
     {
       match: (u) => u.includes("/system/"),
       respond: (u) => {
-        const name = decodeURIComponent(u.split("/system/")[1]!);
+        const id = decodeURIComponent(u.split("/system/")[1]!);
+        const name = names.get(id) ?? id;
         const needs_permit = !!opts.permits?.[name];
         return json(
           JSON.stringify({ record: { name, id64: name, x: 0, y: 0, z: 0, needs_permit } }),

@@ -274,6 +274,7 @@ describe("SpanshClient.marketStations", () => {
     expect(r.stations[0]).toMatchObject({
       name: "Janes Horizons",
       system: "Arexe",
+      system_id64: "908620501730",
       market_id: 3230844160,
       distance_ly: first.distance,
       arrival_ls: first.distance_to_arrival,

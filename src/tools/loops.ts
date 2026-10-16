@@ -38,6 +38,8 @@ const NO_LOOPS =
   "No profitable loop found. Try a larger radius, another centre, or include stations.";
 // Spare loops to replace those left out for a permit-locked system.
 const PERMIT_SPARES = 30;
+// Permit lookups may run this long past the search time limit, so they end about 48 s in.
+const PERMIT_EXTRA_MS = 8_000;
 
 const Station = z.object({ system: z.string(), station: z.string() });
 type NearInput = string | { system: string; station?: string };
@@ -57,6 +59,7 @@ const placeOf = (s: MarketStation): Place => ({
 const asHit = (s: MarketStation): StationHit => ({
   name: s.name,
   system: s.system,
+  system_id64: s.system_id64,
   distance_ly: s.distance_ly ?? 0,
   arrival_ls: s.arrival_ls,
   type: s.type,
@@ -326,6 +329,7 @@ export function registerLoopTools(
                   {
                     name: entry.name,
                     system: info.name,
+                    system_id64: info.id64,
                     market_id: id,
                     distance_ly: null,
                     arrival_ls: entry.arrival_ls,
@@ -419,11 +423,17 @@ export function registerLoopTools(
           items: result.loops,
           limit: a.limit,
           mode: permitMode,
-          systemsOf: (loop) => loop.stations.map((i) => candidates[i]!.system),
+          systemsOf: (loop) =>
+            loop.stations.map((i) => ({
+              name: candidates[i]!.system,
+              id64: candidates[i]!.system_id64,
+            })),
           spansh,
           // The user chose these, so they must be able to reach them.
           exempt: [...(here ? [centre.system] : []), ...(a.include ?? []).map((i) => i.system)],
           noun: "loop",
+          deadline: deadline + PERMIT_EXTRA_MS,
+          now,
         });
         notes.push(...screen.notes);
 

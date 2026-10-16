@@ -12,6 +12,7 @@ import {
 const hit = (o: Partial<StationHit>): StationHit => ({
   name: "Station",
   system: "Sys",
+  system_id64: null,
   distance_ly: 1,
   arrival_ls: 100,
   type: "Coriolis Starport",

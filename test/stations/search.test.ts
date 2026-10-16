@@ -12,6 +12,7 @@ import { autoPad, searchStations } from "../../src/stations/search.js";
 const hit = (o: Partial<StationHit>): StationHit => ({
   name: "S",
   system: "Sys",
+  system_id64: null,
   distance_ly: 1,
   arrival_ls: 100,
   type: "Coriolis Starport",
@@ -38,6 +39,10 @@ function fakeSpansh(pages: Array<StationHit[]>, permits: Record<string, boolean>
     system: async (name: string): Promise<SystemInfo> => {
       systemCalls.push(name);
       return { name, needs_permit: permits[name] ?? false } as SystemInfo;
+    },
+    systemPermit: async (id64: string) => {
+      systemCalls.push(`id64 ${id64}`);
+      return false;
     },
   };
 }
@@ -213,6 +218,20 @@ describe("ranking and recommendation", () => {
     expect(r.recommended).toMatchObject({ name: "Abraham Lincoln" });
     expect(r.notes).toEqual([]);
     expect(r.applied_preferences).toMatchObject({ permit_systems: "allow" });
+  });
+
+  it("looks up by system_id64 when the hit has one", async () => {
+    const sp = fakeSpansh([[hit({ name: "a", system: "Alpha", system_id64: "42" })]]);
+    await searchStations(sp, query, rules, 10);
+    expect(sp.systemCalls).toEqual(["id64 42"]);
+  });
+
+  it("keeps the stations unchecked once the permit deadline has passed", async () => {
+    const sp = fakeSpansh([[hit({ name: "a", system: "Alpha" })]]);
+    const r = await searchStations(sp, query, rules, 10, { deadline: 5, now: () => 10 });
+    expect(r.stations.map((s) => s.name)).toEqual(["a"]);
+    expect(sp.systemCalls).toEqual([]);
+    expect(r.notes).toEqual(["Permits not checked for 1 station (time limit)."]);
   });
 
   it("returns no recommendation when every station is in a permit system", async () => {

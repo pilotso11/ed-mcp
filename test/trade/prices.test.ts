@@ -21,6 +21,7 @@ const hit = (name: string, over: Partial<CommodityHit>): CommodityHit => ({
   name,
   market_id: null,
   system: "Sys",
+  system_id64: null,
   distance_ly: 5,
   arrival_ls: 100,
   type: "Coriolis Starport",

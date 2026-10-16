@@ -7,7 +7,7 @@ import type { PreferencesStore } from "../prefs/store.js";
 import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { screenPermits } from "../stations/permits.js";
+import { PERMIT_TIME_MS, screenPermits } from "../stations/permits.js";
 import { rankCommodityStations, recommendCommodityStation } from "../trade/prices.js";
 import { mapTradeRoute } from "../trade/route.js";
 import { wrap } from "./result.js";
@@ -303,6 +303,7 @@ export function registerTradeTools(
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
+        const started = now();
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
         const notes: string[] = [];
         let near = a.near;
@@ -337,8 +338,10 @@ export function registerTradeTools(
           items: ranked.stations,
           limit: a.limit,
           mode,
-          systemsOf: (h) => [h.system],
+          systemsOf: (h) => [{ name: h.system, id64: h.system_id64 }],
           spansh,
+          deadline: started + PERMIT_TIME_MS,
+          now,
         });
         notes.push(...screen.notes);
         const open =

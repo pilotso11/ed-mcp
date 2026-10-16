@@ -25,6 +25,9 @@ async function setup(
 ) {
   const stations = opts.stations ?? (await raw("stations-search-material-trader.json"));
   const permits = opts.permits ?? {};
+  const names = new Map<string, string>(
+    JSON.parse(stations).results.map((r: any) => [String(r.system_id64), r.system_name]),
+  );
   const f = fakeFetch([
     { match: (u) => u.endsWith("/stations/search"), respond: () => new Response(stations) },
     // System lookups for the permit check: the id64 is the system name.
@@ -38,8 +41,9 @@ async function setup(
     {
       match: (u) => u.includes("/system/"),
       respond: (u) => {
-        const name = decodeURIComponent(u.split("/system/")[1]!);
-        const record = { name, id64: name, x: 0, y: 0, z: 0, needs_permit: !!permits[name] };
+        const id = decodeURIComponent(u.split("/system/")[1]!);
+        const name = names.get(id) ?? id;
+        const record = { name, id64: id, x: 0, y: 0, z: 0, needs_permit: !!permits[name] };
         return jsonResponse({ record });
       },
     },
@@ -95,8 +99,9 @@ describe("spansh tools", () => {
       "Left out 1 station in permit-locked systems (82 Eridani). Set permit_systems to allow if you hold the permit.",
     ]);
     expect(j.applied_preferences.permit_systems).toBe("exclude");
-    // One system search and one system record per system.
+    // One system record per system, by the id64 on the station; no name search.
     expect(f.calls.filter((c) => c.url.includes("/system/"))).toHaveLength(3);
+    expect(f.calls.filter((c) => c.url.includes("/search/systems"))).toEqual([]);
   });
 
   it("keeps and marks stations in permit systems with permit_systems allow", async () => {

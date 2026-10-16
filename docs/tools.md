@@ -321,9 +321,17 @@ A `soft` arrival limit and an `avoid` rule apply only while other stations match
 
 ### Permit-locked systems
 
-Spansh station searches do not show which systems need a permit. Only the system record has this flag. The tools look up the systems of the stations they return, one rate-limited Spansh call per new system, cached for 24 hours.
+Spansh station searches do not show which systems need a permit. Only the system record has this flag. The tools look up the systems of the stations they return. Each new system costs one rate-limited Spansh request, by the system id on the station record. The result is cached for 24 hours.
 
-With `permit_systems: "exclude"` (the default), a station in a permit-locked system is left out, and the next station in the ranking takes its place. A note such as "Left out 2 stations in permit-locked systems (Sol). Set permit_systems to allow if you hold the permit." gives the count. The tools look up the systems of the first `limit` results and of the next stations that they consider as replacements. After 30 systems, they stop looking for replacements, and a note says so. If a lookup fails, the station stays, and the note is "Could not check permits for: <systems>." With `allow`, the stations stay and have `needs_permit: true`.
+With `permit_systems: "exclude"` (the default), a station in a permit-locked system is left out, and the next station in the ranking takes its place. A note such as "Left out 2 stations in permit-locked systems (Sol). Set permit_systems to allow if you hold the permit." gives the count. The tools look up the systems of the first `limit` results and of the next stations that they consider as replacements. With `allow`, the stations stay and have `needs_permit: true`.
+
+The lookups are bounded, so that the call ends before the MCP client gives up:
+
+- At most 20 new systems for each call.
+- Station searches (`spansh_find_stations`, `commodity_prices`, `materials_plan`) stop looking up 20 s after the call starts. `trade_loops` stops 8 s after its own 40 s search limit.
+- After a network failure, a timeout or a Spansh server error, the tool stops asking Spansh.
+
+When the lookups stop, unchecked stations on the first page stay, and a note such as "Permits not checked for 3 stations (time limit)." says so. No unchecked station replaces one that was left out. If the page is then short, a note such as "Stopped checking permits (time limit); 8 of 10 stations are listed." says so. If Spansh does not know a system, the station stays, and the note is "Could not check permits for: <systems>."
 
 `trade_route` sends Spansh its own permit option and never includes permit-locked systems.
 

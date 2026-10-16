@@ -71,10 +71,11 @@ export async function autoPad(
 }
 
 export async function searchStations(
-  spansh: Pick<SpanshClient, "findStations" | "system">,
+  spansh: Pick<SpanshClient, "findStations" | "system" | "systemPermit">,
   query: Omit<StationQuery, "limit" | "largePad" | "maxArrivalLs">,
   rules: Rules,
   limit: number,
+  permits: { deadline?: number; now?: () => number } = {},
 ): Promise<StationSearchResult> {
   const arrival = rules.prefs.stations.max_arrival_ls;
   const base = { ...query, limit: FETCH_SIZE, largePad: rules.pad.size === "L" || undefined };
@@ -106,8 +107,9 @@ export async function searchStations(
     items: ranked,
     limit,
     mode,
-    systemsOf: (h) => [h.system],
+    systemsOf: (h) => [{ name: h.system, id64: h.system_id64 }],
     spansh,
+    ...permits,
   });
   const page = screen.kept.map((h) =>
     screen.locked(h.system) ? { ...h, needs_permit: true as const } : h,

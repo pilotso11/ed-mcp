@@ -15,6 +15,7 @@ const T: ResolvedTravel = { ...DEFAULT_PREFS.travel, jump_range_ly: 30 };
 const hit = (o: Partial<StationHit>): StationHit => ({
   name: "S",
   system: "Sys",
+  system_id64: null,
   distance_ly: 0,
   arrival_ls: 10,
   type: "Coriolis Starport",

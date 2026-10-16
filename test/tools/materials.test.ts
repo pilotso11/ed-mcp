@@ -15,6 +15,7 @@ const { catalog } = buildCatalog(await rawFixture(), staticsFixture, SMALL);
 const hit: StationHit = {
   name: "Trader Hub",
   system: "Atlas",
+  system_id64: null,
   distance_ly: 12.5,
   arrival_ls: 300,
   type: "Orbis Starport",

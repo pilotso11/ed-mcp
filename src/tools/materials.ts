@@ -12,6 +12,7 @@ import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient, StationService } from "../spansh/client.js";
 import { resolveSearchRules } from "../stations/rules.js";
+import { PERMIT_TIME_MS } from "../stations/permits.js";
 import { searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
@@ -26,8 +27,10 @@ export function registerMaterialsTools(
     prefs?: PreferencesStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
+    now?: () => number;
   },
 ): void {
+  const now = deps.now ?? Date.now;
   server.registerTool(
     "materials_plan",
     {
@@ -69,6 +72,7 @@ export function registerMaterialsTools(
         near?: string;
         preferences?: PrefsPatch;
       }) => {
+        const deadline = now() + PERMIT_TIME_MS;
         if (!a.blueprints?.length && !a.needs?.length) {
           throw new UserError("Give blueprints, needs, or both.");
         }
@@ -109,6 +113,7 @@ export function registerMaterialsTools(
                   { near, service: `material_trader_${type}` as StationService },
                   rules,
                   3,
+                  { deadline, now },
                 );
                 const s = r.stations[0];
                 notes.push(...r.notes);

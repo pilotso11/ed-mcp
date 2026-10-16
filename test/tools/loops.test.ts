@@ -39,6 +39,7 @@ const st = (
 ): MarketStation => ({
   name,
   system,
+  system_id64: null,
   market_id: nextId++,
   distance_ly: Math.hypot(...coords),
   arrival_ls: 100,
@@ -280,6 +281,17 @@ describe("trade_loops", () => {
     expect(j.loops).toEqual([]);
     expect(j.notes).not.toContain(NO_LOOPS);
     expect(j.notes.some((n: string) => n.startsWith("Left out"))).toBe(true);
+  });
+
+  it("checks no permits once 48 s of the call have gone", async () => {
+    const clock = { t: 0, searchMs: 48_000 };
+    const { j, system } = await loops(
+      { limit: 2 },
+      { found: [start(), alpha(), beta()], permits: ["Alpha"], clock },
+    );
+    expect(system).not.toHaveBeenCalled();
+    expect(j.loops.length).toBe(2);
+    expect(j.notes).toContain("Permits not checked for 2 loops (time limit).");
   });
 
   it("does not check the permit of the docked station's system", async () => {

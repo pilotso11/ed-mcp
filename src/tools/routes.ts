@@ -426,7 +426,7 @@ export function registerRouteTools(
         for (const [, t] of legs) {
           const node = t === n + 1 ? null : nodes[t]!;
           if (catalogPermit(node?.engineer ?? null)) continue;
-          if ((await permits.check(places[t]!.system)) === true) {
+          if ((await permits.check({ name: places[t]!.system, id64: null })) === true) {
             notes.add(
               `${node ? node.labels.join(" + ") : "return_to"} is in a permit-locked system.`,
             );
