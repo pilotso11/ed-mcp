@@ -14,6 +14,7 @@ import { buildPool, joinPurposes, type PoolStop, type StopEntry } from "../route
 import { countCombinations, solveRoute } from "../routes/solve.js";
 import { RoutePendingError, type SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
+import { permitLookup, unknownPermitNote } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { wrap } from "./result.js";
 
@@ -414,14 +415,24 @@ export function registerRouteTools(
         }
         if (legs.some(([f, t]) => unfinished.has(key(f, t)))) notes.add(PLOT_PENDING_NOTE);
 
-        if (catalog) {
-          for (const i of solved.order) {
-            const name = nodes[i]!.engineer;
-            if (name && catalog.engineer(name).permit) {
-              notes.add(`${name} is in a permit-locked system.`);
-            }
+        const catalogPermit = (name: string | null) => !!name && !!catalog?.engineer(name).permit;
+        for (const i of solved.order) {
+          const name = nodes[i]!.engineer;
+          if (catalogPermit(name)) notes.add(`${name} is in a permit-locked system.`);
+        }
+        // The user chose the stops, so they stay. Placing them already loaded these systems
+        // into the Spansh cache.
+        const permits = permitLookup(deps.spansh);
+        for (const [, t] of legs) {
+          const node = t === n + 1 ? null : nodes[t]!;
+          if (catalogPermit(node?.engineer ?? null)) continue;
+          if ((await permits.check(places[t]!.system)) === true) {
+            notes.add(
+              `${node ? node.labels.join(" + ") : "return_to"} is in a permit-locked system.`,
+            );
           }
         }
+        for (const note of unknownPermitNote(permits.unknown())) notes.add(note);
 
         const total = min(totalSeconds);
         let saved = false;
