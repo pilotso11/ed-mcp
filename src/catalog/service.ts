@@ -18,6 +18,8 @@ export const CATALOG_SOURCES: Record<keyof RawSources, string> = {
     "https://raw.githubusercontent.com/EDCD/coriolis-data/develop/modifications/modules.json",
   materials: "https://raw.githubusercontent.com/EDCD/FDevIDs/master/material.csv",
   outfitting: "https://raw.githubusercontent.com/EDCD/FDevIDs/master/outfitting.csv",
+  actions:
+    "https://raw.githubusercontent.com/EDCD/coriolis-data/develop/modifications/modifierActions.json",
 };
 
 const KEYS = Object.keys(CATALOG_SOURCES) as Array<keyof RawSources>;

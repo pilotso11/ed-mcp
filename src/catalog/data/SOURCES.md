@@ -17,6 +17,7 @@ Downloaded at runtime to the user's cache, never committed or bundled:
 | modifications | https://raw.githubusercontent.com/EDCD/coriolis-data/develop/modifications/modules.json |
 | materials | https://raw.githubusercontent.com/EDCD/FDevIDs/master/material.csv |
 | outfitting | https://raw.githubusercontent.com/EDCD/FDevIDs/master/outfitting.csv |
+| actions | https://raw.githubusercontent.com/EDCD/coriolis-data/develop/modifications/modifierActions.json |
 
 These repositories do not grant an open licence for their data, which is
 Frontier Developments' intellectual property. Downloading them to the user's

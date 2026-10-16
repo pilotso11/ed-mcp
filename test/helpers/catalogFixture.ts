@@ -10,6 +10,7 @@ export async function rawFixture(): Promise<RawSources> {
     modifications: await f("coriolis-modifications-modules.json"),
     materials: await f("fdevids-material.csv"),
     outfitting: await f("fdevids-outfitting.csv"),
+    actions: await f("coriolis-modifierActions.json"),
   };
 }
 

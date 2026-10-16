@@ -30,6 +30,22 @@ function json(raw: string, label: string): Record<string, unknown> {
   }
 }
 
+// Object-valued features such as damagedist (a damage type change) are not modelled.
+const ranges = (f: Record<string, unknown> | undefined): Record<string, [number, number]> =>
+  Object.fromEntries(
+    Object.entries(f ?? {}).filter(
+      (e): e is [string, [number, number]] =>
+        Array.isArray(e[1]) && e[1].length === 2 && e[1].every((n) => typeof n === "number"),
+    ),
+  );
+
+const numbers = (o: unknown): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries((o ?? {}) as Record<string, unknown>).filter(
+      (e): e is [string, number] => typeof e[1] === "number",
+    ),
+  );
+
 const counts = (c: unknown): MaterialCount[] =>
   Object.entries((c ?? {}) as Record<string, number>).map(([name, count]) => ({ name, count }));
 
@@ -41,13 +57,14 @@ export function buildCatalog(
   const bpJson = json(raw.blueprints, "blueprints");
   const spJson = json(raw.specials, "specials");
   const modJson = json(raw.modifications, "modifications");
+  const actJson = json(raw.actions, "actions");
 
   const blueprints: Blueprint[] = Object.entries(bpJson).map(([id, v]) => {
     const b = v as {
       fdname?: string;
       name?: string;
       modulename?: string[];
-      grades?: Record<string, { components?: unknown }>;
+      grades?: Record<string, { components?: unknown; features?: Record<string, unknown> }>;
     };
     return {
       id: b.fdname ?? id,
@@ -56,16 +73,21 @@ export function buildCatalog(
       grades: Object.fromEntries(
         Object.entries(b.grades ?? {}).map(([g, x]) => [g, counts(x.components)]),
       ),
+      features: Object.fromEntries(
+        Object.entries(b.grades ?? {}).map(([g, x]) => [g, ranges(x.features)]),
+      ),
     };
   });
 
   const experimentals: Experimental[] = Object.entries(spJson).map(([id, v]) => {
     const s = v as { edname?: string; name?: string; description?: string; components?: unknown };
+    const edname = s.edname ?? id;
     return {
-      id: s.edname ?? id,
+      id: edname,
       name: s.name ?? id,
       description: s.description ?? "",
       materials: counts(s.components),
+      effects: numbers(actJson[edname]),
     };
   });
 

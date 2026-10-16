@@ -5,7 +5,7 @@ import path from "node:path";
 import knownShips from "../../src/catalog/data/ships.json" with { type: "json" };
 import { UserError } from "../../src/errors.js";
 import { HttpClient } from "../../src/http/client.js";
-import { ShipDataService } from "../../src/ships/data.js";
+import { buildShipData, ShipDataService } from "../../src/ships/data.js";
 import { fakeFetch } from "../helpers/fakeFetch.js";
 import { tarGz } from "../helpers/tarball.js";
 import { coriolisEntries, SHIP_STUBS } from "./fixture.js";
@@ -299,6 +299,38 @@ describe("ShipData index", () => {
     expect(d.module("10")).toBeNull();
     expect(d.module("Hpt_BeamLaser_Fixed_Small")).toMatchObject({ id: "10", grp: "bl" });
     expect(d.modulesInGroup("am").map((m) => m.id)).toEqual(["10"]);
+  });
+
+  it("finds a module within a group, where coriolis ids are unique", async () => {
+    const d = await data();
+    expect(d.module("10", "am")).toMatchObject({ grp: "am", symbol: "Int_Repairer_Size5_Class5" });
+    expect(d.module("10", "bl")).toMatchObject({ grp: "bl", symbol: "Hpt_BeamLaser_Fixed_Small" });
+    expect(d.module("int_hyperdrive_size5_class5", "fsd")).toMatchObject({ id: "F5" });
+    expect(d.module("1002", "fsd")).toMatchObject({ id: "F4" });
+    expect(d.module("Hpt_BeamLaser_Fixed_Small", "am")).toBeNull();
+    expect(d.module("10", "nope")).toBeNull();
+  });
+
+  it("lists the module categories of a group", async () => {
+    const d = await data();
+    expect(d.groupCategories("ft")).toEqual(["internal", "standard"]);
+    expect(d.groupCategories("bl")).toEqual(["hardpoints"]);
+    expect(d.groupCategories("nope")).toEqual([]);
+  });
+
+  it("records each ship's FDev symbol, or null for a ship the journal list lacks", async () => {
+    const d = await data();
+    expect(d.ship("imperial_corsair").fdevSymbol).toBe("corsair");
+    expect(d.ship("imperial_courier").fdevSymbol).toBe("empire_courier");
+    expect(d.ship("anaconda").fdevSymbol).toBe("anaconda");
+    expect(d.ship("type_10_defender").fdevSymbol).toBe("type9_military");
+    const extra = buildShipData(C1, {
+      "ships/new_ship.json": {
+        new_ship: { edID: 1, properties: { name: "New Ship" }, slots: {}, bulkheads: [] },
+      },
+      "modules/standard/x.json": { fsd: [{ id: "a", grp: "fsd", class: 1, rating: "A" }] },
+    });
+    expect(extra.ship("new_ship").fdevSymbol).toBeNull();
   });
 
   it("lists the modules in a group once each", async () => {

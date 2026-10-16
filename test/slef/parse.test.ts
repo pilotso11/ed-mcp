@@ -27,6 +27,13 @@ describe("parseSlef", () => {
         grade: 5,
         quality: 1,
         experimental: "special_corrosive_shell",
+        modifiers: expect.arrayContaining([
+          {
+            label: "DamagePerSecond",
+            value: expect.any(Number),
+            original_value: expect.any(Number),
+          },
+        ]),
       },
     });
     expect(b!.modules.find((m) => m.slot === "CargoHatch")?.kind).toBe("other");
@@ -89,6 +96,31 @@ describe("parseSlef", () => {
     });
     expect(b!.modules.map((m) => m.slot)).toEqual(["PowerPlant"]);
     expect(b!.modules[0]).toMatchObject({ item: "int_powerplant_size2_class1", slot_size: 2 });
+  });
+
+  it("keeps numeric engineering modifiers and skips text ones", () => {
+    const [b] = parseSlef({
+      data: {
+        Ship: "krait_mkii",
+        Modules: [
+          {
+            Slot: "Slot01_Size6",
+            Item: "int_guardianhullreinforcement_size5_class2",
+            Engineering: {
+              BlueprintName: "Misc_Shielded",
+              Level: 1,
+              Modifiers: [
+                { Label: "Mass", Value: 10, OriginalValue: 8 },
+                { Label: "GuardianModuleResistance", ValueStr: "$INT_PANEL_module_resistance;" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(b!.modules[0]!.engineering!.modifiers).toEqual([
+      { label: "Mass", value: 10, original_value: 8 },
+    ]);
   });
 
   it("rejects input that is not SLEF", () => {

@@ -55,17 +55,26 @@ export interface CoriolisModule {
   [k: string]: unknown;
 }
 
+/** A slot with a name, such as "Military" or "Mining", limited to some module groups. */
+export interface NamedSlot {
+  class: number;
+  name?: string;
+  eligible?: Record<string, unknown>;
+}
+
 export interface ShipHull {
   key: string;
   name: string;
   edID: number;
   /** FDev symbols that name this ship, lower case. */
   symbols: string[];
+  /** The journal and SLEF `Ship` value, or null for a ship the journal ship list lacks. */
+  fdevSymbol: string | null;
   properties: Record<string, number | string>;
   slots: {
     standard: number[];
-    hardpoints: number[];
-    internal: Array<number | { class: number; name?: string }>;
+    hardpoints: Array<number | NamedSlot>;
+    internal: Array<number | NamedSlot>;
   };
   bulkheads: CoriolisModule[];
   defaults?: unknown;
@@ -74,8 +83,11 @@ export interface ShipHull {
 export interface ShipData {
   commit: string;
   ship(nameOrSymbol: string): ShipHull;
-  module(symbolOrId: string): CoriolisModule | null;
+  /** With `grp`, looks only in that group, where coriolis ids are unique. */
+  module(symbolOrId: string, grp?: string): CoriolisModule | null;
   modulesInGroup(grp: string): CoriolisModule[];
+  /** The coriolis-data folders that list the group: "standard", "hardpoints" or "internal". */
+  groupCategories(grp: string): string[];
 }
 
 interface Snapshot {
@@ -95,6 +107,7 @@ export function buildShipData(commit: string, files: Record<string, unknown>): S
   const hulls = new Map<string, ShipHull>();
   const shipBy = new Map<string, ShipHull>();
   const groups = new Map<string, CoriolisModule[]>();
+  const categories = new Map<string, Set<string>>();
   const bySymbol = new Map<string, CoriolisModule>();
   const byEdId = new Map<string, CoriolisModule>();
   // null marks an id that modules in two groups share.
@@ -118,6 +131,7 @@ export function buildShipData(commit: string, files: Record<string, unknown>): S
           name: String(properties.name ?? key),
           edID: Number(raw.edID),
           symbols: [],
+          fdevSymbol: null,
           properties,
           slots: raw.slots as ShipHull["slots"],
           bulkheads: (raw.bulkheads ?? []) as CoriolisModule[],
@@ -131,13 +145,15 @@ export function buildShipData(commit: string, files: Record<string, unknown>): S
       }
       continue;
     }
-    if (!/^modules\/.+\.json$/.test(p)) continue;
+    const category = /^modules\/([^/]+)\/.+\.json$/.exec(p)?.[1];
+    if (!category) continue;
     for (const list of Object.values(json)) {
       if (!Array.isArray(list)) continue;
       for (const m of list as CoriolisModule[]) {
         if (!isObject(m) || typeof m.id !== "string" || typeof m.grp !== "string") continue;
         const group = groups.get(m.grp) ?? [];
         groups.set(m.grp, group);
+        categories.set(m.grp, (categories.get(m.grp) ?? new Set()).add(category));
         // Fuel tanks appear under both standard and internal modules.
         if (group.some((x) => x.id === m.id)) continue;
         group.push(m);
@@ -157,7 +173,10 @@ export function buildShipData(commit: string, files: Record<string, unknown>): S
     if (hull) add(norm(symbol), hull);
   }
   for (const symbol of new Set([...Object.keys(knownShips), ...Object.keys(SHIP_ALIASES)])) {
-    shipBy.get(norm(symbol))?.symbols.push(symbol);
+    const hull = shipBy.get(norm(symbol));
+    if (!hull) continue;
+    hull.symbols.push(symbol);
+    if (symbol in knownShips) hull.fdevSymbol ??= symbol;
   }
   for (const hull of hulls.values()) {
     hull.symbols = [...new Set([...hull.symbols, norm(hull.key), norm(hull.name)])];
@@ -177,7 +196,17 @@ export function buildShipData(commit: string, files: Record<string, unknown>): S
         .map((x) => x.n);
       throw new UserError(`Unknown ship "${nameOrSymbol}". Closest: ${closest.join(", ")}`);
     },
-    module(symbolOrId) {
+    module(symbolOrId, grp) {
+      if (grp !== undefined) {
+        const q = symbolOrId.toLowerCase();
+        const list = groups.get(grp) ?? [];
+        return (
+          list.find((m) => m.symbol?.toLowerCase() === q) ??
+          list.find((m) => String(m.edID) === symbolOrId) ??
+          list.find((m) => m.id === symbolOrId) ??
+          null
+        );
+      }
       return (
         bySymbol.get(symbolOrId.toLowerCase()) ??
         byEdId.get(symbolOrId) ??
@@ -187,6 +216,9 @@ export function buildShipData(commit: string, files: Record<string, unknown>): S
     },
     modulesInGroup(grp) {
       return groups.get(grp) ?? [];
+    },
+    groupCategories(grp) {
+      return [...(categories.get(grp) ?? [])].sort();
     },
   };
 }

@@ -19,6 +19,7 @@ async function setup() {
     "modules.json": "modifications",
     "material.csv": "materials",
     "outfitting.csv": "outfitting",
+    "modifierActions.json": "actions",
   };
   const f = fakeFetch([
     { match: () => true, respond: (u) => new Response(raw[byFile[u.split("/").pop()!]!]) },

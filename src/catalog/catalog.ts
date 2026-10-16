@@ -208,6 +208,27 @@ export class Catalog {
     return { ...m, same_group: same, trade_rules: TRADE_RULES };
   }
 
+  /** Coriolis feature ranges, [min, max], for a blueprint id at a grade, or null. */
+  blueprintFeatures(blueprintId: string, grade: number): Record<string, [number, number]> | null {
+    const b = this.d.blueprints.find((x) => x.id === blueprintId);
+    return b?.features?.[String(grade)] ?? null;
+  }
+
+  /** The fixed numeric changes an experimental effect makes, by coriolis feature. */
+  experimentalEffects(experimentalId: string): Record<string, number> {
+    return this.d.experimentals.find((e) => e.id === experimentalId)?.effects ?? {};
+  }
+
+  /** Blueprint ids that apply to a coriolis module group. */
+  blueprintsForGroup(grp: string): string[] {
+    return Object.keys(this.d.groups.find((g) => g.id === grp)?.blueprints ?? {});
+  }
+
+  experimentalsForGroup(grp: string): Experimental[] {
+    const ids = new Set(this.d.groups.find((g) => g.id === grp)?.experimentals ?? []);
+    return this.d.experimentals.filter((e) => ids.has(e.id));
+  }
+
   /** Exact symbol lookup that never throws, for callers with many symbols. */
   moduleBySymbol(symbol: string): (OutfittingItem & { group: string | null }) | null {
     const o = this.outfittingBySymbol.get(symbol.toLowerCase());

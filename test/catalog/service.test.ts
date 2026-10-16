@@ -14,6 +14,7 @@ const SOURCES: Record<keyof RawSources, string> = {
   modifications: "https://raw.test/modules.json",
   materials: "https://raw.test/material.csv",
   outfitting: "https://raw.test/outfitting.csv",
+  actions: "https://raw.test/modifierActions.json",
 };
 const DAY = 86_400_000;
 
@@ -61,7 +62,7 @@ describe("CatalogService", () => {
     const s = service(f);
     const cat = await s.get();
     expect(cat.counts().blueprints).toBe(3);
-    expect(f.calls).toHaveLength(5);
+    expect(f.calls).toHaveLength(6);
     expect(await readFile(path.join(dir, "catalog", "materials.raw"), "utf8")).toBe(raw.materials);
     const meta = JSON.parse(await readFile(path.join(dir, "catalog", "meta.json"), "utf8"));
     expect(meta.files.blueprints.etag).toMatch(/^"blueprints-/);
@@ -80,7 +81,7 @@ describe("CatalogService", () => {
     await s.get();
     expect(await s.refresh()).toEqual({
       changed: [],
-      unchanged: ["blueprints", "specials", "modifications", "materials", "outfitting"],
+      unchanged: ["blueprints", "specials", "modifications", "materials", "outfitting", "actions"],
       warnings: expect.any(Number),
     });
   });
@@ -141,7 +142,7 @@ describe("CatalogService", () => {
     await s.get();
     // The refresh runs in the background; a slow CI runner needs more than a fixed delay.
     await vi.waitFor(() => expect(s.status().checked_at).toBe(new Date(t).toISOString()));
-    expect(f.calls.length).toBe(10);
+    expect(f.calls.length).toBe(12);
   });
 
   it("peek returns null without fetching when nothing is cached", async () => {
@@ -174,6 +175,6 @@ describe("CatalogService", () => {
     await writeFile(path.join(dir, "catalog", "blueprints.raw"), "{");
     const f2 = upstream(() => raw);
     expect((await service(f2).get()).counts().blueprints).toBe(3);
-    expect(f2.calls.length).toBe(5);
+    expect(f2.calls.length).toBe(6);
   });
 });

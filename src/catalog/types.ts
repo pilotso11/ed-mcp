@@ -14,12 +14,16 @@ export interface Blueprint {
   name: string;
   modules: string[];
   grades: Record<string, MaterialCount[]>;
+  /** Coriolis feature ranges, [min, max], by grade. */
+  features?: Record<string, Record<string, [number, number]>>;
 }
 export interface Experimental {
   id: string;
   name: string;
   description: string;
   materials: MaterialCount[];
+  /** Fixed numeric changes by coriolis feature, from coriolis-data modifierActions.json. */
+  effects?: Record<string, number>;
 }
 export interface ModuleGroup {
   id: string;
@@ -55,6 +59,8 @@ export interface RawSources {
   modifications: string;
   materials: string;
   outfitting: string;
+  /** coriolis-data modifierActions.json: the fixed values of experimental effects. */
+  actions: string;
 }
 export interface Statics {
   engineers: Engineer[];
