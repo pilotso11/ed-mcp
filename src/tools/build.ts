@@ -8,11 +8,14 @@ import type { JournalService } from "../journal/service.js";
 import type { PlanStore } from "../plans/store.js";
 import {
   applyChanges,
+  assemble,
   type Build,
   type Change,
-  fromCapi,
-  fromLoadout,
-  fromSlef,
+  type LoadedBuild,
+  needsCatalog,
+  readCapi,
+  readLoadout,
+  readSlef,
   toSlef,
 } from "../ships/build.js";
 import { jumpRange, massFuel, power, speed } from "../ships/calc/core.js";
@@ -83,8 +86,14 @@ export function registerBuildStatsTool(server: McpServer, deps: Deps): void {
     },
     wrap(async ({ build, changes }: { build?: BuildArg; changes?: Change[] }) => {
       const data = await deps.ships.get();
-      const { catalog, error } = await loadCatalog(deps, Boolean(changes?.length));
-      const original = await load(build ?? { journal: true }, deps, data, catalog);
+      const { loaded, notes } = await read(build ?? { journal: true }, deps, data);
+      const required = Boolean(changes?.length);
+      const { catalog, error } =
+        required || needsCatalog(loaded)
+          ? await loadCatalog(deps, required)
+          : { catalog: null, error: undefined };
+      const original = assemble(loaded, data, catalog);
+      original.notes.unshift(...notes);
       if (error && original.notes.some((n) => n.includes("the catalog is not available"))) {
         original.notes.push(`The game data catalog failed to load: ${error}`);
       }
@@ -122,13 +131,13 @@ async function loadCatalog(
   }
 }
 
-async function load(
+/** The build from its source, with notes about how it was read. */
+async function read(
   arg: BuildArg,
   deps: Deps,
   data: ShipData,
-  catalog: Catalog | null,
-): Promise<Build> {
-  if ("slef" in arg) return fromSlefInput(arg.slef, data, catalog);
+): Promise<{ loaded: LoadedBuild; notes: string[] }> {
+  if ("slef" in arg) return readSlefInput(arg.slef, data);
   if ("journal" in arg) {
     if (!deps.journal) throw new NotConfiguredError("Journal", ["ED_JOURNAL_DIR"]);
     const event = await deps.journal.latestLoadout();
@@ -137,13 +146,13 @@ async function load(
         "No Loadout event in the journal from the last 14 days. Start the game, or pass the build as SLEF.",
       );
     }
-    return fromLoadout(event, data);
+    return { loaded: readLoadout(event, data), notes: [] };
   }
   if ("capi" in arg) {
     if (!deps.capi) throw new UserError("Frontier CAPI is not available.");
     const { ship } = await deps.capi.profile();
     if (!ship) throw new UserError("Frontier CAPI reports no current ship.");
-    return fromCapi(ship, data, catalog);
+    return { loaded: readCapi(ship, data), notes: [] };
   }
   if (!deps.plans) throw new UserError("Plans are not available.");
   const plan = await deps.plans.get(arg.plan_id);
@@ -151,20 +160,20 @@ async function load(
     throw new UserError(`Plan "${arg.plan_id}" has no target_build.`);
   }
   try {
-    return { ...fromSlefInput(plan.target_build, data, catalog), source: "plan" };
+    const { loaded, notes } = readSlefInput(plan.target_build, data);
+    return { loaded: { ...loaded, source: "plan" }, notes };
   } catch (err) {
     if (!(err instanceof UserError)) throw err;
     throw new UserError(`Plan "${arg.plan_id}" target_build is not usable SLEF: ${err.message}`);
   }
 }
 
-function fromSlefInput(slef: unknown, data: ShipData, catalog: Catalog | null): Build {
+function readSlefInput(slef: unknown, data: ShipData): { loaded: LoadedBuild; notes: string[] } {
   const builds = parseSlef(slef);
-  const build = fromSlef(builds[0]!, data, catalog);
-  if (builds.length > 1) {
-    build.notes.unshift(`The SLEF holds ${builds.length} builds; this is the first.`);
-  }
-  return build;
+  return {
+    loaded: readSlef(builds[0]!, data),
+    notes: builds.length > 1 ? [`The SLEF holds ${builds.length} builds; this is the first.`] : [],
+  };
 }
 
 function statsOf(b: Build) {

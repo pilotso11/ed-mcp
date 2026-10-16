@@ -51,6 +51,7 @@ interface Opts {
   plan?: Record<string, unknown>;
   catalogError?: string;
   noActions?: boolean;
+  catalogCalls?: { n: number };
 }
 
 async function client(o: Opts = {}) {
@@ -60,6 +61,7 @@ async function client(o: Opts = {}) {
     ships: (o.ships ?? { get: async () => shipData() }) as ShipDataService,
     catalog: {
       get: async () => {
+        if (o.catalogCalls) o.catalogCalls.n++;
         if (o.catalogError) throw new Error(o.catalogError);
         return cat;
       },
@@ -194,6 +196,31 @@ describe("build_stats sources", () => {
     ).json as any;
     expect(j.notes.some((n: string) => n.includes("no fixed values"))).toBe(false);
     expect(j.diff).toEqual({});
+  });
+
+  it("loads the catalog only when the build or the changes need it", async () => {
+    const calls = { n: 0 };
+    await stats({}, { catalogCalls: calls });
+    const bare = { ...capiShip, modules: [{ ...capiShip.modules[0]!, engineering: null }] };
+    await stats({ build: { capi: true } }, { catalogCalls: calls, capiShip: bare });
+    await stats({ build: { slef: slefText } }, { catalogCalls: calls });
+    expect(calls.n).toBe(0);
+    await stats({ build: { capi: true } }, { catalogCalls: calls });
+    expect(calls.n).toBe(1);
+    await stats({ changes: [{ slot: "fsd", grade: 5 }] }, { catalogCalls: calls });
+    expect(calls.n).toBe(2);
+  });
+
+  it("uses the best roll for journal engineering without modifier values", async () => {
+    const event = loadout("mamba");
+    const fsd = (event.Modules as Array<Record<string, any>>).find(
+      (m) => m.Slot === "FrameShiftDrive",
+    )!;
+    delete fsd.Engineering.Modifiers;
+    const j = (await stats({}, { loadout: event })).json as any;
+    expect(j.notes).toEqual([
+      "Engineering without modifier values (FrameShiftDrive) uses the best roll for its blueprint and grade.",
+    ]);
   });
 
   it("reads a plan's target_build", async () => {

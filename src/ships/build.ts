@@ -297,19 +297,27 @@ interface LoadedModule {
   } | null;
 }
 
+/** A build as read from its source, before its modules and engineering are looked up. */
+export interface LoadedBuild {
+  hull: ShipHull;
+  source: Build["source"];
+  modules: LoadedModule[];
+  gameReported?: Build["gameReported"];
+}
+
+/** True when some engineering has no modifier values, so its best roll needs the catalog. */
+export function needsCatalog(loaded: LoadedBuild): boolean {
+  return loaded.modules.some((m) => m.engineering && !m.engineering.modifiers);
+}
+
 /** Builds the model from loaded modules. Unknown modules are noted and left out. */
-function assemble(
-  hull: ShipHull,
-  source: Build["source"],
-  loaded: LoadedModule[],
-  data: ShipData,
-  catalog: Catalog | null,
-): Build {
+export function assemble(loaded: LoadedBuild, data: ShipData, catalog: Catalog | null): Build {
+  const { hull, source } = loaded;
   const notes: string[] = [];
   const bestRolled: string[] = [];
   const modules: BuiltModule[] = [];
   let cargoHatch: Build["cargoHatch"];
-  for (const l of loaded) {
+  for (const l of loaded.modules) {
     if (l.slot.toLowerCase() === "cargohatch") {
       cargoHatch = { on: l.on ?? true, priority: (l.priority ?? 0) + 1 };
       continue;
@@ -364,7 +372,14 @@ function assemble(
       `Engineering without modifier values (${bestRolled.join(", ")}) uses the best roll for its blueprint and grade.`,
     );
   }
-  return { ship: hull, modules, source, notes, ...(cargoHatch ? { cargoHatch } : {}) };
+  return {
+    ship: hull,
+    modules,
+    source,
+    notes,
+    ...(loaded.gameReported ? { gameReported: loaded.gameReported } : {}),
+    ...(cargoHatch ? { cargoHatch } : {}),
+  };
 }
 
 const slefModifiers = (list: SlefModifier[]) =>
@@ -372,11 +387,11 @@ const slefModifiers = (list: SlefModifier[]) =>
     list.map((m) => ({ Label: m.label, Value: m.value, OriginalValue: m.original_value })),
   );
 
-export function fromSlef(slef: SlefBuild, data: ShipData, catalog: Catalog | null): Build {
-  return assemble(
-    data.ship(slef.ship),
-    "slef",
-    slef.modules.map((m) => ({
+export function readSlef(slef: SlefBuild, data: ShipData): LoadedBuild {
+  return {
+    hull: data.ship(slef.ship),
+    source: "slef",
+    modules: slef.modules.map((m) => ({
       slot: m.slot,
       item: m.item,
       on: m.on,
@@ -388,9 +403,11 @@ export function fromSlef(slef: SlefBuild, data: ShipData, catalog: Catalog | nul
         modifiers: m.engineering.modifiers ? slefModifiers(m.engineering.modifiers) : null,
       },
     })),
-    data,
-    catalog,
-  );
+  };
+}
+
+export function fromSlef(slef: SlefBuild, data: ShipData, catalog: Catalog | null): Build {
+  return assemble(readSlef(slef, data), data, catalog);
 }
 
 interface RawLoadoutModule {
@@ -407,7 +424,7 @@ interface RawLoadoutModule {
 }
 
 /** A journal `Loadout` event. Its modifier values are the game's own. */
-export function fromLoadout(event: Record<string, unknown>, data: ShipData): Build {
+export function readLoadout(event: Record<string, unknown>, data: ShipData): LoadedBuild {
   if (typeof event.Ship !== "string" || !Array.isArray(event.Modules)) {
     throw new UserError("Not a Loadout event: expected Ship and Modules.");
   }
@@ -427,25 +444,39 @@ export function fromLoadout(event: Record<string, unknown>, data: ShipData): Bui
                 grade: typeof e.Level === "number" ? e.Level : 0,
                 experimental:
                   typeof e.ExperimentalEffect === "string" ? e.ExperimentalEffect : null,
-                modifiers: fromJournalModifiers(e.Modifiers),
+                modifiers:
+                  Array.isArray(e.Modifiers) && e.Modifiers.length
+                    ? fromJournalModifiers(e.Modifiers)
+                    : null,
               }
             : null,
       },
     ];
   });
-  const build = assemble(data.ship(event.Ship), "journal", loaded, data, null);
-  if (typeof event.UnladenMass === "number" && typeof event.MaxJumpRange === "number") {
-    build.gameReported = { unladen_t: event.UnladenMass, max_jump_ly: event.MaxJumpRange };
-  }
-  return build;
+  return {
+    hull: data.ship(event.Ship),
+    source: "journal",
+    modules: loaded,
+    ...(typeof event.UnladenMass === "number" && typeof event.MaxJumpRange === "number"
+      ? { gameReported: { unladen_t: event.UnladenMass, max_jump_ly: event.MaxJumpRange } }
+      : {}),
+  };
+}
+
+export function fromLoadout(
+  event: Record<string, unknown>,
+  data: ShipData,
+  catalog: Catalog | null = null,
+): Build {
+  return assemble(readLoadout(event, data), data, catalog);
 }
 
 /** The current CAPI ship. CAPI has no modifier values, so engineering uses best rolls. */
-export function fromCapi(ship: CapiShip, data: ShipData, catalog: Catalog | null): Build {
-  return assemble(
-    data.ship(ship.type),
-    "capi",
-    ship.modules.map((m) => ({
+export function readCapi(ship: CapiShip, data: ShipData): LoadedBuild {
+  return {
+    hull: data.ship(ship.type),
+    source: "capi",
+    modules: ship.modules.map((m) => ({
       slot: m.slot,
       item: m.item,
       on: m.on,
@@ -457,9 +488,11 @@ export function fromCapi(ship: CapiShip, data: ShipData, catalog: Catalog | null
         modifiers: null,
       },
     })),
-    data,
-    catalog,
-  );
+  };
+}
+
+export function fromCapi(ship: CapiShip, data: ShipData, catalog: Catalog | null): Build {
+  return assemble(readCapi(ship, data), data, catalog);
 }
 
 /** The catalog id of a blueprint name or key, checked against the module. */
