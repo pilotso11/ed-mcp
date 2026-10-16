@@ -34,7 +34,15 @@ export async function acquireLock(
         if (held === token) await unlink(lock).catch(() => undefined);
       };
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      const code = (err as NodeJS.ErrnoException).code;
+      // Windows reports EPERM (sometimes EACCES) while another process's unlink of the
+      // lock is still pending. Wait for it; at the deadline, report the real error.
+      if (process.platform === "win32" && (code === "EPERM" || code === "EACCES")) {
+        if (Date.now() >= deadline) throw err;
+        await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+        continue;
+      }
+      if (code !== "EEXIST") throw err;
     }
     try {
       if (Date.now() - (await stat(lock)).mtimeMs > LOCK_STALE_MS) {
