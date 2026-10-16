@@ -1,4 +1,5 @@
-// Real coriolis-data extracts, cut down to the ships and modules that the build fixtures use.
+// Test data only: small extracts of coriolis-data, cut down to the ships and modules that the
+// build fixtures use. ed-mcp itself never ships this data; it downloads coriolis-data at run time.
 import { readFileSync } from "node:fs";
 import { buildCatalog } from "../../src/catalog/build.js";
 import type { Catalog } from "../../src/catalog/catalog.js";
