@@ -55,13 +55,34 @@ describe("FDev modifier labels", () => {
     expect(armour.hullboost).toBeCloseTo(3.9896, 4);
   });
 
-  it("ignore labels that are not modelled, such as DamagePerSecond", () => {
+  it("ignore labels that are not modelled", () => {
     expect(
       fromJournalModifiers([
-        { Label: "DamagePerSecond", Value: 2, OriginalValue: 1 },
+        { Label: "ThermalDrain", Value: 2, OriginalValue: 1 },
         { Label: "Mass", Value: 2, OriginalValue: 1 },
       ]),
     ).toEqual({ mass: 2 });
+  });
+
+  it("read the damage change from DamagePerSecond when no Damage label is given", () => {
+    // A beam (EDSY and the game give only DamagePerSecond for Efficient beams).
+    expect(
+      fromJournalModifiers([{ Label: "DamagePerSecond", Value: 22.6548, OriginalValue: 20.3 }]),
+    ).toEqual({ damage: 22.6548 / 20.3 });
+    // A rate of fire change accounts for all of the dps change: damage is unchanged.
+    const lr = fromJournalModifiers([
+      { Label: "DamagePerSecond", Value: 10.862069, OriginalValue: 12.068966 },
+      { Label: "RateOfFire", Value: 3.103448, OriginalValue: 3.448276 },
+    ]);
+    expect(lr.damage).toBeCloseTo(1, 6);
+    expect(lr.rof).toBeCloseTo(0.9, 6);
+    // A Damage label wins.
+    expect(
+      fromJournalModifiers([
+        { Label: "DamagePerSecond", Value: 3, OriginalValue: 1 },
+        { Label: "Damage", Value: 2, OriginalValue: 1 },
+      ]),
+    ).toEqual({ damage: 2 });
   });
 
   it("round-trip through journal modifiers", () => {

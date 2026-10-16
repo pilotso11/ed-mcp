@@ -93,12 +93,19 @@ const generatedMw = (b: Build) => {
   return pp ? moduleStat(pp, "pgen") : 0;
 };
 
-/** Coriolis getSlotStatus: a module is online while retracted use up to its priority fits. */
-function online(b: Build, m: BuiltModule): boolean {
-  const retracted = bands(b)
+/**
+ * Coriolis getSlotStatus: a module is online while the power use up to its priority fits,
+ * counting deployed use for weapons and other modules that draw power only when deployed.
+ * Unlike Coriolis, a module that draws no power (an HRP, say) stays online.
+ */
+export function online(b: Build, m: BuiltModule): boolean {
+  if (!m.on) return false;
+  if (moduleStat(m, "power") === 0) return true;
+  const deployed = deployedOnly(m);
+  const used = bands(b)
     .slice(0, clampPriority(m.priority))
-    .reduce((s, x) => s + x.retracted, 0);
-  return m.on && retracted < generatedMw(b);
+    .reduce((s, x) => s + x.retracted + (deployed ? x.deployed : 0), 0);
+  return used < generatedMw(b);
 }
 
 export function power(b: Build) {

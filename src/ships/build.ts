@@ -15,6 +15,7 @@ import {
   type SlotKind,
 } from "../slef/parse.js";
 import { VERSION } from "../version.js";
+import { MODULE_GROUP_NAMES } from "./constants.js";
 import type { CoriolisModule, NamedSlot, ShipData, ShipHull } from "./data.js";
 import {
   applyExperimental,
@@ -256,9 +257,11 @@ function bulkheadItem(hull: ShipHull, module: CoriolisModule): string {
   return `${hull.fdevSymbol ?? hull.key}_armour_${suffix ?? "grade1"}`;
 }
 
-const groupLabel = (grp: string) => GROUP_NAMES[grp]?.[0] ?? grp;
+// Coriolis's group names first: groups.json lists names alphabetically, so its first name for
+// multi-cannons is "Enforcer Cannon".
+const groupLabel = (grp: string) => MODULE_GROUP_NAMES[grp] ?? GROUP_NAMES[grp]?.[0] ?? grp;
 
-function moduleLabel(m: CoriolisModule): string {
+export function moduleLabel(m: CoriolisModule): string {
   if (m.grp === "bh") return m.name ?? "Bulkheads";
   const mount = typeof m.mount === "string" && MOUNTS[m.mount] ? `${MOUNTS[m.mount]} ` : "";
   return `${m.class}${m.rating} ${mount}${m.name ?? groupLabel(m.grp)}`;

@@ -225,8 +225,15 @@ interface JournalModifier {
 export function fromJournalModifiers(list: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!Array.isArray(list)) return out;
+  let dps: number | undefined;
   for (const m of list as JournalModifier[]) {
     if (typeof m?.Label !== "string" || typeof m.Value !== "number") continue;
+    if (labelKey(m.Label) === "damagepersecond") {
+      if (typeof m.OriginalValue === "number" && m.OriginalValue !== 0) {
+        dps = m.Value / m.OriginalValue;
+      }
+      continue;
+    }
     const feature = LABEL_BY_KEY.get(labelKey(m.Label));
     if (!feature) continue;
     const k = kind(feature);
@@ -237,6 +244,10 @@ export function fromJournalModifiers(list: unknown): Record<string, number> {
       out[feature] = m.Value / m.OriginalValue;
     }
   }
+  // Beams (and EDSY for every weapon) give DamagePerSecond, often without Damage. What the
+  // rate of fire does not explain is the damage change. Coriolis reads DamagePerSecond as
+  // Damage, which counts a rate of fire change twice.
+  if (dps !== undefined && out.damage === undefined) out.damage = dps / (out.rof ?? 1);
   return out;
 }
 
