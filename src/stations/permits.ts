@@ -59,6 +59,21 @@ export function unknownPermitNote(systems: string[]): string[] {
   return systems.length ? [`Could not check permits for: ${systems.join(", ")}.`] : [];
 }
 
+const TIMED_OUT = Symbol("timed out");
+
+async function within<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  if (!Number.isFinite(ms)) return p;
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), Math.max(0, ms));
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
 function listSystems(names: string[]): string {
@@ -124,9 +139,17 @@ export async function screenPermits<T>(a: {
       if (!lookup.has(ref.name)) stop ??= stopReason();
       if (stop && !lookup.has(ref.name)) {
         missed = true;
+        open = false;
         continue;
       }
-      const permit = await lookup.check(ref);
+      // The deadline also bounds a lookup in flight; HttpClient's timeout and retry can take ~32 s.
+      const permit = await within(lookup.check(ref), deadline - now());
+      if (permit === TIMED_OUT) {
+        stop = "time limit";
+        missed = true;
+        open = false;
+        continue;
+      }
       if (permit === null) open = false;
       if (permit === true) {
         needsPermit = true;

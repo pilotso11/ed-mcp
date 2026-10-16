@@ -251,6 +251,42 @@ describe("screenPermits", () => {
     ]);
   });
 
+  it("gives up on a lookup still in flight at the deadline", async () => {
+    const { spansh, systemPermit } = fakeSpansh({ S0: false, S1: false });
+    const answer = systemPermit.getMockImplementation()!;
+    systemPermit.mockImplementation((id64) =>
+      id64 === "id:S1" ? new Promise<boolean>(() => undefined) : answer(id64),
+    );
+    const started = Date.now();
+    const r = await screenPermits({
+      items: [at("S0"), at("S1")],
+      limit: 2,
+      mode: "exclude",
+      systemsOf: one,
+      spansh,
+      deadline: started + 50,
+    });
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(r.kept.map((s) => s.system)).toEqual(["S0", "S1"]);
+    expect(r.checkedOpen.map((s) => s.system)).toEqual(["S0"]);
+    expect(r.notes).toEqual(["Permits not checked for 1 station (time limit)."]);
+  });
+
+  it("does not count an item with an unchecked system as checked", async () => {
+    const { spansh } = fakeSpansh({ Sol: true, Lave: false });
+    const loop = { systems: ["Sol", "Lave"] };
+    const r = await screenPermits({
+      items: [loop],
+      limit: 1,
+      mode: "allow",
+      systemsOf: refs,
+      spansh,
+      maxSystems: 1,
+    });
+    expect(r.kept).toEqual([loop]);
+    expect(r.checkedOpen).toEqual([]);
+  });
+
   it("stops calling Spansh after a transport failure", async () => {
     const { spansh, looked } = fakeSpansh({ S0: false, S1: "down", S2: false, S3: false });
     const r = await screenPermits({
