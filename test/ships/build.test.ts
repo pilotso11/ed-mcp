@@ -160,12 +160,16 @@ describe("fromCapi", () => {
       ident: null,
       value: null,
       modules: Object.entries(
-        profile.ship.modules as Record<string, { module: { name: string; on: boolean } }>,
+        profile.ship.modules as Record<
+          string,
+          { module: { name: string; on: boolean; priority: number } }
+        >,
       ).map(([s, m]) => ({
         slot: s,
         item: m.module.name.toLowerCase(),
         name: null,
         on: m.module.on,
+        priority: m.module.priority,
         engineering:
           s === "FrameShiftDrive"
             ? {
@@ -184,6 +188,8 @@ describe("fromCapi", () => {
       ["FrameShiftDrive", "LargeHardpoint1", "Slot01_Size6", "Slot03_Size5"].sort(),
     );
     expect(slot(b, "FrameShiftDrive")!.engineering!.modifiers.optmass).toBeCloseTo(1.55 * 1.04, 9);
+    expect(slot(b, "FrameShiftDrive")!.priority).toBe(1);
+    expect(slot(b, "Slot03_Size5")!.priority).toBe(2);
     expect(b.notes).toEqual([
       "Engineering without modifier values (FrameShiftDrive) uses the best roll for its blueprint and grade.",
     ]);

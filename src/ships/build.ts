@@ -480,7 +480,7 @@ export function readCapi(ship: CapiShip, data: ShipData): LoadedBuild {
       slot: m.slot,
       item: m.item,
       on: m.on,
-      priority: null,
+      priority: m.priority,
       engineering: m.engineering && {
         blueprint: m.engineering.blueprint,
         grade: m.engineering.grade,

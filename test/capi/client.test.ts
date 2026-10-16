@@ -88,6 +88,7 @@ describe("CapiClient", () => {
       item: "int_hyperdrive_size5_class5",
       name: "Frame Shift Drive",
       on: true,
+      priority: 0,
       engineering: {
         blueprint: "FSD_LongRange",
         grade: 5,
@@ -95,6 +96,7 @@ describe("CapiClient", () => {
         experimental: "special_fsd_heavy",
       },
     });
+    expect(p.ship!.modules.find((m) => m.slot === "Slot03_Size5")!.priority).toBe(1);
     expect(p.ships.map((s) => s.id).sort()).toEqual([2, 7]);
     expect(p.ships.find((s) => s.id === 2)).toMatchObject({
       system: "Lalande 37120",

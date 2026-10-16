@@ -38,6 +38,7 @@ const capiShip: NonNullable<CapiProfile["ship"]> = {
       item: "Int_Hyperdrive_Size5_Class5",
       name: null,
       on: true,
+      priority: 0,
       engineering: { blueprint: "FSD_LongRange", grade: 5, engineer: null, experimental: null },
     },
   ],
