@@ -45,6 +45,10 @@
       "description": "Parse a SLEF build from EDSY, Coriolis or Inara"
     },
     {
+      "name": "build_stats",
+      "description": "Ship build numbers and what-if changes: jump range, power, defences, damage"
+    },
+    {
       "name": "catalog_blueprint",
       "description": "Blueprint materials per grade and experimentals"
     },

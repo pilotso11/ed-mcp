@@ -10,6 +10,7 @@ import type { JournalService } from "./journal/service.js";
 import type { PlanStore } from "./plans/store.js";
 import type { PreferencesStore } from "./prefs/store.js";
 import type { ShipDataService } from "./ships/data.js";
+import { registerBuildStatsTool } from "./tools/build.js";
 import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
 import { registerCapiTools } from "./tools/capi.js";
@@ -115,5 +116,14 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.journal) registerJournalTools(server, { journal: deps.journal, catalog: deps.catalog });
   if (deps.journal) registerStationTools(server, { journal: deps.journal, catalog: deps.catalog });
   registerBuildTools(server, { catalog: deps.catalog });
+  if (deps.ships) {
+    registerBuildStatsTool(server, {
+      ships: deps.ships,
+      catalog: deps.catalog,
+      journal: deps.journal,
+      capi: deps.capi,
+      plans: deps.plans,
+    });
+  }
   return server;
 }

@@ -13,5 +13,34 @@ test fixtures (https://github.com/EDCD/coriolis, __tests__/fixtures/), Copyright
 2015 Coriolis.io, Colin McLeod, licensed under the MIT License. They were cut down to the
 components and statistics that the tests use.
 
+The ship calculations in src/ships/ (mass, jump range, power, speed, shields, armour and
+weapon damage) are ported from Coriolis (https://github.com/EDCD/coriolis),
+src/app/shipyard/Calculations.js, Module.js, Ship.js, Constants.js and ModuleUtils.js, and
+src/app/utils/JournalUtils.js and BlueprintFunctions.js. Coriolis is licensed under the MIT
+License:
+
+  Copyright (c) 2015 Coriolis.io, Colin McLeod
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+  THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+build_stats uses ship, module and blueprint data from coriolis-data
+(https://github.com/EDCD/coriolis-data). ed-mcp downloads it at run time and does not
+include it. The test fixtures in test/fixtures/builds/ hold small extracts of it.
+
 Elite Dangerous game data is the intellectual property of Frontier Developments plc.
 This project is not affiliated with Frontier Developments, Inara, EDSM, Spansh or EDCD.

@@ -47,7 +47,11 @@ const STATION_FILES = {
   shipyard: "Shipyard.json",
 } as const;
 
-type JournalSnapshot = JournalState & { age_minutes: number | null; warnings: string[] };
+type JournalSnapshot = JournalState & {
+  age_minutes: number | null;
+  warnings: string[];
+  loadout: JournalEvent | null;
+};
 
 export class JournalService {
   protected readonly reader: JournalReader;
@@ -206,7 +210,8 @@ export class JournalService {
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
-    return { ...state, age_minutes: ageMinutes, warnings };
+    const loadout = events.findLast((e) => e.event === "Loadout") ?? null;
+    return { ...state, age_minutes: ageMinutes, warnings, loadout };
   }
 
   // Newer game builds keep the cargo list here instead of in the Cargo event. Syncthing can
@@ -299,6 +304,11 @@ export class JournalService {
       updated_at: f.as_of,
       rows,
     };
+  }
+
+  /** The newest Loadout event in the state window, as the game wrote it. */
+  async latestLoadout(): Promise<Record<string, unknown> | null> {
+    return (await this.state()).loadout;
   }
 
   async freshShip(): Promise<{ type: string; max_jump_range: number | null } | null> {

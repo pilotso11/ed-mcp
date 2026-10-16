@@ -104,6 +104,26 @@ describe("JournalService.state", () => {
   });
 });
 
+describe("JournalService.latestLoadout", () => {
+  it("returns the newest Loadout event in the window", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "Loadout", { Ship: "Mamba", MaxJumpRange: 31.7 }),
+      ev("2026-10-12T11:01:00Z", "Docked", { StarSystem: "Sol", StationName: "Galileo" }),
+    ]);
+    const loadout = await new JournalService(dir).latestLoadout();
+    expect(loadout).toMatchObject({ event: "Loadout", Ship: "Mamba", MaxJumpRange: 31.7 });
+  });
+
+  it("returns null without a Loadout event", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jnoloadout-"));
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "Commander", { Name: "pin72" }),
+    ]);
+    expect(await new JournalService(dir).latestLoadout()).toBeNull();
+  });
+});
+
 describe("JournalService.state reading", () => {
   afterEach(() => vi.restoreAllMocks());
 

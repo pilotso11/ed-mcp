@@ -22,6 +22,7 @@ For installation and setup, see the [README](../README.md).
 | `journal_engineers`        | Engineer progress from the journal                           |
 | `station_info`             | Market, outfitting and shipyard of the last station you opened |
 | `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
+| `build_stats`              | Ship build numbers, with what-if changes                     |
 | `catalog_blueprint`        | Blueprint materials per grade and experimentals              |
 | `catalog_engineers`        | Engineers for a blueprint, or one engineer's offers          |
 | `catalog_material`         | Material grade, trade group and trade rules                  |
@@ -82,6 +83,68 @@ With up to 12 stops and up to 24 missions with an expiry, the search is exact. I
 The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
 Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+
+## Build statistics
+
+`build_stats` computes the numbers for a ship build: mass, fuel, jump range, power, speed, shields, armour and weapon damage. It can also apply what-if changes and show what they change. The formulas are ported from [Coriolis](https://github.com/EDCD/coriolis). The ship, module and blueprint data come from coriolis-data, which ed-mcp downloads at run time. If the data is not there yet, call `cache_refresh` with source `"ships"`.
+
+Inputs:
+
+- `build`: where to load the build from. The default is the journal.
+  - `{ journal: true }`: the latest `Loadout` event in the journal (the last 14 days). The tool uses the game's engineering values.
+  - `{ capi: true }`: the current ship from Frontier CAPI. CAPI gives no engineering values, so engineered modules use the best roll for their blueprint and grade. A note says so.
+  - `{ slef }`: a SLEF build, as text or as an object. Without modifier values, engineered modules use the best roll, with a note. If the SLEF holds more than one build, the tool uses the first, with a note.
+  - `{ plan_id }`: the plan's `target_build`, which must be SLEF.
+- `changes`: what-if changes, applied in order. Each change has a `slot` and at least one of `module`, `blueprint`, `grade`, `experimental` or `remove`.
+  - `slot`: a journal slot name, such as `FrameShiftDrive`, `Slot03_Size5` or `TinyHardpoint2`, or an alias: `fsd`, `thrusters`, `power plant`, `distributor`, `sensors`, `life support`, `fuel tank`, `armour`, `hardpoint N`, `utility N` or `internal N`.
+  - `module`: a symbol, a coriolis id, a class and rating for the slot's module type (`5A`), or a name with class and rating (`shield booster 0A`).
+  - `blueprint`: a blueprint name or key, as in `catalog_blueprint`. `grade` is 1 to 5, and 5 when not given.
+  - `experimental`: an experimental effect key or name.
+  - `remove: true` empties the slot. A core slot cannot be empty.
+
+Change rules:
+
+- A new module drops the old engineering, unless the change also gives a blueprint.
+- A blueprint without a module re-engineers the module in the slot.
+- Engineering from a change uses the best roll for its grade, and experimental effects use their fixed values. The note `Engineering on changed modules assumes best rolls.` says so.
+- An unknown slot, an unknown module, a module that does not fit the slot, and a blueprint that does not apply to the module are errors. Most errors list the options.
+
+Results:
+
+- `source`: `journal`, `capi`, `slef` or `plan`.
+- `ship`: the ship's `name` and coriolis `key`.
+- `stats`: the numbers below. With changes, they are for the changed build.
+- `game_reported` (journal only): `unladen_t` and `max_jump_ly` from the `Loadout` event. Compare them with `stats.mass.unladen_t` and `stats.jump_range_ly.max`. With changes, they are still for the build before the changes.
+- `changes_applied` (with changes): each slot, with the module `before` and `after`.
+- `diff` (with changes): the values that changed, by dotted path, with `before`, `after` and `change` (`after` minus `before` for numbers, otherwise null). List items use their slot or priority in the path, for example `weapons.list.LargeHardpoint1.dps` or `power_mw.by_priority.2.used`.
+- `build` (with changes): the changed build as SLEF. Save it in a plan with `plan_upsert` (`target_build`), in a file, or in an artifact.
+- `notes`.
+
+Numbers are rounded to 4 decimal places.
+
+Statistics:
+
+- `mass` (t): `hull_t`, `modules_t`, `unladen_t` (hull and modules), `fuel_t` (main tanks and the reserve tank), `cargo_t` (cargo capacity) and `laden_t` (unladen, fuel and cargo).
+- `fuel` (t): `fuel_capacity_t` (the main tanks) and `reserve_t`.
+- `jump_range_ly`: `unladen` with full main tanks, `laden` with full tanks and full cargo, `max` with only the fuel for one jump, and `total_full_tank`, the distance of repeated jumps on full main tanks. `max` matches the game's `MaxJumpRange`. Jump ranges leave out the reserve tank, as the game's `MaxJumpRange` does. `laden_t` includes it. A Guardian FSD booster adds its range. For a supercruise overcharge (SCO) drive, the note `Jump range uses the drive's normal values, not supercruise overcharge.` says that the range is not for overcharge.
+- `power_mw`: `generated`, `used_retracted`, `used_deployed`, `by_priority` (the `used` and `cumulative` power for priorities 1 to 5), `margin_retracted`, `margin_deployed` and `over_capacity` (true when deployed use is more than the power plant makes). The use includes the cargo hatch (0.6 MW).
+- `speed_m_s`: `top` and `boost`, at unladen mass with full fuel. Both are 0 when the thrusters are off or have no power.
+  - `boost_sustainable`: true when the distributor recharges a boost within the ship's boost cooldown.
+  - `boost_interval_s`: the larger of the cooldown and the recharge time. It is null when the engine capacitor is smaller than the boost cost.
+- `shields`: null without a shield generator.
+  - `strength` (MJ), with shield boosters and engineering. Shield boosters add strength without diminishing returns, as in Coriolis. `strength` is 0 when the generator is off or has no power, and null when the hull is too heavy for the generator.
+  - `explosive`, `kinetic` and `thermal`: resistances as fractions (0.4 is 40%), at 0 SYS pips. Resistances from boosters have diminishing returns.
+  - `regen_mj_s`, and `broken_regen_s`, the time from broken to 50%.
+- `armour`: `hull` (with bulkheads and hull reinforcement), the `explosive`, `kinetic`, `thermal` and `caustic` resistances as fractions, and `module_protection`, the share of module damage that module reinforcement absorbs.
+- `weapons`: `list` holds each powered weapon with `slot`, `name`, damage `type`, `dps`, `sustained_dps` and `drain_mw`. The totals are `dps_total`, `sustained_dps_total`, `dps_by_type`, `weapons_drain_mw` and `time_to_empty_s`.
+  - `dps_by_type` uses sustained DPS, as Coriolis does.
+  - `time_to_empty_s` is how long the WEP capacitor lasts while all weapons fire. It is null when the distributor keeps up.
+
+Assumptions and limits:
+
+- Shield recovery time (`broken_regen_s`) and `time_to_empty_s` assume 2 SYS and 2 WEP pips.
+- The tool does not model heat, fuel scoop rates, damage falloff or target hardness.
+- The SLEF output does not hold the cargo hatch. When you load it again, the cargo hatch is on at priority 1.
 
 ## Build routes
 
