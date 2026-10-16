@@ -4,12 +4,12 @@
 // mapIntoDiminishingRange) and src/app/shipyard/Ship.js (findInternalByGroup).
 import type { Build, BuiltModule } from "../build.js";
 import { moduleStat, online } from "./core.js";
+import { SHIELD_GENERATORS } from "../constants.js";
 
 /** Coriolis opens a build with 2 pips in each of SYS, ENG and WEP. */
 export const DEFAULT_PIPS = 2;
 // Shields wait this long after breaking before they start to recover.
 const BROKEN_DELAY_S = 16;
-const SHIELD_GENERATORS = new Set(["sg", "bsg", "psg"]);
 const HRPS = new Set(["hr", "ghrp", "mahr"]);
 const MRPS = new Set(["mrp", "gmrp"]);
 const RESISTANCES = { explosive: "explres", kinetic: "kinres", thermal: "thermres" } as const;

@@ -8,6 +8,7 @@
 import type { Catalog } from "../catalog/catalog.js";
 import { UserError } from "../errors.js";
 import type { CoriolisModule } from "./data.js";
+import { SHIELD_GENERATORS } from "./constants.js";
 
 /**
  * How a feature combines with the base value:
@@ -165,8 +166,6 @@ const DEFAULT_LABEL = new Map<string, string>();
 for (const [label, feature] of Object.entries(FDEV_LABELS)) {
   if (!DEFAULT_LABEL.has(feature)) DEFAULT_LABEL.set(feature, label);
 }
-
-const SHIELD_GENERATORS = new Set(["sg", "bsg", "psg"]);
 
 /** The label to write for a feature, which for some features depends on the module. */
 function labelFor(feature: string, module: CoriolisModule): string | null {

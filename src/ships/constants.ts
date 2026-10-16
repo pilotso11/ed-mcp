@@ -88,3 +88,6 @@ export const MODULE_GROUP_NAMES: Record<string, string> = {
   sdm: "Sub-Surface Displacement Missile",
   mvr: "Mining Volley Repeater",
 };
+
+/** Coriolis groups for shield generators: standard, bi-weave and prismatic. */
+export const SHIELD_GENERATORS: ReadonlySet<string> = new Set(["sg", "bsg", "psg"]);

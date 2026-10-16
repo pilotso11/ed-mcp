@@ -4,10 +4,10 @@
 // updatePowerUsed, updateMovement, canBoost) and src/app/shipyard/Module.js (the getters).
 import type { Build, BuiltModule } from "../build.js";
 import { modifiedValue } from "../engineering.js";
+import { SHIELD_GENERATORS } from "../constants.js";
 
 // Coriolis ModuleUtils.cargoHatch: a standard power consumer that every ship has.
 const CARGO_HATCH_MW = 0.6;
-const SHIELD_GENERATORS = new Set(["sg", "bsg", "psg"]);
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const prop = (b: Build, name: string) => num(b.ship.properties[name]);
