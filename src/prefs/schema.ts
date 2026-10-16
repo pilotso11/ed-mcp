@@ -107,7 +107,8 @@ export const OFF_PREFS: Prefs = {
     fleet_carriers: "allow",
     megaships: "allow",
     min_pad: "none",
-    permit_systems: "allow",
+    // A permit is a fact about the commander, not a taste, so only an explicit allow admits these.
+    permit_systems: "exclude",
   },
   travel: structuredClone(DEFAULT_TRAVEL),
 };

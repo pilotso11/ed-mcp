@@ -314,7 +314,7 @@ Defaults:
 
 - `max_arrival_ls` mode is `soft`, `hard` or `off`.
 - `planetary` and `megaships` are `allow`, `avoid` or `exclude`. `fleet_carriers` is `allow` or `exclude`.
-- `permit_systems` is `allow` or `exclude`. With `exclude`, results leave out stations in systems that need a permit, such as Sol. See [Permit-locked systems](#permit-locked-systems). `use_preferences: false` allows them.
+- `permit_systems` is `allow` or `exclude`. With `exclude`, results leave out stations in systems that need a permit, such as Sol. See [Permit-locked systems](#permit-locked-systems). `use_preferences: false` still leaves them out; only `permit_systems: "allow"` admits them.
 - `min_pad` is `auto`, `S`, `M`, `L` or `none`. `auto` uses the current ship from the journal when the newest journal event is less than 24 hours old. Otherwise it uses the ship from your Frontier login (`capi_login`). If the ship is unknown or you are not logged in, there is no pad requirement, and `applied_preferences` shows the reason.
 
 A `soft` arrival limit and an `avoid` rule apply only while other stations match. If nothing matches, the search drops them and lists them in `relaxed`. It lists only rules that a returned station breaks. `hard` and `exclude` rules, and the pad requirement, are never relaxed.
@@ -337,7 +337,7 @@ When the lookups stop, unchecked stations on the first page stay, and a note suc
 
 To change your preferences, ask Claude, for example "from now on ignore stations over 2,000 ls". Claude calls `prefs_set` with a patch such as `{"stations":{"max_arrival_ls":{"value":2000}}}`. The patch is strict: unknown keys are errors. The change applies to future sessions.
 
-For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. `large_pad: true` is the same as `min_pad: "L"`.
+For one search, pass `preferences` (same shape as the `prefs_set` patch) or `use_preferences: false` to ignore all stored preferences. Permit-locked systems stay excluded even then. `large_pad: true` is the same as `min_pad: "L"`.
 
 Each result has these fields:
 

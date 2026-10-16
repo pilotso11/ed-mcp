@@ -121,6 +121,20 @@ describe("spansh tools", () => {
     expect(j.notes).toEqual([]);
   });
 
+  it("keeps permit systems out with use_preferences false unless the call allows them", async () => {
+    const { client } = await setup({ permits: { "82 Eridani": true } });
+    const args = { near: "Sol", service: "material_trader_raw", use_preferences: false };
+    const off = (await callTool(client, "spansh_find_stations", args)).json as Record<string, any>;
+    expect(off.stations.map((s: any) => s.name)).not.toContain("Bresnik Port");
+    const allowed = (
+      await callTool(client, "spansh_find_stations", {
+        ...args,
+        preferences: { stations: { permit_systems: "allow" } },
+      })
+    ).json as Record<string, any>;
+    expect(allowed.stations.map((s: any) => s.name)).toContain("Bresnik Port");
+  });
+
   it("applies stored preferences and reports them", async () => {
     const { client, f } = await setup();
     const r = await callTool(client, "spansh_find_stations", {

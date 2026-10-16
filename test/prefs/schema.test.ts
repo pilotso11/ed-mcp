@@ -36,14 +36,14 @@ describe("prefs schema", () => {
     });
   });
 
-  it("OFF_PREFS turns every rule off", () => {
+  it("OFF_PREFS turns every rule off but still keeps permit systems out", () => {
     expect(OFF_PREFS.stations).toEqual({
       max_arrival_ls: { value: 1000, mode: "off" },
       planetary: "allow",
       fleet_carriers: "allow",
       megaships: "allow",
       min_pad: "none",
-      permit_systems: "allow",
+      permit_systems: "exclude",
     });
     expect(OFF_PREFS.travel).toEqual(DEFAULT_PREFS.travel);
   });
