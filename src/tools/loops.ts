@@ -13,6 +13,7 @@ import type {
   StationHit,
 } from "../spansh/client.js";
 import { applyRules, describeRules, type Rules } from "../stations/filter.js";
+import { screenPermits } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { bestCargo, findLoops, spreadStations, type ScoredLeg } from "../trade/loops.js";
 import { wrap } from "./result.js";
@@ -35,6 +36,8 @@ const NAMES_MISMATCH =
   "Local market names do not match Spansh; using Spansh prices for the start station.";
 const NO_LOOPS =
   "No profitable loop found. Try a larger radius, another centre, or include stations.";
+// Spare loops to replace those left out for a permit-locked system.
+const PERMIT_SPARES = 30;
 
 const Station = z.object({ system: z.string(), station: z.string() });
 type NearInput = string | { system: string; station?: string };
@@ -119,7 +122,8 @@ export function registerLoopTools(
         'finds loops through your docked station; start "any" finds the best loops anywhere within radius_ly of ' +
         "near (default: where you are). Ranked by sustained profit per hour: thin markets that cannot refill a " +
         "full hold every lap rank low. Uses Spansh market data (check each price's age). Cargo and capital " +
-        "default to the journal. Legality is not checked.",
+        "default to the journal. Loops through permit-locked systems are left out unless permit_systems is allow. " +
+        "Legality is not checked.",
       inputSchema: {
         start: z.enum(["here", "any"]).default("here"),
         near: z
@@ -401,18 +405,30 @@ export function registerLoopTools(
             ...bestCargo(candidates[from]!, candidates[to]!, cargo, capital),
           };
         };
+        const permitMode = s.permit_systems;
         const result = findLoops({
           count: candidates.length,
           leg,
           start: here ? 0 : null,
           sizes: a.stops,
           sessionMin: a.session_min,
-          limit: a.limit,
+          limit: a.limit + (permitMode === "exclude" ? PERMIT_SPARES : 0),
         });
         notes.push(...result.notes);
+        const screen = await screenPermits({
+          items: result.loops,
+          limit: a.limit,
+          mode: permitMode,
+          systemsOf: (loop) => loop.stations.map((i) => candidates[i]!.system),
+          spansh,
+          // The user chose these, so they must be able to reach them.
+          exempt: [...(here ? [centre.system] : []), ...(a.include ?? []).map((i) => i.system)],
+          noun: "loop",
+        });
+        notes.push(...screen.notes);
 
         let origin: Place | null = null;
-        if (!here && result.loops.length) {
+        if (!here && screen.kept.length) {
           const placer = createPlacer(spansh, new Set());
           const from = state?.location.system
             ? {
@@ -424,7 +440,7 @@ export function registerLoopTools(
           origin = await placer.place(from.system, from.station).catch(() => null);
         }
 
-        const loops = result.loops.map((loop) => {
+        const loops = screen.kept.map((loop) => {
           const legs = loop.legs.map((l) => ({
             from: candidates[l.from]!.name,
             to: candidates[l.to]!.name,
@@ -442,6 +458,7 @@ export function registerLoopTools(
             stations: loop.stations.map((i) => ({
               station: candidates[i]!.name,
               system: candidates[i]!.system,
+              ...(screen.locked(candidates[i]!.system) ? { needs_permit: true } : {}),
             })),
             legs,
             lap_profit: Math.round(loop.lapProfit),
@@ -463,7 +480,8 @@ export function registerLoopTools(
           };
         });
         if (capital === 0) notes.push(ZERO_CAPITAL);
-        else if (!loops.length) notes.push(NO_LOOPS);
+        // When every loop was left out for a permit, the permit note says why.
+        else if (!result.loops.length) notes.push(NO_LOOPS);
         notes.push(LEGALITY);
 
         const searched = found.stations.length + found.droppedOld;
