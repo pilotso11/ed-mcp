@@ -113,6 +113,21 @@ const SLOT_ALIASES: Record<string, string> = {
 const BULKHEAD_SUFFIXES = ["grade1", "grade2", "grade3", "mirrored", "reactive"];
 const MOUNTS: Record<string, string> = { F: "Fixed", G: "Gimballed", T: "Turreted" };
 
+// Journal slot numbering quirks, by coriolis ship key. Internal slot numbers the journal skips
+// (military slots use them): at number `at`, jump by `by`.
+const INTERNAL_SKIPS: Record<string, { at: number; by: number }> = {
+  anaconda: { at: 11, by: 2 },
+  federal_dropship: { at: 7, by: 2 },
+  type_9_heavy: { at: 9, by: 2 },
+  type_10_defender: { at: 9, by: 2 },
+  vulture: { at: 4, by: 1 },
+};
+// The Type-8 journal skips SmallHardpoint3; the Type-9's internal slots start at Slot00.
+const TYPE_8 = "type_8_transport";
+const TYPE_9 = "type_9_heavy";
+/** The ship keys the quirks above name, so a test can check them against coriolis-data. */
+export const SLOT_QUIRK_SHIPS = [...Object.keys(INTERNAL_SKIPS), TYPE_8, TYPE_9];
+
 const two = (n: number) => String(n).padStart(2, "0");
 const eligibleOf = (s: NamedSlot) => (s.eligible ? Object.keys(s.eligible) : undefined);
 
@@ -131,8 +146,7 @@ export function shipSlots(hull: ShipHull): SlotInfo[] {
     const named = typeof def === "object" ? def : null;
     const size = typeof def === "object" ? def.class : def;
     perSize[size] = (perSize[size] ?? 0) + 1;
-    // The Type-8 journal skips SmallHardpoint3.
-    if (hull.key === "type_8_transport" && size === 1 && perSize[size] === 3) perSize[size]++;
+    if (hull.key === TYPE_8 && size === 1 && perSize[size] === 3) perSize[size]++;
     out.push({
       slot: `${HARDPOINT_SIZE[size]}${named?.name ?? ""}Hardpoint${perSize[size]}`,
       kind: size === 0 ? "utility" : "hardpoint",
@@ -141,8 +155,7 @@ export function shipSlots(hull: ShipHull): SlotInfo[] {
     });
   }
 
-  // Some ships skip internal slot numbers that military slots use in the journal.
-  let n = hull.key === "type_9_heavy" ? 0 : 1;
+  let n = hull.key === TYPE_9 ? 0 : 1;
   const namedCount: Record<string, number> = {};
   for (const def of hull.slots.internal ?? []) {
     const named = typeof def === "object" ? def : null;
@@ -166,15 +179,8 @@ export function shipSlots(hull: ShipHull): SlotInfo[] {
       });
       continue;
     }
-    if (
-      (n === 11 && hull.key === "anaconda") ||
-      (n === 7 && hull.key === "federal_dropship") ||
-      (n === 9 && (hull.key === "type_9_heavy" || hull.key === "type_10_defender"))
-    ) {
-      n += 2;
-    } else if (n === 4 && hull.key === "vulture") {
-      n++;
-    }
+    const skip = INTERNAL_SKIPS[hull.key];
+    if (skip && n === skip.at) n += skip.by;
     const size = typeof def === "object" ? def.class : def;
     out.push({ slot: `Slot${two(n)}_Size${size}`, kind: "internal", size });
     n++;
@@ -520,9 +526,8 @@ function resolveModule(
   }
 
   const grp = info.group ?? current?.module.grp;
-  const direct = data.module(t) ?? (grp ? data.module(t, grp) : null);
-  if (direct) return direct;
-
+  // Coriolis ids look like class and rating ("6D", "5C"), so class and rating come first, and ids
+  // count only within the slot's group. Symbols and edIDs are unique, so they need no group.
   const classRating = /^(\d)\s*([a-i])$/i.exec(t);
   if (classRating) {
     if (!grp) {
@@ -541,6 +546,9 @@ function resolveModule(
     if (hit) return hit;
     throw new UserError(`There is no ${t.toUpperCase()} ${groupLabel(grp)}.`);
   }
+  const unique = t.includes("_") || /^\d{6,}$/.test(t) ? data.module(t) : null;
+  const direct = unique ?? (grp ? data.module(t, grp) : null);
+  if (direct) return direct;
 
   const mountWord = /\b(fixed|gimbal(?:led)?|turret(?:ed)?)\b/i.exec(t);
   const mount = mountWord ? mountWord[1]!.charAt(0).toUpperCase() : null;

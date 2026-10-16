@@ -11,6 +11,7 @@ import {
   fromSlef,
   resolveSlot,
   shipSlots,
+  SLOT_QUIRK_SHIPS,
   toSlef,
 } from "../../src/ships/build.js";
 import { modifiedValue } from "../../src/ships/engineering.js";
@@ -185,6 +186,21 @@ describe("fromCapi", () => {
   });
 });
 
+describe("shipSlots", () => {
+  it("names only ship keys that coriolis-data has", () => {
+    // Ship keys in coriolis-data develop (checked 2026-10-16), names only.
+    const keys = JSON.parse(raw("builds", "coriolis-ship-keys.json")) as string[];
+    expect(keys).toHaveLength(48);
+    for (const k of SLOT_QUIRK_SHIPS) expect(keys, k).toContain(k);
+  });
+
+  it("skips the journal's internal slot numbers on the Anaconda", () => {
+    const names = shipSlots(data.ship("anaconda")).map((s) => s.slot);
+    expect(names).toContain("Slot13_Size2");
+    expect(names).not.toContain("Slot11_Size2");
+  });
+});
+
 describe("applyChanges", () => {
   const anaconda = () => fromLoadout(loadout("anaconda"), data);
   const corsair = () => fromLoadout(loadout("corsair"), data);
@@ -243,6 +259,23 @@ describe("applyChanges", () => {
     expect(byName.applied[0]!.after).toBe("0A Shield Booster");
     const byId = applyChanges(b, [{ slot: "fsd", module: "Ff" }], data, cat).build;
     expect(slot(byId, "FrameShiftDrive")!.module.symbol).toBe("Int_Hyperdrive_Size5_Class5");
+  });
+
+  it("reads class and rating before coriolis ids that look the same", () => {
+    // "6D" is also a multi-cannon id and "5C" an advanced multi-cannon id.
+    const sg = applyChanges(anaconda(), [{ slot: "Slot04_Size6", module: "6D" }], data, cat);
+    expect(slot(sg.build, "Slot04_Size6")!.module.symbol).toBe("Int_ShieldGenerator_Size6_Class2");
+    const fs = applyChanges(corsair(), [{ slot: "Slot06_Size5", module: "5C" }], data, cat);
+    expect(slot(fs.build, "Slot06_Size5")!.module.symbol).toBe("Int_FuelScoop_Size5_Class3");
+  });
+
+  it("looks up a coriolis id only in the slot's module group", () => {
+    // "2d" is a hull reinforcement package id; a fuel scoop slot must not pick it up.
+    const err = thrown(() =>
+      applyChanges(corsair(), [{ slot: "Slot06_Size5", module: "2d" }], data, cat),
+    );
+    expect(err).toBeInstanceOf(UserError);
+    expect(err.message).toBe("There is no 2D Fuel Scoop.");
   });
 
   it("applies a blueprint at the best roll and notes it once", () => {

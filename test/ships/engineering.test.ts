@@ -108,6 +108,19 @@ describe("bestRoll", () => {
 });
 
 describe("applyExperimental", () => {
+  it("matches the game for the Corsair's Heavy Duty G5 armour with Deep Plating", () => {
+    const military = data.ship("imperial_corsair").bulkheads[2]!;
+    const computed = applyExperimental(
+      bestRoll("Armour_HeavyDuty", 5, military, cat),
+      "special_armour_chunky",
+      military,
+      cat,
+    );
+    const game = fromJournalModifiers(journalModifiers("Armour"));
+    expect(Object.keys(computed).sort()).toEqual(Object.keys(game).sort());
+    for (const [k, v] of Object.entries(game)) expect(computed[k], k).toBeCloseTo(v, 4);
+  });
+
   it("applies the effect's fixed values on top of the blueprint", () => {
     const r = applyExperimental(
       bestRoll("FSD_LongRange", 5, fsd5A, cat),
