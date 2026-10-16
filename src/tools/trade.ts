@@ -7,7 +7,8 @@ import type { PreferencesStore } from "../prefs/store.js";
 import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { rankCommodityStations } from "../trade/prices.js";
+import { screenPermits } from "../stations/permits.js";
+import { rankCommodityStations, recommendCommodityStation } from "../trade/prices.js";
 import { mapTradeRoute } from "../trade/route.js";
 import { wrap } from "./result.js";
 
@@ -276,6 +277,7 @@ export function registerTradeTools(
         "∓ travel time × credits_per_hour (minus when selling, plus when buying); otherwise ranked by price. " +
         "Searches within max_distance_ly of near (default the journal's current system) and only markets " +
         "updated within max_price_age_days. Stations must have demand or supply of at least amount (else 1). " +
+        "Stations in permit-locked systems are left out unless permit_systems is allow. " +
         "recommended names the best station and why. Cached 5 min.",
       inputSchema: {
         commodity: z.string().describe("Exact English commodity name, e.g. Gold"),
@@ -330,6 +332,19 @@ export function registerTradeTools(
           now(),
           a.max_price_age_days * 24,
         );
+        const mode = rules.prefs.stations.permit_systems;
+        const screen = await screenPermits({
+          items: ranked.stations,
+          limit: a.limit,
+          mode,
+          systemsOf: (h) => [h.system],
+          spansh,
+        });
+        notes.push(...screen.notes);
+        const open =
+          mode === "exclude"
+            ? ranked.stations.filter((h) => !screen.locked(h.system))
+            : ranked.stations;
         const applied_preferences = describeRules(rules);
         if (!found.stations.length) {
           notes.push("No stations found; check the exact English commodity name");
@@ -351,13 +366,17 @@ export function registerTradeTools(
         return {
           near: found.near,
           total: found.total,
-          matched: ranked.stations.length,
-          stations: ranked.stations.slice(0, a.limit).map((st) => ({
+          matched: open.length,
+          stations: screen.kept.map((st) => ({
             ...st,
+            ...(screen.locked(st.system) ? { needs_permit: true } : {}),
             price_source:
               st.market_id !== null && journalIds.has(st.market_id) ? "journal" : "spansh",
           })),
-          recommended: ranked.recommended,
+          recommended:
+            mode === "exclude" && open.length < ranked.stations.length
+              ? recommendCommodityStation(open, a.mode, a.max_price_age_days * 24)
+              : ranked.recommended,
           relaxed: ranked.relaxed,
           inputs: {
             commodity: a.commodity,

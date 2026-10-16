@@ -42,7 +42,8 @@ export function registerSpanshTools(
         "Stations are ranked by estimated travel time (jumps plus supercruise, docking and planetary time) " +
         "and, for purchases, by effective cost = price + travel time × the commander's credits_per_hour. " +
         "Each station has jumps, travel_s, travel_min, arrival_assumed, effective_cost and discount_pct (versus the median price); " +
-        "recommended explains the trade-off. Also returns any relaxed rules and the applied preferences. Cached 5 min.",
+        "recommended explains the trade-off. Stations in permit-locked systems are left out unless permit_systems is allow, " +
+        "which keeps them with needs_permit: true. Also returns any relaxed rules, the applied preferences and notes. Cached 5 min.",
       inputSchema: {
         near: z.string().describe("Exact reference system name"),
         module: z

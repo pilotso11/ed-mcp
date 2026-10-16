@@ -111,6 +111,7 @@ export function registerMaterialsTools(
                   3,
                 );
                 const s = r.stations[0];
+                notes.push(...r.notes);
                 traders.push({
                   type,
                   recommended: r.recommended,

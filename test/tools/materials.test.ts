@@ -35,6 +35,7 @@ function setup(
     age?: number;
     edsm?: { system: string | null } | "down";
     capi?: string | null;
+    permit?: boolean;
   } = {},
 ) {
   const queries: Array<Record<string, unknown>> = [];
@@ -49,6 +50,7 @@ function setup(
         stations: opts.empty ? [] : [hit],
       };
     },
+    system: async (name: string) => ({ name, needs_permit: opts.permit ?? false }),
   } as unknown as SpanshClient;
   const journal = {
     dir: "/j",
@@ -126,6 +128,16 @@ describe("materials_plan", () => {
     });
     expect(typeof j.traders[0].station.travel_min).toBe("number");
     expect(queries[0]).toMatchObject({ near: "Atlas", service: "material_trader_encoded" });
+  });
+
+  it("passes on the note when the only trader is in a permit system", async () => {
+    const { client } = setup({ system: "Atlas", permit: true });
+    const j = (await callTool(await client, "materials_plan", need)).json as Record<string, any>;
+    expect(j.traders[0]).toMatchObject({ type: "encoded", recommended: null });
+    expect(j.notes).toEqual([
+      "Left out 1 station in permit-locked systems (Atlas). Set permit_systems to allow if you hold the permit.",
+      "No encoded material trader found near Atlas.",
+    ]);
   });
 
   it.each([

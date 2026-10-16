@@ -435,9 +435,28 @@ function commodity(
     broken?: boolean;
     local?: LocalMarket | null;
     localBroken?: boolean;
+    permits?: Record<string, boolean>;
   } = {},
 ) {
   const f = fakeFetch([
+    // System lookups for the permit check: the id64 is the system name.
+    {
+      match: (u) => u.includes("/search/systems?"),
+      respond: (u) => {
+        const name = new URL(u).searchParams.get("q")!;
+        return json(JSON.stringify({ results: [{ id64: name, name }] }));
+      },
+    },
+    {
+      match: (u) => u.includes("/system/"),
+      respond: (u) => {
+        const name = decodeURIComponent(u.split("/system/")[1]!);
+        const needs_permit = !!opts.permits?.[name];
+        return json(
+          JSON.stringify({ record: { name, id64: name, x: 0, y: 0, z: 0, needs_permit } }),
+        );
+      },
+    },
     {
       match: () => true,
       respond: () =>
@@ -534,6 +553,43 @@ describe("commodity_prices", () => {
       "Gardner Settlement",
     ]);
     expect(j.relaxed).toEqual(["max_arrival_ls"]);
+  });
+
+  it("leaves out stations in permit systems and refills from the rest", async () => {
+    const { client } = commodity({ permits: { Arexe: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      limit: 1,
+      preferences: open,
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => s.name)).toEqual(["Ferraro Control"]);
+    // The fixture's other prices are weeks old, so no station is left to recommend.
+    expect(j.recommended).toBeNull();
+    expect(j.matched).toBe(2);
+    expect(j.notes).toEqual([
+      "Left out 1 station in permit-locked systems (Arexe). Set permit_systems to allow if you hold the permit.",
+    ]);
+  });
+
+  it("keeps and marks stations in permit systems with permit_systems allow", async () => {
+    const { client } = commodity({ permits: { Arexe: true } });
+    const r = await callTool(await client, "commodity_prices", {
+      commodity: "Bauxite",
+      mode: "sell",
+      near: "Lave",
+      preferences: { ...open, stations: { ...open.stations, permit_systems: "allow" } },
+    });
+    const j = r.json as Record<string, any>;
+    expect(j.stations.map((s: any) => [s.name, s.needs_permit ?? false])).toEqual([
+      ["Janes Horizons", true],
+      ["Ferraro Control", false],
+      ["Gardner Settlement", false],
+    ]);
+    expect(j.recommended.name).toBe("Janes Horizons");
+    expect(j.notes).toEqual([]);
   });
 
   it("values the cargo when an amount is given", async () => {
