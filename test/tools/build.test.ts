@@ -239,7 +239,9 @@ describe("build_stats errors", () => {
     });
     const ships = new ShipDataService({ cacheDir: dir, http });
     const r = await stats({}, { ships });
-    expect(r).toMatchObject({ isError: true, text: NOT_AVAILABLE });
+    expect(r.isError).toBe(true);
+    expect(r.text.startsWith(`${NOT_AVAILABLE} Cause: `), r.text).toBe(true);
+    expect(r.text).toMatch(/offline/);
   });
 
   it("explains a journal without a Loadout", async () => {

@@ -60,13 +60,20 @@ const service = (f: ReturnType<typeof fakeFetch>) =>
     now: () => t,
   });
 
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const urls = (f: ReturnType<typeof fakeFetch>) => f.calls.map((c) => c.url);
 
 describe("ShipDataService", () => {
   it("downloads the archive on first use, in one request, and writes the cache", async () => {
     const f = upstream({ commit: C1 });
     const s = new ShipDataService({ cacheDir: dir, fetch: f, now: () => t });
-    expect(s.status()).toEqual({ state: "empty", commit: null, fetched_at: null });
+    expect(s.status()).toEqual({
+      state: "empty",
+      commit: null,
+      fetched_at: null,
+      last_error: null,
+    });
     const data = await s.get();
     expect(urls(f)).toEqual([TARBALL]);
     expect(data.commit).toBe(C1);
@@ -74,6 +81,7 @@ describe("ShipDataService", () => {
       state: "ready",
       commit: C1,
       fetched_at: "2026-10-16T00:00:00.000Z",
+      last_error: null,
     });
     const cached = JSON.parse(await readFile(path.join(dir, "coriolis-data.json"), "utf8"));
     expect(cached).toMatchObject({ commit: C1, fetched_at: "2026-10-16T00:00:00.000Z" });
@@ -97,6 +105,7 @@ describe("ShipDataService", () => {
     await s.get();
     t += 8 * DAY;
     await s.get();
+    await s.refresh();
     await s.get();
     expect(urls(f)).toEqual([TARBALL, COMMIT]);
     // The check time is saved, so the next start does not check again.
@@ -113,6 +122,9 @@ describe("ShipDataService", () => {
     state.commit = C2;
     state.ships = SHIP_STUBS;
     t += 8 * DAY;
+    // The weekly check runs in the background, so the call gets the current data at once.
+    expect((await s.get()).commit).toBe(C1);
+    await s.refresh();
     const data = await s.get();
     expect(urls(f)).toEqual([TARBALL, COMMIT, TARBALL]);
     expect(data.commit).toBe(C2);
@@ -126,6 +138,7 @@ describe("ShipDataService", () => {
     const f = offline();
     const s = service(f);
     expect((await s.get()).commit).toBe(C1);
+    await s.refresh().catch(() => undefined);
     expect(f.calls.length).toBeGreaterThan(0);
     // A failed check does not repeat on every call.
     const n = f.calls.length;
@@ -133,17 +146,46 @@ describe("ShipDataService", () => {
     expect(f.calls.length).toBe(n);
   });
 
-  it("raises the exact error with no network and no cache", async () => {
-    const s = service(offline());
-    const err = await s.get().catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(UserError);
-    expect((err as Error).message).toBe(NOT_AVAILABLE);
-    expect(s.status().state).toBe("empty");
+  it("does not wait for the weekly check", async () => {
+    const f = upstream({ commit: C1 });
+    const s = service(f);
+    await s.get();
+    t += 8 * DAY;
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const slow = new ShipDataService({
+      cacheDir: dir,
+      http: new HttpClient({
+        userAgent: "t",
+        retryDelayMs: 0,
+        fetchFn: async (input, init) => {
+          await held;
+          return f(input, init);
+        },
+      }),
+      now: () => t,
+    });
+    expect((await slow.get()).commit).toBe(C1);
+    release();
+    await slow.refresh();
   });
 
-  it("raises the same error when GitHub answers with an error status", async () => {
+  it("names the cause with no network and no cache", async () => {
+    const s = service(offline());
+    expect(s.status()).toMatchObject({ state: "empty", last_error: null });
+    const err = await s.get().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UserError);
+    expect((err as Error).message).toMatch(new RegExp(`^${escape(NOT_AVAILABLE)} Cause: .+`));
+    expect((err as Error).message).toMatch(/fetch failed/);
+    expect(s.status().state).toBe("error");
+    expect(s.status().last_error).toMatch(/fetch failed/);
+  });
+
+  it("names the error status when GitHub answers with one", async () => {
     const f = fakeFetch([{ match: () => true, respond: () => new Response("", { status: 404 }) }]);
-    await expect(service(f).get()).rejects.toThrow(NOT_AVAILABLE);
+    await expect(service(f).get()).rejects.toThrow(
+      `${NOT_AVAILABLE} Cause: codeload.github.com returned HTTP 404`,
+    );
   });
 
   it("ignores a corrupt cache file and downloads again", async () => {
@@ -175,6 +217,7 @@ describe("ShipDataService", () => {
     });
     await expect(down.refresh()).rejects.toThrow(/Ship data refresh failed, keeping current data/);
     expect((await down.get()).commit).toBe(C1);
+    expect(down.status()).toMatchObject({ state: "ready", last_error: expect.stringMatching(/./) });
   });
 });
 

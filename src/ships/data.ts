@@ -230,6 +230,7 @@ export class ShipDataService implements Refreshable {
   private snapshot: Snapshot | null = null;
   /** Last commit check, including failed ones, so an outage does not cause a check per call. */
   private checkedAt = 0;
+  private lastError: string | null = null;
   private loading: Promise<ShipData> | null = null;
   private refreshing: Promise<{ commit: string; changed: boolean }> | null = null;
   private readonly file: string;
@@ -262,11 +263,17 @@ export class ShipDataService implements Refreshable {
     return this.refreshing;
   }
 
-  status(): { state: "empty" | "ready"; commit: string | null; fetched_at: string | null } {
+  status(): {
+    state: "empty" | "ready" | "error";
+    commit: string | null;
+    fetched_at: string | null;
+    last_error: string | null;
+  } {
     return {
-      state: this.data ? "ready" : "empty",
+      state: this.data ? "ready" : this.lastError ? "error" : "empty",
       commit: this.snapshot?.commit ?? null,
       fetched_at: this.snapshot?.fetched_at ?? null,
+      last_error: this.lastError,
     };
   }
 
@@ -274,23 +281,34 @@ export class ShipDataService implements Refreshable {
     await this.refreshing?.catch(() => undefined);
     if (!this.data) await this.loadDisk();
     if (this.data) {
-      if (this.now() - this.checkedAt >= WEEK_MS) await this.refresh().catch(() => undefined);
+      // Recorded in lastError by doRefresh.
+      if (this.now() - this.checkedAt >= WEEK_MS) void this.refresh().catch(() => undefined);
       return this.data;
     }
     try {
       await this.download(null);
-    } catch {
-      throw new UserError(NOT_AVAILABLE);
+    } catch (err) {
+      this.lastError = message(err);
+      throw new UserError(`${NOT_AVAILABLE} Cause: ${this.lastError}`);
     }
     return this.data!;
   }
 
   private async doRefresh(): Promise<{ commit: string; changed: boolean }> {
+    try {
+      const result = await this.check();
+      this.lastError = null;
+      return result;
+    } catch (err) {
+      this.lastError = message(err);
+      throw err;
+    }
+  }
+
+  private async check(): Promise<{ commit: string; changed: boolean }> {
     if (!this.data) await this.loadDisk();
     const keep = (err: unknown) =>
-      new UserError(
-        `Ship data refresh failed, keeping current data: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      new UserError(`Ship data refresh failed, keeping current data: ${message(err)}`);
     // Set before the check, so a failed check or download does not repeat on every call.
     this.checkedAt = this.now();
     let commit: string | null = null;
@@ -357,6 +375,7 @@ export class ShipDataService implements Refreshable {
     await this.save(snapshot);
     this.data = data;
     this.snapshot = snapshot;
+    this.lastError = null;
     return id;
   }
 
@@ -382,3 +401,5 @@ export class ShipDataService implements Refreshable {
     await rename(tmp, this.file);
   }
 }
+
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err));

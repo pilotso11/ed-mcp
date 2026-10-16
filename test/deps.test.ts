@@ -51,6 +51,7 @@ describe("buildDeps", () => {
       state: "empty",
       commit: null,
       fetched_at: null,
+      last_error: null,
     });
     const r = await callTool(client, "cache_refresh", { source: "ships" });
     expect(r).toMatchObject({ isError: true, text: "codeload.github.com returned HTTP 404" });
