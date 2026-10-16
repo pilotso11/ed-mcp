@@ -260,6 +260,22 @@ describe("build_stats changes", () => {
     expect(booster!.engineering).toMatchObject({ blueprint: "ShieldBooster_HeavyDuty", grade: 5 });
   });
 
+  it("returns SLEF that loads back to the same stats", async () => {
+    const cases: Array<[Record<string, unknown>, Record<string, unknown>]> = [
+      [
+        loadout("corsair"),
+        { slot: "utility 1", module: "shield booster 0A", blueprint: "heavy duty" },
+      ],
+      [loadout("mamba"), { slot: "fsd", experimental: "special_fsd_lightweight" }],
+      [loadout("anaconda"), { slot: "fsd", module: "5A", blueprint: "increased range" }],
+    ];
+    for (const [event, change] of cases) {
+      const r = (await stats({ changes: [change] }, { loadout: event })).json as any;
+      const again = (await stats({ build: { slef: r.build } })).json as any;
+      expect(again.stats, String(event.Ship)).toEqual(r.stats);
+    }
+  });
+
   it("passes change errors through", async () => {
     const r = await stats({ changes: [{ slot: "hardpoint 99", module: "5A" }] });
     expect(r.isError).toBe(true);

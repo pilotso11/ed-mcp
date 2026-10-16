@@ -760,27 +760,39 @@ export function toSlef(build: Build): unknown {
       data: {
         event: "Loadout",
         Ship: build.ship.fdevSymbol ?? build.ship.key,
-        Modules: build.modules.map((m) => ({
-          Slot: m.slot,
-          Item:
-            m.module.grp === "bh"
-              ? bulkheadItem(build.ship, m.module)
-              : (m.module.symbol ?? m.module.id).toLowerCase(),
-          On: m.on,
-          Priority: m.priority - 1,
-          ...(m.engineering
-            ? {
-                Engineering: {
-                  BlueprintName: m.engineering.blueprint,
-                  Level: m.engineering.grade,
-                  ...(m.engineering.experimental
-                    ? { ExperimentalEffect: m.engineering.experimental }
-                    : {}),
-                  Modifiers: toJournalModifiers(m.module, m.engineering.modifiers),
+        Modules: [
+          ...build.modules.map((m) => ({
+            Slot: m.slot,
+            Item:
+              m.module.grp === "bh"
+                ? bulkheadItem(build.ship, m.module)
+                : (m.module.symbol ?? m.module.id).toLowerCase(),
+            On: m.on,
+            Priority: m.priority - 1,
+            ...(m.engineering
+              ? {
+                  Engineering: {
+                    BlueprintName: m.engineering.blueprint,
+                    Level: m.engineering.grade,
+                    ...(m.engineering.experimental
+                      ? { ExperimentalEffect: m.engineering.experimental }
+                      : {}),
+                    Modifiers: toJournalModifiers(m.module, m.engineering.modifiers),
+                  },
+                }
+              : {}),
+          })),
+          ...(build.cargoHatch
+            ? [
+                {
+                  Slot: "CargoHatch",
+                  Item: "modularcargobaydoor",
+                  On: build.cargoHatch.on,
+                  Priority: build.cargoHatch.priority - 1,
                 },
-              }
-            : {}),
-        })),
+              ]
+            : []),
+        ],
       },
     },
   ];

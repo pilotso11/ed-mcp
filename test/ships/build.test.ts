@@ -485,6 +485,8 @@ describe("toSlef", () => {
     const again = fromSlef(parsed!, data, null);
     expect(again.ship.key).toBe("imperial_corsair");
     expect(again.notes).toEqual([]);
+    expect(build.cargoHatch).toEqual({ on: true, priority: 3 });
+    expect(again.cargoHatch).toEqual(build.cargoHatch);
     expect(again.modules.map((m) => [m.slot, m.module.id, m.on, m.priority])).toEqual(
       build.modules.map((m) => [m.slot, m.module.id, m.on, m.priority]),
     );
