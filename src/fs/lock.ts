@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { UserError } from "../errors.js";
 
 const LOCK_RETRY_MS = 50;
 const LOCK_STALE_MS = 30_000;
+const PENDING_DELETE_MS = 1_000;
 
 // Takes `${file}.lock` so read-modify-write of `file` is exclusive across processes
 // (e.g. Claude Desktop and Claude Code sharing the config dir). Returns the release.
@@ -15,38 +17,65 @@ export async function acquireLock(
 ): Promise<() => Promise<void>> {
   const lock = `${file}.lock`;
   const deadline = Date.now() + timeoutMs;
+  let pendingSince: number | undefined;
+  // A pending delete clears quickly; a real permission error never does, so it gets a short budget.
+  const waitForDelete = async (err: unknown) => {
+    pendingSince ??= Date.now();
+    if (Date.now() - pendingSince >= PENDING_DELETE_MS || Date.now() >= deadline) throw err;
+    await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+  };
   for (;;) {
+    let handle: FileHandle;
     try {
-      const handle = await open(lock, "wx");
-      const token = randomUUID();
+      handle = await open(lock, "wx");
+    } catch (err) {
+      if (pendingDelete(err)) {
+        await waitForDelete(err);
+        continue;
+      }
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
       try {
-        await handle.writeFile(token);
+        if (Date.now() - (await stat(lock)).mtimeMs > LOCK_STALE_MS) {
+          if (await breakStaleLock(lock)) continue;
+        }
       } catch (err) {
-        await handle.close().catch(() => undefined);
-        await unlink(lock).catch(() => undefined);
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
+        if (pendingDelete(err)) {
+          await waitForDelete(err);
+          continue;
+        }
         throw err;
       }
-      await handle.close();
-      // If we stalled past LOCK_STALE_MS, another process may have broken our lock and
-      // taken a fresh one. Only remove the lock while it still holds our token.
-      return async () => {
-        const held = await readFile(lock, "utf8").catch(() => undefined);
-        if (held === token) await unlink(lock).catch(() => undefined);
-      };
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      pendingSince = undefined;
+      if (Date.now() >= deadline) throw new UserError(lockedMessage);
+      await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+      continue;
     }
+    const token = randomUUID();
+    // If we stalled past LOCK_STALE_MS, another process may have broken our lock and
+    // taken a fresh one. Only remove the lock while it still holds our token.
+    const release = async () => {
+      const held = await readFile(lock, "utf8").catch(() => undefined);
+      if (held === token) await unlink(lock).catch(() => undefined);
+    };
     try {
-      if (Date.now() - (await stat(lock)).mtimeMs > LOCK_STALE_MS) {
-        if (await breakStaleLock(lock)) continue;
-      }
+      await handle.writeFile(token);
+      await handle.close();
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
+      await handle.close().catch(() => undefined);
+      // A lock left without our token is broken as stale after LOCK_STALE_MS.
+      await release();
       throw err;
     }
-    if (Date.now() >= deadline) throw new UserError(lockedMessage);
-    await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+    return release;
   }
+}
+
+// Windows reports EPERM (sometimes EACCES) for a file whose delete is still pending, for
+// example the lock another process has just released.
+function pendingDelete(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException).code;
+  return process.platform === "win32" && (code === "EPERM" || code === "EACCES");
 }
 
 // Holds the lock while `update` re-reads the file and builds its new content, then
