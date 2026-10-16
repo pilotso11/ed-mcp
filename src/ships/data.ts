@@ -278,7 +278,8 @@ export class ShipDataService implements Refreshable {
   }
 
   private async load(): Promise<ShipData> {
-    await this.refreshing?.catch(() => undefined);
+    // With data in memory, a running refresh happens in the background; only a first load waits.
+    if (!this.data) await this.refreshing?.catch(() => undefined);
     if (!this.data) await this.loadDisk();
     if (this.data) {
       // Recorded in lastError by doRefresh.
