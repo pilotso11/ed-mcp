@@ -107,6 +107,7 @@ Change rules:
 - A new module drops the old engineering, unless the change also gives a blueprint.
 - A blueprint without a module re-engineers the module in the slot.
 - Engineering from a change uses the best roll for its grade, and experimental effects use their fixed values. The note `Engineering on changed modules assumes best rolls.` says so.
+- A change that keeps the blueprint and grade keeps the module's real values. A new experimental effect applies on top of them, after the old effect is taken out. If the catalog cannot take the old effect out, the best roll replaces the real values, and a note names the slot.
 - An unknown slot, an unknown module, a module that does not fit the slot, and a blueprint that does not apply to the module are errors. Most errors list the options.
 
 Results:

@@ -31,6 +31,9 @@ export function catalog(opts: { actions?: boolean } = {}): Catalog {
   ).catalog;
 }
 
-export function loadout(ship: "corsair" | "anaconda" | "mamba"): Record<string, unknown> {
+/** mamba-2021 is the same Mamba, earlier, with a grade 5 FSD at quality 0.289 and no experimental. */
+export function loadout(
+  ship: "corsair" | "anaconda" | "mamba" | "mamba-2021",
+): Record<string, unknown> {
   return JSON.parse(builds(`loadout-${ship}.json`));
 }

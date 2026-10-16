@@ -185,6 +185,17 @@ describe("build_stats sources", () => {
     );
   });
 
+  it("keeps a real experimental without a note when the catalog has no values", async () => {
+    const j = (
+      await stats(
+        { changes: [{ slot: "fsd", blueprint: "FSD_LongRange", grade: 5 }] },
+        { loadout: loadout("mamba"), noActions: true },
+      )
+    ).json as any;
+    expect(j.notes.some((n: string) => n.includes("no fixed values"))).toBe(false);
+    expect(j.diff).toEqual({});
+  });
+
   it("reads a plan's target_build", async () => {
     const plan = { id: "krait", name: "Krait", items: [], target_build: JSON.parse(slefText) };
     const j = (await stats({ build: { plan_id: "krait" } }, { plan })).json as any;

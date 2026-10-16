@@ -21,6 +21,7 @@ import {
   applyExperimental,
   bestRoll,
   fromJournalModifiers,
+  removeExperimental,
   toJournalModifiers,
 } from "./engineering.js";
 
@@ -633,7 +634,16 @@ function checkFit(module: CoriolisModule, info: SlotInfo, data: ShipData): void 
   if (info.size !== null && module.class > info.size) throw fail(`the slot is size ${info.size}`);
 }
 
-function engineer(c: Change, target: BuiltModule, catalog: Catalog): Engineering {
+/**
+ * The engineering a change gives. With the same blueprint and grade, the module keeps its real
+ * modifier values and only the experimental effect changes. `rolled` is true when the values are
+ * a best roll.
+ */
+function engineer(
+  c: Change,
+  target: BuiltModule,
+  catalog: Catalog,
+): { engineering: Engineering; rolled: boolean; notes: string[] } {
   const old = target.engineering;
   const name = c.blueprint ?? old?.blueprint;
   if (!name) {
@@ -642,15 +652,39 @@ function engineer(c: Change, target: BuiltModule, catalog: Catalog): Engineering
     );
   }
   const blueprint = blueprintId(name, target.module, catalog);
+  const sameBlueprint = old !== null && normKey(old.blueprint) === normKey(blueprint);
   const grade = c.grade ?? (c.blueprint ? 5 : (old?.grade ?? 5));
   const experimental = c.experimental
     ? experimentalId(c.experimental, target.module, catalog)
-    : old?.blueprint === blueprint
+    : sameBlueprint
       ? old.experimental
       : null;
-  let modifiers = bestRoll(blueprint, grade, target.module, catalog);
-  if (experimental) modifiers = applyExperimental(modifiers, experimental, target.module, catalog);
-  return { blueprint, grade, experimental, modifiers };
+  const notes: string[] = [];
+  const withExperimental = (modifiers: Record<string, number>) => {
+    if (!experimental) return modifiers;
+    const note = noValuesNote(target.slot, experimental, catalog);
+    if (note) notes.push(note);
+    return applyExperimental(modifiers, experimental, target.module, catalog);
+  };
+
+  if (sameBlueprint && old.grade === grade && Object.keys(old.modifiers).length) {
+    const sameExperimental = normKey(old.experimental ?? "") === normKey(experimental ?? "");
+    if (sameExperimental) {
+      return { engineering: { ...old, blueprint }, rolled: false, notes };
+    }
+    const without = old.experimental
+      ? removeExperimental(old.modifiers, old.experimental, catalog)
+      : { ...old.modifiers };
+    if (without) {
+      const modifiers = withExperimental(without);
+      return { engineering: { blueprint, grade, experimental, modifiers }, rolled: false, notes };
+    }
+    notes.push(
+      `Slot ${target.slot}: the catalog cannot take ${old.experimental} out of the real engineering values, so the best roll replaces them.`,
+    );
+  }
+  const modifiers = withExperimental(bestRoll(blueprint, grade, target.module, catalog));
+  return { engineering: { blueprint, grade, experimental, modifiers }, rolled: true, notes };
 }
 
 /** Applies changes in order to a copy of the build. */
@@ -699,13 +733,10 @@ export function applyChanges(
       if (!next) {
         throw new UserError(`Slot ${info.slot} is empty. Give a module to engineer.`);
       }
-      const engineering = engineer(c, next, catalog);
-      next = { ...next, engineering };
-      rolled = true;
-      const note = engineering.experimental
-        ? noValuesNote(info.slot, engineering.experimental, catalog)
-        : null;
-      if (note && !notes.includes(note)) notes.push(note);
+      const result = engineer(c, next, catalog);
+      next = { ...next, engineering: result.engineering };
+      if (result.rolled) rolled = true;
+      for (const note of result.notes) if (!notes.includes(note)) notes.push(note);
     }
     if (i >= 0) modules[i] = next!;
     else modules.push(next!);

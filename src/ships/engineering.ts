@@ -356,3 +356,44 @@ export function applyExperimental(
   }
   return out;
 }
+
+/**
+ * Takes an experimental effect's fixed values out of modifiers, the reverse of applyExperimental.
+ * Null when the catalog has no values for the effect, so it cannot be taken out.
+ */
+export function removeExperimental(
+  modifiers: Record<string, number>,
+  experimental: string,
+  catalog: Catalog,
+): Record<string, number> | null {
+  const effects = catalog.experimentalEffects(experimental);
+  if (!effects) return null;
+  const out = { ...modifiers };
+  for (const [feature, a] of Object.entries(effects)) {
+    const current = out[feature];
+    if (current === undefined) continue;
+    switch (kind(feature)) {
+      case "mult":
+        out[feature] = current / (1 + a);
+        break;
+      case "rof":
+        out[feature] = current * (1 + a);
+        break;
+      case "boost":
+        out[feature] = (1 + current) / (1 + a) - 1;
+        break;
+      case "res":
+        out[feature] = (current - a / 100) / (1 - a / 100);
+        break;
+      case "add":
+        out[feature] = current - a;
+        break;
+      case "set":
+        // The value before the effect is lost.
+        return null;
+      case "skip":
+        break;
+    }
+  }
+  return out;
+}

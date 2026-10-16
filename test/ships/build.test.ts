@@ -14,7 +14,7 @@ import {
   SLOT_QUIRK_SHIPS,
   toSlef,
 } from "../../src/ships/build.js";
-import { modifiedValue } from "../../src/ships/engineering.js";
+import { applyExperimental, bestRoll, modifiedValue } from "../../src/ships/engineering.js";
 import { catalog, loadout, shipData } from "./buildFixture.js";
 
 const data = shipData();
@@ -306,6 +306,90 @@ describe("applyChanges", () => {
       grade: 3,
     });
     expect(build.notes.filter((n) => n === BEST_ROLL_NOTE)).toHaveLength(1);
+  });
+
+  // The Mamba fixture's engineering has real rolls below the best (Quality < 1).
+  const mamba = () => fromLoadout(loadout("mamba"), data);
+
+  it("keeps the real rolls when a change adds only an experimental", () => {
+    // A grade 5 FSD at quality 0.289, with no experimental.
+    const early = () => fromLoadout(loadout("mamba-2021"), data);
+    const before = slot(early(), "FrameShiftDrive")!.engineering!;
+    expect(before).toMatchObject({ blueprint: "FSD_LongRange", grade: 5, experimental: null });
+    const { build } = applyChanges(
+      early(),
+      [{ slot: "fsd", experimental: "special_fsd_heavy" }],
+      data,
+      cat,
+    );
+    const after = slot(build, "FrameShiftDrive")!.engineering!;
+    expect(after.experimental).toBe("special_fsd_heavy");
+    const m = before.modifiers;
+    expect(after.modifiers.optmass).toBeCloseTo(m.optmass! * 1.04, 9);
+    expect(after.modifiers.optmass).toBeLessThan(1.55 * 1.04 - 0.01);
+    expect(after.modifiers.integrity).toBeCloseTo(m.integrity! * 0.92, 9);
+    expect(after.modifiers.mass).toBe(m.mass);
+    expect(build.notes).not.toContain(BEST_ROLL_NOTE);
+  });
+
+  it("keeps the real rolls when a change repeats the blueprint and grade", () => {
+    const before = slot(mamba(), "FrameShiftDrive")!.engineering!;
+    const { build } = applyChanges(
+      mamba(),
+      [{ slot: "fsd", blueprint: "FSD_LongRange", grade: 5 }],
+      data,
+      cat,
+    );
+    expect(slot(build, "FrameShiftDrive")!.engineering).toEqual(before);
+    expect(build.notes).not.toContain(BEST_ROLL_NOTE);
+  });
+
+  it("swaps an experimental on real rolls by taking the old effect out first", () => {
+    const before = slot(mamba(), "FrameShiftDrive")!.engineering!;
+    expect(before).toMatchObject({ grade: 5, experimental: "special_fsd_heavy" });
+    const { build } = applyChanges(
+      mamba(),
+      [{ slot: "fsd", experimental: "special_fsd_lightweight" }],
+      data,
+      cat,
+    );
+    const after = slot(build, "FrameShiftDrive")!.engineering!;
+    expect(after).toMatchObject({ blueprint: "FSD_LongRange", grade: 5 });
+    expect(after.experimental).toBe("special_fsd_lightweight");
+    // Deep Charge (heavy) gave optimal mass +4% and integrity -8%; lightweight gives mass -10%.
+    const m = before.modifiers;
+    expect(after.modifiers.optmass).toBeCloseTo(m.optmass! / 1.04, 9);
+    expect(after.modifiers.optmass).toBeLessThan(1.55);
+    expect(after.modifiers.integrity).toBeCloseTo(m.integrity! / 0.92, 9);
+    expect(after.modifiers.mass).toBeCloseTo(m.mass! * 0.9, 9);
+    expect(build.notes).not.toContain(BEST_ROLL_NOTE);
+  });
+
+  it("uses the best roll, with a note, when the old experimental cannot be taken out", () => {
+    // The fixture catalog has no values for special_armour_thermic.
+    const armour = slot(anaconda(), "Armour")!;
+    expect(armour.engineering).toMatchObject({
+      blueprint: "Armour_HeavyDuty",
+      grade: 1,
+      experimental: "special_armour_thermic",
+    });
+    const { build } = applyChanges(
+      anaconda(),
+      [{ slot: "armour", experimental: "special_armour_chunky" }],
+      data,
+      cat,
+    );
+    const best = applyExperimental(
+      bestRoll("Armour_HeavyDuty", 1, armour.module, cat),
+      "special_armour_chunky",
+      armour.module,
+      cat,
+    );
+    expect(slot(build, "Armour")!.engineering!.modifiers).toEqual(best);
+    expect(build.notes).toContain(
+      "Slot Armour: the catalog cannot take special_armour_thermic out of the real engineering values, so the best roll replaces them.",
+    );
+    expect(build.notes).toContain(BEST_ROLL_NOTE);
   });
 
   it("removes a module", () => {
