@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { SecretStore } from "../../src/settings/secrets.js";
@@ -66,5 +66,31 @@ describe("Settings", () => {
     expect((await s.inara())?.apiKey).toBe("env");
     await expect(s.edsm()).rejects.toThrow("not readable");
     expect((await s.sources()).error).toMatch(/not readable/);
+  });
+
+  it("retries the seed after the secrets file becomes readable", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "settings-"));
+    const file = path.join(dir, "secrets.json");
+    await writeFile(file, "{bad");
+    const secrets = new SecretStore(file);
+    const s = new Settings({ inara: { apiKey: "env", cmdr: "E" } }, app, secrets);
+    expect((await s.sources()).error).toMatch(/not readable/);
+    await rm(file);
+    await s.inara();
+    expect((await secrets.get()).inara).toEqual({ apiKey: "env", cmdr: "E" });
+    expect((await s.sources()).error).toBeNull();
+  });
+
+  it("reports a stored key when the environment has none", async () => {
+    const secrets = await store();
+    await secrets.update((d) => {
+      d.inara = { apiKey: "k", cmdr: "S" };
+    });
+    const s = new Settings({}, app, secrets);
+    expect((await s.sources()).inara).toEqual({
+      source: "stored",
+      cmdr: "S",
+      differs_from_stored: false,
+    });
   });
 });

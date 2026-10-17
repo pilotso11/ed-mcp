@@ -1,5 +1,5 @@
 import type { EdsmConfig, InaraConfig } from "../config.js";
-import { SecretsError } from "./crypto.js";
+import { UserError } from "../errors.js";
 import type { SecretStore, ServiceKey } from "./secrets.js";
 
 export type Source = "environment" | "stored" | "not set";
@@ -36,7 +36,7 @@ export class Settings {
       await this.seed();
       stored = await this.secrets.get();
     } catch (err) {
-      if (!(err instanceof SecretsError)) throw err;
+      if (!(err instanceof UserError)) throw err;
       error = err.message;
     }
     const info = (s: Service): SourceInfo => {
@@ -69,7 +69,11 @@ export class Settings {
       await this.secrets.update((d) => {
         for (const s of missing) d[s] ??= this.env[s];
       });
-    })();
+    })().catch((err) => {
+      // Retry on the next call: the sync folder may mount, or a lock may clear, later.
+      this.seeded = null;
+      throw err;
+    });
     return this.seeded;
   }
 }

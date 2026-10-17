@@ -67,11 +67,14 @@ export class InaraClient {
   }
 
   async profile(name?: string): Promise<InaraProfile> {
-    const ev = (await this.cache.getOrLoad(`profile:${name ?? ""}`, () =>
+    const cfg = await this.config();
+    if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
+    const who = name ?? cfg.cmdr;
+    const ev = (await this.cache.getOrLoad(`profile:${cfg.cmdr}:${name ?? ""}`, () =>
       this.send("getCommanderProfile", name ? { searchName: name } : {}),
     )) as InaraEvent;
     if (ev.eventStatus === 204) {
-      throw new UserError(`Inara: no commander found for "${name ?? (await this.config())?.cmdr}"`);
+      throw new UserError(`Inara: no commander found for "${who}"`);
     }
     const d = (ev.eventData ?? {}) as Record<string, unknown>;
     const ship = d.commanderMainShip as
