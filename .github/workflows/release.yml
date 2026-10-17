@@ -39,8 +39,8 @@ jobs:
       # and adds provenance itself. No npm token is stored in the repository. A staged publish
       # goes live only after a maintainer approves it on npmjs.com with 2FA.
       - name: Stage npm publish
-        # The check sees live versions only. `npm stage list` needs a logged-in user, so a re-run
-        # before the staged version is approved stages it again; reject the extra one on npmjs.com.
+        # The check sees live versions only; `npm stage list` is not open to this workflow's token.
+        # A re-run before the staged version is approved fails here. Approve or reject it first.
         run: |
           version=$(node -p "require('./package.json').version")
           if npm view "ed-mcp@$version" version >/dev/null 2>&1; then
