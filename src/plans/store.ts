@@ -26,13 +26,15 @@ export class PlanStore {
   private queue: Promise<unknown> = Promise.resolve();
 
   private readonly lockTimeoutMs: number;
+  private readonly lockDir?: string;
 
   constructor(
     readonly file: string,
     private readonly now: () => Date = () => new Date(),
-    opts: { lockTimeoutMs?: number } = {},
+    opts: { lockTimeoutMs?: number; lockDir?: string } = {},
   ) {
     this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
+    this.lockDir = opts.lockDir;
   }
 
   async list(): Promise<PlanSummary[]> {
@@ -136,6 +138,7 @@ export class PlanStore {
         this.file,
         {
           timeoutMs: this.lockTimeoutMs,
+          lockDir: this.lockDir,
           lockedMessage: "Plan file is locked by another process; try again",
         },
         async () => {

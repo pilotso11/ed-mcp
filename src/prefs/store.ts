@@ -10,12 +10,14 @@ export class PreferencesStore {
   private queue: Promise<unknown> = Promise.resolve();
 
   private readonly lockTimeoutMs: number;
+  private readonly lockDir?: string;
 
   constructor(
     readonly file: string,
-    opts: { lockTimeoutMs?: number } = {},
+    opts: { lockTimeoutMs?: number; lockDir?: string } = {},
   ) {
     this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
+    this.lockDir = opts.lockDir;
   }
 
   async get(): Promise<Prefs> {
@@ -53,6 +55,7 @@ export class PreferencesStore {
       this.file,
       {
         timeoutMs: this.lockTimeoutMs,
+        lockDir: this.lockDir,
         lockedMessage: "Preferences file is locked by another process; try again",
       },
       async () => {

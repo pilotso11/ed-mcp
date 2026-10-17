@@ -1,5 +1,15 @@
-import { randomUUID } from "node:crypto";
-import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  chmod,
+  link,
+  mkdir,
+  open,
+  readFile,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { UserError } from "../errors.js";
@@ -8,14 +18,23 @@ const LOCK_RETRY_MS = 50;
 const LOCK_STALE_MS = 30_000;
 const PENDING_DELETE_MS = 1_000;
 
-// Takes `${file}.lock` so read-modify-write of `file` is exclusive across processes
+// Locks for files in a sync folder stay local: a sync app copies files late, so a lock there
+// would not stop another computer and would make it wait for a lock it does not share.
+export function lockPath(file: string, lockDir?: string): string {
+  if (!lockDir) return `${file}.lock`;
+  const hash = createHash("sha256").update(path.resolve(file)).digest("hex").slice(0, 16);
+  return path.join(lockDir, `${hash}.lock`);
+}
+
+// Takes the lock for `file` so read-modify-write of `file` is exclusive across processes
 // (e.g. Claude Desktop and Claude Code sharing the config dir). Returns the release.
 export async function acquireLock(
   file: string,
   timeoutMs: number,
   lockedMessage: string,
+  lockDir?: string,
 ): Promise<() => Promise<void>> {
-  const lock = `${file}.lock`;
+  const lock = lockPath(file, lockDir);
   const deadline = Date.now() + timeoutMs;
   let pendingSince: number | undefined;
   // A pending delete clears quickly; a real permission error never does, so it gets a short budget.
@@ -82,16 +101,19 @@ function pendingDelete(err: unknown): boolean {
 // replaces the file atomically. The temp name is unique so concurrent writers never share it.
 export async function lockedWrite<T>(
   file: string,
-  opts: { timeoutMs: number; lockedMessage: string },
+  opts: { timeoutMs: number; lockedMessage: string; lockDir?: string; mode?: number },
   update: () => Promise<{ content: string; result: T }>,
 ): Promise<T> {
   await mkdir(path.dirname(file), { recursive: true });
-  const release = await acquireLock(file, opts.timeoutMs, opts.lockedMessage);
+  if (opts.lockDir) await mkdir(opts.lockDir, { recursive: true });
+  const release = await acquireLock(file, opts.timeoutMs, opts.lockedMessage, opts.lockDir);
   try {
     const { content, result } = await update();
     const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
     try {
-      await writeFile(tmp, content);
+      await writeFile(tmp, content, opts.mode === undefined ? undefined : { mode: opts.mode });
+      // writeFile's mode is masked by the umask; chmod sets it exactly.
+      if (opts.mode !== undefined) await chmod(tmp, opts.mode);
       await rename(tmp, file);
     } catch (err) {
       await unlink(tmp).catch(() => undefined);
