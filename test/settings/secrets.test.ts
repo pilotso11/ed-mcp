@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, stat, utimes, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
@@ -56,7 +56,9 @@ describe("SecretStore", () => {
     await expect(wrong.get()).rejects.toThrow(
       new SecretsError(`Can't decrypt ${file}: wrong ED_MCP_SYNC_PASSWORD.`),
     );
-    await expect(wrong.update(() => undefined)).rejects.toBeInstanceOf(SecretsError);
+    await expect(wrong.update(() => undefined)).rejects.toThrow(
+      new SecretsError(`Can't decrypt ${file}: wrong ED_MCP_SYNC_PASSWORD.`),
+    );
     expect(await readFile(file, "utf8")).toBe(before);
   });
 
@@ -104,6 +106,22 @@ describe("SecretStore", () => {
     expect(await s.notes()).toEqual([`Moved the Frontier login from ${legacy}.`]);
   });
 
+  it("keeps an old capi-token.json when the store already has a login, and says so", async () => {
+    const dir = await tmp();
+    const legacy = path.join(dir, "capi-token.json");
+    await writeFile(legacy, JSON.stringify({ ...tokens, refresh_token: "old" }));
+    const file = path.join(dir, "secrets.json");
+    await new SecretStore(file).update((d) => {
+      d.capi = tokens;
+    });
+    const s = new SecretStore(file, { migrate: { legacyTokenFile: legacy } });
+    expect((await s.get()).capi).toEqual(tokens);
+    expect(existsSync(legacy)).toBe(true);
+    expect(await s.notes()).toEqual([
+      `${legacy} was left in place; delete it once you have checked the Frontier login works.`,
+    ]);
+  });
+
   it("moves a plain secrets.json into a new encrypted file", async () => {
     const dir = await tmp();
     const plain = path.join(dir, "secrets.json");
@@ -117,6 +135,10 @@ describe("SecretStore", () => {
     });
     expect((await enc.get()).edsm).toEqual({ apiKey: "e", cmdr: "J" });
     expect(existsSync(plain)).toBe(false);
+    expect(await enc.notes()).toEqual([`Encrypted the secrets from ${plain}.`]);
+    if (process.platform !== "win32") {
+      expect((await stat(path.join(dir, "secrets.enc"))).mode & 0o777).toBe(0o600);
+    }
   });
 
   it("leaves a plain secrets.json alone when the encrypted file already exists", async () => {
@@ -137,5 +159,102 @@ describe("SecretStore", () => {
     expect(await enc.notes()).toEqual([
       `${plain} was left in place because ${encFile} already exists.`,
     ]);
+  });
+
+  it("creates nothing when the guard fails on a missing sync folder", async () => {
+    const dir = await tmp();
+    const sync = path.join(dir, "sync");
+    const guard = async () => {
+      if (!existsSync(sync)) throw new SecretsError("Sync folder is not available");
+    };
+    const s = new SecretStore(path.join(sync, "secrets.json"), { guard });
+    await expect(s.update((d) => void (d.inara = { apiKey: "k", cmdr: "A" }))).rejects.toThrow(
+      "not available",
+    );
+    expect(existsSync(sync)).toBe(false);
+  });
+
+  it("refuses to read or replace an encrypted file with a plain store", async () => {
+    const file = path.join(await tmp(), "secrets.enc");
+    await new SecretStore(file, { password: "pw", scrypt: FAST }).update((d) => {
+      d.capi = tokens;
+    });
+    const before = await readFile(file, "utf8");
+    const plain = new SecretStore(file);
+    const message = `${file} is not readable (encrypted; set ED_MCP_SYNC_PASSWORD).`;
+    await expect(plain.get()).rejects.toThrow(message);
+    await expect(plain.update(() => undefined)).rejects.toThrow(message);
+    expect(await readFile(file, "utf8")).toBe(before);
+  });
+
+  it("retries a failed migration on the next call", async () => {
+    const dir = await tmp();
+    const legacy = path.join(dir, "capi-token.json");
+    await writeFile(legacy, JSON.stringify(tokens));
+    let calls = 0;
+    const guard = async () => {
+      if (calls++ === 0) throw new SecretsError("Sync folder is not available");
+    };
+    const s = new SecretStore(path.join(dir, "secrets.json"), {
+      guard,
+      migrate: { legacyTokenFile: legacy },
+    });
+    await expect(s.get()).rejects.toThrow("not available");
+    expect((await s.get()).capi).toEqual(tokens);
+  });
+
+  it("leaves a corrupt plain secrets.json in place and still opens the encrypted store", async () => {
+    const dir = await tmp();
+    const plain = path.join(dir, "secrets.json");
+    await writeFile(plain, "{bad");
+    const enc = new SecretStore(path.join(dir, "secrets.enc"), {
+      password: "pw",
+      scrypt: FAST,
+      migrate: { plainFile: plain },
+    });
+    expect(await enc.get()).toEqual({ version: 1 });
+    expect(existsSync(plain)).toBe(true);
+    expect(await enc.notes()).toEqual([`${plain} was left in place because it is not readable.`]);
+  });
+
+  it("keeps another store's change when it writes", async () => {
+    const file = path.join(await tmp(), "secrets.json");
+    const first = new SecretStore(file);
+    const second = new SecretStore(file);
+    await first.get();
+    await second.update((d) => {
+      d.edsm = { apiKey: "e", cmdr: "J" };
+    });
+    await first.update((d) => {
+      d.inara = { apiKey: "k", cmdr: "A" };
+    });
+    expect(await new SecretStore(file).get()).toEqual({
+      version: 1,
+      edsm: { apiKey: "e", cmdr: "J" },
+      inara: { apiKey: "k", cmdr: "A" },
+    });
+  });
+
+  it("parses an unchanged file once", async () => {
+    const file = path.join(await tmp(), "secrets.json");
+    await new SecretStore(file).update((d) => {
+      d.inara = { apiKey: "k", cmdr: "A" };
+    });
+    const s = new SecretStore(file);
+    const parse = vi.spyOn(s as any, "parse"); // eslint-disable-line @typescript-eslint/no-explicit-any
+    await s.get();
+    await s.get();
+    await s.get();
+    expect(parse).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a change that would make the file invalid", async () => {
+    const file = path.join(await tmp(), "secrets.json");
+    const s = new SecretStore(file);
+    await expect(
+      s.update((d) => {
+        d.inara = { apiKey: "", cmdr: "A" };
+      }),
+    ).rejects.toThrow(new RegExp(`${file} would be invalid`));
   });
 });

@@ -11,10 +11,10 @@ export const StoredTokensSchema = z.object({
 });
 export type StoredTokens = z.infer<typeof StoredTokensSchema>;
 
-const ServiceKeySchema = z.object({ apiKey: z.string().min(1), cmdr: z.string().min(1) });
+const ServiceKeySchema = z.strictObject({ apiKey: z.string().min(1), cmdr: z.string().min(1) });
 export type ServiceKey = z.infer<typeof ServiceKeySchema>;
 
-const SecretsSchema = z.object({
+const SecretsSchema = z.strictObject({
   version: z.literal(1),
   inara: ServiceKeySchema.optional(),
   edsm: ServiceKeySchema.optional(),
@@ -28,7 +28,6 @@ interface Cached {
   mtimeMs: number;
   size: number;
   value: Secrets;
-  salt?: string;
 }
 
 export class SecretStore {
@@ -73,7 +72,11 @@ export class SecretStore {
   }
 
   private migrated(): Promise<string[]> {
-    this.ready ??= this.migrate();
+    this.ready ??= this.migrate().catch((err) => {
+      // Retry on the next call: the sync folder may mount, or a lock may clear, later.
+      this.ready = null;
+      throw err;
+    });
     return this.ready;
   }
 
@@ -96,7 +99,7 @@ export class SecretStore {
     }
     const raw = await readFile(this.file, "utf8");
     const { value, salt } = this.parse(raw);
-    this.cached = { mtimeMs: st.mtimeMs, size: st.size, value, salt };
+    this.cached = { mtimeMs: st.mtimeMs, size: st.size, value };
     this.salt = salt;
     return structuredClone(value);
   }
@@ -109,6 +112,10 @@ export class SecretStore {
       throw new SecretsError(`${this.file} is not readable (not JSON).`);
     }
     let salt: string | undefined;
+    if (!this.cipher && (json as { format?: unknown } | null)?.format === "ed-mcp-secrets") {
+      // Reading it as an empty document would let the next write replace the ciphertext.
+      throw new SecretsError(`${this.file} is not readable (encrypted; set ED_MCP_SYNC_PASSWORD).`);
+    }
     if (this.cipher) {
       try {
         const opened = this.cipher.open(json);
@@ -130,6 +137,8 @@ export class SecretStore {
   }
 
   private async write(fn: (s: Secrets) => void): Promise<Secrets> {
+    // lockedWrite creates the folder before its callback runs, so check first.
+    await this.opts.guard?.();
     return lockedWrite(
       this.file,
       {
@@ -144,7 +153,12 @@ export class SecretStore {
         this.cached = null;
         const next = await this.read();
         fn(next);
-        const checked = SecretsSchema.parse(next);
+        const result = SecretsSchema.safeParse(next);
+        if (!result.success) {
+          const issue = result.error.issues[0]?.message ?? "invalid";
+          throw new SecretsError(`${this.file} would be invalid (${issue}).`);
+        }
+        const checked = result.data;
         const body = JSON.stringify(checked, null, 2);
         const content = this.cipher
           ? JSON.stringify(this.cipher.seal(body, this.salt), null, 2)
@@ -157,6 +171,7 @@ export class SecretStore {
   }
 
   private async migrate(): Promise<string[]> {
+    await this.opts.guard?.();
     const notes: string[] = [];
     const { legacyTokenFile, plainFile } = this.opts.migrate ?? {};
     if (plainFile && this.encrypted && plainFile !== this.file) {
@@ -164,32 +179,52 @@ export class SecretStore {
       if (plain !== null) {
         const exists = await stat(this.file).then(
           () => true,
-          () => false,
+          (err) => {
+            if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
+            throw err;
+          },
         );
         if (exists) {
           notes.push(`${plainFile} was left in place because ${this.file} already exists.`);
         } else {
-          const value = new SecretStore(plainFile).parse(plain).value;
-          await this.write((d) => Object.assign(d, value));
-          await rm(plainFile, { force: true });
-          notes.push(`Encrypted the secrets from ${plainFile}.`);
+          let value: Secrets | null = null;
+          try {
+            value = new SecretStore(plainFile).parse(plain).value;
+          } catch {
+            notes.push(`${plainFile} was left in place because it is not readable.`);
+          }
+          if (value) {
+            await this.write((d) => Object.assign(d, value));
+            await rm(plainFile, { force: true });
+            notes.push(`Encrypted the secrets from ${plainFile}.`);
+          }
         }
       }
     }
     if (legacyTokenFile) {
       const raw = await readFile(legacyTokenFile, "utf8").catch(() => null);
       const parsed = raw === null ? null : StoredTokensSchema.safeParse(safeJson(raw));
-      if (parsed?.success && !(await this.read()).capi) {
-        await this.write((d) => {
-          d.capi = parsed.data;
+      if (parsed?.success) {
+        // Decide inside the lock, so a fresher login from another process is kept.
+        const stored = await this.write((d) => {
+          d.capi ??= parsed.data;
         });
-        await rm(legacyTokenFile, { force: true });
-        notes.push(`Moved the Frontier login from ${legacyTokenFile}.`);
+        if (JSON.stringify(stored.capi) === JSON.stringify(parsed.data)) {
+          await rm(legacyTokenFile, { force: true });
+          notes.push(`Moved the Frontier login from ${legacyTokenFile}.`);
+        } else {
+          notes.push(LEFT(legacyTokenFile));
+        }
+      } else if (raw !== null) {
+        notes.push(LEFT(legacyTokenFile));
       }
     }
     return notes;
   }
 }
+
+const LEFT = (file: string) =>
+  `${file} was left in place; delete it once you have checked the Frontier login works.`;
 
 function safeJson(raw: string): unknown {
   try {
