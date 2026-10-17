@@ -22,24 +22,28 @@ const engineers = (name: string) => ({
   grades: { "1": { engineers: [name] }, "5": { engineers: [name] } },
 });
 
-let cat: Catalog;
-let warnings: string[];
-beforeAll(async () => {
+async function build(mc = blueprint(true)) {
   const raw = await rawFixture();
   const bps = JSON.parse(raw.blueprints) as Record<string, unknown>;
   bps.Weapon_Overcharged = blueprint(false);
-  bps.MC_Overcharged = blueprint(true);
+  bps.MC_Overcharged = mc;
   const mods = JSON.parse(raw.modifications) as Record<string, unknown>;
   mods.c = { blueprints: { Weapon_Overcharged: engineers("Professor Palin") } };
   mods.mc = { blueprints: { MC_Overcharged: engineers("Felicity Farseer") } };
-  ({ catalog: cat, warnings } = buildCatalog(
+  return buildCatalog(
     { ...raw, blueprints: JSON.stringify(bps), modifications: JSON.stringify(mods) },
     {
       ...staticsFixture,
       groups: { ...staticsFixture.groups, c: ["Cannon"], mc: ["Multi-Cannon"] },
     },
     SMALL,
-  ));
+  );
+}
+
+let cat: Catalog;
+let warnings: string[];
+beforeAll(async () => {
+  ({ catalog: cat, warnings } = await build());
 });
 
 describe("blueprints that share an fdname", () => {
@@ -75,5 +79,13 @@ describe("blueprints that share an fdname", () => {
 
   it("raise no warnings", () => {
     expect(warnings.filter((w) => w.includes("Overcharged"))).toEqual([]);
+  });
+
+  it("warn when they cost different materials", async () => {
+    const mc = blueprint(true);
+    mc.grades["5"].components = { "Conductive Polymers": 2, Zirconium: 1 };
+    expect((await build(mc)).warnings).toContain(
+      "Blueprints with the name Weapon_Overcharged cost different materials; using one of them.",
+    );
   });
 });
