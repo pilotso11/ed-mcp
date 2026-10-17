@@ -82,5 +82,3 @@ The trusted publisher is set on npmjs.com, in the settings of the `ed-mcp` packa
 | Workflow filename    | `release.yml` |
 | Environment          | (empty)       |
 | Allowed actions      | Staged publishing only. `npm publish` and `npm dist-tag` are not allowed. |
-
-npm can set a trusted publisher only for a package that exists. For that reason, the first version (0.2.0) was published by hand with `npm stage publish --access public` and approved on npmjs.com. With a passkey as the second factor, `npm publish` fails with `EOTP`; `npm stage publish` does not.
