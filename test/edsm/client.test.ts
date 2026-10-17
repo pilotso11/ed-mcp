@@ -19,6 +19,21 @@ describe("EdsmClient", () => {
     await expect(c.position()).rejects.toBeInstanceOf(NotConfiguredError);
   });
 
+  it("reads its config on every request", async () => {
+    let current: { apiKey: string; cmdr: string } | undefined;
+    const body = await fixture("edsm/get-position-public-nokey.json");
+    const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
+    const c = new EdsmClient(
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
+      async () => current,
+      new TtlCache("edsm", 60_000),
+    );
+    await expect(c.position()).rejects.toBeInstanceOf(NotConfiguredError);
+    current = { apiKey: "k", cmdr: "J" };
+    await c.position();
+    expect(f.calls[0]!.url).toContain("apiKey=k");
+  });
+
   it("maps position and sends the right query", async () => {
     const body = await fixture("edsm/get-position-public-nokey.json");
     const f = fakeFetch([

@@ -58,7 +58,7 @@ export class InaraClient {
 
   constructor(
     private readonly http: HttpClient,
-    private readonly cfg: InaraConfig | undefined,
+    private readonly cfg: InaraConfig | undefined | (() => Promise<InaraConfig | undefined>),
     private readonly cache: TtlCache<unknown>,
     opts: { endpoint?: string; now?: () => Date } = {},
   ) {
@@ -71,7 +71,7 @@ export class InaraClient {
       this.send("getCommanderProfile", name ? { searchName: name } : {}),
     )) as InaraEvent;
     if (ev.eventStatus === 204) {
-      throw new UserError(`Inara: no commander found for "${name ?? this.cfg?.cmdr}"`);
+      throw new UserError(`Inara: no commander found for "${name ?? (await this.config())?.cmdr}"`);
     }
     const d = (ev.eventData ?? {}) as Record<string, unknown>;
     const ship = d.commanderMainShip as
@@ -142,13 +142,15 @@ export class InaraClient {
     }));
   }
 
+  private config(): Promise<InaraConfig | undefined> {
+    return typeof this.cfg === "function" ? this.cfg() : Promise.resolve(this.cfg);
+  }
+
   // Inara asks clients not to hammer the API, so requests run one at a time.
   private send(eventName: ReadEvent, eventData: unknown): Promise<InaraEvent> {
-    const cfg = this.cfg;
-    if (!cfg) {
-      return Promise.reject(new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]));
-    }
     const run = this.queue.then(async () => {
+      const cfg = await this.config();
+      if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
       const body = {
         header: {
           appName: cfg.appName,

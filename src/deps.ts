@@ -15,7 +15,11 @@ import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
 import type { ServerDeps } from "./server.js";
 import { SecretStore } from "./settings/secrets.js";
+import { Settings } from "./settings/settings.js";
 import { VERSION } from "./version.js";
+
+const envKey = (c: { apiKey: string; cmdr: string } | undefined) =>
+  c ? { apiKey: c.apiKey, cmdr: c.cmdr } : undefined;
 
 export function buildDeps(
   config: Config,
@@ -25,12 +29,25 @@ export function buildDeps(
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
   const ships = new ShipDataService({ cacheDir: config.cacheDir, http });
+  const secrets = new SecretStore(config.secretsFile, {
+    password: config.syncPassword,
+    lockDir: config.locksDir,
+    migrate: {
+      legacyTokenFile: path.join(config.configDir, "capi-token.json"),
+      plainFile: path.join(config.configDir, "secrets.json"),
+    },
+  });
+  const settings = new Settings(
+    { inara: envKey(config.inara), edsm: config.edsm },
+    config.inaraApp,
+    secrets,
+  );
   const inaraCache = new TtlCache<unknown>("inara", 60_000);
   caches.register(inaraCache);
-  const inara = new InaraClient(http, config.inara, inaraCache);
+  const inara = new InaraClient(http, () => settings.inara(), inaraCache);
   const edsmCache = new TtlCache<unknown>("edsm", 60_000);
   caches.register(edsmCache);
-  const edsm = new EdsmClient(http, config.edsm, edsmCache);
+  const edsm = new EdsmClient(http, () => settings.edsm(), edsmCache);
   const spanshCache = new TtlCache<unknown>("spansh", 300_000);
   caches.register(spanshCache);
   const spanshSystemCache = new TtlCache<unknown>("spansh-systems", 86_400_000);
@@ -44,21 +61,9 @@ export function buildDeps(
   const capiHttp = new HttpClient({ userAgent: `EDCD-EdMcp-${VERSION}`, fetchFn: opts.fetchFn });
   const capiCache = new TtlCache<unknown>("capi", 60_000);
   caches.register(capiCache);
-  const capiAuth = new CapiAuth(
-    capiHttp,
-    config.capi,
-    new TokenStore(
-      new SecretStore(config.secretsFile, {
-        password: config.syncPassword,
-        lockDir: config.locksDir,
-        migrate: {
-          legacyTokenFile: path.join(config.configDir, "capi-token.json"),
-          plainFile: path.join(config.configDir, "secrets.json"),
-        },
-      }),
-    ),
-    { onSessionChange: () => void capiCache.clear() },
-  );
+  const capiAuth = new CapiAuth(capiHttp, config.capi, new TokenStore(secrets), {
+    onSessionChange: () => void capiCache.clear(),
+  });
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);
   const journal = opts.journal ?? new JournalService(config.journalDir);
   return {
@@ -78,6 +83,8 @@ export function buildDeps(
     },
     jumpRange: async () => (await journal.freshShip())?.max_jump_range ?? null,
     journal,
+    settings,
+    secrets,
     plans: new PlanStore(config.plansFile),
     prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
   };

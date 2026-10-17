@@ -1,4 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SecretStore } from "./settings/secrets.js";
+import type { Settings } from "./settings/settings.js";
 import type { CatalogService } from "./catalog/service.js";
 import type { CacheRegistry } from "./http/cache.js";
 import type { InaraClient } from "./inara/client.js";
@@ -42,6 +44,8 @@ export interface ServerDeps {
   capiAuth?: CapiAuth;
   capi?: CapiClient;
   journal?: JournalService;
+  settings?: Settings;
+  secrets?: SecretStore;
   currentShip?: () => Promise<string | { type: string; source: string } | null>;
   jumpRange?: () => Promise<number | null>;
 }
