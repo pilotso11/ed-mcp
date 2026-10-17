@@ -19,8 +19,8 @@ jobs:
           node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
-      # Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install -g npm@^11.5.1
+      # Trusted publishing needs npm 11.5.1 or later; `npm stage` is known to work from 11.17.0.
+      - run: npm install -g npm@^11.17.0
       - run: npm ci
       - name: Check tag matches package version
         run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
@@ -39,10 +39,12 @@ jobs:
       # and adds provenance itself. No npm token is stored in the repository. A staged publish
       # goes live only after a maintainer approves it on npmjs.com with 2FA.
       - name: Stage npm publish
+        # The check sees live versions only. `npm stage list` needs a logged-in user, so a re-run
+        # before the staged version is approved stages it again; reject the extra one on npmjs.com.
         run: |
           version=$(node -p "require('./package.json').version")
           if npm view "ed-mcp@$version" version >/dev/null 2>&1; then
-            echo "ed-mcp@$version is already on npm; skipping"
+            echo "ed-mcp@$version is already published on npm; skipping"
           else
             npm stage publish --access public
           fi
