@@ -60,7 +60,7 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
 
 ## Releasing
 
-1. Set the new version in `package.json`, `manifest.json` and `src/version.ts`.
+1. Set the new version in `package.json`, `manifest.json` and `src/version.ts`. Then run `npm install --package-lock-only` to update `package-lock.json`.
 2. Merge the change to `main`.
 3. Tag the commit `vX.Y.Z` and push the tag.
 4. On npmjs.com, approve the staged version of `ed-mcp`.
