@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { CapiAuth } from "../../src/capi/auth.js";
 import { TokenStore } from "../../src/capi/tokens.js";
+import { SecretStore } from "../../src/settings/secrets.js";
 import { HttpClient } from "../../src/http/client.js";
 import { NotConfiguredError } from "../../src/errors.js";
 import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
@@ -14,7 +15,9 @@ let t: number;
 let sessionChanges: number;
 beforeEach(async () => {
   sessionChanges = 0;
-  tokens = new TokenStore(path.join(await mkdtemp(path.join(os.tmpdir(), "auth-")), "t.json"));
+  tokens = new TokenStore(
+    new SecretStore(path.join(await mkdtemp(path.join(os.tmpdir(), "auth-")), "secrets.json")),
+  );
   t = Date.parse("2026-10-11T00:00:00Z");
 });
 

@@ -14,6 +14,7 @@ import { PlanStore } from "./plans/store.js";
 import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
 import type { ServerDeps } from "./server.js";
+import { SecretStore } from "./settings/secrets.js";
 import { VERSION } from "./version.js";
 
 export function buildDeps(
@@ -46,7 +47,16 @@ export function buildDeps(
   const capiAuth = new CapiAuth(
     capiHttp,
     config.capi,
-    new TokenStore(path.join(config.configDir, "capi-token.json")),
+    new TokenStore(
+      new SecretStore(config.secretsFile, {
+        password: config.syncPassword,
+        lockDir: config.locksDir,
+        migrate: {
+          legacyTokenFile: path.join(config.configDir, "capi-token.json"),
+          plainFile: path.join(config.configDir, "secrets.json"),
+        },
+      }),
+    ),
     { onSessionChange: () => void capiCache.clear() },
   );
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);

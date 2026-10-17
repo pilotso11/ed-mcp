@@ -1,54 +1,51 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { TokenStore } from "../../src/capi/tokens.js";
+import { SecretStore } from "../../src/settings/secrets.js";
+
+const t = { refresh_token: "r", access_token: "a", expires_at: 1, authorized_at: 2 };
 
 describe("TokenStore", () => {
-  it("round-trips, restricts permissions and clears", async () => {
+  it("round-trips and clears through the secrets file", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "tok-"));
-    const s = new TokenStore(path.join(dir, "sub", "capi-token.json"));
+    const secrets = new SecretStore(path.join(dir, "secrets.json"));
+    const s = new TokenStore(secrets);
     expect(await s.load()).toBeNull();
-    const t = { refresh_token: "r", access_token: "a", expires_at: 1, authorized_at: 2 };
     await s.save(t);
     expect(await s.load()).toEqual(t);
-    if (process.platform !== "win32") {
-      expect((await stat(path.join(dir, "sub", "capi-token.json"))).mode & 0o777).toBe(0o600);
-    }
+    expect((await secrets.get()).capi).toEqual(t);
     await s.clear();
     expect(await s.load()).toBeNull();
     await s.clear(); // clearing twice is fine
   });
 
-  it("treats a corrupt file as logged out", async () => {
+  it("keeps the other secrets when it saves and clears", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "tok-"));
-    const file = path.join(dir, "capi-token.json");
-    await writeFile(file, "{not json");
-    expect(await new TokenStore(file).load()).toBeNull();
+    const secrets = new SecretStore(path.join(dir, "secrets.json"));
+    await secrets.update((d) => {
+      d.inara = { apiKey: "k", cmdr: "A" };
+    });
+    const s = new TokenStore(secrets);
+    await s.save(t);
+    await s.clear();
+    expect((await secrets.get()).inara).toEqual({ apiKey: "k", cmdr: "A" });
   });
 
-  it.each([
-    ["an empty object", "{}"],
-    ["null", "null"],
-    [
-      "a wrong field type",
-      '{"refresh_token":"r","access_token":null,"expires_at":"1","authorized_at":2}',
-    ],
-  ])("treats %s as logged out", async (_name, body) => {
+  it("sees tokens another process saved", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "tok-"));
-    const file = path.join(dir, "capi-token.json");
-    await writeFile(file, body);
-    expect(await new TokenStore(file).load()).toBeNull();
+    const file = path.join(dir, "secrets.json");
+    const s = new TokenStore(new SecretStore(file));
+    expect(await s.load()).toBeNull();
+    await new TokenStore(new SecretStore(file)).save(t);
+    expect(await s.load()).toEqual(t);
   });
 
-  it("removes the temp file when the rename fails", async () => {
+  it("reports an unreadable secrets file", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "tok-"));
-    // A directory at the target path makes rename fail.
-    const file = path.join(dir, "capi-token.json");
-    await mkdir(file);
-    await writeFile(path.join(file, "keep"), "x");
-    const t = { refresh_token: "r", access_token: null, expires_at: 1, authorized_at: 2 };
-    await expect(new TokenStore(file).save(t)).rejects.toThrow();
-    expect((await readdir(dir)).sort()).toEqual(["capi-token.json"]);
+    const file = path.join(dir, "secrets.json");
+    await writeFile(file, "{bad");
+    await expect(new TokenStore(new SecretStore(file)).load()).rejects.toThrow("not readable");
   });
 });
