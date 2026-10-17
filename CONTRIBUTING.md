@@ -63,14 +63,15 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
 1. Set the new version in `package.json`, `manifest.json` and `src/version.ts`.
 2. Merge the change to `main`.
 3. Tag the commit `vX.Y.Z` and push the tag.
+4. On npmjs.com, approve the staged version of `ed-mcp`.
 
-The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. Then it publishes the package to npm, unless that version is already on npm.
+The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. Then it stages the package on npm, unless that version is already on npm. The version goes live on npm only when a maintainer approves it with 2FA.
 
 Do not create the release in the GitHub web form. The workflow creates the release itself, and the step fails if the release already exists.
 
 ### npm trusted publishing
 
-The workflow publishes to npm with trusted publishing. npm takes a short-lived token from the GitHub Actions run and adds provenance to the package. No npm token is stored in the repository.
+The workflow stages the package on npm with trusted publishing. npm takes a short-lived token from the GitHub Actions run and adds provenance to the package. No npm token is stored in the repository.
 
 The trusted publisher is set on npmjs.com, in the settings of the `ed-mcp` package:
 
@@ -80,5 +81,4 @@ The trusted publisher is set on npmjs.com, in the settings of the `ed-mcp` packa
 | Repository           | `ed-mcp`      |
 | Workflow filename    | `release.yml` |
 | Environment          | (empty)       |
-
-npm can set a trusted publisher only for a package that exists. For that reason, the first version was published by hand with `npm publish --access public`.
+| Allowed actions      | Staged publishing only. `npm publish` and `npm dist-tag` are not allowed. |
