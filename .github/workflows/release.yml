@@ -36,12 +36,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" ed-mcp-*.mcpb --title "$GITHUB_REF_NAME" --generate-notes
       # Trusted publishing: npm takes a short-lived OIDC token from this workflow (id-token: write)
-      # and adds provenance itself. No npm token is stored in the repository.
-      - name: Publish to npm
+      # and adds provenance itself. No npm token is stored in the repository. A staged publish
+      # goes live only after a maintainer approves it on npmjs.com with 2FA.
+      - name: Stage npm publish
         run: |
           version=$(node -p "require('./package.json').version")
           if npm view "ed-mcp@$version" version >/dev/null 2>&1; then
             echo "ed-mcp@$version is already on npm; skipping"
           else
-            npm publish --access public
+            npm stage publish --access public
           fi
