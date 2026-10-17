@@ -284,7 +284,7 @@ export function bestRoll(
   module: CoriolisModule,
   catalog: Catalog,
 ): Record<string, number> {
-  const features = catalog.blueprintFeatures(blueprint, grade);
+  const features = catalog.blueprintFeatures(blueprint, grade, module.grp);
   if (!features) {
     throw new UserError(`Blueprint ${blueprint} has no grade ${grade}.`);
   }
