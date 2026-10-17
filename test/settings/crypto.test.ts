@@ -7,11 +7,13 @@ const FAST = { N: 1024, r: 8, p: 1 };
 describe("SecretCipher", () => {
   it("round-trips and keeps the salt it was given", () => {
     const c = new SecretCipher("pw", FAST);
-    const env = c.seal('{"a":1}');
+    const marker = "plaintext-marker-1234";
+    const env = c.seal(marker);
     expect(env).toMatchObject({ format: "ed-mcp-secrets", version: 1, kdf: "scrypt", N: 1024 });
-    expect(env.data).not.toContain("a");
+    expect(Buffer.from(env.data, "base64").toString("latin1")).not.toContain(marker);
+    expect(env.data).not.toContain(marker);
     const opened = c.open(env);
-    expect(opened.plaintext).toBe('{"a":1}');
+    expect(opened.plaintext).toBe(marker);
     expect(c.seal("x", opened.salt).salt).toBe(env.salt);
   });
 
@@ -47,5 +49,12 @@ describe("SecretCipher", () => {
   it("refuses scrypt parameters that would use too much memory", () => {
     const c = new SecretCipher("pw", FAST);
     expect(() => c.open({ ...c.seal("x"), N: 2 ** 24 })).toThrow("not an ed-mcp secrets file");
+  });
+
+  it("rejects envelopes with N/r combinations exceeding maxmem", () => {
+    const c = new SecretCipher("pw", FAST);
+    expect(() => c.open({ ...c.seal("x"), N: 2 ** 16, r: 8 })).toThrow(
+      "not an ed-mcp secrets file",
+    );
   });
 });

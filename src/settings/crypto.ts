@@ -11,6 +11,9 @@ export interface ScryptParams {
 // About 32 MB and a fraction of a second per derivation: slow for guessing, fine once a run.
 export const SCRYPT: ScryptParams = { N: 2 ** 15, r: 8, p: 1 };
 
+// Maximum memory for scrypt key derivation: 64 MB
+const SCRYPT_MAXMEM = 64 * 1024 * 1024;
+
 export class SecretsError extends UserError {
   override name = "SecretsError";
 }
@@ -71,6 +74,7 @@ export class SecretCipher {
     if (!env.success) throw new SecretsError("not an ed-mcp secrets file");
     const e = env.data;
     if (e.version !== 1) throw new SecretsError(`made by a newer ed-mcp (version ${e.version})`);
+    if (128 * e.N * e.r >= SCRYPT_MAXMEM) throw new SecretsError("not an ed-mcp secrets file");
     const key = this.key(e.salt, { N: e.N, r: e.r, p: e.p });
     try {
       const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(e.iv, "base64"));
@@ -92,7 +96,7 @@ export class SecretCipher {
     if (!key) {
       key = scryptSync(this.password, Buffer.from(salt, "base64"), 32, {
         ...params,
-        maxmem: 64 * 1024 * 1024,
+        maxmem: SCRYPT_MAXMEM,
       });
       this.keys.set(id, key);
     }
