@@ -33,6 +33,8 @@ export interface ModuleGroup {
   names: string[];
   blueprints: Record<string, Record<string, string[]>>;
   experimentals: string[];
+  /** Feature ranges by blueprint id and grade, where this group's differ from the blueprint's. */
+  features?: Record<string, Record<string, Record<string, [number, number]>>>;
 }
 export interface Engineer {
   name: string;

@@ -208,8 +208,14 @@ export class Catalog {
     return { ...m, same_group: same, trade_rules: TRADE_RULES };
   }
 
-  /** Coriolis feature ranges, [min, max], for a blueprint id at a grade, or null. */
-  blueprintFeatures(blueprintId: string, grade: number): Record<string, [number, number]> | null {
+  /** Coriolis feature ranges, [min, max], for a blueprint id at a grade on a module group, or null. */
+  blueprintFeatures(
+    blueprintId: string,
+    grade: number,
+    grp?: string,
+  ): Record<string, [number, number]> | null {
+    const own = this.d.groups.find((g) => g.id === grp)?.features?.[blueprintId];
+    if (own) return own[String(grade)] ?? null;
     const b = this.d.blueprints.find((x) => x.id === blueprintId);
     return b?.features?.[String(grade)] ?? null;
   }

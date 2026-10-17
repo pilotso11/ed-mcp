@@ -59,16 +59,24 @@ export function buildCatalog(
   const modJson = json(raw.modifications, "modifications");
   const actJson = raw.actions === undefined ? null : json(raw.actions, "actions");
 
-  const blueprints: Blueprint[] = Object.entries(bpJson).map(([id, v]) => {
+  const warnings: string[] = [];
+  // coriolis-data can key two blueprints with one game name (fdname): MC_Overcharged and
+  // Weapon_Overcharged are both Weapon_Overcharged. The game, the journal and SLEF know only the
+  // fdname, so they become one blueprint. A group that uses the other key keeps that key's
+  // feature ranges (the multicannon version also cuts clip size).
+  const idOf = new Map<string, string>();
+  const featuresOf = new Map<string, NonNullable<Blueprint["features"]>>();
+  const byId = new Map<string, Blueprint>();
+  for (const [key, v] of Object.entries(bpJson)) {
     const b = v as {
       fdname?: string;
       name?: string;
       modulename?: string[];
       grades?: Record<string, { components?: unknown; features?: Record<string, unknown> }>;
     };
-    return {
-      id: b.fdname ?? id,
-      name: b.name ?? id,
+    const bp: Blueprint = {
+      id: b.fdname ?? key,
+      name: b.name ?? key,
       modules: b.modulename ?? [],
       grades: Object.fromEntries(
         Object.entries(b.grades ?? {}).map(([g, x]) => [g, counts(x.components)]),
@@ -77,7 +85,22 @@ export function buildCatalog(
         Object.entries(b.grades ?? {}).map(([g, x]) => [g, ranges(x.features)]),
       ),
     };
-  });
+    idOf.set(key, bp.id);
+    featuresOf.set(key, bp.features!);
+    const prev = byId.get(bp.id);
+    if (!prev) {
+      byId.set(bp.id, bp);
+      continue;
+    }
+    if (JSON.stringify(prev.grades) !== JSON.stringify(bp.grades)) {
+      warnings.push(
+        `Blueprints with the name ${bp.id} cost different materials; using one of them.`,
+      );
+    }
+    const main = key === bp.id ? bp : prev;
+    byId.set(bp.id, { ...main, modules: [...new Set([...prev.modules, ...bp.modules])] });
+  }
+  const blueprints = [...byId.values()];
 
   const experimentals: Experimental[] = Object.entries(spJson).map(([id, v]) => {
     const s = v as { edname?: string; name?: string; description?: string; components?: unknown };
@@ -96,12 +119,12 @@ export function buildCatalog(
       blueprints?: Record<string, { grades?: Record<string, { engineers?: string[] }> }>;
       specials?: string[];
     };
-    return {
+    const group: ModuleGroup = {
       id,
       names: statics.groups[id] ?? [],
       blueprints: Object.fromEntries(
-        Object.entries(g.blueprints ?? {}).map(([bp, x]) => [
-          bp,
+        Object.entries(g.blueprints ?? {}).map(([key, x]) => [
+          idOf.get(key) ?? key,
           Object.fromEntries(
             Object.entries(x.grades ?? {}).map(([grade, y]) => [grade, y.engineers ?? []]),
           ),
@@ -109,6 +132,10 @@ export function buildCatalog(
       ),
       experimentals: g.specials ?? [],
     };
+    const features = Object.keys(g.blueprints ?? {})
+      .filter((key) => idOf.has(key) && idOf.get(key) !== key)
+      .map((key) => [idOf.get(key)!, featuresOf.get(key)!] as const);
+    return features.length ? { ...group, features: Object.fromEntries(features) } : group;
   });
 
   const materials: Material[] = parseCsv(raw.materials)
@@ -153,7 +180,6 @@ export function buildCatalog(
     engineers: statics.engineers,
   });
 
-  const warnings: string[] = [];
   if (!actJson)
     warnings.push("No modifierActions.json: experimental effects have no fixed values.");
   const known = new Set(materials.map((m) => normKey(m.name)));
