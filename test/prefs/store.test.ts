@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { SyncFolder } from "../../src/settings/sync.js";
 import { PreferencesStore } from "../../src/prefs/store.js";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
 
@@ -77,5 +78,17 @@ describe("PreferencesStore", () => {
       const s = new PreferencesStore(file, { lockTimeoutMs: 120 });
       await expect(s.set({})).rejects.toThrow(/locked by another process/);
     });
+  });
+});
+
+describe("PreferencesStore in a sync folder", () => {
+  it("does not create a missing sync folder", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "prefs-sync-"));
+    const sync = path.join(d, "sync");
+    const s = new PreferencesStore(path.join(sync, "preferences.json"), {
+      guard: () => new SyncFolder(sync).check(),
+    });
+    await expect(s.set({ stations: { min_pad: "M" } })).rejects.toThrow("not available");
+    await expect(stat(sync)).rejects.toMatchObject({ code: "ENOENT" });
   });
 });

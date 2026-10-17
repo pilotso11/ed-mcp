@@ -11,16 +11,19 @@ export class PreferencesStore {
 
   private readonly lockTimeoutMs: number;
   private readonly lockDir?: string;
+  private readonly guard?: () => Promise<void>;
 
   constructor(
     readonly file: string,
-    opts: { lockTimeoutMs?: number; lockDir?: string } = {},
+    opts: { lockTimeoutMs?: number; lockDir?: string; guard?: () => Promise<void> } = {},
   ) {
     this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
     this.lockDir = opts.lockDir;
+    this.guard = opts.guard;
   }
 
   async get(): Promise<Prefs> {
+    await this.guard?.();
     let raw: string;
     try {
       raw = await readFile(this.file, "utf8");
@@ -51,6 +54,8 @@ export class PreferencesStore {
 
   private async write(patch: unknown): Promise<Prefs> {
     const parsed = parsePatch(patch);
+    // lockedWrite creates the parent folder, so check before it, not only inside it.
+    await this.guard?.();
     return lockedWrite(
       this.file,
       {

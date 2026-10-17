@@ -1,7 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
+import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
   PlanInputSchema,
@@ -27,14 +29,23 @@ export class PlanStore {
 
   private readonly lockTimeoutMs: number;
   private readonly lockDir?: string;
+  private readonly guard?: () => Promise<void>;
+  private readonly markdownDir?: string;
 
   constructor(
     readonly file: string,
     private readonly now: () => Date = () => new Date(),
-    opts: { lockTimeoutMs?: number; lockDir?: string } = {},
+    opts: {
+      lockTimeoutMs?: number;
+      lockDir?: string;
+      guard?: () => Promise<void>;
+      markdownDir?: string;
+    } = {},
   ) {
     this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
     this.lockDir = opts.lockDir;
+    this.guard = opts.guard;
+    this.markdownDir = opts.markdownDir;
   }
 
   async list(): Promise<PlanSummary[]> {
@@ -110,6 +121,7 @@ export class PlanStore {
   }
 
   private async read(): Promise<PlanFile> {
+    await this.guard?.();
     let raw: string;
     try {
       raw = await readFile(this.file, "utf8");
@@ -133,8 +145,11 @@ export class PlanStore {
   // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
   // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
   private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
-    const run = this.queue.then(() =>
-      lockedWrite(
+    const run = this.queue.then(async () => {
+      // lockedWrite creates the parent folder, so check before it, not only inside it.
+      await this.guard?.();
+      let latest: PlanFile | null = null;
+      const result = await lockedWrite(
         this.file,
         {
           timeoutMs: this.lockTimeoutMs,
@@ -144,11 +159,33 @@ export class PlanStore {
         async () => {
           const data = await this.read();
           const result = fn(data);
+          latest = data;
           return { content: JSON.stringify(data, null, 2), result };
         },
-      ),
-    );
+      );
+      if (latest && this.markdownDir) await this.writeMarkdown(latest);
+      return result;
+    });
     this.queue = run.catch(() => undefined);
     return run;
+  }
+
+  // Claude on mobile can read these through the Google Drive connector; they are copies only.
+  private async writeMarkdown(data: PlanFile): Promise<void> {
+    const dir = this.markdownDir!;
+    try {
+      await mkdir(dir, { recursive: true });
+      const keep = new Set<string>();
+      for (const p of data.plans) {
+        keep.add(`${p.id}.md`);
+        await writeFile(path.join(dir, `${p.id}.md`), planToMarkdown(p));
+      }
+      for (const n of await readdir(dir)) {
+        if (n.endsWith(".md") && !keep.has(n)) await rm(path.join(dir, n), { force: true });
+      }
+    } catch (err) {
+      // The plan itself is saved; a failed copy must not fail the tool call.
+      console.error(`Could not write Markdown plan copies to ${dir}: ${(err as Error).message}`);
+    }
   }
 }

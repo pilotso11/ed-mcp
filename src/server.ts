@@ -29,6 +29,7 @@ import { registerPrefsTools } from "./tools/prefs.js";
 import { registerStationTools } from "./tools/station.js";
 import { registerSpanshTools } from "./tools/spansh.js";
 import { registerTradeTools } from "./tools/trade.js";
+import type { SyncFolder } from "./settings/sync.js";
 import { VERSION } from "./version.js";
 
 export interface ServerDeps {
@@ -46,6 +47,8 @@ export interface ServerDeps {
   journal?: JournalService;
   settings?: Settings;
   secrets?: SecretStore;
+  sync?: SyncFolder;
+  syncWarnings?: () => Promise<string[]>;
   currentShip?: () => Promise<string | { type: string; source: string } | null>;
   jumpRange?: () => Promise<number | null>;
 }
@@ -55,8 +58,8 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.caches) {
     registerCacheTools(server, { caches: deps.caches, refreshables: deps.refreshables });
   }
-  if (deps.plans) registerPlanTools(server, { plans: deps.plans });
-  if (deps.prefs) registerPrefsTools(server, { prefs: deps.prefs });
+  if (deps.plans) registerPlanTools(server, { plans: deps.plans, warnings: deps.syncWarnings });
+  if (deps.prefs) registerPrefsTools(server, { prefs: deps.prefs, warnings: deps.syncWarnings });
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
   if (deps.inara) registerInaraTools(server, { inara: deps.inara });
   if (deps.edsm) registerEdsmTools(server, { edsm: deps.edsm });

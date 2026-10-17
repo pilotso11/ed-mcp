@@ -8,10 +8,13 @@ import { ItemStatus, PlanInputSchema, type PlanInput } from "../plans/schema.js"
 import type { PlanStore } from "../plans/store.js";
 import { UserError } from "../errors.js";
 import { resolveUserPath, sameFile } from "../paths.js";
-import { wrap } from "./result.js";
+import { wrapWarn } from "./result.js";
 
-export function registerPlanTools(server: McpServer, deps: { plans: PlanStore }): void {
-  const { plans } = deps;
+export function registerPlanTools(
+  server: McpServer,
+  deps: { plans: PlanStore; warnings?: () => Promise<string[]> },
+): void {
+  const { plans, warnings } = deps;
   const exports = new Map<string, Promise<unknown>>();
   const serialise = <T>(target: string, fn: () => Promise<T>): Promise<T> => {
     const key = process.platform === "linux" ? target : target.toLowerCase();
@@ -37,7 +40,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       },
       description: "List saved build plans with item counts and progress.",
     },
-    wrap(async () => plans.list()),
+    wrapWarn(async () => plans.list(), warnings),
   );
 
   server.registerTool(
@@ -53,7 +56,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       description: "Get a saved plan by id.",
       inputSchema: { id: z.string() },
     },
-    wrap(async ({ id }: { id: string }) => plans.get(id)),
+    wrapWarn(async ({ id }: { id: string }) => plans.get(id), warnings),
   );
 
   server.registerTool(
@@ -71,7 +74,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         "stops are the places to visit (optionally with label, kind and after rules); route is the saved visiting order. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },
-    wrap(async ({ plan }: { plan: PlanInput }) => plans.upsert(plan)),
+    wrapWarn(async ({ plan }: { plan: PlanInput }) => plans.upsert(plan), warnings),
   );
 
   server.registerTool(
@@ -92,7 +95,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         notes: z.string().optional(),
       },
     },
-    wrap(
+    wrapWarn(
       async (a: {
         plan_id: string;
         item_id: string;
@@ -104,6 +107,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         }
         return plans.updateItem(a.plan_id, a.item_id, { status: a.status, notes: a.notes });
       },
+      warnings,
     ),
   );
 
@@ -120,10 +124,10 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       description: "Delete a saved plan.",
       inputSchema: { id: z.string() },
     },
-    wrap(async ({ id }: { id: string }) => {
+    wrapWarn(async ({ id }: { id: string }) => {
       await plans.delete(id);
       return { deleted: id };
-    }),
+    }, warnings),
   );
 
   server.registerTool(
@@ -146,7 +150,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         overwrite: z.boolean().optional(),
       },
     },
-    wrap(
+    wrapWarn(
       async (a: {
         id: string;
         format?: "markdown" | "json";
@@ -178,6 +182,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         });
         return { path: target, bytes: Buffer.byteLength(text) };
       },
+      warnings,
     ),
   );
 
@@ -200,7 +205,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
         overwrite: z.boolean().optional(),
       },
     },
-    wrap(async (a: { path: string; id?: string; overwrite?: boolean }) => {
+    wrapWarn(async (a: { path: string; id?: string; overwrite?: boolean }) => {
       const source = resolveUserPath(a.path);
       let raw: string;
       try {
@@ -229,7 +234,7 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
       // The existence check runs inside the store's locked write so concurrent imports cannot race.
       return plans.upsert(parsed.data, { overwrite: a.overwrite === true });
-    }),
+    }, warnings),
   );
 }
 

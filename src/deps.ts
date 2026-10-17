@@ -15,6 +15,7 @@ import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
 import type { ServerDeps } from "./server.js";
 import { SecretStore } from "./settings/secrets.js";
+import { SyncFolder } from "./settings/sync.js";
 import { Settings } from "./settings/settings.js";
 import { VERSION } from "./version.js";
 
@@ -29,9 +30,13 @@ export function buildDeps(
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
   const ships = new ShipDataService({ cacheDir: config.cacheDir, http });
+  const sync = config.syncDir ? new SyncFolder(config.syncDir) : undefined;
+  const guardFor = (file: string) => (sync?.contains(file) ? () => sync.check() : undefined);
+  const lockFor = (file: string) => (sync?.contains(file) ? config.locksDir : undefined);
   const secrets = new SecretStore(config.secretsFile, {
     password: config.syncPassword,
-    lockDir: config.locksDir,
+    lockDir: lockFor(config.secretsFile),
+    guard: guardFor(config.secretsFile),
     migrate: {
       legacyTokenFile: path.join(config.configDir, "capi-token.json"),
       plainFile: path.join(config.configDir, "secrets.json"),
@@ -85,7 +90,18 @@ export function buildDeps(
     journal,
     settings,
     secrets,
-    plans: new PlanStore(config.plansFile),
-    prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
+    plans: new PlanStore(config.plansFile, undefined, {
+      lockDir: lockFor(config.plansFile),
+      guard: guardFor(config.plansFile),
+      markdownDir: sync?.contains(config.plansFile) ? path.join(sync.dir, "plans") : undefined,
+    }),
+    prefs: new PreferencesStore(config.prefsFile, {
+      lockDir: lockFor(config.prefsFile),
+      guard: guardFor(config.prefsFile),
+    }),
+    sync,
+    syncWarnings: sync
+      ? () => sync.warnings([config.plansFile, config.prefsFile, config.secretsFile])
+      : undefined,
   };
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { renameSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PlanStore } from "../../src/plans/store.js";
+import { UserError } from "../../src/errors.js";
+import { SyncFolder } from "../../src/settings/sync.js";
 import type { PlanInput } from "../../src/plans/schema.js";
 
 const input = (over: Partial<PlanInput> = {}): PlanInput => ({
@@ -192,5 +194,40 @@ describe("PlanStore", () => {
     await expect(new PlanStore(file, now).setRoute("nope", route)).rejects.toThrow(
       'Plan "nope" not found',
     );
+  });
+});
+
+describe("PlanStore in a sync folder", () => {
+  const plan = { id: "corsair", name: "Corsair", items: [] };
+
+  it("writes a Markdown copy of each plan and removes it with the plan", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    await s.upsert(plan);
+    expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+    await s.delete("corsair");
+    expect(await readdir(md)).toEqual([]);
+  });
+
+  it("runs the guard before reading and writing", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const guard = async () => {
+      throw new UserError("Sync folder /x is not available");
+    };
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { guard });
+    await expect(s.list()).rejects.toThrow("not available");
+    await expect(s.upsert(plan)).rejects.toThrow("not available");
+    expect(await readdir(d)).toEqual([]);
+  });
+
+  it("does not create a missing sync folder", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const sync = path.join(d, "sync");
+    const s = new PlanStore(path.join(sync, "plans.json"), undefined, {
+      guard: () => new SyncFolder(sync).check(),
+    });
+    await expect(s.upsert(plan)).rejects.toThrow("not available");
+    await expect(stat(sync)).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
