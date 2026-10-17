@@ -257,4 +257,24 @@ describe("SecretStore", () => {
       }),
     ).rejects.toThrow(new RegExp(`${file} would be invalid`));
   });
+
+  it("re-encrypts with the current password given the old one", async () => {
+    const file = path.join(await tmp(), "secrets.enc");
+    await new SecretStore(file, { password: "old", scrypt: FAST }).update((d) => {
+      d.edsm = { apiKey: "e", cmdr: "J" };
+    });
+    const s = new SecretStore(file, { password: "new", scrypt: FAST });
+    await expect(s.get()).rejects.toThrow("wrong ED_MCP_SYNC_PASSWORD");
+    await expect(s.reencrypt("wrong")).rejects.toThrow("wrong");
+    await s.reencrypt("old");
+    expect((await s.get()).edsm).toEqual({ apiKey: "e", cmdr: "J" });
+  });
+
+  it("starts fresh by removing the file", async () => {
+    const file = path.join(await tmp(), "secrets.enc");
+    await new SecretStore(file, { password: "old", scrypt: FAST }).update(() => undefined);
+    const s = new SecretStore(file, { password: "new", scrypt: FAST });
+    await s.reset();
+    expect(await s.get()).toEqual({ version: 1 });
+  });
 });

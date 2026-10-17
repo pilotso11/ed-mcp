@@ -30,6 +30,11 @@
   "tools": [
     { "name": "prefs_get", "description": "Stored travel preferences" },
     { "name": "prefs_set", "description": "Change stored travel preferences" },
+    { "name": "settings_open", "description": "Open the page to enter Inara and EDSM keys" },
+    {
+      "name": "settings_status",
+      "description": "Where settings and secrets are kept (no key values)"
+    },
     {
       "name": "inara_commander_profile",
       "description": "Ranks, squadron, main ship and Inara URL"

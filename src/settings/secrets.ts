@@ -67,6 +67,58 @@ export class SecretStore {
     return run;
   }
 
+  /** Decrypts with the old password and writes the same secrets with the current one. */
+  reencrypt(oldPassword: string): Promise<void> {
+    const cipher = this.cipher;
+    if (!cipher) {
+      return Promise.reject(new SecretsError("Secrets are not encrypted; nothing to re-encrypt."));
+    }
+    const run = this.queue.then(async () => {
+      await this.opts.guard?.();
+      await lockedWrite(
+        this.file,
+        {
+          timeoutMs: this.opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS,
+          lockedMessage: "Secrets file is locked by another process; try again",
+          lockDir: this.opts.lockDir,
+          mode: 0o600,
+        },
+        async () => {
+          const raw = await readFile(this.file, "utf8").catch((err) => {
+            if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+            throw new SecretsError(`${this.file} does not exist; nothing to re-encrypt.`);
+          });
+          const old = new SecretStore(this.file, {
+            password: oldPassword,
+            scrypt: this.opts.scrypt,
+          });
+          const { value } = old.parse(raw);
+          // No salt is passed: the old one belongs to the old password.
+          const content = JSON.stringify(cipher.seal(JSON.stringify(value, null, 2)), null, 2);
+          return { content, result: undefined };
+        },
+      );
+    });
+    this.queue = run.catch(() => undefined);
+    return run.finally(() => {
+      this.cached = null;
+      this.salt = undefined;
+    });
+  }
+
+  /** Removes the secrets file: keys and the Frontier login are forgotten. */
+  reset(): Promise<void> {
+    const run = this.queue.then(async () => {
+      await this.opts.guard?.();
+      await rm(this.file, { force: true });
+    });
+    this.queue = run.catch(() => undefined);
+    return run.finally(() => {
+      this.cached = null;
+      this.salt = undefined;
+    });
+  }
+
   notes(): Promise<string[]> {
     return this.migrated();
   }

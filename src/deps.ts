@@ -17,6 +17,7 @@ import type { ServerDeps } from "./server.js";
 import { SecretStore } from "./settings/secrets.js";
 import { SyncFolder } from "./settings/sync.js";
 import { Settings } from "./settings/settings.js";
+import { SettingsPage } from "./settings/page.js";
 import { VERSION } from "./version.js";
 
 const envKey = (c: { apiKey: string; cmdr: string } | undefined) =>
@@ -90,6 +91,7 @@ export function buildDeps(
     journal,
     settings,
     secrets,
+    settingsPage: new SettingsPage({ secrets, settings }),
     plans: new PlanStore(config.plansFile, undefined, {
       lockDir: lockFor(config.plansFile),
       guard: guardFor(config.plansFile),

@@ -1,0 +1,200 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+import { openInBrowser } from "../capi/browser.js";
+import { UserError } from "../errors.js";
+import { SecretsError } from "./crypto.js";
+import type { SecretStore, ServiceKey } from "./secrets.js";
+import type { Settings, SourceInfo } from "./settings.js";
+
+const TIMEOUT_MS = 10 * 60_000;
+const MAX_BODY = 16 * 1024;
+
+class BodyTooLarge extends Error {}
+
+const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const mask = (k: string | undefined) => (k ? `…${esc(k.slice(-4))}` : "not set");
+const page = (body: string) =>
+  `<!doctype html><meta charset="utf-8"><title>ed-mcp settings</title>` +
+  `<style>body{font:15px system-ui;max-width:640px;margin:2em auto}label{display:block;margin:.6em 0}` +
+  `input[type=text],input[type=password]{width:100%}fieldset{margin:1em 0}</style>${body}`;
+
+export class SettingsPage {
+  private server: Server | null = null;
+  private closed: Promise<void> = Promise.resolve();
+  private readonly openUrl: (url: string) => Promise<void>;
+  private readonly timeoutMs: number;
+
+  constructor(
+    private readonly deps: { secrets: SecretStore; settings: Settings },
+    opts: { openUrl?: (url: string) => Promise<void>; timeoutMs?: number } = {},
+  ) {
+    this.openUrl = opts.openUrl ?? openInBrowser;
+    this.timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
+  }
+
+  isOpen(): boolean {
+    return this.server !== null;
+  }
+
+  waitForClose(): Promise<void> {
+    return this.closed;
+  }
+
+  async open(): Promise<{ url: string; expires_at: string }> {
+    this.close();
+    // Every request must carry this key, so other programs on the computer cannot use the page.
+    const key = randomBytes(24).toString("hex");
+    let done!: () => void;
+    this.closed = new Promise<void>((r) => (done = r));
+    const server = createServer((req, res) => {
+      this.handle(req, res, key, server).catch(() => {
+        if (!res.headersSent) res.writeHead(500).end(page("<p>Something went wrong.</p>"));
+      });
+    });
+    server.on("close", done);
+    server.unref();
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    this.server = server;
+    const timer = setTimeout(() => this.stop(server), this.timeoutMs);
+    timer.unref();
+    server.on("close", () => clearTimeout(timer));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/?key=${key}`;
+    await this.openUrl(url).catch(() => undefined); // the URL is returned for manual opening
+    return { url, expires_at: new Date(Date.now() + this.timeoutMs).toISOString() };
+  }
+
+  private close(): void {
+    if (this.server) this.stop(this.server);
+  }
+
+  private stop(server: Server): void {
+    if (this.server === server) this.server = null;
+    server.close();
+    server.closeAllConnections();
+  }
+
+  private async handle(
+    req: IncomingMessage,
+    res: ServerResponse,
+    key: string,
+    server: Server,
+  ): Promise<void> {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    const html = (status: number, body: string) =>
+      res
+        .writeHead(status, {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "referrer-policy": "no-referrer",
+        })
+        .end(page(body));
+    const denied = () => html(403, "<p>Use the link from Claude.</p>");
+    if (req.method === "GET" && url.pathname === "/") {
+      if (!sameKey(url.searchParams.get("key"), key)) return void denied();
+      return void html(200, await this.form(key));
+    }
+    if (req.method !== "POST") return void res.writeHead(404).end();
+    let form: URLSearchParams;
+    try {
+      form = new URLSearchParams(await readBody(req));
+    } catch (err) {
+      if (!(err instanceof BodyTooLarge)) throw err;
+      return void res.writeHead(413, { connection: "close" }).end();
+    }
+    if (!sameKey(form.get("key"), key)) return void denied();
+    try {
+      if (url.pathname === "/save") {
+        await this.deps.secrets.update((d) => {
+          for (const s of ["inara", "edsm"] as const) {
+            if (form.get(`clear_${s}`) === "on") {
+              delete d[s];
+              continue;
+            }
+            const next = entry(form, s, d[s]);
+            if (next) d[s] = next;
+          }
+        });
+      } else if (url.pathname === "/reencrypt") {
+        await this.deps.secrets.reencrypt(form.get("old_password") ?? "");
+      } else if (url.pathname === "/reset") {
+        await this.deps.secrets.reset();
+      } else {
+        return void res.writeHead(404).end();
+      }
+    } catch (err) {
+      // The page stays open so the user can try again.
+      if (!(err instanceof UserError)) throw err;
+      return void html(400, `<p>${esc(err.message)}</p><p>Go back and try again.</p>`);
+    }
+    // Stop once the reply is sent, so the browser gets the whole page.
+    res.once("finish", () => this.stop(server));
+    html(200, "<p>Saved. You can close this tab and go back to Claude.</p>");
+  }
+
+  private async form(key: string): Promise<string> {
+    const k = `<input type="hidden" name="key" value="${key}">`;
+    let stored: { inara?: ServiceKey; edsm?: ServiceKey };
+    try {
+      stored = await this.deps.secrets.get();
+    } catch (err) {
+      if (!(err instanceof SecretsError)) throw err;
+      return (
+        `<h1>ed-mcp settings</h1><p>${esc(err.message)}</p>` +
+        `<form method="post" action="/reencrypt">${k}<fieldset><legend>Re-encrypt with the current password</legend>` +
+        `<label>Old password <input type="password" name="old_password" autocomplete="off"></label>` +
+        `<button>Re-encrypt</button></fieldset></form>` +
+        `<form method="post" action="/reset">${k}<fieldset><legend>Start fresh</legend>` +
+        `<p>Removes the saved keys and the Frontier login. Plans and preferences are not affected.</p>` +
+        `<button>Start fresh</button></fieldset></form>`
+      );
+    }
+    const sources = await this.deps.settings.sources();
+    const section = (s: "inara" | "edsm", title: string, info: SourceInfo) =>
+      `<fieldset><legend>${title}</legend>` +
+      `<p>In use: ${info.source === "environment" ? "from the environment (it wins on this computer)" : info.source}. Saved key: ${mask(stored[s]?.apiKey)}</p>` +
+      `<label>${title} API key <input type="password" name="${s}_key" autocomplete="off" placeholder="leave empty to keep"></label>` +
+      `<label>Commander name <input type="text" name="${s}_cmdr" value="${esc(stored[s]?.cmdr ?? "")}"></label>` +
+      `<label><input type="checkbox" name="clear_${s}"> Forget the saved ${title} key</label></fieldset>`;
+    return (
+      `<h1>ed-mcp settings</h1><form method="post" action="/save">${k}` +
+      section("inara", "Inara", sources.inara) +
+      section("edsm", "EDSM", sources.edsm) +
+      `<button>Save</button></form>`
+    );
+  }
+}
+
+function sameKey(given: string | null, key: string): boolean {
+  const a = Buffer.from(given ?? "");
+  const b = Buffer.from(key);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// An empty key field keeps the saved key, so the commander name can change on its own.
+function entry(form: URLSearchParams, s: string, current?: ServiceKey): ServiceKey | undefined {
+  const apiKey = form.get(`${s}_key`)?.trim() || current?.apiKey;
+  const cmdr = form.get(`${s}_cmdr`)?.trim() || current?.cmdr;
+  return apiKey && cmdr ? { apiKey, cmdr } : undefined;
+}
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    let failed = false;
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => {
+      if (failed) return;
+      size += c.length;
+      if (size > MAX_BODY) {
+        failed = true;
+        reject(new BodyTooLarge());
+      } else chunks.push(c);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
+}
