@@ -125,6 +125,50 @@ describe("loadConfig", () => {
       );
     });
   });
+
+  it("keeps files in the settings folder without a sync folder", () => {
+    const c = loadConfig({}, dirs);
+    expect(c.syncDir).toBeUndefined();
+    expect(c.prefsFile).toBe(path.join("/cfg", "preferences.json"));
+    expect(c.secretsFile).toBe(path.join("/cfg", "secrets.json"));
+    expect(c.locksDir).toBe(path.join("/cfg", "locks"));
+    expect(c.inaraApp).toEqual({ appName: "ed-mcp", devMode: false });
+  });
+
+  it("puts plans and preferences in the sync folder", () => {
+    const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync" }, dirs);
+    expect(c.syncDir).toBe(path.resolve("/sync"));
+    expect(c.plansFile).toBe(path.join(path.resolve("/sync"), "plans.json"));
+    expect(c.prefsFile).toBe(path.join(path.resolve("/sync"), "preferences.json"));
+    // Without a password, secrets stay on this computer.
+    expect(c.secretsFile).toBe(path.join("/cfg", "secrets.json"));
+  });
+
+  it("encrypts secrets with a password, in the sync folder when there is one", () => {
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "pw" }, dirs).secretsFile).toBe(
+      path.join("/cfg", "secrets.enc"),
+    );
+    const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync", ED_MCP_SYNC_PASSWORD: "pw" }, dirs);
+    expect(c.syncPassword).toBe("pw");
+    expect(c.secretsFile).toBe(path.join(path.resolve("/sync"), "secrets.enc"));
+  });
+
+  it("lets ED_MCP_PLANS override the sync folder", () => {
+    const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync", ED_MCP_PLANS: "/p/plans.json" }, dirs);
+    expect(c.plansFile).toBe(path.resolve("/p/plans.json"));
+  });
+
+  it("ignores unset Claude Desktop placeholders for the sync settings", () => {
+    const c = loadConfig(
+      {
+        ED_MCP_SYNC_DIR: "${user_config.ed_mcp_sync_dir}",
+        ED_MCP_SYNC_PASSWORD: "${user_config.ed_mcp_sync_password}",
+      },
+      dirs,
+    );
+    expect(c.syncDir).toBeUndefined();
+    expect(c.syncPassword).toBeUndefined();
+  });
 });
 
 describe("NotConfiguredError", () => {

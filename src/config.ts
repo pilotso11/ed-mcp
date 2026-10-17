@@ -26,7 +26,14 @@ export interface Config {
   edsm?: EdsmConfig;
   capi?: CapiConfig;
   journalDir?: string;
+  inaraApp: { appName: string; devMode: boolean };
+  syncDir?: string;
+  syncPassword?: string;
   plansFile: string;
+  prefsFile: string;
+  /** secrets.json (plain, this computer) or secrets.enc (encrypted, sync folder if set). */
+  secretsFile: string;
+  locksDir: string;
   cacheDir: string;
   configDir: string;
   userAgent: string;
@@ -80,6 +87,13 @@ export function loadConfig(
   const edsmKey = get(env, "EDSM_API_KEY");
   const edsmCmdr = get(env, "EDSM_CMDR");
   const capiClientId = get(env, "CAPI_CLIENT_ID") ?? ED_MCP_CAPI_CLIENT_ID;
+  const syncDir = userPath(env, "ED_MCP_SYNC_DIR");
+  // Passwords are taken as given: leading or trailing spaces may be part of them.
+  const rawPassword = env.ED_MCP_SYNC_PASSWORD;
+  const syncPassword =
+    rawPassword && !UNSET_PLACEHOLDER.test(rawPassword.trim()) ? rawPassword : undefined;
+  const dataDir = syncDir ?? dirs.config;
+  const appName = get(env, "INARA_APP_NAME") ?? "ed-mcp";
 
   return {
     inara:
@@ -87,7 +101,7 @@ export function loadConfig(
         ? {
             apiKey: inaraKey,
             cmdr: inaraCmdr,
-            appName: get(env, "INARA_APP_NAME") ?? "ed-mcp",
+            appName,
             devMode,
           }
         : undefined,
@@ -98,7 +112,15 @@ export function loadConfig(
       (platform === "win32"
         ? path.join(os.homedir(), "Saved Games", "Frontier Developments", "Elite Dangerous")
         : undefined),
-    plansFile: userPath(env, "ED_MCP_PLANS") ?? path.join(dirs.config, "plans.json"),
+    inaraApp: { appName, devMode },
+    syncDir,
+    syncPassword,
+    plansFile: userPath(env, "ED_MCP_PLANS") ?? path.join(dataDir, "plans.json"),
+    prefsFile: path.join(dataDir, "preferences.json"),
+    secretsFile: syncPassword
+      ? path.join(dataDir, "secrets.enc")
+      : path.join(dirs.config, "secrets.json"),
+    locksDir: path.join(dirs.config, "locks"),
     cacheDir: dirs.cache,
     configDir: dirs.config,
     userAgent: `ed-mcp/${VERSION} (+https://github.com/pilotso11/ed-mcp)`,
