@@ -40,3 +40,10 @@ export function wrapWarn<A>(
     };
   };
 }
+
+// For errors shown inside another message: logs unexpected errors, returns the text.
+export function reason(err: unknown): string {
+  if (err instanceof UserError) return err.message;
+  console.error(err);
+  return err instanceof Error ? err.message : String(err);
+}

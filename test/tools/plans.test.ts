@@ -112,15 +112,32 @@ describe("plan tools", () => {
       expect(JSON.parse(jsonOf(r.text))).toMatchObject({ id: "cutter" });
     });
 
-    it("plan_import returns the plan when overwrite: false refuses", async () => {
+    it("plan_import returns only the refusal when overwrite: false refuses", async () => {
       const { dir, client } = await setup();
       await callTool(client, "plan_upsert", { plan });
       const file = path.join(dir, "in.json");
       await writeFile(file, JSON.stringify(plan));
       const r = await callTool(client, "plan_import", { path: file });
       expect(r.isError).toBe(true);
-      expect(r.text).toContain("exists; pass overwrite: true");
-      expect(JSON.parse(jsonOf(r.text))).toMatchObject({ id: "cutter" });
+      expect(r.text).toBe("Plan cutter exists; pass overwrite: true to replace it");
+    });
+
+    it("leaves the JSON out when the plan is over the size cap", async () => {
+      const big = (n: number) => ({ ...plan, items: [{ ...plan.items[0], notes: "x".repeat(n) }] });
+      const client = await failing();
+      const large = await callTool(client, "plan_upsert", { plan: big(101 * 1024) });
+      expect(large.text).toBe(
+        "Sync folder is unavailable\n\nThe plan was not saved, and it is too large to include here. Ask Claude to save it again later.",
+      );
+      const small = await callTool(client, "plan_upsert", { plan: big(90 * 1024) });
+      expect(small.text).toContain("Save this JSON and load it later with plan_import:");
+
+      const { dir } = await setup();
+      const file = path.join(dir, "big.json");
+      await writeFile(file, JSON.stringify(big(101 * 1024)));
+      const imp = await callTool(client, "plan_import", { path: file });
+      expect(imp.text).toContain("Keep your original file and try again later.");
+      expect(imp.text).not.toContain("{");
     });
 
     it("gives no JSON for an invalid plan", async () => {
@@ -366,8 +383,10 @@ describe("plan tools", () => {
     it("refuses to replace an existing plan unless overwrite is true", async () => {
       const { client, file } = await exported();
       const refused = await callTool(client, "plan_import", { path: file });
-      expect(refused.isError).toBe(true);
-      expect(refused.text).toMatch(/^Plan cutter exists; pass overwrite: true to replace it\n\n/);
+      expect(refused).toMatchObject({
+        isError: true,
+        text: "Plan cutter exists; pass overwrite: true to replace it",
+      });
       const ok = await callTool(client, "plan_import", { path: file, overwrite: true });
       expect(ok.isError).toBe(false);
     });
@@ -392,8 +411,10 @@ describe("plan tools", () => {
       const file = path.join(dir, "p.json");
       await writeFile(file, JSON.stringify({ ...plan, name: "Imported" }));
       const refused = await callTool(client, "plan_import", { path: file, id: "other" });
-      expect(refused.isError).toBe(true);
-      expect(refused.text).toMatch(/^Plan other exists; pass overwrite: true to replace it\n\n/);
+      expect(refused).toMatchObject({
+        isError: true,
+        text: "Plan other exists; pass overwrite: true to replace it",
+      });
       expect((await callTool(client, "plan_get", { id: "other" })).json).toMatchObject({
         name: "Other",
       });

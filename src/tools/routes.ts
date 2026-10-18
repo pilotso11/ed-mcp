@@ -16,7 +16,7 @@ import { RoutePendingError, type SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { permitLookup, unknownPermitNote } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { wrap } from "./result.js";
+import { reason, wrap } from "./result.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
 const lc = (s: string) => s.toLowerCase();
@@ -461,10 +461,7 @@ export function registerRouteTools(
             });
             saved = true;
           } catch (err) {
-            if (!(err instanceof UserError)) console.error(err);
-            notes.add(
-              `The route was not saved to plan "${a.plan_id}": ${err instanceof Error ? err.message : String(err)}`,
-            );
+            notes.add(`The route was not saved to plan "${a.plan_id}": ${reason(err)}`);
           }
         }
 

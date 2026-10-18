@@ -330,6 +330,23 @@ describe("route_stops", () => {
     expect(j.notes).toContain('The route was not saved to plan "p": Plan file is locked');
   });
 
+  it("names a disk error when saving the route fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { client, plans } = await setup();
+    await callTool(client, "plan_upsert", { plan: planWith([]) });
+    vi.spyOn(plans, "setRoute").mockRejectedValue(new Error("EIO: disk gone"));
+    const r = await callTool(client, "route_stops", {
+      ...range,
+      plan_id: "p",
+      stops: [alpha],
+      save_to_plan: true,
+    });
+    const j = r.json as Record<string, any>;
+    expect(r.isError).toBe(false);
+    expect(j.saved).toBe(false);
+    expect(j.notes).toContain('The route was not saved to plan "p": EIO: disk gone');
+  });
+
   it("lists the return_to leg in the saved route", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", { plan: planWith([]) });
