@@ -29,9 +29,19 @@ describe("Claude plugin", () => {
     expect(used).toEqual(options);
   });
 
-  it("ships only the manifest and the icon", async () => {
+  it("ships only the manifest, the icon and the listing README", async () => {
     const dir = new URL("../plugin/", import.meta.url);
-    expect(await readdir(dir)).toEqual([".claude-plugin"]);
+    expect((await readdir(dir)).sort()).toEqual([".claude-plugin", "README.md"]);
+  });
+
+  it("has a README long enough for the directory listing", async () => {
+    // The directory requires at least 40 words outside code blocks.
+    const md = await readFile(new URL("../plugin/README.md", import.meta.url), "utf8");
+    const words = md
+      .replace(/```[\s\S]*?```/g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+    expect(words.length).toBeGreaterThanOrEqual(40);
   });
 
   it("never points at a version newer than the package", async () => {
