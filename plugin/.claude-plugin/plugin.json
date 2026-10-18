@@ -3,7 +3,10 @@
   "displayName": "Elite Dangerous (ed-mcp)",
   "version": "0.3.1",
   "description": "Elite Dangerous tools for Claude: your game journal, Inara, EDSM, Frontier CAPI and Spansh, with build plans, engineering, materials, trade routes and station searches.",
-  "author": { "name": "Seth Osher", "url": "https://github.com/pilotso11" },
+  "author": {
+    "name": "Seth Osher",
+    "url": "https://github.com/pilotso11"
+  },
   "homepage": "https://github.com/pilotso11/ed-mcp#readme",
   "repository": "https://github.com/pilotso11/ed-mcp",
   "license": "MIT",
@@ -11,5 +14,5 @@
   "documentationUrl": "https://github.com/pilotso11/ed-mcp/blob/main/docs/tools.md",
   "supportUrl": "https://github.com/pilotso11/ed-mcp/issues",
   "privacyPolicyUrl": "https://github.com/pilotso11/ed-mcp/blob/main/PRIVACY.md",
-  "mcpServers": "https://github.com/pilotso11/ed-mcp/releases/download/v0.3.1/ed-mcp-0.3.1.mcpb"
+  "mcpServers": "./ed-mcp-0.3.1.mcpb"
 }

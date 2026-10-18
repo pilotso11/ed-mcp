@@ -4,3 +4,5 @@
 node_modules/
 dist/
 *.mcpb
+# The Claude plugin ships the release bundle (see CONTRIBUTING, release step 5).
+!plugin/*.mcpb

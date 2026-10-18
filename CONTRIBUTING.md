@@ -64,7 +64,13 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
 2. Merge the change to `main`.
 3. Tag the commit `vX.Y.Z` and push the tag.
 4. On npmjs.com, approve the staged version of `ed-mcp`.
-5. After the GitHub Release exists, set `version` and the `.mcpb` URL in `plugin/.claude-plugin/plugin.json` to the new version, and merge that change. Anthropic's directory follows `main`, so plugin users get the new version from that commit.
+5. After the GitHub Release exists, update the Claude plugin. Anthropic's directory follows `main` and refuses a bundle URL, so the bundle ships inside `plugin/`:
+   ```bash
+   gh release download vX.Y.Z -p 'ed-mcp-X.Y.Z.mcpb' -D plugin
+   gh attestation verify plugin/ed-mcp-X.Y.Z.mcpb --repo pilotso11/ed-mcp
+   git rm plugin/ed-mcp-<old>.mcpb
+   ```
+   Then set `version` and `mcpServers` (`./ed-mcp-X.Y.Z.mcpb`) in `plugin/.claude-plugin/plugin.json`, and merge the change.
 
 The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. Then it stages the package on npm, unless that version is already on npm. The version goes live on npm only when a maintainer approves it with 2FA.
 
