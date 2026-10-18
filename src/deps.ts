@@ -109,5 +109,6 @@ export function buildDeps(
     }),
     sync,
     syncWarnings,
+    localDir: config.configDir,
   };
 }

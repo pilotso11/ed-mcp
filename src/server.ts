@@ -51,6 +51,7 @@ export interface ServerDeps {
   secrets?: SecretStore;
   sync?: SyncFolder;
   syncWarnings?: () => Promise<string[]>;
+  localDir?: string;
   settingsPage?: SettingsPage;
   planWarnings?: () => Promise<string[]>;
   currentShip?: () => Promise<string | { type: string; source: string } | null>;
@@ -75,6 +76,7 @@ export function createServer(deps: ServerDeps): McpServer {
       secrets: deps.secrets,
       sync: deps.sync,
       syncWarnings: deps.syncWarnings,
+      localDir: deps.localDir,
     });
   }
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
