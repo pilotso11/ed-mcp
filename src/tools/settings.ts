@@ -33,6 +33,8 @@ export function registerSettingsTools(
     localDir?: string;
     /** Fixed notes to show in settings_status, such as an environment variable that is no longer used. */
     notes?: string[];
+    /** Returns a line about a newer ed-mcp release, or null. */
+    update?: () => Promise<string | null>;
   },
 ): void {
   server.registerTool(
@@ -85,7 +87,7 @@ export function registerSettingsTools(
         "Where ed-mcp keeps its data: the sync folder and whether it is available, whether secrets " +
         "are encrypted, where each API key comes from (environment or saved), whether a Frontier " +
         "login is saved, any sync conflict copies, and notes on settings that look mismatched between " +
-        "Claude apps. Never returns key values.",
+        "Claude apps. An `update` line says when a newer ed-mcp release is available. Never returns key values.",
     },
     wrap(async () => {
       let syncFolder: { path: string; available: boolean; error?: string } | null = null;
@@ -153,6 +155,7 @@ export function registerSettingsTools(
         frontier_login: frontier,
         conflicts: (await deps.syncWarnings?.()) ?? [],
         notes,
+        update: (await deps.update?.()) ?? null,
       };
     }),
   );

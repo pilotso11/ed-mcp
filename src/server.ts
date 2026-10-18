@@ -33,6 +33,7 @@ import type { SyncFolder } from "./settings/sync.js";
 import type { SettingsPage } from "./settings/page.js";
 import { registerSettingsTools } from "./tools/settings.js";
 import { VERSION } from "./version.js";
+import type { VersionCheck } from "./version/check.js";
 
 export interface ServerDeps {
   caches?: CacheRegistry;
@@ -53,6 +54,7 @@ export interface ServerDeps {
   syncWarnings?: () => Promise<string[]>;
   localDir?: string;
   notes?: string[];
+  versionCheck?: VersionCheck;
   settingsPage?: SettingsPage;
   planWarnings?: () => Promise<string[]>;
   currentShip?: () => Promise<string | { type: string; source: string } | null>;
@@ -79,6 +81,7 @@ export function createServer(deps: ServerDeps): McpServer {
       syncWarnings: deps.syncWarnings,
       localDir: deps.localDir,
       notes: deps.notes,
+      update: deps.versionCheck ? () => deps.versionCheck!.notice() : undefined,
     });
   }
   if (deps.catalog) registerCatalogTools(server, { catalog: deps.catalog });
@@ -141,7 +144,12 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.capiAuth && deps.capi) {
     registerCapiTools(server, { capiAuth: deps.capiAuth, capi: deps.capi });
   }
-  if (deps.journal) registerJournalTools(server, { journal: deps.journal, catalog: deps.catalog });
+  if (deps.journal)
+    registerJournalTools(server, {
+      journal: deps.journal,
+      catalog: deps.catalog,
+      update: deps.versionCheck ? () => deps.versionCheck!.notice() : undefined,
+    });
   if (deps.journal) registerStationTools(server, { journal: deps.journal, catalog: deps.catalog });
   registerBuildTools(server, { catalog: deps.catalog });
   if (deps.ships) {

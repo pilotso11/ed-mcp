@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { loadConfig } from "../src/config.js";
@@ -37,6 +37,21 @@ describe("buildDeps", () => {
     const texts = (r.content as { text: string }[]).map((c) => c.text);
     expect(texts.some((t) => t.includes(`Plans are now in ${config.plansFile}.`))).toBe(true);
     expect(texts.some((t) => t.includes("ED_MCP_PLANS is no longer used."))).toBe(true);
+  });
+
+  it("shows the saved release notice in settings_status and journal_status", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+    await writeFile(
+      path.join(dir, "version-check.json"),
+      JSON.stringify({ checked_at: Date.now(), latest: "9.9.9" }),
+    );
+    const config = loadConfig({ ED_JOURNAL_DIR: dir }, { config: dir, cache: dir });
+    const client = await connectTestClient(createServer(buildDeps(config)));
+    const update = "ed-mcp 9.9.9 is available";
+    const settings = (await callTool(client, "settings_status")).json as any;
+    expect(settings.update).toContain(update);
+    const journal = (await callTool(client, "journal_status")).json as any;
+    expect(journal.warnings.some((w: string) => w.includes(update))).toBe(true);
   });
 
   it("lists a long-lived Spansh system cache in cache_status", async () => {

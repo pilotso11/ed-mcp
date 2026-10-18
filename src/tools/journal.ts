@@ -25,7 +25,12 @@ const freshness = (s: {
 
 export function registerJournalTools(
   server: McpServer,
-  deps: { journal: JournalService; catalog?: CatalogService },
+  deps: {
+    journal: JournalService;
+    catalog?: CatalogService;
+    /** Returns a line about a newer ed-mcp release, or null. */
+    update?: () => Promise<string | null>;
+  },
 ): void {
   server.registerTool(
     "journal_status",
@@ -40,9 +45,14 @@ export function registerJournalTools(
       description:
         "Check the Elite Dangerous journal folder: whether it exists, the newest journal and how old " +
         "its last event is, the commander and game version. Use it first when journal data looks " +
-        "wrong or out of date; warnings explain missing folders and stalled Syncthing sync.",
+        "wrong or out of date; warnings explain missing folders and stalled Syncthing sync, and also mention a newer ed-mcp release when one is available.",
     },
-    wrap(async () => deps.journal.status()),
+    wrap(async () => {
+      // The update notice is read from the cache only, so this tool stays read-only.
+      const status = await deps.journal.status();
+      const update = await deps.update?.();
+      return update ? { ...status, warnings: [...status.warnings, update] } : status;
+    }),
   );
 
   server.registerTool(

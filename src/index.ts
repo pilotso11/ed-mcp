@@ -5,7 +5,9 @@ import { createServer } from "./server.js";
 
 async function main(): Promise<void> {
   const config = loadConfig(process.env, defaultDirs());
-  const server = createServer(buildDeps(config));
+  const deps = buildDeps(config);
+  deps.versionCheck?.start();
+  const server = createServer(deps);
   await server.connect(new StdioServerTransport());
 }
 
