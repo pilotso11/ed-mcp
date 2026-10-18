@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
-import { unsafeFileReason } from "../fs/regular.js";
+import { MAX_DATA_FILE, unsafeFileReason } from "../fs/regular.js";
 import { applyPatch, DEFAULT_PREFS, parsePatch, PrefsSchema, type Prefs } from "./schema.js";
 
 const LOCK_TIMEOUT_MS = 5000;
@@ -25,7 +25,7 @@ export class PreferencesStore {
 
   async get(): Promise<Prefs> {
     await this.guard?.();
-    const unsafe = await unsafeFileReason(this.file);
+    const unsafe = await unsafeFileReason(this.file, MAX_DATA_FILE);
     if (unsafe) throw new UserError(`Preferences file ${this.file} is invalid: ${unsafe}`);
     let raw: string;
     try {
@@ -68,7 +68,13 @@ export class PreferencesStore {
       },
       async () => {
         const next = applyPatch(await this.get(), parsed);
-        return { content: JSON.stringify(next, null, 2), result: next };
+        const content = JSON.stringify(next, null, 2);
+        if (Buffer.byteLength(content) > MAX_DATA_FILE) {
+          throw new UserError(
+            "Preferences file would be larger than 8 MB; shorten the preferences first.",
+          );
+        }
+        return { content, result: next };
       },
     );
   }

@@ -309,10 +309,30 @@ describe("PlanStore in a sync folder", () => {
     ]);
   });
 
+  it("still reads a plan file between 1 MB and 8 MB", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const s = new PlanStore(path.join(d, "plans.json"));
+    await s.upsert({ ...plan, notes: "x".repeat(2 * 1024 * 1024) });
+    expect((await stat(path.join(d, "plans.json"))).size).toBeGreaterThan(1024 * 1024);
+    expect((await s.get("corsair")).notes).toHaveLength(2 * 1024 * 1024);
+  });
+
+  it("refuses a write over 8 MB and leaves the file unchanged", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const file = path.join(d, "plans.json");
+    const s = new PlanStore(file);
+    await s.upsert({ ...plan, notes: "x".repeat(5 * 1024 * 1024) });
+    const before = await readFile(file, "utf8");
+    await expect(
+      s.upsert({ ...plan, id: "second", notes: "y".repeat(5 * 1024 * 1024) }),
+    ).rejects.toThrow("Plans file would be larger than 8 MB; delete plans or shorten notes first.");
+    expect(await readFile(file, "utf8")).toBe(before);
+  });
+
   it("refuses a plan file that is too large", async () => {
     const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
     const file = path.join(d, "plans.json");
-    await writeFile(file, " ".repeat(1024 * 1024 + 1));
+    await writeFile(file, " ".repeat(8 * 1024 * 1024 + 1));
     await expect(new PlanStore(file).list()).rejects.toThrow(
       `Plan file ${file} is invalid: too large`,
     );

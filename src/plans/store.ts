@@ -4,7 +4,7 @@ import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
-import { unsafeFileReason } from "../fs/regular.js";
+import { MAX_DATA_FILE, unsafeFileReason } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
@@ -124,7 +124,7 @@ export class PlanStore {
 
   private async read(): Promise<PlanFile> {
     await this.guard?.();
-    const unsafe = await unsafeFileReason(this.file);
+    const unsafe = await unsafeFileReason(this.file, MAX_DATA_FILE);
     if (unsafe) throw new UserError(`Plan file ${this.file} is invalid: ${unsafe}`);
     let raw: string;
     try {
@@ -166,7 +166,13 @@ export class PlanStore {
           before = data.plans.map((p) => p.id);
           const result = fn(data);
           latest = data;
-          return { content: JSON.stringify(data, null, 2), result };
+          const content = JSON.stringify(data, null, 2);
+          if (Buffer.byteLength(content) > MAX_DATA_FILE) {
+            throw new UserError(
+              "Plans file would be larger than 8 MB; delete plans or shorten notes first.",
+            );
+          }
+          return { content, result };
         },
       );
       if (latest && this.markdownDir) await this.writeMarkdown(latest, before);

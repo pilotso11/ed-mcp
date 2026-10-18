@@ -1,4 +1,3 @@
-import path from "node:path";
 import { CapiAuth } from "./capi/auth.js";
 import { CapiClient } from "./capi/client.js";
 import { TokenStore } from "./capi/tokens.js";

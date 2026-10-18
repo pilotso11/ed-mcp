@@ -11,6 +11,14 @@ const env = {
   WAYLAND_DISPLAY: "wayland-0",
   XDG_RUNTIME_DIR: "/run/user/1",
   DBUS_SESSION_BUS_ADDRESS: "unix:path=/x",
+  USER: "j",
+  LOGNAME: "j",
+  USERPROFILE: "C:\\Users\\j",
+  APPDATA: "a",
+  LOCALAPPDATA: "l",
+  TEMP: "t",
+  TMP: "t",
+  PATHEXT: ".EXE",
   SYSTEMROOT: "C:\\Windows",
   COMSPEC: "cmd.exe",
 };
@@ -22,21 +30,27 @@ describe("browserEnv", () => {
       expect(Object.keys(out)).not.toContain("ED_MCP_SYNC_PASSWORD");
       expect(Object.keys(out)).not.toContain("INARA_API_KEY");
       expect(Object.keys(out)).not.toContain("EDSM_API_KEY");
-      expect(Object.keys(out)).not.toContain("HOME");
     }
   });
 
   it("keeps only what the opener needs on each platform", () => {
-    expect(browserEnv(env, "darwin")).toEqual({ PATH: "/bin" });
+    const base = { PATH: "/bin", HOME: "/home/j", USER: "j", LOGNAME: "j" };
+    expect(browserEnv(env, "darwin")).toEqual(base);
     expect(browserEnv(env, "linux")).toEqual({
-      PATH: "/bin",
+      ...base,
       DISPLAY: ":0",
       WAYLAND_DISPLAY: "wayland-0",
       XDG_RUNTIME_DIR: "/run/user/1",
       DBUS_SESSION_BUS_ADDRESS: "unix:path=/x",
     });
     expect(browserEnv(env, "win32")).toEqual({
-      PATH: "/bin",
+      ...base,
+      USERPROFILE: "C:\\Users\\j",
+      APPDATA: "a",
+      LOCALAPPDATA: "l",
+      TEMP: "t",
+      TMP: "t",
+      PATHEXT: ".EXE",
       SYSTEMROOT: "C:\\Windows",
       COMSPEC: "cmd.exe",
     });

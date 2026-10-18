@@ -12,9 +12,15 @@ beforeEach(async () => {
 });
 
 describe("PreferencesStore", () => {
+  it("reads a preferences file between 1 MB and 8 MB", async () => {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(DEFAULT_PREFS) + " ".repeat(2 * 1024 * 1024));
+    expect(await new PreferencesStore(file).get()).toEqual(DEFAULT_PREFS);
+  });
+
   it("refuses a preferences file that is too large", async () => {
     await mkdir(path.dirname(file), { recursive: true });
-    await writeFile(file, " ".repeat(1024 * 1024 + 1));
+    await writeFile(file, " ".repeat(8 * 1024 * 1024 + 1));
     await expect(new PreferencesStore(file).get()).rejects.toThrow(
       `Preferences file ${file} is invalid: too large`,
     );

@@ -6,7 +6,7 @@ import { CapiAuth } from "../../src/capi/auth.js";
 import { TokenStore } from "../../src/capi/tokens.js";
 import { SecretStore } from "../../src/settings/secrets.js";
 import { HttpClient } from "../../src/http/client.js";
-import { NotConfiguredError } from "../../src/errors.js";
+import { NotConfiguredError, UserError } from "../../src/errors.js";
 import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
 
 const DAY = 86_400_000;
@@ -322,7 +322,7 @@ describe("CapiAuth tokens", () => {
     expect(await tokens.load()).toEqual(saved);
   });
 
-  it("waits for a refresh in flight before logout clears the tokens", async () => {
+  it("does not let a refresh in flight write tokens back after logout", async () => {
     await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
@@ -336,11 +336,32 @@ describe("CapiAuth tokens", () => {
       },
     ]);
     const access = auth.accessToken();
+    const settled = access.catch((e) => e);
     await new Promise((r) => setTimeout(r, 20));
     const out = auth.logout();
     release();
-    await access;
+    expect(await settled).toBeInstanceOf(UserError);
     await out;
+    expect(await tokens.load()).toBeNull();
+  });
+
+  it("keeps logout when a refresh starts during the logout", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { auth } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await gate;
+          return jsonResponse({ access_token: "A2", refresh_token: "R2", expires_in: 14400 });
+        },
+      },
+    ]);
+    const access = auth.accessToken().catch((e) => e);
+    await auth.logout();
+    release();
+    expect(await access).toBeInstanceOf(UserError);
     expect(await tokens.load()).toBeNull();
   });
 

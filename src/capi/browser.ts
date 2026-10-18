@@ -1,8 +1,17 @@
 import { spawn } from "node:child_process";
 
 const KEEP = {
-  all: ["PATH"],
-  win32: ["SYSTEMROOT", "COMSPEC"],
+  all: ["PATH", "HOME", "USER", "LOGNAME"],
+  win32: [
+    "SYSTEMROOT",
+    "COMSPEC",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "TEMP",
+    "TMP",
+    "PATHEXT",
+  ],
   linux: ["DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"],
 };
 

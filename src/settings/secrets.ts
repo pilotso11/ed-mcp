@@ -2,7 +2,7 @@ import { lstat, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { acquireLock, lockedWrite } from "../fs/lock.js";
-import { MAX_DATA_FILE } from "../fs/regular.js";
+import { MAX_SECRETS_FILE } from "../fs/regular.js";
 import { SecretCipher, SecretsError, type ScryptParams } from "./crypto.js";
 
 export const StoredTokensSchema = z.object({
@@ -144,7 +144,7 @@ export class SecretStore {
       throw err;
     }
     if (!st.isFile()) throw new SecretsError(`${this.file} is not readable (not a regular file).`);
-    if (st.size > MAX_DATA_FILE)
+    if (st.size > MAX_SECRETS_FILE)
       throw new SecretsError(`${this.file} is not readable (too large).`);
     // An unchanged file costs one stat, so reading on every tool call stays cheap.
     if (this.cached && this.cached.mtimeMs === st.mtimeMs && this.cached.size === st.size) {
