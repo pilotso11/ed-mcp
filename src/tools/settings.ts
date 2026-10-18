@@ -87,7 +87,7 @@ export function registerSettingsTools(
         "Where ed-mcp keeps its data: the sync folder and whether it is available, whether secrets " +
         "are encrypted, where each API key comes from (environment or saved), whether a Frontier " +
         "login is saved, any sync conflict copies, and notes on settings that look mismatched between " +
-        "Claude apps. Never returns key values.",
+        "Claude apps. An `update` line says when a newer ed-mcp release is available. Never returns key values.",
     },
     wrap(async () => {
       let syncFolder: { path: string; available: boolean; error?: string } | null = null;

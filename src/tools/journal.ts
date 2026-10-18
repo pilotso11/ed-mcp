@@ -45,7 +45,7 @@ export function registerJournalTools(
       description:
         "Check the Elite Dangerous journal folder: whether it exists, the newest journal and how old " +
         "its last event is, the commander and game version. Use it first when journal data looks " +
-        "wrong or out of date; warnings explain missing folders and stalled Syncthing sync.",
+        "wrong or out of date; warnings explain missing folders and stalled Syncthing sync, and also mention a newer ed-mcp release when one is available.",
     },
     wrap(async () => {
       // The update notice is read from the cache only, so this tool stays read-only.

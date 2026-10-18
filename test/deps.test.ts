@@ -43,7 +43,7 @@ describe("buildDeps", () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
     await writeFile(
       path.join(dir, "version-check.json"),
-      JSON.stringify({ checked_at: Date.now(), latest: "9.9.9", url: "https://example.test/r" }),
+      JSON.stringify({ checked_at: Date.now(), latest: "9.9.9" }),
     );
     const config = loadConfig({ ED_JOURNAL_DIR: dir }, { config: dir, cache: dir });
     const client = await connectTestClient(createServer(buildDeps(config)));

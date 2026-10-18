@@ -9,11 +9,20 @@ const RELEASE_URL = "https://api.github.com/repos/pilotso11/ed-mcp/releases/late
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RETRY_MS = 60 * 60 * 1000;
 
-const releaseSchema = z.object({ tag_name: z.string().min(1), html_url: z.string().min(1) });
+// The release page link is built from the version, never taken from the response or the cache
+// file, because Claude trusts the notice text and a link from outside could carry instructions.
+const RELEASE_PAGE = "https://github.com/pilotso11/ed-mcp/releases/tag";
+const STRICT_VERSION = /^\d+\.\d+\.\d+$/;
+
+const releaseSchema = z.object({
+  tag_name: z
+    .string()
+    .transform((t) => t.replace(/^v/, ""))
+    .pipe(z.string().regex(STRICT_VERSION)),
+});
 const cacheSchema = z.object({
   checked_at: z.number(),
-  latest: z.string(),
-  url: z.string(),
+  latest: z.string().regex(STRICT_VERSION),
 });
 type Cached = z.infer<typeof cacheSchema>;
 
@@ -80,13 +89,15 @@ export class VersionCheck {
     try {
       const cached = await this.read();
       if (!cached || !isNewer(cached.latest, this.opts.current)) return null;
-      return `ed-mcp ${cached.latest} is available (you have ${this.opts.current}): ${cached.url}`;
+      return `ed-mcp ${cached.latest} is available (you have ${this.opts.current}): ${RELEASE_PAGE}/v${cached.latest}`;
     } catch {
       return null;
     }
   }
 
   private run(): void {
+    clearTimeout(this.timer);
+    this.timer = undefined;
     if (this.inFlight) return;
     this.inFlight = true;
     this.running = this.check()
@@ -142,8 +153,7 @@ export class VersionCheck {
     const release = releaseSchema.parse(await this.opts.http.json<unknown>(RELEASE_URL));
     const entry: Cached = {
       checked_at: this.now(),
-      latest: release.tag_name.replace(/^v/, ""),
-      url: release.html_url,
+      latest: release.tag_name,
     };
     await lockedWrite(
       this.file,
