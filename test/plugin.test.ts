@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 
 const read = async (p: string) =>
   JSON.parse(await readFile(new URL(`../${p}`, import.meta.url), "utf8")) as Record<
@@ -16,6 +16,11 @@ describe("Claude plugin", () => {
     expect(plugin.mcpServers).toBe(`./ed-mcp-${v}.mcpb`);
     const bundle = await stat(new URL(`../plugin/ed-mcp-${v}.mcpb`, import.meta.url));
     expect(bundle.isFile()).toBe(true);
+    // Release step 5 removes the old bundle; a forgotten one would ship with every install.
+    const bundles = (await readdir(new URL("../plugin/", import.meta.url))).filter((n) =>
+      n.endsWith(".mcpb"),
+    );
+    expect(bundles).toEqual([`ed-mcp-${v}.mcpb`]);
   });
 
   it("never points at a version newer than the package", async () => {
