@@ -219,6 +219,7 @@ ed-mcp checks GitHub once a day for a newer release and tells Claude when one is
 ## More information
 
 - [Tool reference](docs/tools.md): what each tool does, its inputs and its results.
+- [Privacy](PRIVACY.md): what ed-mcp reads, what it sends, and to whom.
 - [Contributing](CONTRIBUTING.md): development, releases and service registrations.
 
 ## Acknowledgements

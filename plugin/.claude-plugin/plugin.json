@@ -1,0 +1,49 @@
+{
+  "name": "elite-dangerous-mcp",
+  "displayName": "ed-mcp: Elite Dangerous Companion",
+  "version": "0.3.1",
+  "description": "Elite Dangerous tools for Claude: your game journal, Inara, EDSM, Frontier CAPI and Spansh, with build plans, engineering, materials, trade routes and station searches.",
+  "author": {
+    "name": "Seth Osher",
+    "url": "https://github.com/pilotso11"
+  },
+  "homepage": "https://github.com/pilotso11/ed-mcp#readme",
+  "repository": "https://github.com/pilotso11/ed-mcp",
+  "license": "MIT",
+  "keywords": ["elite-dangerous", "inara", "edsm", "spansh", "frontier", "mcp"],
+  "documentationUrl": "https://github.com/pilotso11/ed-mcp/blob/main/docs/tools.md",
+  "supportUrl": "https://github.com/pilotso11/ed-mcp/issues",
+  "privacyPolicyUrl": "https://github.com/pilotso11/ed-mcp/blob/main/PRIVACY.md",
+  "mcpServers": {
+    "ed-mcp": {
+      "command": "npx",
+      "args": ["-y", "ed-mcp@0.3.1"],
+      "env": {
+        "ED_JOURNAL_DIR": "${user_config.ed_journal_dir}",
+        "ED_MCP_SYNC_DIR": "${user_config.ed_mcp_sync_dir}",
+        "ED_MCP_SYNC_PASSWORD": "${user_config.ed_mcp_sync_password}"
+      }
+    }
+  },
+  "userConfig": {
+    "ed_journal_dir": {
+      "type": "directory",
+      "title": "Journal folder",
+      "description": "Optional. The Elite Dangerous journal folder. On the gaming PC, leave empty for the default. On another computer, choose the synced copy.",
+      "default": ""
+    },
+    "ed_mcp_sync_dir": {
+      "type": "directory",
+      "title": "Sync folder",
+      "description": "Optional. A folder that Google Drive, iCloud Drive, OneDrive or Syncthing keeps in step, so plans and preferences follow you between computers.",
+      "default": ""
+    },
+    "ed_mcp_sync_password": {
+      "type": "string",
+      "title": "Sync password",
+      "description": "Optional, at least 12 characters. Encrypts your API keys and Frontier login. Use the same password on every computer.",
+      "sensitive": true,
+      "default": ""
+    }
+  }
+}
