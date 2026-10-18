@@ -26,11 +26,20 @@ export function registerSettingsTools(
         "a key into the chat; use this page.",
     },
     wrap(async () => {
-      const r = await deps.page.open();
-      return {
-        ...r,
-        next: "Ask the user to enter their keys in the browser (open the url if no tab appeared) and press Save.",
-      };
+      const { url, expires_at, opened } = await deps.page.open();
+      // The link carries the page's one-time key, so Claude gets it only when the browser did not open.
+      return opened
+        ? {
+            opened: true,
+            expires_at,
+            next: "Ask the user to enter their keys in the browser tab that opened and press Save.",
+          }
+        : {
+            opened: false,
+            url,
+            expires_at,
+            next: "Ask the user to open this link in their browser, enter their keys and press Save.",
+          };
     }),
   );
 

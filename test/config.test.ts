@@ -124,11 +124,14 @@ describe("loadConfig", () => {
   });
 
   it("encrypts secrets with a password, in the sync folder when there is one", () => {
-    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "pw" }, dirs).secretsFile).toBe(
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "a-long-password" }, dirs).secretsFile).toBe(
       path.join("/cfg", "secrets.enc"),
     );
-    const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync", ED_MCP_SYNC_PASSWORD: "pw" }, dirs);
-    expect(c.syncPassword).toBe("pw");
+    const c = loadConfig(
+      { ED_MCP_SYNC_DIR: "/sync", ED_MCP_SYNC_PASSWORD: "a-long-password" },
+      dirs,
+    );
+    expect(c.syncPassword).toBe("a-long-password");
     expect(c.secretsFile).toBe(path.join(path.resolve("/sync"), "secrets.enc"));
   });
 
@@ -138,6 +141,19 @@ describe("loadConfig", () => {
     expect(c.plansMarkdownDir).toBe(path.join(path.resolve("/sync"), "plans"));
     const local = loadConfig({}, dirs);
     expect(local.plansMarkdownDir).toBe(path.join("/cfg", "plans"));
+  });
+
+  it("rejects a sync password shorter than 12 characters", () => {
+    expect(() => loadConfig({ ED_MCP_SYNC_PASSWORD: "elevenchars" }, dirs)).toThrow(
+      "ED_MCP_SYNC_PASSWORD must be at least 12 characters.",
+    );
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "twelve-chars" }, dirs).syncPassword).toBe(
+      "twelve-chars",
+    );
+  });
+
+  it("treats an empty sync password as unset", () => {
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "" }, dirs).syncPassword).toBeUndefined();
   });
 
   it("ignores unset Claude Desktop placeholders for the sync settings", () => {

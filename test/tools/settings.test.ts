@@ -10,7 +10,7 @@ import { SyncFolder } from "../../src/settings/sync.js";
 import { registerSettingsTools } from "../../src/tools/settings.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
-async function setup() {
+async function setup(openUrl: (u: string) => Promise<void> = async () => undefined) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "settings-tools-"));
   const secrets = new SecretStore(path.join(dir, "secrets.json"));
   await secrets.update((d) => {
@@ -21,7 +21,7 @@ async function setup() {
     { appName: "ed-mcp", devMode: false },
     secrets,
   );
-  const page = new SettingsPage({ secrets, settings }, { openUrl: async () => undefined });
+  const page = new SettingsPage({ secrets, settings }, { openUrl });
   const server = new McpServer({ name: "t", version: "0" });
   registerSettingsTools(server, { page, settings, secrets, sync: new SyncFolder(dir) });
   return { client: await connectTestClient(server), page };
@@ -42,10 +42,26 @@ describe("settings tools", () => {
     expect(JSON.stringify(r.json)).not.toMatch(/secret-(inara|edsm)-key/);
   });
 
-  it("opens the settings page and returns its link", async () => {
-    const { client, page } = await setup();
+  it("opens the settings page and keeps the link from Claude when the browser opened", async () => {
+    let opened = "";
+    const { client, page } = await setup(async (u) => void (opened = u));
     const r = await callTool(client, "settings_open");
-    expect(r.json).toMatchObject({ url: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\//) });
+    expect(r.json).toMatchObject({ opened: true, expires_at: expect.any(String) });
+    expect(r.json).not.toHaveProperty("url");
+    const key = new URL(opened).searchParams.get("key")!;
+    expect(r.text).not.toContain(key);
+    expect(page.isOpen()).toBe(true);
+  });
+
+  it("returns the link only when the browser could not be opened", async () => {
+    const { client, page } = await setup(async () => {
+      throw new Error("no browser");
+    });
+    const r = await callTool(client, "settings_open");
+    expect(r.json).toMatchObject({
+      opened: false,
+      url: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/\?key=/),
+    });
     expect(page.isOpen()).toBe(true);
   });
 

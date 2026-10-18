@@ -216,4 +216,22 @@ describe("SettingsPage", () => {
       'href="https://www.edsm.net/" target="_blank" rel="noopener noreferrer"',
     );
   });
+
+  it("warns that reset and re-encrypt reach every computer when the file is in a sync folder", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "page-"));
+    await new SecretStore(path.join(dir, "s.enc"), { password: "old", scrypt: FAST }).update(
+      () => undefined,
+    );
+    const secrets = new SecretStore(path.join(dir, "s.enc"), { password: "new", scrypt: FAST });
+    const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
+    const warning = "This changes the secrets for every computer that shares the sync folder.";
+    for (const inSyncFolder of [true, false]) {
+      const page = new SettingsPage(
+        { secrets, settings },
+        { openUrl: async () => undefined, inSyncFolder },
+      );
+      const html = await (await fetch((await page.open()).url)).text();
+      expect(html.split(warning).length - 1).toBe(inSyncFolder ? 2 : 0);
+    }
+  });
 });

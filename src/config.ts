@@ -78,6 +78,9 @@ function userPath(env: Env, key: string): string | undefined {
 // (EDMC ships its own the same way). CAPI_CLIENT_ID overrides it.
 const ED_MCP_CAPI_CLIENT_ID = "320100b9-b71e-4b8a-ab80-210f7192d330";
 
+// The file may sit in a cloud folder, so a guessable password would be cracked offline.
+const MIN_PASSWORD = 12;
+
 export function loadConfig(
   env: Env,
   dirs: { config: string; cache: string },
@@ -94,6 +97,9 @@ export function loadConfig(
   const rawPassword = env.ED_MCP_SYNC_PASSWORD;
   const syncPassword =
     rawPassword && !UNSET_PLACEHOLDER.test(rawPassword.trim()) ? rawPassword : undefined;
+  if (syncPassword !== undefined && syncPassword.length < MIN_PASSWORD) {
+    throw new ConfigError(`ED_MCP_SYNC_PASSWORD must be at least ${MIN_PASSWORD} characters.`);
+  }
   const dataDir = syncDir ?? dirs.config;
   const appName = get(env, "INARA_APP_NAME") ?? "ed-mcp";
 

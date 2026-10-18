@@ -27,11 +27,18 @@ export class SettingsPage {
   private opening: Promise<unknown> = Promise.resolve();
   private readonly openUrl: (url: string) => Promise<void>;
   private readonly timeoutMs: number;
+  private readonly inSyncFolder: boolean;
 
   constructor(
     private readonly deps: { secrets: SecretStore; settings: Settings },
-    opts: { openUrl?: (url: string) => Promise<void>; timeoutMs?: number } = {},
+    opts: {
+      openUrl?: (url: string) => Promise<void>;
+      timeoutMs?: number;
+      /** The secrets file is in a sync folder, so reset and re-encrypt reach other computers. */
+      inSyncFolder?: boolean;
+    } = {},
   ) {
+    this.inSyncFolder = opts.inSyncFolder ?? false;
     this.openUrl = opts.openUrl ?? openInBrowser;
     this.timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
   }
@@ -45,13 +52,13 @@ export class SettingsPage {
   }
 
   // Calls run one after another, so two overlapping calls cannot leave a server nobody tracks.
-  open(): Promise<{ url: string; expires_at: string }> {
+  open(): Promise<{ url: string; expires_at: string; opened: boolean }> {
     const run = this.opening.then(() => this.start());
     this.opening = run.catch(() => undefined);
     return run;
   }
 
-  private async start(): Promise<{ url: string; expires_at: string }> {
+  private async start(): Promise<{ url: string; expires_at: string; opened: boolean }> {
     this.close();
     // Every request must carry this key, so other programs on the computer cannot use the page.
     const key = randomBytes(24).toString("hex");
@@ -76,8 +83,12 @@ export class SettingsPage {
     timer.unref();
     server.on("close", () => clearTimeout(timer));
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/?key=${key}`;
-    await this.openUrl(url).catch(() => undefined); // the URL is returned for manual opening
-    return { url, expires_at: new Date(Date.now() + this.timeoutMs).toISOString() };
+    // When the browser cannot be opened, the caller hands the URL to the user.
+    const opened = await this.openUrl(url).then(
+      () => true,
+      () => false,
+    );
+    return { url, expires_at: new Date(Date.now() + this.timeoutMs).toISOString(), opened };
   }
 
   private close(): void {
@@ -154,6 +165,9 @@ export class SettingsPage {
 
   private async form(key: string): Promise<string> {
     const k = `<input type="hidden" name="key" value="${key}">`;
+    const shared = this.inSyncFolder
+      ? "<p><strong>This changes the secrets for every computer that shares the sync folder.</strong></p>"
+      : "";
     let stored: { inara?: ServiceKey; edsm?: ServiceKey };
     try {
       stored = await this.deps.secrets.get();
@@ -161,10 +175,10 @@ export class SettingsPage {
       if (!(err instanceof SecretsError)) throw err;
       return (
         `<h1>ed-mcp settings</h1><p>${esc(err.message)}</p>` +
-        `<form method="post" action="/reencrypt">${k}<fieldset><legend>Re-encrypt with the current password</legend>` +
+        `<form method="post" action="/reencrypt">${k}<fieldset><legend>Re-encrypt with the current password</legend>${shared}` +
         `<label>Old password <input type="password" name="old_password" autocomplete="off"></label>` +
         `<button>Re-encrypt</button></fieldset></form>` +
-        `<form method="post" action="/reset">${k}<fieldset><legend>Start fresh</legend>` +
+        `<form method="post" action="/reset">${k}<fieldset><legend>Start fresh</legend>${shared}` +
         `<p>Removes the saved keys and the Frontier login. Plans and preferences are not affected.</p>` +
         `<button>Start fresh</button></fieldset></form>`
       );

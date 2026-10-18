@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
+import { unsafeFileReason } from "../fs/regular.js";
 import { applyPatch, DEFAULT_PREFS, parsePatch, PrefsSchema, type Prefs } from "./schema.js";
 
 const LOCK_TIMEOUT_MS = 5000;
@@ -24,6 +25,8 @@ export class PreferencesStore {
 
   async get(): Promise<Prefs> {
     await this.guard?.();
+    const unsafe = await unsafeFileReason(this.file);
+    if (unsafe) throw new UserError(`Preferences file ${this.file} is invalid: ${unsafe}`);
     let raw: string;
     try {
       raw = await readFile(this.file, "utf8");

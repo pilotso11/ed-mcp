@@ -52,6 +52,7 @@ export interface ServerDeps {
   sync?: SyncFolder;
   syncWarnings?: () => Promise<string[]>;
   settingsPage?: SettingsPage;
+  planWarnings?: () => Promise<string[]>;
   currentShip?: () => Promise<string | { type: string; source: string } | null>;
   jumpRange?: () => Promise<number | null>;
 }
@@ -61,7 +62,11 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.caches) {
     registerCacheTools(server, { caches: deps.caches, refreshables: deps.refreshables });
   }
-  if (deps.plans) registerPlanTools(server, { plans: deps.plans, warnings: deps.syncWarnings });
+  if (deps.plans)
+    registerPlanTools(server, {
+      plans: deps.plans,
+      warnings: deps.planWarnings ?? deps.syncWarnings,
+    });
   if (deps.prefs) registerPrefsTools(server, { prefs: deps.prefs, warnings: deps.syncWarnings });
   if (deps.settingsPage && deps.settings && deps.secrets) {
     registerSettingsTools(server, {

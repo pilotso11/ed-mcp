@@ -1,5 +1,16 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { renameSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -229,5 +240,92 @@ describe("PlanStore in a sync folder", () => {
     });
     await expect(s.upsert(plan)).rejects.toThrow("not available");
     await expect(stat(sync)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  describe.skipIf(process.platform === "win32")("Markdown copies and links", () => {
+    it("replaces a planted symlink instead of writing through it", async () => {
+      const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+      const md = path.join(d, "plans");
+      await mkdir(md);
+      const outside = path.join(d, "outside.txt");
+      await writeFile(outside, "precious");
+      await symlink(outside, path.join(md, "corsair.md"));
+      const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+      await s.upsert(plan);
+      expect(await readFile(outside, "utf8")).toBe("precious");
+      expect((await lstat(path.join(md, "corsair.md"))).isFile()).toBe(true);
+      expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+      expect((await readdir(md)).filter((n) => n.endsWith(".tmp"))).toEqual([]);
+    });
+
+    it("writes and deletes nothing through a symlinked plans folder", async () => {
+      const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+      const real = path.join(d, "real");
+      await mkdir(real);
+      await writeFile(path.join(real, "old.md"), "keep me");
+      const md = path.join(d, "plans");
+      await symlink(real, md);
+      const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+      await s.upsert(plan);
+      await s.delete("corsair");
+      expect(await readdir(real)).toEqual(["old.md"]);
+      expect(await s.markdownProblem()).toBe(
+        `Plan copies were not written: ${md} is a symbolic link.`,
+      );
+    });
+  });
+
+  it("reports a plans path that is a file", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    await writeFile(md, "x");
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    expect(await s.markdownProblem()).toBe(`Plan copies were not written: ${md} is not a folder.`);
+  });
+
+  it("removes only the copy of a deleted plan, keeping notes and conflict copies", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    await mkdir(md);
+    for (const n of ["notes.md", "corsair (1).md", "Keep.md"]) {
+      await writeFile(path.join(md, n), "x");
+    }
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    await s.upsert(plan);
+    await s.upsert({ ...plan, id: "gone" });
+    expect((await readdir(md)).sort()).toEqual([
+      "Keep.md",
+      "corsair (1).md",
+      "corsair.md",
+      "gone.md",
+      "notes.md",
+    ]);
+    await s.delete("gone");
+    expect((await readdir(md)).sort()).toEqual([
+      "Keep.md",
+      "corsair (1).md",
+      "corsair.md",
+      "notes.md",
+    ]);
+  });
+
+  it("refuses a plan file that is too large", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const file = path.join(d, "plans.json");
+    await writeFile(file, " ".repeat(1024 * 1024 + 1));
+    await expect(new PlanStore(file).list()).rejects.toThrow(
+      `Plan file ${file} is invalid: too large`,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")("refuses a plan file that is a symlink", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const target = path.join(d, "t.json");
+    await writeFile(target, '{"version":1,"plans":[]}');
+    const file = path.join(d, "plans.json");
+    await symlink(target, file);
+    await expect(new PlanStore(file).list()).rejects.toThrow(
+      `Plan file ${file} is invalid: not a regular file`,
+    );
   });
 });

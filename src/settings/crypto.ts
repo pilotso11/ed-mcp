@@ -8,11 +8,11 @@ export interface ScryptParams {
   p: number;
 }
 
-// About 32 MB and a fraction of a second per derivation: slow for guessing, fine once a run.
-export const SCRYPT: ScryptParams = { N: 2 ** 15, r: 8, p: 1 };
+// About 128 MB and a fraction of a second per derivation: slow for guessing, fine once a run.
+export const SCRYPT: ScryptParams = { N: 2 ** 17, r: 8, p: 1 };
 
-// Maximum memory for scrypt key derivation: 64 MB
-const SCRYPT_MAXMEM = 64 * 1024 * 1024;
+// Maximum memory for scrypt key derivation: 256 MB
+const SCRYPT_MAXMEM = 256 * 1024 * 1024;
 
 export class SecretsError extends UserError {
   override name = "SecretsError";
@@ -27,10 +27,10 @@ const EnvelopeSchema = z.object({
     .number()
     .int()
     .min(2)
-    .max(2 ** 20)
+    .max(2 ** 17)
     .refine((n) => (n & (n - 1)) === 0),
-  r: z.number().int().min(1).max(16),
-  p: z.number().int().min(1).max(4),
+  r: z.number().int().min(1).max(8),
+  p: z.number().int().min(1).max(2),
   salt: z.string(),
   iv: z.string(),
   tag: z.string(),

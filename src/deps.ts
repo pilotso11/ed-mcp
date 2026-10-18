@@ -44,6 +44,14 @@ export function buildDeps(
     config.inaraApp,
     secrets,
   );
+  const plans = new PlanStore(config.plansFile, undefined, {
+    lockDir: lockFor(config.plansFile),
+    guard: guardFor(config.plansFile),
+    markdownDir: config.plansMarkdownDir,
+  });
+  const syncWarnings = sync
+    ? () => sync.warnings([config.plansFile, config.prefsFile, config.secretsFile])
+    : undefined;
   const inaraCache = new TtlCache<unknown>("inara", 60_000);
   caches.register(inaraCache);
   const inara = new InaraClient(http, () => settings.inara(), inaraCache);
@@ -87,19 +95,20 @@ export function buildDeps(
     journal,
     settings,
     secrets,
-    settingsPage: new SettingsPage({ secrets, settings }),
-    plans: new PlanStore(config.plansFile, undefined, {
-      lockDir: lockFor(config.plansFile),
-      guard: guardFor(config.plansFile),
-      markdownDir: config.plansMarkdownDir,
-    }),
+    settingsPage: new SettingsPage(
+      { secrets, settings },
+      { inSyncFolder: !!sync?.contains(config.secretsFile) },
+    ),
+    plans,
+    planWarnings: async () => {
+      const problem = await plans.markdownProblem();
+      return [...((await syncWarnings?.()) ?? []), ...(problem ? [problem] : [])];
+    },
     prefs: new PreferencesStore(config.prefsFile, {
       lockDir: lockFor(config.prefsFile),
       guard: guardFor(config.prefsFile),
     }),
     sync,
-    syncWarnings: sync
-      ? () => sync.warnings([config.plansFile, config.prefsFile, config.secretsFile])
-      : undefined,
+    syncWarnings,
   };
 }

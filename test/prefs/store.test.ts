@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { SyncFolder } from "../../src/settings/sync.js";
@@ -12,6 +12,27 @@ beforeEach(async () => {
 });
 
 describe("PreferencesStore", () => {
+  it("refuses a preferences file that is too large", async () => {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, " ".repeat(1024 * 1024 + 1));
+    await expect(new PreferencesStore(file).get()).rejects.toThrow(
+      `Preferences file ${file} is invalid: too large`,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "refuses a preferences file that is a symlink",
+    async () => {
+      await mkdir(path.dirname(file), { recursive: true });
+      const target = path.join(path.dirname(file), "t.json");
+      await writeFile(target, "{}");
+      await symlink(target, file);
+      await expect(new PreferencesStore(file).get()).rejects.toThrow(
+        `Preferences file ${file} is invalid: not a regular file`,
+      );
+    },
+  );
+
   it("returns defaults when the file does not exist", async () => {
     expect(await new PreferencesStore(file).get()).toEqual(DEFAULT_PREFS);
   });

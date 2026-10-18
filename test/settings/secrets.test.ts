@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { acquireLock } from "../../src/fs/lock.js";
 import { SecretStore } from "../../src/settings/secrets.js";
 import { SecretsError } from "../../src/settings/crypto.js";
 
@@ -179,5 +180,36 @@ describe("SecretStore", () => {
     const s = new SecretStore(file, { password: "new", scrypt: FAST });
     await s.reset();
     expect(await s.get()).toEqual({ version: 1 });
+  });
+
+  it("refuses a secrets file that is a symlink, and one that is too large", async () => {
+    const dir = await tmp();
+    const target = path.join(dir, "elsewhere.json");
+    await writeFile(target, '{"version":1}');
+    const file = path.join(dir, "secrets.json");
+    if (process.platform !== "win32") {
+      await symlink(target, file);
+      await expect(new SecretStore(file).get()).rejects.toThrow(
+        `${file} is not readable (not a regular file).`,
+      );
+      await rm(file);
+    }
+    await writeFile(file, " ".repeat(1024 * 1024 + 1));
+    await expect(new SecretStore(file).get()).rejects.toThrow(
+      `${file} is not readable (too large).`,
+    );
+  });
+
+  it("resets under the write lock, so a held lock makes it wait and fail", async () => {
+    const dir = await tmp();
+    const file = path.join(dir, "secrets.json");
+    const s = new SecretStore(file, { lockTimeoutMs: 100 });
+    await s.update((d) => void (d.edsm = { apiKey: "k", cmdr: "J" }));
+    const release = await acquireLock(file, 1000, "held");
+    await expect(s.reset()).rejects.toThrow("locked by another process");
+    expect(existsSync(file)).toBe(true);
+    await release();
+    await s.reset();
+    expect(existsSync(file)).toBe(false);
   });
 });

@@ -1,6 +1,8 @@
-import { readFile, rm, stat } from "node:fs/promises";
+import { lstat, mkdir, readFile, rm } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
-import { lockedWrite } from "../fs/lock.js";
+import { acquireLock, lockedWrite } from "../fs/lock.js";
+import { MAX_DATA_FILE } from "../fs/regular.js";
 import { SecretCipher, SecretsError, type ScryptParams } from "./crypto.js";
 
 export const StoredTokensSchema = z.object({
@@ -106,7 +108,20 @@ export class SecretStore {
   reset(): Promise<void> {
     const run = this.queue.then(async () => {
       await this.opts.guard?.();
-      await rm(this.file, { force: true });
+      // Under the write lock, so a write in progress on this computer cannot recreate the file.
+      await mkdir(path.dirname(this.file), { recursive: true });
+      if (this.opts.lockDir) await mkdir(this.opts.lockDir, { recursive: true });
+      const release = await acquireLock(
+        this.file,
+        this.opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS,
+        "Secrets file is locked by another process; try again",
+        this.opts.lockDir,
+      );
+      try {
+        await rm(this.file, { force: true });
+      } finally {
+        await release();
+      }
     });
     this.queue = run.catch(() => undefined);
     return run.finally(() => {
@@ -120,7 +135,7 @@ export class SecretStore {
     await this.opts.guard?.();
     let st;
     try {
-      st = await stat(this.file);
+      st = await lstat(this.file);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         this.cached = null;
@@ -128,6 +143,9 @@ export class SecretStore {
       }
       throw err;
     }
+    if (!st.isFile()) throw new SecretsError(`${this.file} is not readable (not a regular file).`);
+    if (st.size > MAX_DATA_FILE)
+      throw new SecretsError(`${this.file} is not readable (too large).`);
     // An unchanged file costs one stat, so reading on every tool call stays cheap.
     if (this.cached && this.cached.mtimeMs === st.mtimeMs && this.cached.size === st.size) {
       return structuredClone(this.cached.value);

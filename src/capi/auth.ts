@@ -230,6 +230,8 @@ export class CapiAuth {
   async logout(): Promise<void> {
     // A browser login finished after logout must not store tokens again.
     this.pending?.cancel();
+    // A refresh that finishes after the clear would write the tokens back.
+    await this.refreshing?.catch(() => undefined);
     await this.tokens.clear();
     this.failure = null;
     this.onSessionChange();
@@ -292,9 +294,9 @@ export class CapiAuth {
           return latest.access_token;
         return this.refresh(cfg, latest, true);
       }
-      await this.tokens.clear();
+      // A stale copy from the sync folder must not delete the login the other computer holds.
       throw new UserError(
-        `Frontier refused to refresh the login (${(err as Error).message}). Call capi_login to log in again.`,
+        `Frontier refused to refresh the login (${(err as Error).message}). If you use ed-mcp on another computer, wait for your sync app to catch up and try again; otherwise call capi_login.`,
       );
     }
     await this.tokens.save({

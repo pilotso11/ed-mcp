@@ -1,8 +1,10 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
+import { unsafeFileReason } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
@@ -122,6 +124,8 @@ export class PlanStore {
 
   private async read(): Promise<PlanFile> {
     await this.guard?.();
+    const unsafe = await unsafeFileReason(this.file);
+    if (unsafe) throw new UserError(`Plan file ${this.file} is invalid: ${unsafe}`);
     let raw: string;
     try {
       raw = await readFile(this.file, "utf8");
@@ -149,6 +153,7 @@ export class PlanStore {
       // lockedWrite creates the parent folder, so check before it, not only inside it.
       await this.guard?.();
       let latest: PlanFile | null = null;
+      let before: string[] = [];
       const result = await lockedWrite(
         this.file,
         {
@@ -158,30 +163,67 @@ export class PlanStore {
         },
         async () => {
           const data = await this.read();
+          before = data.plans.map((p) => p.id);
           const result = fn(data);
           latest = data;
           return { content: JSON.stringify(data, null, 2), result };
         },
       );
-      if (latest && this.markdownDir) await this.writeMarkdown(latest);
+      if (latest && this.markdownDir) await this.writeMarkdown(latest, before);
       return result;
     });
     this.queue = run.catch(() => undefined);
     return run;
   }
 
+  /** Why the Markdown copies are not being written, or null when they are fine. */
+  async markdownProblem(): Promise<string | null> {
+    const dir = this.markdownDir;
+    if (!dir) return null;
+    let st;
+    try {
+      st = await lstat(dir);
+    } catch {
+      return null;
+    }
+    if (st.isSymbolicLink()) return `Plan copies were not written: ${dir} is a symbolic link.`;
+    if (!st.isDirectory()) return `Plan copies were not written: ${dir} is not a folder.`;
+    return null;
+  }
+
   // Claude on mobile can read these through the Google Drive connector; they are copies only.
-  private async writeMarkdown(data: PlanFile): Promise<void> {
+  // The sync folder may be shared, so nothing here follows a link or deletes a file we did not write.
+  private async writeMarkdown(data: PlanFile, before: string[]): Promise<void> {
     const dir = this.markdownDir!;
     try {
       await mkdir(dir, { recursive: true });
+      const problem = await this.markdownProblem();
+      if (problem) {
+        console.error(problem);
+        return;
+      }
       const keep = new Set<string>();
       for (const p of data.plans) {
-        keep.add(`${p.id}.md`);
-        await writeFile(path.join(dir, `${p.id}.md`), planToMarkdown(p));
+        const name = `${p.id}.md`;
+        keep.add(name);
+        // A temp file renamed over the target replaces a planted symlink instead of writing through it.
+        const tmp = path.join(dir, `${name}.${randomBytes(6).toString("hex")}.tmp`);
+        try {
+          await writeFile(tmp, planToMarkdown(p), { flag: "wx" });
+          await rename(tmp, path.join(dir, name));
+        } catch (err) {
+          await rm(tmp, { force: true });
+          throw err;
+        }
       }
-      for (const n of await readdir(dir)) {
-        if (n.endsWith(".md") && !keep.has(n)) await rm(path.join(dir, n), { force: true });
+      // Only copies of plans removed by this change are deleted: notes or conflict copies that
+      // other people or sync apps put in the folder are never touched.
+      for (const id of before) {
+        const n = `${id}.md`;
+        if (keep.has(n) || !PRUNABLE.test(n)) continue;
+        const file = path.join(dir, n);
+        const st = await lstat(file).catch(() => null);
+        if (st?.isFile()) await rm(file, { force: true });
       }
     } catch (err) {
       // The plan itself is saved; a failed copy must not fail the tool call.
@@ -189,3 +231,5 @@ export class PlanStore {
     }
   }
 }
+
+const PRUNABLE = /^[a-z0-9][a-z0-9-]{0,63}\.md$/;

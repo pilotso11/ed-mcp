@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SecretCipher, SecretsError } from "../../src/settings/crypto.js";
+import { SCRYPT, SecretCipher, SecretsError } from "../../src/settings/crypto.js";
 
 // Small scrypt parameters keep the tests fast; production files use SCRYPT.
 const FAST = { N: 1024, r: 8, p: 1 };
@@ -51,10 +51,16 @@ describe("SecretCipher", () => {
     expect(() => c.open({ ...c.seal("x"), N: 2 ** 24 })).toThrow("not an ed-mcp secrets file");
   });
 
-  it("rejects envelopes with N/r combinations exceeding maxmem", () => {
+  it("rejects envelopes above the tightened scrypt bounds", () => {
     const c = new SecretCipher("pw", FAST);
-    expect(() => c.open({ ...c.seal("x"), N: 2 ** 16, r: 8 })).toThrow(
-      "not an ed-mcp secrets file",
-    );
+    for (const bad of [{ N: 2 ** 18 }, { r: 16 }, { p: 3 }]) {
+      expect(() => c.open({ ...c.seal("x"), ...bad })).toThrow("not an ed-mcp secrets file");
+    }
+  });
+
+  it("uses N=2^17, r=8, p=1 by default and reads back what it wrote", () => {
+    expect(SCRYPT).toEqual({ N: 2 ** 17, r: 8, p: 1 });
+    const c = new SecretCipher("pw");
+    expect(c.open(c.seal("hello")).plaintext).toBe("hello");
   });
 });

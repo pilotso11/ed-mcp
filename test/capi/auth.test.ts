@@ -310,12 +310,37 @@ describe("CapiAuth tokens", () => {
     await expect(auth.accessToken()).rejects.toThrow(/expired.*capi_login/);
   });
 
-  it("clears tokens when refresh is rejected", async () => {
-    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+  it("keeps the tokens when refresh is rejected and the store has nothing newer", async () => {
+    const saved = { refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t };
+    await tokens.save(saved);
     const { auth } = make([
       { match: () => true, respond: () => new Response("", { status: 401 }) },
     ]);
-    await expect(auth.accessToken()).rejects.toThrow(/capi_login/);
+    await expect(auth.accessToken()).rejects.toThrow(
+      /Frontier refused to refresh the login .* another computer, wait for your sync app to catch up and try again; otherwise call capi_login\./,
+    );
+    expect(await tokens.load()).toEqual(saved);
+  });
+
+  it("waits for a refresh in flight before logout clears the tokens", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { auth } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await gate;
+          return jsonResponse({ access_token: "A2", refresh_token: "R2", expires_in: 14400 });
+        },
+      },
+    ]);
+    const access = auth.accessToken();
+    await new Promise((r) => setTimeout(r, 20));
+    const out = auth.logout();
+    release();
+    await access;
+    await out;
     expect(await tokens.load()).toBeNull();
   });
 
