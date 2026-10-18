@@ -41,6 +41,43 @@ describe("InaraClient", () => {
     expect(JSON.parse(String(f.calls[0]!.init!.body)).header.APIkey).toBe("key");
   });
 
+  it("resolves the config once per call", async () => {
+    let reads = 0;
+    const body = await fixture("inara/profile-ok.json");
+    const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
+    const client = new InaraClient(
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
+      async () => {
+        reads++;
+        return { ...cfg, apiKey: `key${reads}` };
+      },
+      new TtlCache("inara", 60_000),
+      { now },
+    );
+    await client.profile();
+    expect(reads).toBe(1);
+    expect(JSON.parse(String(f.calls[0]!.init!.body)).header.APIkey).toBe("key1");
+  });
+
+  it("does not return another commander's cached profile after the commander changes", async () => {
+    let current = cfg;
+    const body = await fixture("inara/profile-ok.json");
+    const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
+    const client = new InaraClient(
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
+      async () => current,
+      new TtlCache("inara", 60_000),
+      { now },
+    );
+    await client.profile();
+    await client.profile();
+    expect(f.calls).toHaveLength(1);
+    current = { ...cfg, cmdr: "Bobbie" };
+    await client.profile();
+    expect(f.calls).toHaveLength(2);
+    expect(JSON.parse(String(f.calls[1]!.init!.body)).header.commanderName).toBe("Bobbie");
+  });
+
   it("sends a correct request and maps the profile", async () => {
     const { client, f } = make(await fixture("inara/profile-ok.json"));
     const p = await client.profile();
