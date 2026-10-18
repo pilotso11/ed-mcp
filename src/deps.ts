@@ -39,7 +39,7 @@ export function buildDeps(
     guard: guardFor(config.secretsFile),
   });
   const settings = new Settings(
-    { inara: envKey(config.inara), edsm: config.edsm },
+    { inara: envKey(config.inara), edsm: envKey(config.edsm) },
     config.inaraApp,
     secrets,
   );

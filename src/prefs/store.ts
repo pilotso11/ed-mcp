@@ -32,7 +32,9 @@ export class PreferencesStore {
       raw = await readFile(this.file, "utf8");
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return DEFAULT_PREFS;
-      throw err;
+      throw new UserError(
+        `Preferences file ${this.file} is invalid: not readable (${(err as NodeJS.ErrnoException).code ?? "unknown error"})`,
+      );
     }
     let json: unknown;
     try {

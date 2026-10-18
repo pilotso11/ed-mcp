@@ -1,7 +1,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { acquireLock } from "../../src/fs/lock.js";
+import { UserError } from "../../src/errors.js";
 import { SyncFolder } from "../../src/settings/sync.js";
 import { PreferencesStore } from "../../src/prefs/store.js";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
@@ -117,5 +129,17 @@ describe("PreferencesStore in a sync folder", () => {
     });
     await expect(s.set({ stations: { min_pad: "M" } })).rejects.toThrow("not available");
     await expect(stat(sync)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("takes its lock in lockDir, not beside preferences.json", async () => {
+    const lockDir = path.join(path.dirname(file), "..", "locks");
+    await mkdir(lockDir, { recursive: true });
+    const s = new PreferencesStore(file, { lockDir, lockTimeoutMs: 100 });
+    const release = await acquireLock(file, 1000, "held", lockDir);
+    await expect(s.set({ stations: { min_pad: "M" } })).rejects.toThrow(UserError);
+    await release();
+    await s.set({ stations: { min_pad: "M" } });
+    expect(await readdir(path.dirname(file))).not.toContain("preferences.json.lock");
+    expect(await readdir(lockDir)).toEqual([]);
   });
 });

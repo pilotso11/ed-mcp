@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  chmod,
   lstat,
   mkdir,
   mkdtemp,
@@ -14,6 +15,7 @@ import {
 import { renameSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { acquireLock } from "../../src/fs/lock.js";
 import { PlanStore } from "../../src/plans/store.js";
 import { UserError } from "../../src/errors.js";
 import { SyncFolder } from "../../src/settings/sync.js";
@@ -348,4 +350,32 @@ describe("PlanStore in a sync folder", () => {
       `Plan file ${file} is invalid: not a regular file`,
     );
   });
+
+  it("takes its lock in lockDir, not beside plans.json", async () => {
+    const lockDir = path.join(dir, "locks");
+    await mkdir(lockDir, { recursive: true });
+    const s = new PlanStore(file, now, { lockDir, lockTimeoutMs: 100 });
+    const release = await acquireLock(file, 1000, "held", lockDir);
+    await expect(s.upsert(input())).rejects.toThrow(UserError);
+    await release();
+    await s.upsert(input());
+    expect(await readdir(path.dirname(file))).not.toContain("plans.json.lock");
+    expect(await readdir(lockDir)).toEqual([]);
+  });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "reports an unreadable plan file as a user error",
+    async () => {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, '{"version":1,"plans":[]}');
+      await chmod(file, 0o000);
+      try {
+        await expect(new PlanStore(file, now).list()).rejects.toThrow(
+          `Plan file ${file} is invalid: not readable (EACCES)`,
+        );
+      } finally {
+        await chmod(file, 0o600);
+      }
+    },
+  );
 });

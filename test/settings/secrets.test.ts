@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -212,4 +212,52 @@ describe("SecretStore", () => {
     await s.reset();
     expect(existsSync(file)).toBe(false);
   });
+
+  it("refuses a capi block of the wrong shape, and update leaves the file alone", async () => {
+    const file = path.join(await tmp(), "secrets.json");
+    const body = JSON.stringify({ version: 1, capi: {} });
+    await writeFile(file, body);
+    const s = new SecretStore(file);
+    await expect(s.get()).rejects.toThrow(`${file} is not readable`);
+    await expect(
+      s.update((d) => {
+        d.inara = { apiKey: "k", cmdr: "C" };
+      }),
+    ).rejects.toThrow("is not readable");
+    expect(await readFile(file, "utf8")).toBe(body);
+  });
+
+  it("re-encrypt refuses a symlink and a file that is too large", async () => {
+    const dir = await tmp();
+    const file = path.join(dir, "secrets.enc");
+    const s = new SecretStore(file, { password: "new-password-123", scrypt: FAST });
+    if (process.platform !== "win32") {
+      const target = path.join(dir, "elsewhere.json");
+      await writeFile(target, "{}");
+      await symlink(target, file);
+      await expect(s.reencrypt("old")).rejects.toThrow(
+        `${file} is not readable (not a regular file).`,
+      );
+      await rm(file);
+    }
+    await writeFile(file, " ".repeat(1024 * 1024 + 1));
+    await expect(s.reencrypt("old")).rejects.toThrow(`${file} is not readable (too large).`);
+  });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "reports an unreadable file as a user error, not a raw I/O error",
+    async () => {
+      const dir = await tmp();
+      const file = path.join(dir, "secrets.json");
+      await writeFile(file, '{"version":1}');
+      await chmod(file, 0o000);
+      try {
+        await expect(new SecretStore(file).get()).rejects.toThrow(
+          new SecretsError(`${file} is not readable (EACCES).`),
+        );
+      } finally {
+        await chmod(file, 0o600);
+      }
+    },
+  );
 });

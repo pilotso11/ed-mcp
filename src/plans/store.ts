@@ -131,7 +131,9 @@ export class PlanStore {
       raw = await readFile(this.file, "utf8");
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return { version: 1, plans: [] };
-      throw err;
+      throw new UserError(
+        `Plan file ${this.file} is invalid: not readable (${(err as NodeJS.ErrnoException).code ?? "unknown error"})`,
+      );
     }
     let json: unknown;
     try {

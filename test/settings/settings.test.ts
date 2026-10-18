@@ -54,7 +54,6 @@ describe("Settings", () => {
     expect(await s.sources()).toEqual({
       inara: { source: "not set", cmdr: null, differs_from_stored: false },
       edsm: { source: "environment", cmdr: "E", differs_from_stored: true },
-      error: null,
     });
   });
 
@@ -65,7 +64,8 @@ describe("Settings", () => {
     const s = new Settings({ inara: { apiKey: "env", cmdr: "E" } }, app, new SecretStore(file));
     expect((await s.inara())?.apiKey).toBe("env");
     await expect(s.edsm()).rejects.toThrow("not readable");
-    expect((await s.sources()).error).toMatch(/not readable/);
+    // The status call still answers: the environment key is known without the file.
+    expect((await s.sources()).inara).toMatchObject({ source: "environment", cmdr: "E" });
   });
 
   it("retries the seed after the secrets file becomes readable", async () => {
@@ -74,11 +74,11 @@ describe("Settings", () => {
     await writeFile(file, "{bad");
     const secrets = new SecretStore(file);
     const s = new Settings({ inara: { apiKey: "env", cmdr: "E" } }, app, secrets);
-    expect((await s.sources()).error).toMatch(/not readable/);
+    await s.sources();
     await rm(file);
     await s.inara();
     expect((await secrets.get()).inara).toEqual({ apiKey: "env", cmdr: "E" });
-    expect((await s.sources()).error).toBeNull();
+    expect((await s.sources()).inara).toMatchObject({ source: "environment" });
   });
 
   it("reports a stored key when the environment has none", async () => {

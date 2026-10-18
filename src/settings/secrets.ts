@@ -1,4 +1,5 @@
 import { lstat, mkdir, readFile, rm } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { acquireLock, lockedWrite } from "../fs/lock.js";
@@ -82,10 +83,9 @@ export class SecretStore {
           mode: 0o600,
         },
         async () => {
-          const raw = await readFile(this.file, "utf8").catch((err) => {
-            if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-            throw new SecretsError(`${this.file} does not exist; nothing to re-encrypt.`);
-          });
+          const st = await this.checkFile();
+          if (!st) throw new SecretsError(`${this.file} does not exist; nothing to re-encrypt.`);
+          const raw = await this.readText();
           const old = new SecretStore(this.file, {
             password: oldPassword,
             scrypt: this.opts.scrypt,
@@ -133,28 +133,45 @@ export class SecretStore {
   private async read(): Promise<Secrets> {
     // A missing sync folder must not look like "no keys", and a write must not create it locally.
     await this.opts.guard?.();
-    let st;
-    try {
-      st = await lstat(this.file);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-        this.cached = null;
-        return { version: 1 };
-      }
-      throw err;
+    const st = await this.checkFile();
+    if (!st) {
+      this.cached = null;
+      return { version: 1 };
     }
-    if (!st.isFile()) throw new SecretsError(`${this.file} is not readable (not a regular file).`);
-    if (st.size > MAX_SECRETS_FILE)
-      throw new SecretsError(`${this.file} is not readable (too large).`);
     // An unchanged file costs one stat, so reading on every tool call stays cheap.
     if (this.cached && this.cached.mtimeMs === st.mtimeMs && this.cached.size === st.size) {
       return structuredClone(this.cached.value);
     }
-    const raw = await readFile(this.file, "utf8");
+    const raw = await this.readText();
     const { value, salt } = this.parse(raw);
     this.cached = { mtimeMs: st.mtimeMs, size: st.size, value };
     this.salt = salt;
     return structuredClone(value);
+  }
+
+  // Returns null when the file is missing. Refuses anything that is not a small regular file.
+  private async checkFile(): Promise<Stats | null> {
+    let st;
+    try {
+      st = await lstat(this.file);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") return null;
+      throw new SecretsError(`${this.file} is not readable (${code ?? "unknown error"}).`);
+    }
+    if (!st.isFile()) throw new SecretsError(`${this.file} is not readable (not a regular file).`);
+    if (st.size > MAX_SECRETS_FILE)
+      throw new SecretsError(`${this.file} is not readable (too large).`);
+    return st;
+  }
+
+  private async readText(): Promise<string> {
+    try {
+      return await readFile(this.file, "utf8");
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      throw new SecretsError(`${this.file} is not readable (${code ?? "unknown error"}).`);
+    }
   }
 
   private parse(raw: string): { value: Secrets; salt?: string } {

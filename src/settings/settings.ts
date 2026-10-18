@@ -29,15 +29,13 @@ export class Settings {
     return this.key("edsm");
   }
 
-  async sources(): Promise<{ inara: SourceInfo; edsm: SourceInfo; error: string | null }> {
+  async sources(): Promise<{ inara: SourceInfo; edsm: SourceInfo }> {
     let stored: Partial<Record<Service, ServiceKey>> = {};
-    let error: string | null = null;
     try {
       await this.seed();
       stored = await this.secrets.get();
     } catch (err) {
       if (!(err instanceof UserError)) throw err;
-      error = err.message;
     }
     const info = (s: Service): SourceInfo => {
       const env = this.env[s];
@@ -49,7 +47,7 @@ export class Settings {
       if (saved) return { source: "stored", cmdr: saved.cmdr, differs_from_stored: false };
       return { source: "not set", cmdr: null, differs_from_stored: false };
     };
-    return { inara: info("inara"), edsm: info("edsm"), error };
+    return { inara: info("inara"), edsm: info("edsm") };
   }
 
   // The environment wins on this computer, so the store is read only when it has no value.
