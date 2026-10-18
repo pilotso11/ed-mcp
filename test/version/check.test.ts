@@ -114,10 +114,16 @@ describe("VersionCheck", () => {
       () => new Response("not json", { status: 200 }),
       () => jsonResponse({ html_url: "https://example.test" }),
     ];
-    for (const respond of cases) {
-      const { check, file } = await setup(respond);
-      expect(await run(check)).toBeNull();
-      await expect(readFile(file, "utf8")).rejects.toThrow();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      for (const respond of cases) {
+        const { check, file } = await setup(respond);
+        expect(await run(check)).toBeNull();
+        await expect(readFile(file, "utf8")).rejects.toThrow();
+      }
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
     }
   });
 
@@ -272,6 +278,23 @@ describe("schedule", () => {
     clock.now += 25 * HOUR;
     await vi.advanceTimersByTimeAsync(25 * HOUR);
     expect(fetchFn.calls).toHaveLength(1);
+  });
+
+  it("stop() then start() during a check keeps the schedule", async () => {
+    fakeTimers();
+    let open!: (r: Response) => void;
+    const gate = new Promise<Response>((r) => (open = r));
+    const { check, clock, fetchFn } = await setup(() => gate as unknown as Response);
+    check.start();
+    await vi.waitFor(() => expect(fetchFn.calls).toHaveLength(1));
+    check.stop();
+    check.start();
+    open(release("v0.4.0")());
+    await check.whenIdle();
+    clock.now += 25 * HOUR;
+    await vi.advanceTimersByTimeAsync(25 * HOUR);
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(2);
   });
 
   it("start() after stop() checks again", async () => {

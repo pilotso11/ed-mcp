@@ -67,8 +67,9 @@ export class VersionCheck {
    */
   start(): void {
     // A second start() must not arm a second chain that stop() could not cancel.
-    if (this.timer || this.inFlight) return;
+    // Reset first: a stop() during a check, then start(), must let that check reschedule.
     this.stopped = false;
+    if (this.timer || this.inFlight) return;
     this.run();
   }
 
