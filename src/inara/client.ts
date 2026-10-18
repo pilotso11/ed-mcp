@@ -67,11 +67,10 @@ export class InaraClient {
   }
 
   async profile(name?: string): Promise<InaraProfile> {
-    const cfg = await this.config();
-    if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
+    const cfg = await this.requireConfig();
     const who = name ?? cfg.cmdr;
     const ev = (await this.cache.getOrLoad(`profile:${cfg.cmdr}:${name ?? ""}`, () =>
-      this.send("getCommanderProfile", name ? { searchName: name } : {}),
+      this.send(cfg, "getCommanderProfile", name ? { searchName: name } : {}),
     )) as InaraEvent;
     if (ev.eventStatus === 204) {
       throw new UserError(`Inara: no commander found for "${who}"`);
@@ -124,8 +123,8 @@ export class InaraClient {
   }
 
   async communityGoals(): Promise<CommunityGoal[]> {
-    const ev = (await this.cache.getOrLoad("cgs", () =>
-      this.send("getCommunityGoalsRecent", []),
+    const ev = (await this.cache.getOrLoad("cgs", async () =>
+      this.send(await this.requireConfig(), "getCommunityGoalsRecent", []),
     )) as InaraEvent;
     if (ev.eventStatus === 204) return [];
     const goals = (ev.eventData ?? []) as Array<Record<string, unknown>>;
@@ -145,15 +144,17 @@ export class InaraClient {
     }));
   }
 
-  private config(): Promise<InaraConfig | undefined> {
-    return typeof this.cfg === "function" ? this.cfg() : Promise.resolve(this.cfg);
+  // One call resolves the config once and passes it down, so a key change mid-call cannot
+  // mix the old and new values.
+  private async requireConfig(): Promise<InaraConfig> {
+    const cfg = typeof this.cfg === "function" ? await this.cfg() : this.cfg;
+    if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
+    return cfg;
   }
 
   // Inara asks clients not to hammer the API, so requests run one at a time.
-  private send(eventName: ReadEvent, eventData: unknown): Promise<InaraEvent> {
+  private send(cfg: InaraConfig, eventName: ReadEvent, eventData: unknown): Promise<InaraEvent> {
     const run = this.queue.then(async () => {
-      const cfg = await this.config();
-      if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
       const body = {
         header: {
           appName: cfg.appName,

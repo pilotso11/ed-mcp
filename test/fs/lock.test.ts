@@ -26,6 +26,25 @@ describe("lockedWrite", () => {
     await expect(readFile(`${file}.lock`)).rejects.toThrow(/ENOENT/);
   });
 
+  it("runs afterWrite under the lock, once the file is replaced", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
+    const file = path.join(dir, "data.json");
+    let seen = "";
+    await lockedWrite(
+      file,
+      {
+        ...opts,
+        afterWrite: async () => {
+          seen = await readFile(file, "utf8");
+          await expect(readFile(`${file}.lock`, "utf8")).resolves.toBeTruthy();
+        },
+      },
+      async () => ({ content: "new", result: undefined }),
+    );
+    expect(seen).toBe("new");
+    await expect(readFile(`${file}.lock`)).rejects.toThrow(/ENOENT/);
+  });
+
   it("leaves the file alone and releases the lock when the update throws", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
     const file = path.join(dir, "data.json");
@@ -37,6 +56,21 @@ describe("lockedWrite", () => {
     ).rejects.toThrow("bad");
     expect(await readFile(file, "utf8")).toBe("before");
     expect(await readdir(dir)).toEqual(["data.json"]);
+  });
+
+  it("does not run afterWrite when the update throws", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
+    const file = path.join(dir, "data.json");
+    let ran = false;
+    const afterWrite = async () => {
+      ran = true;
+    };
+    await expect(
+      lockedWrite(file, { ...opts, afterWrite }, async () => {
+        throw new Error("bad");
+      }),
+    ).rejects.toThrow("bad");
+    expect(ran).toBe(false);
   });
 
   it("fails with the locked message when the lock is held", async () => {
@@ -89,5 +123,19 @@ describe("lockedWrite with a lock folder", () => {
       lockedWrite(file, opts, async () => ({ content: "x", result: undefined })),
     ).rejects.toThrow();
     expect((await readdir(dir)).filter((n) => n.endsWith(".tmp"))).toEqual([]);
+  });
+
+  it("does not run afterWrite when the rename fails", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
+    const file = path.join(dir, "data.json");
+    await mkdir(file); // renaming a file over a folder fails
+    let ran = false;
+    const afterWrite = async () => {
+      ran = true;
+    };
+    await expect(
+      lockedWrite(file, { ...opts, afterWrite }, async () => ({ content: "x", result: undefined })),
+    ).rejects.toThrow();
+    expect(ran).toBe(false);
   });
 });

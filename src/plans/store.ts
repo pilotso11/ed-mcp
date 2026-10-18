@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
-import { MAX_DATA_FILE, unsafeFileReason } from "../fs/regular.js";
+import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
@@ -125,17 +125,12 @@ export class PlanStore {
 
   private async read(): Promise<PlanFile> {
     await this.guard?.();
-    const unsafe = await unsafeFileReason(this.file, MAX_DATA_FILE);
-    if (unsafe) throw new UserError(`Plan file ${this.file} is invalid: ${unsafe}`);
-    let raw: string;
-    try {
-      raw = await readFile(this.file, "utf8");
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") return { version: 1, plans: [] };
-      throw new UserError(
-        `Plan file ${this.file} is invalid: not readable (${(err as NodeJS.ErrnoException).code ?? "unknown error"})`,
-      );
+    const read = await readRegularText(this.file, MAX_DATA_FILE);
+    if (read.kind === "missing") return { version: 1, plans: [] };
+    if (read.kind === "unsafe") {
+      throw new UserError(`Plan file ${this.file} is invalid: ${read.reason}`);
     }
+    const raw = read.text;
     let json: unknown;
     try {
       json = JSON.parse(raw);
@@ -157,12 +152,16 @@ export class PlanStore {
       await this.guard?.();
       let latest: PlanFile | null = null;
       let before: string[] = [];
-      const result = await lockedWrite(
+      return lockedWrite(
         this.file,
         {
           timeoutMs: this.lockTimeoutMs,
           lockDir: this.lockDir,
           lockedMessage: "Plan file is locked by another process; try again",
+          // Under the lock, so the copies always match the last saved file.
+          afterWrite: async () => {
+            if (latest && this.markdownDir) await this.writeMarkdown(latest, before);
+          },
         },
         async () => {
           const data = await this.read();
@@ -178,8 +177,6 @@ export class PlanStore {
           return { content, result };
         },
       );
-      if (latest && this.markdownDir) await this.writeMarkdown(latest, before);
-      return result;
     });
     this.queue = run.catch(() => undefined);
     return run;

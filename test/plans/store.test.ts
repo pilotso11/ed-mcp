@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
   chmod,
   lstat,
@@ -12,10 +12,10 @@ import {
   utimes,
   writeFile,
 } from "node:fs/promises";
-import { renameSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, renameSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { acquireLock } from "../../src/fs/lock.js";
+import { acquireLock, lockPath } from "../../src/fs/lock.js";
 import { PlanStore } from "../../src/plans/store.js";
 import { UserError } from "../../src/errors.js";
 import { SyncFolder } from "../../src/settings/sync.js";
@@ -300,6 +300,47 @@ describe("PlanStore in a sync folder", () => {
     await s.upsert(plan);
     expect(await s.markdownProblem()).toBeNull();
     expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+  });
+
+  it("saves the plan, reports the problem and logs one line when a copy fails", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    await mkdir(path.join(md, "corsair.md"), { recursive: true });
+    await writeFile(path.join(md, "corsair.md", "x"), "x");
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const file = path.join(d, "plans.json");
+      const s = new PlanStore(file, undefined, { markdownDir: md });
+      await expect(s.upsert(plan)).resolves.toMatchObject({ id: "corsair" });
+      expect(JSON.parse(await readFile(file, "utf8")).plans).toHaveLength(1);
+      expect(await s.markdownProblem()).toContain(`Plan copies could not be written to ${md}: `);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(log.mock.calls[0]![0]).toContain(`Could not write Markdown plan copies to ${md}: `);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("writes the Markdown copies while the plans lock is still held", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    await mkdir(path.join(md, "corsair.md"), { recursive: true });
+    await writeFile(path.join(md, "corsair.md", "x"), "x");
+    const file = path.join(d, "plans.json");
+    const lockDir = path.join(d, "locks");
+    const held: boolean[] = [];
+    // The failed copy is logged from inside writeMarkdown, so the lock state seen here is
+    // the state while the copies are being written.
+    const log = vi.spyOn(console, "error").mockImplementation(() => {
+      held.push(existsSync(lockPath(file, lockDir)));
+    });
+    try {
+      await new PlanStore(file, undefined, { markdownDir: md, lockDir }).upsert(plan);
+      expect(held).toEqual([true]);
+      expect(existsSync(lockPath(file, lockDir))).toBe(false);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("removes only the copy of a deleted plan, keeping notes and conflict copies", async () => {
