@@ -61,7 +61,9 @@ export function registerCapiTools(
         idempotentHint: true,
         openWorldHint: false,
       },
-      description: "Forget the stored Frontier login on this machine.",
+      description:
+        "Forget the stored Frontier login. With a sync password, this logs out every computer that " +
+        "shares the sync folder.",
     },
     wrap(async () => {
       await deps.capiAuth.logout();

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { loadConfig } from "../../src/config.js";
+import { buildDeps } from "../../src/deps.js";
 import { SettingsPage } from "../../src/settings/page.js";
 import { SecretStore } from "../../src/settings/secrets.js";
 import { Settings } from "../../src/settings/settings.js";
@@ -85,10 +87,13 @@ describe("settings tools", () => {
     });
   });
 
+  // Real layouts: loadConfig decides where each file goes, as it does at startup.
   async function noteSetup(opts: {
+    sync?: boolean;
     password?: string;
     localFiles?: string[];
     syncFiles?: string[];
+    saveKey?: boolean;
   }) {
     const base = await mkdtemp(path.join(os.tmpdir(), "settings-notes-"));
     const syncDir = path.join(base, "sync");
@@ -97,45 +102,100 @@ describe("settings tools", () => {
     await mkdir(localDir);
     for (const f of opts.localFiles ?? []) await writeFile(path.join(localDir, f), "{}");
     for (const f of opts.syncFiles ?? []) await writeFile(path.join(syncDir, f), "{}");
-    const secrets = new SecretStore(
-      path.join(syncDir, opts.password ? "secrets.enc" : "secrets.json"),
-      { password: opts.password },
+    const config = loadConfig(
+      {
+        ...(opts.sync ? { ED_MCP_SYNC_DIR: syncDir } : {}),
+        ...(opts.password ? { ED_MCP_SYNC_PASSWORD: opts.password } : {}),
+      },
+      { config: localDir, cache: path.join(base, "cache") },
     );
-    const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
-    const page = new SettingsPage({ secrets, settings }, { openUrl: async () => undefined });
+    const deps = buildDeps(config);
+    if (opts.saveKey) {
+      await deps.secrets!.update((d) => {
+        d.inara = { apiKey: "k", cmdr: "C" };
+      });
+    }
     const server = new McpServer({ name: "t", version: "0" });
     registerSettingsTools(server, {
-      page,
-      settings,
-      secrets,
-      sync: new SyncFolder(syncDir),
-      localDir,
+      page: deps.settingsPage!,
+      settings: deps.settings!,
+      secrets: deps.secrets!,
+      sync: deps.sync,
+      localDir: deps.localDir,
     });
     const r = await callTool(await connectTestClient(server), "settings_status");
     return { notes: (r.json as { notes: string[] }).notes, localDir, syncDir };
   }
 
   it("notes data left in the settings folder when a sync folder is set", async () => {
-    const { notes, localDir } = await noteSetup({ localFiles: ["plans.json", "secrets.json"] });
+    const { notes, localDir } = await noteSetup({
+      sync: true,
+      localFiles: ["plans.json", "preferences.json"],
+    });
     expect(notes).toEqual([
-      `The settings folder ${localDir} also holds plans.json, secrets.json. Another Claude app on this computer may not have the sync folder set. Give every Claude app the same ED_MCP_SYNC_DIR and ED_MCP_SYNC_PASSWORD.`,
+      `The settings folder ${localDir} also holds plans.json, preferences.json. Another Claude app on this computer may not have the sync folder set. Give every Claude app the same ED_MCP_SYNC_DIR and ED_MCP_SYNC_PASSWORD.`,
     ]);
   });
 
-  it("notes a plain secrets.json next to secrets.enc", async () => {
-    const { notes, syncDir } = await noteSetup({
+  it("adds no note for its own secrets.json when a sync folder has no password", async () => {
+    const { notes } = await noteSetup({ sync: true, saveKey: true });
+    expect(notes).toEqual([]);
+  });
+
+  it("notes a plain secrets.json left in the settings folder when there is a password", async () => {
+    const { notes, localDir } = await noteSetup({
+      sync: true,
       password: "correct-horse-battery",
-      syncFiles: ["secrets.json"],
+      saveKey: true,
+      localFiles: ["secrets.json"],
     });
     expect(notes).toEqual([
-      `${syncDir} holds both secrets.enc and secrets.json. A Claude app without ED_MCP_SYNC_PASSWORD uses secrets.json. Give every Claude app the same password, then delete secrets.json.`,
+      `The settings folder ${localDir} also holds secrets.json. Another Claude app on this computer may not have the sync folder set. Give every Claude app the same ED_MCP_SYNC_DIR and ED_MCP_SYNC_PASSWORD.`,
+    ]);
+  });
+
+  it("notes a plain secrets.json next to secrets.enc when there is no sync folder", async () => {
+    const { notes, localDir } = await noteSetup({
+      password: "correct-horse-battery",
+      localFiles: ["secrets.json"],
+    });
+    expect(notes).toEqual([
+      `${localDir} holds both secrets.enc and secrets.json. A Claude app without ED_MCP_SYNC_PASSWORD uses secrets.json. Give every Claude app the same password, then delete secrets.json.`,
     ]);
   });
 
   it("adds no note when nothing looks mismatched", async () => {
-    const { notes } = await noteSetup({ password: "correct-horse-battery" });
+    const { notes } = await noteSetup({
+      sync: true,
+      password: "correct-horse-battery",
+      saveKey: true,
+    });
     expect(notes).toEqual([]);
   });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "reports an unreadable secrets file instead of failing",
+    async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "settings-tools-"));
+      const file = path.join(dir, "secrets.json");
+      await writeFile(file, "{}");
+      await chmod(file, 0o000);
+      try {
+        const secrets = new SecretStore(file);
+        const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
+        const page = new SettingsPage({ secrets, settings }, { openUrl: async () => undefined });
+        const server = new McpServer({ name: "t", version: "0" });
+        registerSettingsTools(server, { page, settings, secrets });
+        const r = await callTool(await connectTestClient(server), "settings_status");
+        expect(r.isError).toBe(false);
+        expect(r.json).toMatchObject({
+          secrets: { readable: false, error: expect.stringContaining("EACCES") },
+        });
+      } finally {
+        await chmod(file, 0o600);
+      }
+    },
+  );
 
   it("adds no note without a sync folder, even when the settings folder holds data", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "settings-notes-"));

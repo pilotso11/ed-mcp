@@ -97,12 +97,17 @@ export function registerSettingsTools(
         deps.localDir &&
         path.resolve(deps.localDir) !== path.resolve(deps.sync.dir)
       ) {
-        const files = await existing(deps.localDir, [
-          "plans.json",
-          "preferences.json",
-          "secrets.json",
-          "secrets.enc",
-        ]);
+        // The store's own file is expected here when there is a sync folder but no password.
+        const own = path.resolve(deps.secrets.file);
+        const localDir = deps.localDir;
+        const files = (
+          await existing(localDir, [
+            "plans.json",
+            "preferences.json",
+            "secrets.json",
+            "secrets.enc",
+          ])
+        ).filter((n) => path.resolve(localDir, n) !== own);
         if (files.length > 0) {
           notes.push(
             `The settings folder ${deps.localDir} also holds ${files.join(", ")}. Another Claude app on this computer may not have the sync folder set. Give every Claude app the same ED_MCP_SYNC_DIR and ED_MCP_SYNC_PASSWORD.`,
