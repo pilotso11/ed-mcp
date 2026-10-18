@@ -26,6 +26,12 @@ export interface PlanSummary {
 
 const LOCK_TIMEOUT_MS = 5000;
 
+export class PlanExistsError extends UserError {
+  constructor(id: string) {
+    super(`Plan ${id} exists; pass overwrite: true to replace it`);
+  }
+}
+
 export class PlanStore {
   private lastCopyError: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -75,7 +81,7 @@ export class PlanStore {
       const stamp = this.now().toISOString();
       const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
       if (idx >= 0 && opts.overwrite === false) {
-        throw new UserError(`Plan ${parsed.data.id} exists; pass overwrite: true to replace it`);
+        throw new PlanExistsError(parsed.data.id);
       }
       const plan: Plan = {
         ...parsed.data,
