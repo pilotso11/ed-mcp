@@ -45,5 +45,6 @@
       "sensitive": true,
       "default": ""
     }
-  }
+  },
+  "termsOfServiceUrl": "https://github.com/pilotso11/ed-mcp/blob/main/TERMS.md"
 }
