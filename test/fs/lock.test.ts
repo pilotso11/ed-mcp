@@ -26,6 +26,25 @@ describe("lockedWrite", () => {
     await expect(readFile(`${file}.lock`)).rejects.toThrow(/ENOENT/);
   });
 
+  it("runs afterWrite under the lock, once the file is replaced", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
+    const file = path.join(dir, "data.json");
+    let seen = "";
+    await lockedWrite(
+      file,
+      {
+        ...opts,
+        afterWrite: async () => {
+          seen = await readFile(file, "utf8");
+          await expect(readFile(`${file}.lock`, "utf8")).resolves.toBeTruthy();
+        },
+      },
+      async () => ({ content: "new", result: undefined }),
+    );
+    expect(seen).toBe("new");
+    await expect(readFile(`${file}.lock`)).rejects.toThrow(/ENOENT/);
+  });
+
   it("leaves the file alone and releases the lock when the update throws", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
     const file = path.join(dir, "data.json");

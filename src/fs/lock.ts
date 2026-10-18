@@ -101,7 +101,15 @@ function pendingDelete(err: unknown): boolean {
 // replaces the file atomically. The temp name is unique so concurrent writers never share it.
 export async function lockedWrite<T>(
   file: string,
-  opts: { timeoutMs: number; lockedMessage: string; lockDir?: string; mode?: number },
+  opts: {
+    timeoutMs: number;
+    lockedMessage: string;
+    lockDir?: string;
+    mode?: number;
+    // Runs after the file is replaced and before the lock is released, for derived copies that
+    // must not go stale when two processes save at once. It must not throw.
+    afterWrite?: () => Promise<void>;
+  },
   update: () => Promise<{ content: string; result: T }>,
 ): Promise<T> {
   await mkdir(path.dirname(file), { recursive: true });
@@ -119,6 +127,7 @@ export async function lockedWrite<T>(
       await unlink(tmp).catch(() => undefined);
       throw err;
     }
+    await opts.afterWrite?.();
     return result;
   } finally {
     await release();

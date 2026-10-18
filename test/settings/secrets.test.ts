@@ -260,4 +260,17 @@ describe("SecretStore", () => {
       }
     },
   );
+
+  it("reports only the first schema problem on one line", async () => {
+    const file = path.join(await tmp(), "secrets.json");
+    await writeFile(
+      file,
+      JSON.stringify({ version: 1, inara: { apiKey: "", cmdr: "" }, extra: 1 }),
+    );
+    const err = await new SecretStore(file).get().catch((e: Error) => e);
+    expect(err).toBeInstanceOf(SecretsError);
+    const message = (err as Error).message;
+    expect(message.startsWith(`${file} is not readable (`)).toBe(true);
+    expect(message).not.toContain("\n");
+  });
 });

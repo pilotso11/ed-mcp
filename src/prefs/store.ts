@@ -1,8 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
-import { MAX_DATA_FILE, unsafeFileReason } from "../fs/regular.js";
+import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { applyPatch, DEFAULT_PREFS, parsePatch, PrefsSchema, type Prefs } from "./schema.js";
 
 const LOCK_TIMEOUT_MS = 5000;
@@ -25,17 +24,12 @@ export class PreferencesStore {
 
   async get(): Promise<Prefs> {
     await this.guard?.();
-    const unsafe = await unsafeFileReason(this.file, MAX_DATA_FILE);
-    if (unsafe) throw new UserError(`Preferences file ${this.file} is invalid: ${unsafe}`);
-    let raw: string;
-    try {
-      raw = await readFile(this.file, "utf8");
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") return DEFAULT_PREFS;
-      throw new UserError(
-        `Preferences file ${this.file} is invalid: not readable (${(err as NodeJS.ErrnoException).code ?? "unknown error"})`,
-      );
+    const read = await readRegularText(this.file, MAX_DATA_FILE);
+    if (read.kind === "missing") return DEFAULT_PREFS;
+    if (read.kind === "unsafe") {
+      throw new UserError(`Preferences file ${this.file} is invalid: ${read.reason}`);
     }
+    const raw = read.text;
     let json: unknown;
     try {
       json = JSON.parse(raw);

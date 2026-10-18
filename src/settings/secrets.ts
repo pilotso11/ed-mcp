@@ -1,9 +1,9 @@
-import { lstat, mkdir, readFile, rm } from "node:fs/promises";
+import { lstat, mkdir, rm } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { acquireLock, lockedWrite } from "../fs/lock.js";
-import { MAX_SECRETS_FILE } from "../fs/regular.js";
+import { MAX_SECRETS_FILE, readRegularText } from "../fs/regular.js";
 import { SecretCipher, SecretsError, type ScryptParams } from "./crypto.js";
 
 export const StoredTokensSchema = z.object({
@@ -166,12 +166,15 @@ export class SecretStore {
   }
 
   private async readText(): Promise<string> {
-    try {
-      return await readFile(this.file, "utf8");
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      throw new SecretsError(`${this.file} is not readable (${code ?? "unknown error"}).`);
-    }
+    const read = await readRegularText(this.file, MAX_SECRETS_FILE);
+    if (read.kind === "ok") return read.text;
+    // checkFile saw the file, so a missing one now is a read failure, not "no keys".
+    const reason = read.kind === "missing" ? "not readable (ENOENT)" : read.reason;
+    throw new SecretsError(
+      reason.startsWith("not readable")
+        ? `${this.file} is ${reason}.`
+        : `${this.file} is not readable (${reason}).`,
+    );
   }
 
   private parse(raw: string): { value: Secrets; salt?: string } {
@@ -201,7 +204,12 @@ export class SecretStore {
     }
     const parsed = SecretsSchema.safeParse(json);
     if (!parsed.success) {
-      throw new SecretsError(`${this.file} is not readable (${z.prettifyError(parsed.error)}).`);
+      // Only the first issue: prettifyError is multi-line and this goes in a one-line message.
+      const issue = parsed.error.issues[0];
+      const where = issue?.path.length ? `${issue.path.join(".")}: ` : "";
+      throw new SecretsError(
+        `${this.file} is not readable (${where}${issue?.message ?? "invalid"}).`,
+      );
     }
     return { value: parsed.data, salt };
   }
