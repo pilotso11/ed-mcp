@@ -26,6 +26,14 @@ describe("readRegularText", () => {
     expect(await readRegularText(file, 10)).toEqual({ kind: "unsafe", reason: "too large" });
   });
 
+  // Not skipped on Windows: there it runs the lstat branch instead of the O_NOFOLLOW one.
+  it("refuses a directory", async () => {
+    expect(await readRegularText(await tmp(), 100)).toEqual({
+      kind: "unsafe",
+      reason: "not a regular file",
+    });
+  });
+
   describe.skipIf(process.platform === "win32")("without following links", () => {
     it("refuses a symlink to a regular file and a dangling one", async () => {
       const dir = await tmp();
