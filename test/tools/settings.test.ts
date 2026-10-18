@@ -48,4 +48,23 @@ describe("settings tools", () => {
     expect(r.json).toMatchObject({ url: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\//) });
     expect(page.isOpen()).toBe(true);
   });
+
+  it("reports an unavailable sync folder instead of failing", async () => {
+    const base = await mkdtemp(path.join(os.tmpdir(), "settings-tools-"));
+    const syncDir = path.join(base, "missing");
+    const sync = new SyncFolder(syncDir);
+    const secrets = new SecretStore(path.join(syncDir, "secrets.enc"), {
+      guard: () => sync.check(),
+    });
+    const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
+    const page = new SettingsPage({ secrets, settings }, { openUrl: async () => undefined });
+    const server = new McpServer({ name: "t", version: "0" });
+    registerSettingsTools(server, { page, settings, secrets, sync });
+    const r = await callTool(await connectTestClient(server), "settings_status");
+    expect(r.isError).toBe(false);
+    expect(r.json).toMatchObject({
+      sync_folder: { available: false, error: expect.stringContaining("does not exist") },
+      secrets: { readable: false, error: expect.stringContaining("not available") },
+    });
+  });
 });

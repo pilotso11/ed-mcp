@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { openInBrowser } from "../capi/browser.js";
 import { UserError } from "../errors.js";
 import { SecretsError } from "./crypto.js";
-import type { SecretStore, ServiceKey } from "./secrets.js";
+import { WrongPasswordError, type SecretStore, type ServiceKey } from "./secrets.js";
 import type { Settings, SourceInfo } from "./settings.js";
 
 const TIMEOUT_MS = 10 * 60_000;
@@ -13,7 +13,9 @@ const MAX_BODY = 16 * 1024;
 class BodyTooLarge extends Error {}
 
 const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const mask = (k: string | undefined) => (k ? `…${esc(k.slice(-4))}` : "not set");
+// A short key would be mostly revealed by its last 4 characters.
+const mask = (k: string | undefined) =>
+  !k ? "not set" : k.length <= 8 ? "set" : `…${esc(k.slice(-4))}`;
 const page = (body: string) =>
   `<!doctype html><meta charset="utf-8"><title>ed-mcp settings</title>` +
   `<style>body{font:15px system-ui;max-width:640px;margin:2em auto}label{display:block;margin:.6em 0}` +
@@ -22,6 +24,7 @@ const page = (body: string) =>
 export class SettingsPage {
   private server: Server | null = null;
   private closed: Promise<void> = Promise.resolve();
+  private opening: Promise<unknown> = Promise.resolve();
   private readonly openUrl: (url: string) => Promise<void>;
   private readonly timeoutMs: number;
 
@@ -41,15 +44,25 @@ export class SettingsPage {
     return this.closed;
   }
 
-  async open(): Promise<{ url: string; expires_at: string }> {
+  // Calls run one after another, so two overlapping calls cannot leave a server nobody tracks.
+  open(): Promise<{ url: string; expires_at: string }> {
+    const run = this.opening.then(() => this.start());
+    this.opening = run.catch(() => undefined);
+    return run;
+  }
+
+  private async start(): Promise<{ url: string; expires_at: string }> {
     this.close();
     // Every request must carry this key, so other programs on the computer cannot use the page.
     const key = randomBytes(24).toString("hex");
     let done!: () => void;
     this.closed = new Promise<void>((r) => (done = r));
     const server = createServer((req, res) => {
-      this.handle(req, res, key, server).catch(() => {
-        if (!res.headersSent) res.writeHead(500).end(page("<p>Something went wrong.</p>"));
+      this.handle(req, res, key, server).catch((err) => {
+        // Only the message is logged: never form data.
+        if (!(err instanceof UserError)) console.error(err instanceof Error ? err.message : err);
+        const text = err instanceof UserError ? esc(err.message) : "Something went wrong.";
+        if (!res.headersSent) res.writeHead(500).end(page(`<p>${text}</p>`));
       });
     });
     server.on("close", done);
@@ -128,7 +141,11 @@ export class SettingsPage {
     } catch (err) {
       // The page stays open so the user can try again.
       if (!(err instanceof UserError)) throw err;
-      return void html(400, `<p>${esc(err.message)}</p><p>Go back and try again.</p>`);
+      const text =
+        err instanceof WrongPasswordError && url.pathname === "/reencrypt"
+          ? "The old password is wrong."
+          : err.message;
+      return void html(400, `<p>${esc(text)}</p><p>Go back and try again.</p>`);
     }
     // Stop once the reply is sent, so the browser gets the whole page.
     res.once("finish", () => this.stop(server));
@@ -178,6 +195,10 @@ function sameKey(given: string | null, key: string): boolean {
 function entry(form: URLSearchParams, s: string, current?: ServiceKey): ServiceKey | undefined {
   const apiKey = form.get(`${s}_key`)?.trim() || current?.apiKey;
   const cmdr = form.get(`${s}_cmdr`)?.trim() || current?.cmdr;
+  if (!!apiKey !== !!cmdr) {
+    const name = s === "inara" ? "Inara" : "EDSM";
+    throw new UserError(`Give both the API key and the commander name for ${name}.`);
+  }
   return apiKey && cmdr ? { apiKey, cmdr } : undefined;
 }
 

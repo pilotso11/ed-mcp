@@ -3,12 +3,15 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { SettingsPage } from "../../src/settings/page.js";
+import { UserError } from "../../src/errors.js";
 import { SecretStore } from "../../src/settings/secrets.js";
 import { Settings } from "../../src/settings/settings.js";
 
-async function setup(timeoutMs = 60_000) {
+const FAST = { N: 1024, r: 8, p: 1 };
+
+async function setup(timeoutMs = 60_000, password?: string) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "page-"));
-  const secrets = new SecretStore(path.join(dir, "secrets.json"));
+  const secrets = new SecretStore(path.join(dir, "secrets.json"), { password, scrypt: FAST });
   const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
   let opened = "";
   const page = new SettingsPage(
@@ -105,5 +108,101 @@ describe("SettingsPage", () => {
     const res = await post(new URL("/reencrypt", url).href, { key, old_password: "x" });
     expect(res.status).toBe(400);
     expect(page.isOpen()).toBe(true);
+  });
+
+  it("refuses a save with a key but no commander name, and changes nothing", async () => {
+    const { url, secrets, page } = await setup();
+    const key = new URL(url).searchParams.get("key")!;
+    const res = await post(new URL("/save", url).href, { key, inara_key: "abcd1234" });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("Give both the API key and the commander name for Inara.");
+    expect((await secrets.get()).inara).toBeUndefined();
+    expect(page.isOpen()).toBe(true);
+  });
+
+  it("keeps a saved key when only the commander name is sent", async () => {
+    const { url, secrets } = await setup();
+    await secrets.update((d) => {
+      d.edsm = { apiKey: "k", cmdr: "J" };
+    });
+    const key = new URL(url).searchParams.get("key")!;
+    const res = await post(new URL("/save", url).href, { key, edsm_key: "", edsm_cmdr: "Jay" });
+    expect(res.status).toBe(200);
+    expect((await secrets.get()).edsm).toEqual({ apiKey: "k", cmdr: "Jay" });
+  });
+
+  it("escapes the commander name and masks the key", async () => {
+    const { url, secrets } = await setup();
+    await secrets.update((d) => {
+      d.inara = { apiKey: "supersecret9876", cmdr: "<script>alert(1)</script>" };
+      d.edsm = { apiKey: "short", cmdr: "J" };
+    });
+    const html = await (await fetch(url)).text();
+    expect(html).not.toContain("<script>alert");
+    expect(html).toContain("&#60;script&#62;");
+    expect(html).toContain("…9876");
+    expect(html).not.toContain("supersecret");
+    expect(html).toContain("Saved key: set");
+    expect(html).not.toContain("short");
+  });
+
+  it("shows the sync error instead of a bare failure when the store is unreachable", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "page-"));
+    const secrets = new SecretStore(path.join(dir, "secrets.json"), {
+      guard: async () => {
+        throw new UserError("Sync folder X is not available");
+      },
+    });
+    const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
+    const page = new SettingsPage({ secrets, settings }, { openUrl: async () => undefined });
+    const res = await fetch((await page.open()).url);
+    expect(await res.text()).toContain("Sync folder X is not available");
+  });
+
+  it("refuses reset and reencrypt without the key, and changes nothing", async () => {
+    const { url, secrets } = await setup(60_000, "pw");
+    await secrets.update((d) => {
+      d.edsm = { apiKey: "k", cmdr: "J" };
+    });
+    for (const p of ["/reset", "/reencrypt"]) {
+      const res = await post(new URL(p, url).href, { old_password: "pw" });
+      expect(res.status).toBe(403);
+    }
+    expect((await secrets.get()).edsm).toEqual({ apiKey: "k", cmdr: "J" });
+  });
+
+  it("re-encrypts through the page, and says so when the old password is wrong", async () => {
+    const { url, secrets, page } = await setup(60_000, "new");
+    const old = new SecretStore(secrets.file, { password: "old", scrypt: FAST });
+    await old.update((d) => {
+      d.edsm = { apiKey: "k", cmdr: "J" };
+    });
+    const key = new URL(url).searchParams.get("key")!;
+    const bad = await post(new URL("/reencrypt", url).href, { key, old_password: "nope" });
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toContain("The old password is wrong.");
+    expect(page.isOpen()).toBe(true);
+    const good = await post(new URL("/reencrypt", url).href, { key, old_password: "old" });
+    expect(good.status).toBe(200);
+    expect((await secrets.get()).edsm).toEqual({ apiKey: "k", cmdr: "J" });
+    await page.waitForClose();
+  });
+
+  it("resets through the page and closes", async () => {
+    const { url, secrets, page } = await setup(60_000, "new");
+    await new SecretStore(secrets.file, { password: "old", scrypt: FAST }).update((d) => {
+      d.edsm = { apiKey: "k", cmdr: "J" };
+    });
+    const key = new URL(url).searchParams.get("key")!;
+    expect((await post(new URL("/reset", url).href, { key })).status).toBe(200);
+    expect(await secrets.get()).toEqual({ version: 1 });
+    await page.waitForClose();
+  });
+
+  it("leaves one server when open is called twice at once", async () => {
+    const { page } = await setup();
+    const [a, b] = await Promise.all([page.open(), page.open()]);
+    await expect(fetch(a.url)).rejects.toThrow();
+    expect((await fetch(b.url)).status).toBe(200);
   });
 });

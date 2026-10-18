@@ -1,6 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { UserError } from "../errors.js";
-import { SecretsError } from "../settings/crypto.js";
 import type { SettingsPage } from "../settings/page.js";
 import type { SecretStore } from "../settings/secrets.js";
 import type { Settings } from "../settings/settings.js";
@@ -60,7 +59,7 @@ export function registerSettingsTools(
       try {
         frontier = !!(await deps.secrets.get()).capi;
       } catch (err) {
-        if (!(err instanceof SecretsError)) throw err;
+        if (!(err instanceof UserError)) throw err;
         readable = false;
         secretsError = err.message;
       }

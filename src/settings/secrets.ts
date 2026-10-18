@@ -22,6 +22,8 @@ const SecretsSchema = z.strictObject({
 });
 export type Secrets = z.infer<typeof SecretsSchema>;
 
+export class WrongPasswordError extends SecretsError {}
+
 const LOCK_TIMEOUT_MS = 5000;
 
 interface Cached {
@@ -175,7 +177,7 @@ export class SecretStore {
         json = JSON.parse(opened.plaintext);
       } catch (err) {
         if (err instanceof SecretsError && err.message === "wrong password") {
-          throw new SecretsError(`Can't decrypt ${this.file}: wrong ED_MCP_SYNC_PASSWORD.`);
+          throw new WrongPasswordError(`Can't decrypt ${this.file}: wrong ED_MCP_SYNC_PASSWORD.`);
         }
         const reason = err instanceof SecretsError ? err.message : "not JSON";
         throw new SecretsError(`${this.file} is not readable (${reason}).`);
