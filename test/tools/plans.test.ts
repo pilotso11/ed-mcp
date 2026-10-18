@@ -3,16 +3,19 @@ import { mkdtemp, readdir, readFile, stat, symlink, writeFile } from "node:fs/pr
 import os from "node:os";
 import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { UserError } from "../../src/errors.js";
 import { PlanStore } from "../../src/plans/store.js";
 import { registerPlanTools } from "../../src/tools/plans.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
-async function setup(warnings?: () => Promise<string[]>) {
+async function setupStore(warnings?: () => Promise<string[]>) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plantools-"));
   const server = new McpServer({ name: "t", version: "0" });
-  registerPlanTools(server, { plans: new PlanStore(path.join(dir, "plans.json")), warnings });
-  return { dir, client: await connectTestClient(server) };
+  const store = new PlanStore(path.join(dir, "plans.json"));
+  registerPlanTools(server, { plans: store, warnings });
+  return { dir, store, client: await connectTestClient(server) };
 }
+const setup = setupStore;
 
 const plan = {
   id: "cutter",
@@ -55,6 +58,94 @@ describe("plan tools", () => {
       deleted: "cutter",
     });
     expect((await callTool(client, "plan_list")).json).toEqual([]);
+  });
+
+  describe("failed saves", () => {
+    const failing = (message = "Sync folder is unavailable") => {
+      const dir = path.join(os.tmpdir(), "plan-fail");
+      const server = new McpServer({ name: "t", version: "0" });
+      const store = new PlanStore(path.join(dir, "plans.json"), undefined, {
+        guard: async () => {
+          throw new UserError(message);
+        },
+      });
+      registerPlanTools(server, { plans: store });
+      return connectTestClient(server);
+    };
+    const jsonOf = (text: string) => text.slice(text.indexOf("\n{") + 1);
+
+    it("plan_upsert returns the plan as JSON that plan_import reads back", async () => {
+      const r = await callTool(await failing(), "plan_upsert", { plan });
+      expect(r.isError).toBe(true);
+      expect(r.text).toMatch(
+        /^Sync folder is unavailable\n\nThe plan was not saved\. Save this JSON and load it later with plan_import:\n\{\n {2}"id"/,
+      );
+      const json = jsonOf(r.text);
+      const saved = JSON.parse(json);
+      expect(saved).toMatchObject({ id: "cutter", items: [{ id: "a", status: "todo" }] });
+
+      const { dir, client } = await setup();
+      const file = path.join(dir, "saved.json");
+      await writeFile(file, json);
+      const imp = await callTool(client, "plan_import", { path: file });
+      expect(imp.isError).toBe(false);
+      expect((await callTool(client, "plan_get", { id: "cutter" })).json).toMatchObject(saved);
+    });
+
+    it("plan_upsert returns the plan when the disk error is not a UserError", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const { client, store } = await setupStore();
+      vi.spyOn(store, "upsert").mockRejectedValue(new Error("EIO: disk gone"));
+      const r = await callTool(client, "plan_upsert", { plan });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("EIO: disk gone\n\nThe plan was not saved.");
+      expect(JSON.parse(jsonOf(r.text))).toMatchObject({ id: "cutter" });
+    });
+
+    it("plan_import returns the plan as JSON", async () => {
+      const { dir } = await setup();
+      const file = path.join(dir, "in.json");
+      await writeFile(file, JSON.stringify(plan));
+      const r = await callTool(await failing(), "plan_import", { path: file });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("Sync folder is unavailable\n\nThe plan was not saved.");
+      expect(JSON.parse(jsonOf(r.text))).toMatchObject({ id: "cutter" });
+    });
+
+    it("plan_import returns the plan when overwrite: false refuses", async () => {
+      const { dir, client } = await setup();
+      await callTool(client, "plan_upsert", { plan });
+      const file = path.join(dir, "in.json");
+      await writeFile(file, JSON.stringify(plan));
+      const r = await callTool(client, "plan_import", { path: file });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("exists; pass overwrite: true");
+      expect(JSON.parse(jsonOf(r.text))).toMatchObject({ id: "cutter" });
+    });
+
+    it("gives no JSON for an invalid plan", async () => {
+      const { dir } = await setup();
+      const file = path.join(dir, "bad.json");
+      await writeFile(file, JSON.stringify({ id: "x" }));
+      const r = await callTool(await failing(), "plan_import", { path: file });
+      expect(r.isError).toBe(true);
+      expect(r.text).toMatch(/^Invalid plan:/);
+      expect(r.text).not.toContain("plan_import:");
+      expect(r.text).not.toContain("{");
+    });
+
+    it("plan_update_item names the item and the change", async () => {
+      const r = await callTool(await failing(), "plan_update_item", {
+        plan_id: "cutter",
+        item_id: "a",
+        status: "done",
+        notes: "bought",
+      });
+      expect(r.isError).toBe(true);
+      expect(r.text).toBe(
+        'Item "a" in plan "cutter" was not updated (status: done, notes changed). Sync folder is unavailable',
+      );
+    });
   });
 
   it("rejects an item update with neither status nor notes", async () => {
@@ -275,10 +366,8 @@ describe("plan tools", () => {
     it("refuses to replace an existing plan unless overwrite is true", async () => {
       const { client, file } = await exported();
       const refused = await callTool(client, "plan_import", { path: file });
-      expect(refused).toMatchObject({
-        isError: true,
-        text: "Plan cutter exists; pass overwrite: true to replace it",
-      });
+      expect(refused.isError).toBe(true);
+      expect(refused.text).toMatch(/^Plan cutter exists; pass overwrite: true to replace it\n\n/);
       const ok = await callTool(client, "plan_import", { path: file, overwrite: true });
       expect(ok.isError).toBe(false);
     });
@@ -303,10 +392,8 @@ describe("plan tools", () => {
       const file = path.join(dir, "p.json");
       await writeFile(file, JSON.stringify({ ...plan, name: "Imported" }));
       const refused = await callTool(client, "plan_import", { path: file, id: "other" });
-      expect(refused).toMatchObject({
-        isError: true,
-        text: "Plan other exists; pass overwrite: true to replace it",
-      });
+      expect(refused.isError).toBe(true);
+      expect(refused.text).toMatch(/^Plan other exists; pass overwrite: true to replace it\n\n/);
       expect((await callTool(client, "plan_get", { id: "other" })).json).toMatchObject({
         name: "Other",
       });

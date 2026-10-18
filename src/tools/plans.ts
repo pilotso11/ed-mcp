@@ -15,6 +15,19 @@ export function registerPlanTools(
   deps: { plans: PlanStore; warnings?: () => Promise<string[]> },
 ): void {
   const { plans, warnings } = deps;
+  // The plan is only in this conversation until it is saved, so a failed save hands it back.
+  const saveOrReturnJson = async (input: PlanInput, opts: { overwrite?: boolean } = {}) => {
+    const parsed = PlanInputSchema.safeParse(input);
+    if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+    try {
+      return await plans.upsert(parsed.data, opts);
+    } catch (err) {
+      throw new UserError(
+        `${reason(err)}\n\nThe plan was not saved. Save this JSON and load it later with plan_import:\n` +
+          JSON.stringify(parsed.data, null, 2),
+      );
+    }
+  };
   const exports = new Map<string, Promise<unknown>>();
   const serialise = <T>(target: string, fn: () => Promise<T>): Promise<T> => {
     const key = process.platform === "linux" ? target : target.toLowerCase();
@@ -74,7 +87,7 @@ export function registerPlanTools(
         "stops are the places to visit (optionally with label, kind and after rules); route is the saved visiting order. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },
-    wrapWarn(async ({ plan }: { plan: PlanInput }) => plans.upsert(plan), warnings),
+    wrapWarn(async ({ plan }: { plan: PlanInput }) => saveOrReturnJson(plan), warnings),
   );
 
   server.registerTool(
@@ -105,7 +118,20 @@ export function registerPlanTools(
         if (a.status === undefined && a.notes === undefined) {
           throw new UserError("Give status or notes to update");
         }
-        return plans.updateItem(a.plan_id, a.item_id, { status: a.status, notes: a.notes });
+        try {
+          return await plans.updateItem(a.plan_id, a.item_id, {
+            status: a.status,
+            notes: a.notes,
+          });
+        } catch (err) {
+          const changes = [
+            ...(a.status !== undefined ? [`status: ${a.status}`] : []),
+            ...(a.notes !== undefined ? ["notes changed"] : []),
+          ].join(", ");
+          throw new UserError(
+            `Item "${a.item_id}" in plan "${a.plan_id}" was not updated (${changes}). ${reason(err)}`,
+          );
+        }
       },
       warnings,
     ),
@@ -233,9 +259,16 @@ export function registerPlanTools(
       const parsed = PlanInputSchema.safeParse(json);
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
       // The existence check runs inside the store's locked write so concurrent imports cannot race.
-      return plans.upsert(parsed.data, { overwrite: a.overwrite === true });
+      return saveOrReturnJson(parsed.data, { overwrite: a.overwrite === true });
     }, warnings),
   );
+}
+
+// Non-UserErrors (disk errors) are reported here too, or the caller would lose the plan.
+function reason(err: unknown): string {
+  if (err instanceof UserError) return err.message;
+  console.error(err);
+  return err instanceof Error ? err.message : String(err);
 }
 
 async function exists(p: string): Promise<boolean> {

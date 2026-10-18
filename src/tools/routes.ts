@@ -443,21 +443,29 @@ export function registerRouteTools(
         const total = min(totalSeconds);
         let saved = false;
         if (a.save_to_plan && a.plan_id) {
-          await deps.plans!.setRoute(a.plan_id, {
-            computed_at: new Date(now()).toISOString(),
-            from: startPlace.system,
-            stops: [
-              ...solved.order.map(optionLabel),
-              ...(returnPlace
-                ? [
-                    `return to ${returnPlace.system}${returnPlace.station ? ` — ${returnPlace.station}` : ""}`,
-                  ]
-                : []),
-            ],
-            total_min: total,
-            plotted: a.plot && allPlotted,
-          });
-          saved = true;
+          // The route is already computed, so a failed save must not discard it.
+          try {
+            await deps.plans!.setRoute(a.plan_id, {
+              computed_at: new Date(now()).toISOString(),
+              from: startPlace.system,
+              stops: [
+                ...solved.order.map(optionLabel),
+                ...(returnPlace
+                  ? [
+                      `return to ${returnPlace.system}${returnPlace.station ? ` — ${returnPlace.station}` : ""}`,
+                    ]
+                  : []),
+              ],
+              total_min: total,
+              plotted: a.plot && allPlotted,
+            });
+            saved = true;
+          } catch (err) {
+            if (!(err instanceof UserError)) console.error(err);
+            notes.add(
+              `The route was not saved to plan "${a.plan_id}": ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
         }
 
         return {

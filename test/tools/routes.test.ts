@@ -1,7 +1,7 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CatalogService } from "../../src/catalog/service.js";
 import { UserError } from "../../src/errors.js";
@@ -311,6 +311,23 @@ describe("route_stops", () => {
     });
     const md = (await callTool(client, "plan_export", { id: "p" })).json as { markdown: string };
     expect(md.markdown).toContain("## Route");
+  });
+
+  it("still returns the route when saving it to the plan fails", async () => {
+    const { client, plans } = await setup();
+    await callTool(client, "plan_upsert", { plan: planWith([]) });
+    vi.spyOn(plans, "setRoute").mockRejectedValue(new UserError("Plan file is locked"));
+    const r = await callTool(client, "route_stops", {
+      ...range,
+      plan_id: "p",
+      stops: [alpha],
+      save_to_plan: true,
+    });
+    const j = r.json as Record<string, any>;
+    expect(r.isError).toBe(false);
+    expect(j.saved).toBe(false);
+    expect(labels(j)).toEqual(["AlphaShop"]);
+    expect(j.notes).toContain('The route was not saved to plan "p": Plan file is locked');
   });
 
   it("lists the return_to leg in the saved route", async () => {
