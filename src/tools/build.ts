@@ -71,6 +71,13 @@ export function registerBuildStatsTool(server: McpServer, deps: Deps): void {
   server.registerTool(
     "build_stats",
     {
+      annotations: {
+        title: "Build Stats",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Model a ship build: mass, fuel, jump range, power, speed, shields, armour and weapon " +
         "damage. The build comes from the latest journal Loadout (the default), the CAPI ship, " +

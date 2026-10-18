@@ -9,6 +9,13 @@ export function registerEdsmTools(server: McpServer, deps: { edsm: EdsmClient })
   server.registerTool(
     "edsm_commander_location",
     {
+      annotations: {
+        title: "Commander Location",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Commander's last known system, coordinates, docked station and ship, from EDSM. Cached 60 s.",
     },
@@ -18,6 +25,13 @@ export function registerEdsmTools(server: McpServer, deps: { edsm: EdsmClient })
   server.registerTool(
     "edsm_commander_materials",
     {
+      annotations: {
+        title: "EDSM Commander Materials",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Commander's engineering materials (raw and manufactured), encoded data, and cargo, from EDSM. " +
         "kinds defaults to all three. Cached 60 s.",

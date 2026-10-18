@@ -141,6 +141,13 @@ export function registerStationTools(
   server.registerTool(
     "station_info",
     {
+      annotations: {
+        title: "Station Info",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "What the station you last opened a screen at sells, from the game's own files in the journal " +
         "folder (Market.json, Outfitting.json, Shipyard.json). Complete and current, but only for the " +

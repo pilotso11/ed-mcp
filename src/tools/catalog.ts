@@ -10,6 +10,13 @@ export function registerCatalogTools(server: McpServer, deps: { catalog: Catalog
   server.registerTool(
     "catalog_blueprint",
     {
+      annotations: {
+        title: "Look Up Blueprint",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Engineering blueprint by journal id (e.g. FSD_LongRange) or name (e.g. 'Increased range'): " +
         "materials per grade 1-5 with material symbol, grade and trade group, and the experimental " +
@@ -22,6 +29,13 @@ export function registerCatalogTools(server: McpServer, deps: { catalog: Catalog
   server.registerTool(
     "catalog_engineers",
     {
+      annotations: {
+        title: "Look Up Engineers",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "With blueprint (and optional module): engineers who apply it, their max grade, location and " +
         "invite/unlock requirements, best first. With engineer: that engineer's location, " +
@@ -46,6 +60,13 @@ export function registerCatalogTools(server: McpServer, deps: { catalog: Catalog
   server.registerTool(
     "catalog_material",
     {
+      annotations: {
+        title: "Look Up Material",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Engineering material by name or symbol: kind, grade, trade group, other materials in the " +
         "same trade group, and material trader exchange rules.",
@@ -57,6 +78,13 @@ export function registerCatalogTools(server: McpServer, deps: { catalog: Catalog
   server.registerTool(
     "catalog_module",
     {
+      annotations: {
+        title: "Look Up Module",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Outfitting module by journal symbol (e.g. Int_Hyperdrive_Size5_Class5) or name: " +
         "class, rating, mount and engineering group. Returns total matches and at most 20 items.",

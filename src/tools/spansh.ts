@@ -34,6 +34,13 @@ export function registerSpanshTools(
   server.registerTool(
     "spansh_find_stations",
     {
+      annotations: {
+        title: "Find Stations",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Find the best stations near a system, ranked by travel time and cost, that sell a module or ship, or offer a service " +
         "(material trader, tech broker, interstellar factors). Give exactly one of module, ship, service. " +
@@ -102,6 +109,13 @@ export function registerSpanshTools(
   server.registerTool(
     "spansh_system",
     {
+      annotations: {
+        title: "Look Up System",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Look up a system by exact name: coordinates, allegiance, permit, and its stations " +
         "sorted by distance from arrival (limit applies to stations). Cached 24 h.",
@@ -113,6 +127,13 @@ export function registerSpanshTools(
   server.registerTool(
     "spansh_route",
     {
+      annotations: {
+        title: "Plot Route",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Plot a neutron-boosted route between two systems for a laden jump range in LY. " +
         "Returns waypoints with jumps needed to reach each. May take a while; if it says still " +

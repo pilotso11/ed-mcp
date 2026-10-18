@@ -11,6 +11,13 @@ export function registerCapiTools(
   server.registerTool(
     "capi_login",
     {
+      annotations: {
+        title: "Log In to Frontier",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Log in to Frontier's Companion API in the browser. Returns immediately with the login URL; " +
         "the user finishes in the browser. Call again to check the state; pass force: true to log in again. Logins last 25 days.",
@@ -29,6 +36,13 @@ export function registerCapiTools(
   server.registerTool(
     "capi_profile",
     {
+      annotations: {
+        title: "Frontier Profile",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Live commander data from Frontier: current system and docked station, current ship with " +
         "every module and its engineering (blueprint, grade, engineer, experimental), and all owned " +
@@ -39,7 +53,16 @@ export function registerCapiTools(
 
   server.registerTool(
     "capi_logout",
-    { description: "Forget the stored Frontier login on this machine." },
+    {
+      annotations: {
+        title: "Log Out of Frontier",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      description: "Forget the stored Frontier login on this machine.",
+    },
     wrap(async () => {
       await deps.capiAuth.logout();
       return { state: "logged_out" };

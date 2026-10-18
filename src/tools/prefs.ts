@@ -7,6 +7,13 @@ export function registerPrefsTools(server: McpServer, deps: { prefs: Preferences
   server.registerTool(
     "prefs_get",
     {
+      annotations: {
+        title: "Get Preferences",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Get the commander's stored travel preferences used by station searches: maximum arrival " +
         "distance (soft/hard/off), planetary, fleet carrier and megaship rules, minimum pad " +
@@ -18,6 +25,13 @@ export function registerPrefsTools(server: McpServer, deps: { prefs: Preferences
   server.registerTool(
     "prefs_set",
     {
+      annotations: {
+        title: "Set Preferences",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Change stored travel preferences with a partial patch, for example " +
         '{"stations":{"max_arrival_ls":{"value":2000}}}. Saved for future sessions; returns the ' +
