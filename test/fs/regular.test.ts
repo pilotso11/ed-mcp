@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, symlink, writeFile } from "node:fs/promises";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { readRegularText } from "../../src/fs/regular.js";
@@ -44,6 +45,20 @@ describe("readRegularText", () => {
       const refused = { kind: "unsafe", reason: "not a regular file" };
       expect(await readRegularText(path.join(dir, "link"), 100)).toEqual(refused);
       expect(await readRegularText(path.join(dir, "dangling"), 100)).toEqual(refused);
+    });
+
+    it("refuses a unix socket", async () => {
+      const sock = path.join(await tmp(), "s.sock");
+      const server = net.createServer();
+      await new Promise<void>((resolve) => server.listen(sock, resolve));
+      try {
+        expect(await readRegularText(sock, 100)).toEqual({
+          kind: "unsafe",
+          reason: "not a regular file",
+        });
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+      }
     });
 
     it("refuses a FIFO without waiting for a writer", async () => {

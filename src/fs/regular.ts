@@ -19,7 +19,7 @@ export async function readRegularText(file: string, max: number): Promise<SafeRe
     try {
       if (!(await lstat(file)).isFile()) return { kind: "unsafe", reason: "not a regular file" };
     } catch (err) {
-      return failure(err);
+      return failure(err, file);
     }
   }
   let handle;
@@ -33,7 +33,7 @@ export async function readRegularText(file: string, max: number): Promise<SafeRe
     if ((err as NodeJS.ErrnoException).code === "ELOOP") {
       return { kind: "unsafe", reason: "not a regular file" };
     }
-    return failure(err);
+    return failure(err, file);
   }
   try {
     const st = await handle.stat();
@@ -41,15 +41,18 @@ export async function readRegularText(file: string, max: number): Promise<SafeRe
     if (st.size > max) return { kind: "unsafe", reason: "too large" };
     return { kind: "ok", text: await handle.readFile("utf8") };
   } catch (err) {
-    return failure(err);
+    return failure(err, file);
   } finally {
     await handle.close().catch(() => undefined);
   }
 }
 
-function failure(err: unknown): SafeRead {
+async function failure(err: unknown, file: string): Promise<SafeRead> {
   const code = (err as NodeJS.ErrnoException).code;
   if (code === "ENOENT") return { kind: "missing" };
+  // Opening a socket or device fails with errors like ENXIO; say what the file is instead.
+  const st = await lstat(file).catch(() => null);
+  if (st && !st.isFile()) return { kind: "unsafe", reason: "not a regular file" };
   // Cloud mounts can fail with EIO or ETIMEDOUT; callers report this instead of crashing.
   return { kind: "unsafe", reason: `not readable (${code ?? "unknown error"})` };
 }
