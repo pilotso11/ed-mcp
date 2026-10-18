@@ -214,6 +214,26 @@ describe("schedule", () => {
     expect(fetchFn.calls).toHaveLength(2);
   });
 
+  it("start() twice arms one chain, and stop() ends it", async () => {
+    fakeTimers();
+    const { check, clock, fetchFn } = await setup(release("v0.4.0"));
+    check.start();
+    check.start();
+    await check.whenIdle();
+    check.start();
+    expect(fetchFn.calls).toHaveLength(1);
+    for (const n of [2, 3]) {
+      clock.now += 24 * HOUR;
+      await vi.advanceTimersByTimeAsync(24 * HOUR);
+      await check.whenIdle();
+      expect(fetchFn.calls).toHaveLength(n);
+    }
+    check.stop();
+    clock.now += 48 * HOUR;
+    await vi.advanceTimersByTimeAsync(48 * HOUR);
+    expect(fetchFn.calls).toHaveLength(3);
+  });
+
   it("stop() cancels the next check", async () => {
     fakeTimers();
     const { check, clock, fetchFn } = await setup(release("v0.4.0"));

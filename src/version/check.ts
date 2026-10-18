@@ -57,6 +57,8 @@ export class VersionCheck {
    * server that runs for days still learns of a new release. It never throws.
    */
   start(): void {
+    // A second start() must not arm a second chain that stop() could not cancel.
+    if (this.timer || this.inFlight) return;
     this.stopped = false;
     this.run();
   }
@@ -107,8 +109,15 @@ export class VersionCheck {
       .then((ok) => {
         this.inFlight = false;
         if (this.stopped) return;
+        clearTimeout(this.timer);
         // unref: the timer must not keep the process alive after the client disconnects.
-        this.timer = setTimeout(() => this.run(), ok ? DAY_MS : RETRY_MS);
+        this.timer = setTimeout(
+          () => {
+            this.timer = undefined;
+            this.run();
+          },
+          ok ? DAY_MS : RETRY_MS,
+        );
         this.timer.unref();
       });
   }
