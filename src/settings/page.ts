@@ -170,8 +170,18 @@ export class SettingsPage {
       );
     }
     const sources = await this.deps.settings.sources();
+    const help = {
+      inara:
+        `Get your key: log in at <a href="https://inara.cz/elite/inara-api/" target="_blank" rel="noopener noreferrer">inara.cz</a>, ` +
+        `click the cog next to "Personal content", open API settings and choose "Generate new key". ` +
+        `The commander name is your in-game name.`,
+      edsm:
+        `Get your key: log in at <a href="https://www.edsm.net/" target="_blank" rel="noopener noreferrer">edsm.net</a>, ` +
+        `open the user menu and choose "My API Key". ` +
+        `Use your EDSM commander name, which may differ from your in-game name.`,
+    };
     const section = (s: "inara" | "edsm", title: string, info: SourceInfo) =>
-      `<fieldset><legend>${title}</legend>` +
+      `<fieldset><legend>${title}</legend><p><small>${help[s]}</small></p>` +
       `<p>In use: ${info.source === "environment" ? "from the environment (it wins on this computer)" : info.source}. Saved key: ${mask(stored[s]?.apiKey)}</p>` +
       `<label>${title} API key <input type="password" name="${s}_key" autocomplete="off" placeholder="leave empty to keep"></label>` +
       `<label>Commander name <input type="text" name="${s}_cmdr" value="${esc(stored[s]?.cmdr ?? "")}"></label>` +

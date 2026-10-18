@@ -205,4 +205,15 @@ describe("SettingsPage", () => {
     await expect(fetch(a.url)).rejects.toThrow();
     expect((await fetch(b.url)).status).toBe(200);
   });
+
+  it("explains where to get each key, with links that open in a new tab", async () => {
+    const { url } = await setup();
+    const html = await (await fetch(url)).text();
+    expect(html).toContain(
+      'href="https://inara.cz/elite/inara-api/" target="_blank" rel="noopener noreferrer"',
+    );
+    expect(html).toContain(
+      'href="https://www.edsm.net/" target="_blank" rel="noopener noreferrer"',
+    );
+  });
 });
