@@ -4,7 +4,7 @@ ed-mcp is a local program. It runs on your computer, inside Claude Desktop or Cl
 
 ## What ed-mcp reads
 
-- The Elite Dangerous journal and the `Market.json`, `Outfitting.json` and `Shipyard.json` files that the game writes. ed-mcp only reads them. It never changes them.
+- The Elite Dangerous journal and the `Cargo.json`, `Market.json`, `Outfitting.json` and `Shipyard.json` files that the game writes. ed-mcp only reads them. It never changes them.
 - Its own files: plans, preferences, API keys and the Frontier login. See [Your data](README.md#your-data) for where they are.
 
 ## What ed-mcp sends, and to whom

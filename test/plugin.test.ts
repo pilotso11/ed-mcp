@@ -21,7 +21,8 @@ describe("Claude plugin", () => {
   it("never points at a version newer than the package", async () => {
     const plugin = await read("plugin/.claude-plugin/plugin.json");
     const pkg = await read("package.json");
-    const parts = (s: unknown) => String(s).split(".").map(Number);
+    // Compare the release part only; a prerelease suffix such as -rc.1 would parse as NaN.
+    const parts = (s: unknown) => String(s).split("-")[0]!.split(".").map(Number);
     const [a, b] = [parts(plugin.version), parts(pkg.version)];
     const cmp = a[0]! - b[0]! || a[1]! - b[1]! || a[2]! - b[2]!;
     expect(cmp).toBeLessThanOrEqual(0);
