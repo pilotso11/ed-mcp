@@ -112,7 +112,7 @@ describe("VersionCheck", () => {
       () => new Response("nope", { status: 404 }),
       () => new Response("nope", { status: 500 }),
       () => new Response("not json", { status: 200 }),
-      () => jsonResponse({ tag_name: "v9.0.0" }),
+      () => jsonResponse({ html_url: "https://example.test" }),
     ];
     for (const respond of cases) {
       const { check, file } = await setup(respond);
