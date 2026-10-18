@@ -23,17 +23,19 @@
         "EDSM_CMDR": "${user_config.edsm_cmdr}",
         "CAPI_CLIENT_ID": "${user_config.capi_client_id}",
         "INARA_DEV_MODE": "${user_config.inara_dev_mode}",
-        "ED_JOURNAL_DIR": "${user_config.ed_journal_dir}"
+        "ED_JOURNAL_DIR": "${user_config.ed_journal_dir}",
+        "ED_MCP_SYNC_DIR": "${user_config.ed_mcp_sync_dir}",
+        "ED_MCP_SYNC_PASSWORD": "${user_config.ed_mcp_sync_password}"
       }
     }
   },
   "tools": [
     { "name": "prefs_get", "description": "Stored travel preferences" },
     { "name": "prefs_set", "description": "Change stored travel preferences" },
-    { "name": "settings_open", "description": "Open the page to enter Inara and EDSM keys" },
+    { "name": "settings_open", "description": "Enter API keys on a local page (no restart)" },
     {
       "name": "settings_status",
-      "description": "Where settings and secrets are kept (no key values)"
+      "description": "Where settings come from, sync folder and conflicts"
     },
     {
       "name": "inara_commander_profile",
@@ -117,7 +119,7 @@
     "inara_api_key": {
       "type": "string",
       "title": "Inara API key",
-      "description": "Personal API key from inara.cz > Settings > Inara API. Leave empty to disable Inara tools.",
+      "description": "Personal API key from inara.cz > Settings > Inara API. Leave empty to disable Inara tools. You can also enter it on the settings page (ask Claude to open ed-mcp settings), which needs no restart.",
       "sensitive": true,
       "required": false,
       "default": ""
@@ -139,7 +141,7 @@
     "edsm_api_key": {
       "type": "string",
       "title": "EDSM API key",
-      "description": "API key from edsm.net > Settings > API Key. Leave empty to disable EDSM tools.",
+      "description": "API key from edsm.net > Settings > API Key. Leave empty to disable EDSM tools. You can also enter it on the settings page (ask Claude to open ed-mcp settings), which needs no restart.",
       "sensitive": true,
       "required": false,
       "default": ""
@@ -162,6 +164,21 @@
       "type": "directory",
       "title": "Journal folder",
       "description": "The Elite Dangerous journal folder. On the gaming PC leave empty for the default; on a Mac choose the Syncthing copy.",
+      "required": false,
+      "default": ""
+    },
+    "ed_mcp_sync_dir": {
+      "type": "directory",
+      "title": "Sync folder",
+      "description": "Optional. A folder that Google Drive, iCloud Drive, OneDrive or Syncthing keeps in step, so plans and preferences follow you between computers.",
+      "required": false,
+      "default": ""
+    },
+    "ed_mcp_sync_password": {
+      "type": "string",
+      "title": "Sync password",
+      "description": "Optional. At least 12 characters. Encrypts your API keys and Frontier login. With a sync folder, they sync too. Use the same password on every computer.",
+      "sensitive": true,
       "required": false,
       "default": ""
     }

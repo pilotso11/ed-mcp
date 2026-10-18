@@ -15,6 +15,8 @@ For installation and setup, see the [README](../README.md).
 | `capi_login`               | Log in to Frontier in the browser                            |
 | `capi_profile`             | Current ship with engineering, location and fleet            |
 | `capi_logout`              | Forget the Frontier login                                    |
+| `settings_open`            | Enter API keys on a local page (no restart)                  |
+| `settings_status`          | Where settings come from, sync folder and conflicts          |
 | `journal_status`           | Journal folder, newest journal, its age and warnings         |
 | `journal_commander`        | Commander, location, ship and cargo from the journal         |
 | `journal_materials`        | Materials held, by kind, from the journal                    |
@@ -277,6 +279,24 @@ Results:
 - `all` gives a summary: counts, the top 5 sells (lowest `vs_mean_pct`) and top 5 buys (highest `vs_mean_pct`), the module count per group, and each ship as "Name (price cr)". `commodity` and `search` also apply to the summary counts and top lists.
 - `notes` flags a part from a station other than the one where you are docked, a part older than 24 hours, and a part with no file. With no file at all, the tool returns an error.
 
+## Settings
+
+- `settings_open`: opens the ed-mcp settings page in your browser. There you enter or clear your Inara and EDSM keys and commander names. The page explains where to find each key. Keys apply at once, without a restart. Claude gets the page link only when the browser does not open. The page closes after a short time. Never type a key into the chat.
+- `settings_status`: shows where ed-mcp keeps its data. It never returns a key.
+
+`settings_status` result fields:
+
+| Field            | Meaning                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `sync_folder`    | `null` without a sync folder. Otherwise `path` and `available`, and `error` when it is not available. |
+| `secrets`        | `file`, `encrypted` (a sync password is set), `readable`, and `error` when it cannot be read.   |
+| `inara`, `edsm`  | For each service, where its key comes from (`environment`, `stored` or `not set`) and the commander name. |
+| `frontier_login` | `true` when a Frontier login is saved.                                                          |
+| `conflicts`      | Conflict copies that the sync service made. Keep the copy that you want and delete the other.   |
+| `notes`          | Settings that look mismatched between Claude apps on this computer, with what to do.            |
+
+A key set in the environment (the settings form or `-e`) wins over a saved key.
+
 ## Game journal
 
 The server reads the journal files from the last 14 days, plus `Cargo.json` for the current cargo. It never writes to the journal folder.
@@ -298,7 +318,7 @@ Freshness rules:
 
 ## Travel preferences
 
-`spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json` in the config folder. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
+`spansh_find_stations` applies your travel preferences. The server stores them in `preferences.json`, in the sync folder if you set one and in the config folder if not. It writes the file atomically. If the file is invalid, the tools report the problem and leave the file alone.
 
 Defaults:
 
