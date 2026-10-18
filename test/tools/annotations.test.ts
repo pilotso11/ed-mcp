@@ -48,4 +48,23 @@ describe("tool annotations", () => {
       "plan_upsert",
     ]);
   });
+
+  it("marks exactly the writing tools as not read-only", async () => {
+    const writing = (await listTools())
+      .filter((t) => t.annotations?.readOnlyHint === false)
+      .map((t) => t.name)
+      .sort();
+    expect(writing).toEqual([
+      "cache_refresh",
+      "capi_login",
+      "capi_logout",
+      "plan_delete",
+      "plan_export",
+      "plan_import",
+      "plan_update_item",
+      "plan_upsert",
+      "prefs_set",
+      "route_stops",
+    ]);
+  });
 });

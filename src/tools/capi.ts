@@ -15,7 +15,7 @@ export function registerCapiTools(
         title: "Log In to Frontier",
         readOnlyHint: false,
         destructiveHint: false,
-        idempotentHint: true,
+        idempotentHint: false,
         openWorldHint: true,
       },
       description:
