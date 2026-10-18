@@ -7,7 +7,6 @@ import type { HttpClient } from "../http/client.js";
 
 const RELEASE_URL = "https://api.github.com/repos/pilotso11/ed-mcp/releases/latest";
 const DAY_MS = 24 * 60 * 60 * 1000;
-// A failed check is not retried on every notice() call while the machine is offline.
 const RETRY_MS = 60 * 60 * 1000;
 
 const releaseSchema = z.object({ tag_name: z.string().min(1), html_url: z.string().min(1) });
@@ -38,7 +37,8 @@ export class VersionCheck {
   private readonly now: () => number;
   private running: Promise<void> = Promise.resolve();
   private inFlight = false;
-  private lastAttempt = -Infinity;
+  private stopped = false;
+  private timer: NodeJS.Timeout | undefined;
 
   constructor(
     private readonly opts: {
@@ -52,42 +52,65 @@ export class VersionCheck {
     this.now = opts.now ?? Date.now;
   }
 
-  /** Starts a check in the background. It never throws and nothing waits for it. */
+  /**
+   * Checks in the background, then again every 24 hours (every hour after a failure), so a
+   * server that runs for days still learns of a new release. It never throws.
+   */
   start(): void {
-    if (this.inFlight) return;
-    this.inFlight = true;
-    this.lastAttempt = this.now();
-    this.running = this.check()
-      .catch((err: unknown) => {
-        // Network, format and lock problems are expected and stay silent. HttpError is a UserError.
-        if (err instanceof UserError || err instanceof z.ZodError || err instanceof SyntaxError) {
-          return;
-        }
-        console.error(`ed-mcp version check failed: ${err instanceof Error ? err.message : err}`);
-      })
-      .finally(() => {
-        this.inFlight = false;
-      });
+    this.stopped = false;
+    this.run();
   }
 
-  /** Resolves when the check started by start() is done. */
+  /** Cancels the next scheduled check. */
+  stop(): void {
+    this.stopped = true;
+    clearTimeout(this.timer);
+    this.timer = undefined;
+  }
+
+  /** Resolves when the check in progress is done. */
   whenIdle(): Promise<void> {
     return this.running;
   }
 
-  /**
-   * Answers from the saved result only, so it never waits on a request. When that result is
-   * missing or over a day old it starts a background check, for servers that run for days.
-   */
+  /** Reads the saved result only. It never makes a request or writes. */
   async notice(): Promise<string | null> {
     try {
       const cached = await this.read();
-      if (this.isStale(cached) && this.now() - this.lastAttempt >= RETRY_MS) this.start();
       if (!cached || !isNewer(cached.latest, this.opts.current)) return null;
       return `ed-mcp ${cached.latest} is available (you have ${this.opts.current}): ${cached.url}`;
     } catch {
       return null;
     }
+  }
+
+  private run(): void {
+    if (this.inFlight) return;
+    this.inFlight = true;
+    this.running = this.check()
+      .then(
+        () => true,
+        (err: unknown) => {
+          // Network, format and lock problems are expected and stay silent. HttpError is a UserError.
+          if (!(
+            err instanceof UserError ||
+            err instanceof z.ZodError ||
+            err instanceof SyntaxError
+          )) {
+            console.error(
+              `ed-mcp version check failed: ${err instanceof Error ? err.message : err}`,
+            );
+          }
+          return false;
+        },
+      )
+      .then((ok) => {
+        this.inFlight = false;
+        if (this.stopped) return;
+        // unref: the timer must not keep the process alive after the client disconnects.
+        this.timer = setTimeout(() => this.run(), ok ? DAY_MS : RETRY_MS);
+        this.timer.unref();
+      });
   }
 
   private async read(): Promise<Cached | null> {

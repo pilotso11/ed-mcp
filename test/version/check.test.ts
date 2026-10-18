@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -20,12 +20,20 @@ const HOUR = 3_600_000;
 
 const release = (tag: string) => () => jsonResponse({ tag_name: tag, html_url: URL_ });
 
+const started: VersionCheck[] = [];
+afterEach(() => {
+  for (const c of started.splice(0)) c.stop();
+  vi.useRealTimers();
+});
+
 async function setup(respond: () => Response | Promise<Response>, current = "0.3.1") {
   const cacheDir = await mkdtemp(path.join(os.tmpdir(), "vcheck-"));
   const fetchFn = fakeFetch([{ match: (u) => u.includes("api.github.com"), respond }]);
   const http = new HttpClient({ userAgent: "t", fetchFn, retryDelayMs: 0 });
-  const check = new VersionCheck({ http, cacheDir, current, now: () => NOW });
-  return { check, fetchFn, cacheDir, file: path.join(cacheDir, "version-check.json") };
+  const clock = { now: NOW };
+  const check = new VersionCheck({ http, cacheDir, current, now: () => clock.now });
+  started.push(check);
+  return { check, clock, fetchFn, cacheDir, file: path.join(cacheDir, "version-check.json") };
 }
 
 async function run(check: VersionCheck) {
@@ -114,32 +122,14 @@ describe("VersionCheck", () => {
     expect(fetchFn.calls).toHaveLength(1);
   });
 
-  it("notice() starts one background check when the cache is stale", async () => {
+  it("notice() makes no request and writes nothing, even with a stale or missing cache", async () => {
     const { check, fetchFn, file } = await setup(release("v0.4.0"));
+    expect(await check.notice()).toBeNull();
     await writeFile(
       file,
       JSON.stringify({ checked_at: NOW - 25 * HOUR, latest: "0.3.5", url: URL_ }),
     );
     expect(await check.notice()).toContain("0.3.5 is available");
-    expect(await check.notice()).toContain("0.3.5 is available");
-    await check.whenIdle();
-    expect(fetchFn.calls).toHaveLength(1);
-    expect(await check.notice()).toContain("0.4.0 is available");
-    expect(fetchFn.calls).toHaveLength(1);
-  });
-
-  it("notice() starts a check when there is no cache", async () => {
-    const { check, fetchFn } = await setup(release("v0.4.0"));
-    expect(await check.notice()).toBeNull();
-    await check.whenIdle();
-    expect(fetchFn.calls).toHaveLength(1);
-    expect(await check.notice()).toContain("0.4.0 is available");
-  });
-
-  it("notice() makes no request when the cache is fresh", async () => {
-    const { check, fetchFn, file } = await setup(release("v0.4.0"));
-    await writeFile(file, JSON.stringify({ checked_at: NOW - HOUR, latest: "0.3.5", url: URL_ }));
-    await check.notice();
     await check.whenIdle();
     expect(fetchFn.calls).toHaveLength(0);
   });
@@ -150,6 +140,55 @@ describe("VersionCheck", () => {
     await writeFile(file, JSON.stringify(old));
     expect(await run(check)).toContain("0.3.5 is available");
     expect(JSON.parse(await readFile(file, "utf8"))).toEqual(old);
+  });
+});
+
+describe("schedule", () => {
+  // Only setTimeout is faked: the check does real file I/O, which fake timers cannot advance.
+  const fakeTimers = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+  it("retries a failed check after one hour, not before", async () => {
+    fakeTimers();
+    let fail = true;
+    const { check, clock, fetchFn } = await setup(() =>
+      fail ? new Response("", { status: 404 }) : release("v0.4.0")(),
+    );
+    check.start();
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(1);
+    fail = false;
+    await vi.advanceTimersByTimeAsync(HOUR - 1000);
+    expect(fetchFn.calls).toHaveLength(1);
+    clock.now += HOUR;
+    await vi.advanceTimersByTimeAsync(1000);
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(2);
+    expect(await check.notice()).toContain("0.4.0 is available");
+  });
+
+  it("re-checks a day after a successful check, not before", async () => {
+    fakeTimers();
+    const { check, clock, fetchFn } = await setup(release("v0.4.0"));
+    check.start();
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(24 * HOUR - 1000);
+    expect(fetchFn.calls).toHaveLength(1);
+    clock.now += 24 * HOUR;
+    await vi.advanceTimersByTimeAsync(1000);
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(2);
+  });
+
+  it("stop() cancels the next check", async () => {
+    fakeTimers();
+    const { check, clock, fetchFn } = await setup(release("v0.4.0"));
+    check.start();
+    await check.whenIdle();
+    check.stop();
+    clock.now += 25 * HOUR;
+    await vi.advanceTimersByTimeAsync(25 * HOUR);
+    expect(fetchFn.calls).toHaveLength(1);
   });
 });
 

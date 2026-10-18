@@ -48,6 +48,7 @@ export function registerJournalTools(
         "wrong or out of date; warnings explain missing folders and stalled Syncthing sync.",
     },
     wrap(async () => {
+      // The update notice is read from the cache only, so this tool stays read-only.
       const status = await deps.journal.status();
       const update = await deps.update?.();
       return update ? { ...status, warnings: [...status.warnings, update] } : status;

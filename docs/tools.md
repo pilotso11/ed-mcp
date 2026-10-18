@@ -294,7 +294,7 @@ Results:
 | `frontier_login` | `true` when a Frontier login is saved.                                                          |
 | `conflicts`      | Conflict copies that the sync service made. Keep the copy that you want and delete the other.   |
 | `notes`          | Settings that look mismatched between Claude apps on this computer, with what to do.            |
-| `update`         | A line about a newer ed-mcp release, or `null` when you have the latest.                        |
+| `update`         | A line about a newer ed-mcp release, or `null` when no newer release is known.                      |
 
 A key set in the environment (the settings form or `-e`) wins over a saved key.
 
