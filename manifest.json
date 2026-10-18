@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "ed-mcp",
   "display_name": "Elite Dangerous build planner",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Elite Dangerous tools for Claude: Inara, EDSM, Frontier CAPI, Spansh, game data, SLEF builds and engineering plans.",
   "author": { "name": "Seth Osher", "url": "https://github.com/pilotso11" },
   "repository": { "type": "git", "url": "https://github.com/pilotso11/ed-mcp.git" },
