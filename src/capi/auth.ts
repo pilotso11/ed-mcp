@@ -299,8 +299,11 @@ export class CapiAuth {
       // Another process may have rotated the refresh token, which invalidates the one we sent.
       const latest = await this.tokens.load();
       if (!retried && latest && latest.refresh_token !== t.refresh_token) {
-        if (latest.access_token && latest.expires_at - 60_000 > this.now())
+        if (latest.access_token && latest.expires_at - 60_000 > this.now()) {
+          if (session !== this.session)
+            throw new UserError("Logged out while the login was refreshing.");
           return latest.access_token;
+        }
         return this.refresh(cfg, latest, session, true);
       }
       // A stale copy from the sync folder must not delete the login the other computer holds.

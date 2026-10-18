@@ -22,7 +22,7 @@ const EnvelopeSchema = z.object({
   format: z.literal("ed-mcp-secrets"),
   version: z.number().int(),
   kdf: z.literal("scrypt"),
-  // Bounds stop a crafted file from making scrypt use gigabytes of memory.
+  // With the memory check in open(), these bounds stop a crafted file from making scrypt use gigabytes.
   N: z
     .number()
     .int()
@@ -73,11 +73,19 @@ export class SecretCipher {
     const env = EnvelopeSchema.safeParse(raw);
     if (!env.success) throw new SecretsError("not an ed-mcp secrets file");
     const e = env.data;
-    if (e.version !== 1) throw new SecretsError(`made by a newer ed-mcp (version ${e.version})`);
+    if (e.version !== 1) {
+      throw new SecretsError(
+        e.version > 1
+          ? `made by a newer ed-mcp (version ${e.version})`
+          : `unknown version ${e.version}`,
+      );
+    }
     if (128 * e.N * e.r >= SCRYPT_MAXMEM) throw new SecretsError("not an ed-mcp secrets file");
     const key = this.key(e.salt, { N: e.N, r: e.r, p: e.p });
     try {
-      const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(e.iv, "base64"));
+      const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(e.iv, "base64"), {
+        authTagLength: 16,
+      });
       decipher.setAuthTag(Buffer.from(e.tag, "base64"));
       const plaintext = Buffer.concat([
         decipher.update(Buffer.from(e.data, "base64")),

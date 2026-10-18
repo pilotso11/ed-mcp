@@ -43,4 +43,18 @@ describe("SyncFolder", () => {
       "Sync conflict: preferences (1).json exists next to preferences.json. Compare them and delete the copy you don't want.",
     ]);
   });
+
+  it("treats a name that starts with two dots as inside the folder", () => {
+    const s = new SyncFolder("/sync");
+    expect(s.contains(path.resolve("/sync/..plans.json"))).toBe(true);
+    expect(s.contains(path.resolve("/sync/.."))).toBe(false);
+  });
+
+  it("fails clearly when the path is a file", async () => {
+    const file = path.join(await mkdtemp(path.join(os.tmpdir(), "sync-")), "file");
+    await writeFile(file, "x");
+    await expect(new SyncFolder(file).check()).rejects.toThrow(
+      `Sync folder ${file} is not available: it is not a folder.`,
+    );
+  });
 });

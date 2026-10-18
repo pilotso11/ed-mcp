@@ -418,6 +418,29 @@ describe("CapiAuth tokens", () => {
     expect(await tokens.load()).toMatchObject({ refresh_token: "R10" });
   });
 
+  it("does not return a rotated access token after a logout during the refresh", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let logout!: () => Promise<void>;
+    const { auth } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await logout();
+          // Another computer logs in again before this refresh is rejected.
+          await tokens.save({
+            refresh_token: "R9",
+            access_token: "A9",
+            expires_at: t + DAY,
+            authorized_at: t,
+          });
+          return new Response("", { status: 400 });
+        },
+      },
+    ]);
+    logout = () => auth.logout();
+    await expect(auth.accessToken()).rejects.toThrow("Logged out while the login was refreshing.");
+  });
+
   it("does not restore the old refresh token when invalidate runs during a refresh", async () => {
     await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
     let release!: () => void;

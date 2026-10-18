@@ -29,7 +29,7 @@ export class SyncFolder {
 
   contains(file: string): boolean {
     const rel = path.relative(this.dir, path.resolve(file));
-    return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+    return rel !== "" && rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
   }
 
   // No fallback to the local folder: writing there while the sync app is down would split

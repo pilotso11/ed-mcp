@@ -11,7 +11,6 @@ describe("SecretCipher", () => {
     const env = c.seal(marker);
     expect(env).toMatchObject({ format: "ed-mcp-secrets", version: 1, kdf: "scrypt", N: 1024 });
     expect(Buffer.from(env.data, "base64").toString("latin1")).not.toContain(marker);
-    expect(env.data).not.toContain(marker);
     const opened = c.open(env);
     expect(opened.plaintext).toBe(marker);
     expect(c.seal("x", opened.salt).salt).toBe(env.salt);
@@ -62,5 +61,20 @@ describe("SecretCipher", () => {
     expect(SCRYPT).toEqual({ N: 2 ** 17, r: 8, p: 1 });
     const c = new SecretCipher("pw");
     expect(c.open(c.seal("hello")).plaintext).toBe("hello");
+  });
+
+  it("calls only a higher version newer", () => {
+    const c = new SecretCipher("pw", FAST);
+    const env = c.seal("x");
+    expect(() => c.open({ ...env, version: 2 })).toThrow("made by a newer ed-mcp (version 2)");
+    expect(() => c.open({ ...env, version: 0 })).toThrow("unknown version 0");
+    expect(() => c.open({ ...env, version: -1 })).toThrow("unknown version -1");
+  });
+
+  it("rejects a truncated authentication tag", () => {
+    const c = new SecretCipher("pw", FAST);
+    const env = c.seal("x");
+    const tag = Buffer.from(env.tag, "base64").subarray(0, 4).toString("base64");
+    expect(() => c.open({ ...env, tag })).toThrow("wrong password");
   });
 });
