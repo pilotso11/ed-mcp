@@ -48,6 +48,9 @@ export function buildDeps(
     guard: guardFor(config.plansFile),
     markdownDir: config.plansMarkdownDir,
   });
+  const legacyPlans = config.legacyPlansEnv
+    ? `ED_MCP_PLANS is no longer used. Plans are now in ${config.plansFile}. Move your old plans file there, or use plan_import, then remove ED_MCP_PLANS.`
+    : undefined;
   const syncWarnings = sync
     ? () => sync.warnings([config.plansFile, config.prefsFile, config.secretsFile])
     : undefined;
@@ -101,7 +104,11 @@ export function buildDeps(
     plans,
     planWarnings: async () => {
       const problem = await plans.markdownProblem();
-      return [...((await syncWarnings?.()) ?? []), ...(problem ? [problem] : [])];
+      return [
+        ...((await syncWarnings?.()) ?? []),
+        ...(problem ? [problem] : []),
+        ...(legacyPlans ? [legacyPlans] : []),
+      ];
     },
     prefs: new PreferencesStore(config.prefsFile, {
       lockDir: lockFor(config.prefsFile),
@@ -109,6 +116,7 @@ export function buildDeps(
     }),
     sync,
     syncWarnings,
+    notes: legacyPlans ? [legacyPlans] : [],
     localDir: config.configDir,
   };
 }

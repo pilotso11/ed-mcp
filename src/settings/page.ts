@@ -201,7 +201,7 @@ export class SettingsPage {
       `<label>Commander name <input type="text" name="${s}_cmdr" value="${esc(stored[s]?.cmdr ?? "")}"></label>` +
       `<label><input type="checkbox" name="clear_${s}"> Forget the saved ${title} key</label></fieldset>`;
     return (
-      `<h1>ed-mcp settings</h1><form method="post" action="/save">${k}` +
+      `<h1>ed-mcp settings</h1><form method="post" action="/save">${k}${shared}` +
       section("inara", "Inara", sources.inara) +
       section("edsm", "EDSM", sources.edsm) +
       `<button>Save</button></form>`

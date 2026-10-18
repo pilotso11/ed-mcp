@@ -285,6 +285,23 @@ describe("PlanStore in a sync folder", () => {
     expect(await s.markdownProblem()).toBe(`Plan copies were not written: ${md} is not a folder.`);
   });
 
+  it("reports a failed copy until a later copy succeeds", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    // A non-empty folder where the copy belongs makes the rename fail.
+    await mkdir(path.join(md, "corsair.md"), { recursive: true });
+    await writeFile(path.join(md, "corsair.md", "x"), "x");
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    expect(await s.markdownProblem()).toBeNull();
+    await s.upsert(plan);
+    const problem = await s.markdownProblem();
+    expect(problem).toContain(`Plan copies could not be written to ${md}: `);
+    await rm(path.join(md, "corsair.md"), { recursive: true });
+    await s.upsert(plan);
+    expect(await s.markdownProblem()).toBeNull();
+    expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+  });
+
   it("removes only the copy of a deleted plan, keeping notes and conflict copies", async () => {
     const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
     const md = path.join(d, "plans");

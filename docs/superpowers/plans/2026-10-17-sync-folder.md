@@ -10,6 +10,8 @@
 
 Spec: `docs/superpowers/specs/2026-10-17-sync-folder-design.md`.
 
+> **Decisions changed after this plan was written** (see the spec, which matches the build): `ED_MCP_PLANS` was removed; the secrets migration code was removed; Markdown plan copies are written in every mode; the sync password needs 12+ characters; scrypt uses N = 2^17.
+
 ## Global Constraints
 
 - No new npm dependencies.

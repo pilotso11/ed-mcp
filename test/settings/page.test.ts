@@ -234,4 +234,20 @@ describe("SettingsPage", () => {
       expect(html.split(warning).length - 1).toBe(inSyncFolder ? 2 : 0);
     }
   });
+
+  it("warns on the main form when the file is in a sync folder", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "page-"));
+    const secrets = new SecretStore(path.join(dir, "s.enc"), { password: "pw", scrypt: FAST });
+    const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
+    const warning = "This changes the secrets for every computer that shares the sync folder.";
+    for (const inSyncFolder of [true, false]) {
+      const page = new SettingsPage(
+        { secrets, settings },
+        { openUrl: async () => undefined, inSyncFolder },
+      );
+      const html = await (await fetch((await page.open()).url)).text();
+      expect(html).toContain('action="/save"');
+      expect(html.includes(warning)).toBe(inSyncFolder);
+    }
+  });
 });

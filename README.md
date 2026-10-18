@@ -162,6 +162,8 @@ Keys that you save on the settings page are then shared by both apps, with no re
 
 Newer versions keep your Frontier login with your other secrets. They do not move a login or keys from version 0.3. Run `capi_login` again, and enter your keys again, either on the settings page or in the environment as before. Then delete the old `capi-token.json` from the settings folder.
 
+The `ED_MCP_PLANS` setting is no longer used. Plans are now in `plans.json` in the settings folder, or in the sync folder when one is set. Move your old plans file there, or use `plan_import`, then remove `ED_MCP_PLANS`.
+
 ## Preferences
 
 ed-mcp ranks stations by travel time and price. Your preferences control which stations it uses. To change a preference, tell Claude, for example "Avoid surface stations" or "My time is worth 50M credits an hour". The change stays for future sessions. For one question only, say so: "Just this once, include fleet carriers."

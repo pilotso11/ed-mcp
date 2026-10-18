@@ -159,7 +159,7 @@ describe("SecretStore", () => {
       s.update((d) => {
         d.inara = { apiKey: "", cmdr: "A" };
       }),
-    ).rejects.toThrow(new RegExp(`${file} would be invalid`));
+    ).rejects.toThrow(`${file} would be invalid`);
   });
 
   it("re-encrypts with the current password given the old one", async () => {

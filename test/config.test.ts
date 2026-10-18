@@ -21,6 +21,19 @@ describe("loadConfig", () => {
     );
   });
 
+  it("records ED_MCP_PLANS, which is no longer used, but not an unset placeholder", () => {
+    expect(loadConfig({ ED_MCP_PLANS: "/old/plans.json" }, dirs).legacyPlansEnv).toBe(
+      "/old/plans.json",
+    );
+    expect(
+      loadConfig({ ED_MCP_PLANS: "${user_config.plans}" }, dirs).legacyPlansEnv,
+    ).toBeUndefined();
+    expect(loadConfig({}, dirs).legacyPlansEnv).toBeUndefined();
+    expect(loadConfig({ ED_MCP_PLANS: "/old/plans.json" }, dirs).plansFile).toBe(
+      path.join("/cfg", "plans.json"),
+    );
+  });
+
   it("reads ED_JOURNAL_DIR and the Windows default", () => {
     // An absolute POSIX path resolves against the current drive on Windows.
     expect(loadConfig({ ED_JOURNAL_DIR: "/j" }, dirs).journalDir).toBe(path.resolve("/j"));

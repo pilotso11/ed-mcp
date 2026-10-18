@@ -29,6 +29,16 @@ describe("buildDeps", () => {
     );
   });
 
+  it("adds the ED_MCP_PLANS notice to plan tool results", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+    const config = loadConfig({ ED_MCP_PLANS: "/old/plans.json" }, { config: dir, cache: dir });
+    const client = await connectTestClient(createServer(buildDeps(config)));
+    const r = await client.callTool({ name: "plan_list", arguments: {} });
+    const texts = (r.content as { text: string }[]).map((c) => c.text);
+    expect(texts.some((t) => t.includes(`Plans are now in ${config.plansFile}.`))).toBe(true);
+    expect(texts.some((t) => t.includes("ED_MCP_PLANS is no longer used."))).toBe(true);
+  });
+
   it("lists a long-lived Spansh system cache in cache_status", async () => {
     const dir = path.join(os.tmpdir(), "ed-mcp-deps");
     const deps = buildDeps(loadConfig({}, { config: dir, cache: dir }));

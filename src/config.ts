@@ -30,6 +30,8 @@ export interface Config {
   syncDir?: string;
   syncPassword?: string;
   plansFile: string;
+  /** Raw ED_MCP_PLANS, which is no longer used; kept so the user can be told. */
+  legacyPlansEnv?: string;
   /** Readable Markdown copies of the plans, next to plans.json. */
   plansMarkdownDir: string;
   prefsFile: string;
@@ -124,6 +126,7 @@ export function loadConfig(
     syncDir,
     syncPassword,
     plansFile: path.join(dataDir, "plans.json"),
+    legacyPlansEnv: get(env, "ED_MCP_PLANS"),
     plansMarkdownDir: path.join(dataDir, "plans"),
     prefsFile: path.join(dataDir, "preferences.json"),
     secretsFile: syncPassword

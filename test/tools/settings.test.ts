@@ -94,6 +94,7 @@ describe("settings tools", () => {
     localFiles?: string[];
     syncFiles?: string[];
     saveKey?: boolean;
+    env?: Record<string, string>;
   }) {
     const base = await mkdtemp(path.join(os.tmpdir(), "settings-notes-"));
     const syncDir = path.join(base, "sync");
@@ -106,6 +107,7 @@ describe("settings tools", () => {
       {
         ...(opts.sync ? { ED_MCP_SYNC_DIR: syncDir } : {}),
         ...(opts.password ? { ED_MCP_SYNC_PASSWORD: opts.password } : {}),
+        ...opts.env,
       },
       { config: localDir, cache: path.join(base, "cache") },
     );
@@ -122,10 +124,18 @@ describe("settings tools", () => {
       secrets: deps.secrets!,
       sync: deps.sync,
       localDir: deps.localDir,
+      notes: deps.notes,
     });
     const r = await callTool(await connectTestClient(server), "settings_status");
     return { notes: (r.json as { notes: string[] }).notes, localDir, syncDir };
   }
+
+  it("notes that ED_MCP_PLANS is no longer used", async () => {
+    const { notes, localDir } = await noteSetup({ env: { ED_MCP_PLANS: "/old/plans.json" } });
+    expect(notes).toEqual([
+      `ED_MCP_PLANS is no longer used. Plans are now in ${path.join(localDir, "plans.json")}. Move your old plans file there, or use plan_import, then remove ED_MCP_PLANS.`,
+    ]);
+  });
 
   it("notes data left in the settings folder when a sync folder is set", async () => {
     const { notes, localDir } = await noteSetup({

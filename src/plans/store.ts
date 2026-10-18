@@ -27,6 +27,7 @@ export interface PlanSummary {
 const LOCK_TIMEOUT_MS = 5000;
 
 export class PlanStore {
+  private lastCopyError: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
 
   private readonly lockTimeoutMs: number;
@@ -188,6 +189,16 @@ export class PlanStore {
   async markdownProblem(): Promise<string | null> {
     const dir = this.markdownDir;
     if (!dir) return null;
+    const fixed = await this.directoryProblem();
+    if (fixed) return fixed;
+    return this.lastCopyError === null
+      ? null
+      : `Plan copies could not be written to ${dir}: ${this.lastCopyError}.`;
+  }
+
+  private async directoryProblem(): Promise<string | null> {
+    const dir = this.markdownDir;
+    if (!dir) return null;
     let st;
     try {
       st = await lstat(dir);
@@ -205,7 +216,7 @@ export class PlanStore {
     const dir = this.markdownDir!;
     try {
       await mkdir(dir, { recursive: true });
-      const problem = await this.markdownProblem();
+      const problem = await this.directoryProblem();
       if (problem) {
         console.error(problem);
         return;
@@ -233,7 +244,9 @@ export class PlanStore {
         const st = await lstat(file).catch(() => null);
         if (st?.isFile()) await rm(file, { force: true });
       }
+      this.lastCopyError = null;
     } catch (err) {
+      this.lastCopyError = (err as Error).message;
       // The plan itself is saved; a failed copy must not fail the tool call.
       console.error(`Could not write Markdown plan copies to ${dir}: ${(err as Error).message}`);
     }

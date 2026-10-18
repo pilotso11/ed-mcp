@@ -31,6 +31,8 @@ export function registerSettingsTools(
     syncWarnings?: () => Promise<string[]>;
     /** The per-computer settings folder, checked for data another Claude app left there. */
     localDir?: string;
+    /** Fixed notes to show in settings_status, such as an environment variable that is no longer used. */
+    notes?: string[];
   },
 ): void {
   server.registerTool(
@@ -107,7 +109,7 @@ export function registerSettingsTools(
         secretsError = err.message;
       }
       const sources = await deps.settings.sources();
-      const notes: string[] = [];
+      const notes: string[] = [...(deps.notes ?? [])];
       if (
         deps.sync &&
         deps.localDir &&
