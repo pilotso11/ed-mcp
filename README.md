@@ -214,6 +214,8 @@ The files are in these folders:
 
 ed-mcp sends your API keys only to the service that they belong to. On first use, it downloads game data from the coriolis-data and FDevIDs projects on GitHub: modules, blueprints and materials, and the ship and module data for build statistics. Then it looks for new versions once a week. To get new data at once, ask Claude to refresh the game data.
 
+ed-mcp checks GitHub once a day for a newer release and tells Claude when one is available.
+
 ## More information
 
 - [Tool reference](docs/tools.md): what each tool does, its inputs and its results.

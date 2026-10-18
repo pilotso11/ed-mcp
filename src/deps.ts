@@ -18,6 +18,7 @@ import { SyncFolder } from "./settings/sync.js";
 import { Settings } from "./settings/settings.js";
 import { SettingsPage } from "./settings/page.js";
 import { VERSION } from "./version.js";
+import { VersionCheck } from "./version/check.js";
 
 const envKey = (c: { apiKey: string; cmdr: string } | undefined) =>
   c ? { apiKey: c.apiKey, cmdr: c.cmdr } : undefined;
@@ -116,6 +117,7 @@ export function buildDeps(
     }),
     sync,
     syncWarnings,
+    versionCheck: new VersionCheck({ http, cacheDir: config.cacheDir, current: VERSION }),
     notes: legacyPlans ? [legacyPlans] : [],
     localDir: config.configDir,
   };

@@ -294,6 +294,7 @@ Results:
 | `frontier_login` | `true` when a Frontier login is saved.                                                          |
 | `conflicts`      | Conflict copies that the sync service made. Keep the copy that you want and delete the other.   |
 | `notes`          | Settings that look mismatched between Claude apps on this computer, with what to do.            |
+| `update`         | A line about a newer ed-mcp release, or `null` when you have the latest.                        |
 
 A key set in the environment (the settings form or `-e`) wins over a saved key.
 
@@ -303,7 +304,7 @@ The server reads the journal files from the last 14 days, plus `Cargo.json` for 
 
 Tools:
 
-- `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems. Run it first when journal data looks wrong.
+- `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems, and also tells you when a newer ed-mcp release is available. Run it first when journal data looks wrong.
 - `journal_commander`: commander name, credits, location, ship and cargo.
 - `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
 - `journal_missions`: accepted missions (active and complete) with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.

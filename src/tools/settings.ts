@@ -33,6 +33,8 @@ export function registerSettingsTools(
     localDir?: string;
     /** Fixed notes to show in settings_status, such as an environment variable that is no longer used. */
     notes?: string[];
+    /** Returns a line about a newer ed-mcp release, or null. */
+    update?: () => Promise<string | null>;
   },
 ): void {
   server.registerTool(
@@ -153,6 +155,7 @@ export function registerSettingsTools(
         frontier_login: frontier,
         conflicts: (await deps.syncWarnings?.()) ?? [],
         notes,
+        update: (await deps.update?.()) ?? null,
       };
     }),
   );

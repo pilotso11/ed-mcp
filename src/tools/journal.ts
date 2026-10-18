@@ -25,7 +25,12 @@ const freshness = (s: {
 
 export function registerJournalTools(
   server: McpServer,
-  deps: { journal: JournalService; catalog?: CatalogService },
+  deps: {
+    journal: JournalService;
+    catalog?: CatalogService;
+    /** Returns a line about a newer ed-mcp release, or null. */
+    update?: () => Promise<string | null>;
+  },
 ): void {
   server.registerTool(
     "journal_status",
@@ -42,7 +47,11 @@ export function registerJournalTools(
         "its last event is, the commander and game version. Use it first when journal data looks " +
         "wrong or out of date; warnings explain missing folders and stalled Syncthing sync.",
     },
-    wrap(async () => deps.journal.status()),
+    wrap(async () => {
+      const status = await deps.journal.status();
+      const update = await deps.update?.();
+      return update ? { ...status, warnings: [...status.warnings, update] } : status;
+    }),
   );
 
   server.registerTool(
