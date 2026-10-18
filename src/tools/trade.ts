@@ -93,6 +93,13 @@ export function registerTradeTools(
   server.registerTool(
     "trade_route",
     {
+      annotations: {
+        title: "Find Trade Route",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Plan a multi-hop trade run with the Spansh trade planner and rank it by profit per hour. " +
         "Starts at from_system/from_station, or the docked station from the game journal. Cargo and capital " +
@@ -270,6 +277,13 @@ export function registerTradeTools(
   server.registerTool(
     "commodity_prices",
     {
+      annotations: {
+        title: "Commodity Prices",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Find the best stations near a system to sell or buy one commodity, from Spansh market data, " +
         "filtered and ranked with the commander's travel preferences. Stations show price, demand (sell) or " +

@@ -30,6 +30,13 @@ export function registerJournalTools(
   server.registerTool(
     "journal_status",
     {
+      annotations: {
+        title: "Journal Status",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Check the Elite Dangerous journal folder: whether it exists, the newest journal and how old " +
         "its last event is, the commander and game version. Use it first when journal data looks " +
@@ -41,6 +48,13 @@ export function registerJournalTools(
   server.registerTool(
     "journal_commander",
     {
+      annotations: {
+        title: "Journal Commander",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "The commander's current state from the local game journal: name, credits, location " +
         "(system, station, docked), ship (type, name, jump range, cargo and fuel capacity) and cargo. " +
@@ -62,6 +76,13 @@ export function registerJournalTools(
   server.registerTool(
     "journal_materials",
     {
+      annotations: {
+        title: "Journal Materials",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Engineering materials the commander holds, from the local game journal, by kind (raw, " +
         "manufactured, encoded) with counts. Pass kinds to limit the result. " +
@@ -92,6 +113,13 @@ export function registerJournalTools(
   server.registerTool(
     "journal_missions",
     {
+      annotations: {
+        title: "Journal Missions",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Accepted missions (active and complete) from the local game journal: destination, expiry, reward and passenger or " +
         "cargo details, soonest expiry first. status is active or complete (objectives met, not handed in). " +
@@ -115,6 +143,13 @@ export function registerJournalTools(
   server.registerTool(
     "journal_engineers",
     {
+      annotations: {
+        title: "Journal Engineers",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Engineer progress from the local game journal: invited, unlocked or known, with rank and " +
         "rank progress. " +

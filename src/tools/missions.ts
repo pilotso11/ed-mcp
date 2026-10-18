@@ -29,6 +29,13 @@ export function registerMissionTools(
   server.registerTool(
     "missions_route",
     {
+      annotations: {
+        title: "Plan Mission Route",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Order the stops for accepted missions (from the game journal): passengers, deliveries and " +
         "hand-ins for completed missions. Uses Spansh coordinates and the travel-time model to minimise " +

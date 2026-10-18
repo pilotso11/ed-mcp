@@ -120,6 +120,13 @@ export function registerLoopTools(
   server.registerTool(
     "trade_loops",
     {
+      annotations: {
+        title: "Find Trade Loops",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         'Find repeatable trade loops: two or three stations, where a leg can run empty. start "here" (default) ' +
         'finds loops through your docked station; start "any" finds the best loops anywhere within radius_ly of ' +

@@ -34,6 +34,13 @@ export function registerMaterialsTools(
   server.registerTool(
     "materials_plan",
     {
+      annotations: {
+        title: "Plan Materials",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Plan engineering materials: needs for blueprints (grades, rolls, experimentals) and extra materials, " +
         "compared with the commander's inventory (journal or EDSM), trades from surplus at exact material " +

@@ -9,6 +9,13 @@ export function registerBuildTools(server: McpServer, deps: { catalog?: CatalogS
   server.registerTool(
     "build_parse_slef",
     {
+      annotations: {
+        title: "Parse SLEF Build",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Parse a SLEF ship build (export from EDSY, Coriolis or Inara) into slots, modules, " +
         "blueprints, grades and experimental effects. Module names, class and rating are resolved " +

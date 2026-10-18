@@ -73,6 +73,13 @@ export function registerRouteTools(
   server.registerTool(
     "route_stops",
     {
+      annotations: {
+        title: "Plan Route Stops",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Order the stops for a build: shops, material traders and engineers, from a plan (plan_id) or a list (stops). " +
         "Uses Spansh coordinates and the travel-time model. For each engineer stop, set `after` to the shops and " +

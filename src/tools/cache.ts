@@ -19,6 +19,13 @@ export function registerCacheTools(
   server.registerTool(
     "cache_refresh",
     {
+      annotations: {
+        title: "Refresh Cache",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       description:
         "Clear cached data so the next call fetches fresh data. source: a source name or 'all' (default). " +
         "For 'catalog' and 'ships' this also checks upstream for new game data.",
@@ -60,6 +67,13 @@ export function registerCacheTools(
   server.registerTool(
     "cache_status",
     {
+      annotations: {
+        title: "Cache Status",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Show cached entries and their age per source, and the catalog and ship data versions.",
     },

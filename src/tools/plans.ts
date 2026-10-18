@@ -27,19 +27,45 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
 
   server.registerTool(
     "plan_list",
-    { description: "List saved build plans with item counts and progress." },
+    {
+      annotations: {
+        title: "List Plans",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      description: "List saved build plans with item counts and progress.",
+    },
     wrap(async () => plans.list()),
   );
 
   server.registerTool(
     "plan_get",
-    { description: "Get a saved plan by id.", inputSchema: { id: z.string() } },
+    {
+      annotations: {
+        title: "Get Plan",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      description: "Get a saved plan by id.",
+      inputSchema: { id: z.string() },
+    },
     wrap(async ({ id }: { id: string }) => plans.get(id)),
   );
 
   server.registerTool(
     "plan_upsert",
     {
+      annotations: {
+        title: "Save Plan",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Create or replace a build plan. Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision); " +
         "stops are the places to visit (optionally with label, kind and after rules); route is the saved visiting order. Replacing keeps created_at.",
@@ -51,6 +77,13 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
   server.registerTool(
     "plan_update_item",
     {
+      annotations: {
+        title: "Update Plan Item",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description: "Set the status and/or notes of one plan item.",
       inputSchema: {
         plan_id: z.string(),
@@ -76,7 +109,17 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
 
   server.registerTool(
     "plan_delete",
-    { description: "Delete a saved plan.", inputSchema: { id: z.string() } },
+    {
+      annotations: {
+        title: "Delete Plan",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      description: "Delete a saved plan.",
+      inputSchema: { id: z.string() },
+    },
     wrap(async ({ id }: { id: string }) => {
       await plans.delete(id);
       return { deleted: id };
@@ -86,6 +129,13 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
   server.registerTool(
     "plan_export",
     {
+      annotations: {
+        title: "Export Plan",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Export a plan as Markdown (default) or JSON. Without path, returns the text (markdown) or the plan (json). " +
         "With path (absolute or ~/...), writes the file. A JSON file can be loaded again with plan_import.",
@@ -134,6 +184,13 @@ export function registerPlanTools(server: McpServer, deps: { plans: PlanStore })
   server.registerTool(
     "plan_import",
     {
+      annotations: {
+        title: "Import Plan",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Load a plan from a JSON file written by plan_export (absolute or ~/... path). " +
         "id replaces the id in the file. Refuses to replace an existing plan unless overwrite is true.",
