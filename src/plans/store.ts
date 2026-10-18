@@ -1,7 +1,11 @@
-import { readFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
+import { MAX_DATA_FILE, unsafeFileReason } from "../fs/regular.js";
+import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
   PlanInputSchema,
@@ -23,16 +27,28 @@ export interface PlanSummary {
 const LOCK_TIMEOUT_MS = 5000;
 
 export class PlanStore {
+  private lastCopyError: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
 
   private readonly lockTimeoutMs: number;
+  private readonly lockDir?: string;
+  private readonly guard?: () => Promise<void>;
+  private readonly markdownDir?: string;
 
   constructor(
     readonly file: string,
     private readonly now: () => Date = () => new Date(),
-    opts: { lockTimeoutMs?: number } = {},
+    opts: {
+      lockTimeoutMs?: number;
+      lockDir?: string;
+      guard?: () => Promise<void>;
+      markdownDir?: string;
+    } = {},
   ) {
     this.lockTimeoutMs = opts.lockTimeoutMs ?? LOCK_TIMEOUT_MS;
+    this.lockDir = opts.lockDir;
+    this.guard = opts.guard;
+    this.markdownDir = opts.markdownDir;
   }
 
   async list(): Promise<PlanSummary[]> {
@@ -108,12 +124,17 @@ export class PlanStore {
   }
 
   private async read(): Promise<PlanFile> {
+    await this.guard?.();
+    const unsafe = await unsafeFileReason(this.file, MAX_DATA_FILE);
+    if (unsafe) throw new UserError(`Plan file ${this.file} is invalid: ${unsafe}`);
     let raw: string;
     try {
       raw = await readFile(this.file, "utf8");
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return { version: 1, plans: [] };
-      throw err;
+      throw new UserError(
+        `Plan file ${this.file} is invalid: not readable (${(err as NodeJS.ErrnoException).code ?? "unknown error"})`,
+      );
     }
     let json: unknown;
     try {
@@ -131,21 +152,105 @@ export class PlanStore {
   // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
   // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
   private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
-    const run = this.queue.then(() =>
-      lockedWrite(
+    const run = this.queue.then(async () => {
+      // lockedWrite creates the parent folder, so check before it, not only inside it.
+      await this.guard?.();
+      let latest: PlanFile | null = null;
+      let before: string[] = [];
+      const result = await lockedWrite(
         this.file,
         {
           timeoutMs: this.lockTimeoutMs,
+          lockDir: this.lockDir,
           lockedMessage: "Plan file is locked by another process; try again",
         },
         async () => {
           const data = await this.read();
+          before = data.plans.map((p) => p.id);
           const result = fn(data);
-          return { content: JSON.stringify(data, null, 2), result };
+          latest = data;
+          const content = JSON.stringify(data, null, 2);
+          if (Buffer.byteLength(content) > MAX_DATA_FILE) {
+            throw new UserError(
+              "Plans file would be larger than 8 MB; delete plans or shorten notes first.",
+            );
+          }
+          return { content, result };
         },
-      ),
-    );
+      );
+      if (latest && this.markdownDir) await this.writeMarkdown(latest, before);
+      return result;
+    });
     this.queue = run.catch(() => undefined);
     return run;
   }
+
+  /** Why the Markdown copies are not being written, or null when they are fine. */
+  async markdownProblem(): Promise<string | null> {
+    const dir = this.markdownDir;
+    if (!dir) return null;
+    const fixed = await this.directoryProblem();
+    if (fixed) return fixed;
+    return this.lastCopyError === null
+      ? null
+      : `Plan copies could not be written to ${dir}: ${this.lastCopyError}.`;
+  }
+
+  private async directoryProblem(): Promise<string | null> {
+    const dir = this.markdownDir;
+    if (!dir) return null;
+    let st;
+    try {
+      st = await lstat(dir);
+    } catch {
+      return null;
+    }
+    if (st.isSymbolicLink()) return `Plan copies were not written: ${dir} is a symbolic link.`;
+    if (!st.isDirectory()) return `Plan copies were not written: ${dir} is not a folder.`;
+    return null;
+  }
+
+  // Claude on mobile can read these through the Google Drive connector; they are copies only.
+  // The sync folder may be shared, so nothing here follows a link or deletes a file we did not write.
+  private async writeMarkdown(data: PlanFile, before: string[]): Promise<void> {
+    const dir = this.markdownDir!;
+    try {
+      await mkdir(dir, { recursive: true });
+      const problem = await this.directoryProblem();
+      if (problem) {
+        console.error(problem);
+        return;
+      }
+      const keep = new Set<string>();
+      for (const p of data.plans) {
+        const name = `${p.id}.md`;
+        keep.add(name);
+        // A temp file renamed over the target replaces a planted symlink instead of writing through it.
+        const tmp = path.join(dir, `${name}.${randomBytes(6).toString("hex")}.tmp`);
+        try {
+          await writeFile(tmp, planToMarkdown(p), { flag: "wx" });
+          await rename(tmp, path.join(dir, name));
+        } catch (err) {
+          await rm(tmp, { force: true });
+          throw err;
+        }
+      }
+      // Only copies of plans removed by this change are deleted: notes or conflict copies that
+      // other people or sync apps put in the folder are never touched.
+      for (const id of before) {
+        const n = `${id}.md`;
+        if (keep.has(n) || !PRUNABLE.test(n)) continue;
+        const file = path.join(dir, n);
+        const st = await lstat(file).catch(() => null);
+        if (st?.isFile()) await rm(file, { force: true });
+      }
+      this.lastCopyError = null;
+    } catch (err) {
+      this.lastCopyError = (err as Error).message;
+      // The plan itself is saved; a failed copy must not fail the tool call.
+      console.error(`Could not write Markdown plan copies to ${dir}: ${(err as Error).message}`);
+    }
+  }
 }
+
+const PRUNABLE = /^[a-z0-9][a-z0-9-]{0,63}\.md$/;

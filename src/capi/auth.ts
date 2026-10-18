@@ -32,6 +32,8 @@ export class CapiAuth {
   private pending: Pending | null = null;
   private failure: string | null = null;
   private refreshing: Promise<string> | null = null;
+  // Logout bumps this, so a refresh that began before it cannot write tokens back.
+  private session = 0;
   private readonly authBase: string;
   private readonly openUrl: (url: string) => Promise<void>;
   private readonly now: () => number;
@@ -203,6 +205,7 @@ export class CapiAuth {
 
   async accessToken(): Promise<string> {
     const cfg = this.requireConfig();
+    const session = this.session;
     const t = await this.tokens.load();
     if (!t) throw new UserError("Not logged in to Frontier. Call capi_login first.");
     if (this.now() - t.authorized_at > REFRESH_WINDOW) {
@@ -213,7 +216,7 @@ export class CapiAuth {
     }
     if (t.access_token && t.expires_at - 60_000 > this.now()) return t.access_token;
     // Refresh tokens rotate, so concurrent refreshes must share one request.
-    this.refreshing ??= this.refresh(cfg, t).finally(() => (this.refreshing = null));
+    this.refreshing ??= this.refresh(cfg, t, session).finally(() => (this.refreshing = null));
     return this.refreshing;
   }
 
@@ -230,6 +233,9 @@ export class CapiAuth {
   async logout(): Promise<void> {
     // A browser login finished after logout must not store tokens again.
     this.pending?.cancel();
+    this.session++;
+    // A refresh that finishes after the clear would write the tokens back.
+    await this.refreshing?.catch(() => undefined);
     await this.tokens.clear();
     this.failure = null;
     this.onSessionChange();
@@ -265,7 +271,12 @@ export class CapiAuth {
     return true;
   }
 
-  private async refresh(cfg: CapiConfig, t: StoredTokens, retried = false): Promise<string> {
+  private async refresh(
+    cfg: CapiConfig,
+    t: StoredTokens,
+    session: number,
+    retried = false,
+  ): Promise<string> {
     let res: { access_token: string; refresh_token: string; expires_in: number };
     try {
       res = await this.token({
@@ -288,15 +299,19 @@ export class CapiAuth {
       // Another process may have rotated the refresh token, which invalidates the one we sent.
       const latest = await this.tokens.load();
       if (!retried && latest && latest.refresh_token !== t.refresh_token) {
-        if (latest.access_token && latest.expires_at - 60_000 > this.now())
+        if (latest.access_token && latest.expires_at - 60_000 > this.now()) {
+          if (session !== this.session)
+            throw new UserError("Logged out while the login was refreshing.");
           return latest.access_token;
-        return this.refresh(cfg, latest, true);
+        }
+        return this.refresh(cfg, latest, session, true);
       }
-      await this.tokens.clear();
+      // A stale copy from the sync folder must not delete the login the other computer holds.
       throw new UserError(
-        `Frontier refused to refresh the login (${(err as Error).message}). Call capi_login to log in again.`,
+        `Frontier refused to refresh the login (${(err as Error).message}). If you use ed-mcp on another computer, wait for your sync app to catch up and try again; otherwise call capi_login.`,
       );
     }
+    if (session !== this.session) throw new UserError("Logged out while the login was refreshing.");
     await this.tokens.save({
       refresh_token: res.refresh_token,
       access_token: res.access_token,

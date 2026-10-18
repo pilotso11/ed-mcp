@@ -1,4 +1,3 @@
-import path from "node:path";
 import { CapiAuth } from "./capi/auth.js";
 import { CapiClient } from "./capi/client.js";
 import { TokenStore } from "./capi/tokens.js";
@@ -14,7 +13,14 @@ import { PlanStore } from "./plans/store.js";
 import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
 import type { ServerDeps } from "./server.js";
+import { SecretStore } from "./settings/secrets.js";
+import { SyncFolder } from "./settings/sync.js";
+import { Settings } from "./settings/settings.js";
+import { SettingsPage } from "./settings/page.js";
 import { VERSION } from "./version.js";
+
+const envKey = (c: { apiKey: string; cmdr: string } | undefined) =>
+  c ? { apiKey: c.apiKey, cmdr: c.cmdr } : undefined;
 
 export function buildDeps(
   config: Config,
@@ -24,12 +30,36 @@ export function buildDeps(
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
   const ships = new ShipDataService({ cacheDir: config.cacheDir, http });
+  const sync = config.syncDir ? new SyncFolder(config.syncDir) : undefined;
+  const guardFor = (file: string) => (sync?.contains(file) ? () => sync.check() : undefined);
+  const lockFor = (file: string) => (sync?.contains(file) ? config.locksDir : undefined);
+  const secrets = new SecretStore(config.secretsFile, {
+    password: config.syncPassword,
+    lockDir: lockFor(config.secretsFile),
+    guard: guardFor(config.secretsFile),
+  });
+  const settings = new Settings(
+    { inara: envKey(config.inara), edsm: envKey(config.edsm) },
+    config.inaraApp,
+    secrets,
+  );
+  const plans = new PlanStore(config.plansFile, undefined, {
+    lockDir: lockFor(config.plansFile),
+    guard: guardFor(config.plansFile),
+    markdownDir: config.plansMarkdownDir,
+  });
+  const legacyPlans = config.legacyPlansEnv
+    ? `ED_MCP_PLANS is no longer used. Plans are now in ${config.plansFile}. Move your old plans file there, or use plan_import, then remove ED_MCP_PLANS.`
+    : undefined;
+  const syncWarnings = sync
+    ? () => sync.warnings([config.plansFile, config.prefsFile, config.secretsFile])
+    : undefined;
   const inaraCache = new TtlCache<unknown>("inara", 60_000);
   caches.register(inaraCache);
-  const inara = new InaraClient(http, config.inara, inaraCache);
+  const inara = new InaraClient(http, () => settings.inara(), inaraCache);
   const edsmCache = new TtlCache<unknown>("edsm", 60_000);
   caches.register(edsmCache);
-  const edsm = new EdsmClient(http, config.edsm, edsmCache);
+  const edsm = new EdsmClient(http, () => settings.edsm(), edsmCache);
   const spanshCache = new TtlCache<unknown>("spansh", 300_000);
   caches.register(spanshCache);
   const spanshSystemCache = new TtlCache<unknown>("spansh-systems", 86_400_000);
@@ -43,12 +73,9 @@ export function buildDeps(
   const capiHttp = new HttpClient({ userAgent: `EDCD-EdMcp-${VERSION}`, fetchFn: opts.fetchFn });
   const capiCache = new TtlCache<unknown>("capi", 60_000);
   caches.register(capiCache);
-  const capiAuth = new CapiAuth(
-    capiHttp,
-    config.capi,
-    new TokenStore(path.join(config.configDir, "capi-token.json")),
-    { onSessionChange: () => void capiCache.clear() },
-  );
+  const capiAuth = new CapiAuth(capiHttp, config.capi, new TokenStore(secrets), {
+    onSessionChange: () => void capiCache.clear(),
+  });
   const capi = new CapiClient(capiHttp, capiAuth, capiCache);
   const journal = opts.journal ?? new JournalService(config.journalDir);
   return {
@@ -68,7 +95,28 @@ export function buildDeps(
     },
     jumpRange: async () => (await journal.freshShip())?.max_jump_range ?? null,
     journal,
-    plans: new PlanStore(config.plansFile),
-    prefs: new PreferencesStore(path.join(config.configDir, "preferences.json")),
+    settings,
+    secrets,
+    settingsPage: new SettingsPage(
+      { secrets, settings },
+      { inSyncFolder: !!sync?.contains(config.secretsFile) },
+    ),
+    plans,
+    planWarnings: async () => {
+      const problem = await plans.markdownProblem();
+      return [
+        ...((await syncWarnings?.()) ?? []),
+        ...(problem ? [problem] : []),
+        ...(legacyPlans ? [legacyPlans] : []),
+      ];
+    },
+    prefs: new PreferencesStore(config.prefsFile, {
+      lockDir: lockFor(config.prefsFile),
+      guard: guardFor(config.prefsFile),
+    }),
+    sync,
+    syncWarnings,
+    notes: legacyPlans ? [legacyPlans] : [],
+    localDir: config.configDir,
   };
 }

@@ -26,7 +26,18 @@ export interface Config {
   edsm?: EdsmConfig;
   capi?: CapiConfig;
   journalDir?: string;
+  inaraApp: { appName: string; devMode: boolean };
+  syncDir?: string;
+  syncPassword?: string;
   plansFile: string;
+  /** Raw ED_MCP_PLANS, which is no longer used; kept so the user can be told. */
+  legacyPlansEnv?: string;
+  /** Readable Markdown copies of the plans, next to plans.json. */
+  plansMarkdownDir: string;
+  prefsFile: string;
+  /** secrets.json (plain, this computer) or secrets.enc (encrypted, sync folder if set). */
+  secretsFile: string;
+  locksDir: string;
   cacheDir: string;
   configDir: string;
   userAgent: string;
@@ -69,6 +80,9 @@ function userPath(env: Env, key: string): string | undefined {
 // (EDMC ships its own the same way). CAPI_CLIENT_ID overrides it.
 const ED_MCP_CAPI_CLIENT_ID = "320100b9-b71e-4b8a-ab80-210f7192d330";
 
+// The file may sit in a cloud folder, so a guessable password would be cracked offline.
+const MIN_PASSWORD = 12;
+
 export function loadConfig(
   env: Env,
   dirs: { config: string; cache: string },
@@ -80,6 +94,16 @@ export function loadConfig(
   const edsmKey = get(env, "EDSM_API_KEY");
   const edsmCmdr = get(env, "EDSM_CMDR");
   const capiClientId = get(env, "CAPI_CLIENT_ID") ?? ED_MCP_CAPI_CLIENT_ID;
+  const syncDir = userPath(env, "ED_MCP_SYNC_DIR");
+  // Passwords are taken as given: leading or trailing spaces may be part of them.
+  const rawPassword = env.ED_MCP_SYNC_PASSWORD;
+  const syncPassword =
+    rawPassword && !UNSET_PLACEHOLDER.test(rawPassword.trim()) ? rawPassword : undefined;
+  if (syncPassword !== undefined && syncPassword.length < MIN_PASSWORD) {
+    throw new ConfigError(`ED_MCP_SYNC_PASSWORD must be at least ${MIN_PASSWORD} characters.`);
+  }
+  const dataDir = syncDir ?? dirs.config;
+  const appName = get(env, "INARA_APP_NAME") ?? "ed-mcp";
 
   return {
     inara:
@@ -87,7 +111,7 @@ export function loadConfig(
         ? {
             apiKey: inaraKey,
             cmdr: inaraCmdr,
-            appName: get(env, "INARA_APP_NAME") ?? "ed-mcp",
+            appName,
             devMode,
           }
         : undefined,
@@ -98,7 +122,17 @@ export function loadConfig(
       (platform === "win32"
         ? path.join(os.homedir(), "Saved Games", "Frontier Developments", "Elite Dangerous")
         : undefined),
-    plansFile: userPath(env, "ED_MCP_PLANS") ?? path.join(dirs.config, "plans.json"),
+    inaraApp: { appName, devMode },
+    syncDir,
+    syncPassword,
+    plansFile: path.join(dataDir, "plans.json"),
+    legacyPlansEnv: get(env, "ED_MCP_PLANS"),
+    plansMarkdownDir: path.join(dataDir, "plans"),
+    prefsFile: path.join(dataDir, "preferences.json"),
+    secretsFile: syncPassword
+      ? path.join(dataDir, "secrets.enc")
+      : path.join(dirs.config, "secrets.json"),
+    locksDir: path.join(dirs.config, "locks"),
     cacheDir: dirs.cache,
     configDir: dirs.config,
     userAgent: `ed-mcp/${VERSION} (+https://github.com/pilotso11/ed-mcp)`,

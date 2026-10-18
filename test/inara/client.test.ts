@@ -25,6 +25,22 @@ describe("InaraClient", () => {
     await expect(make({}, false).client.profile()).rejects.toBeInstanceOf(NotConfiguredError);
   });
 
+  it("reads its config on every request", async () => {
+    let current: typeof cfg | undefined;
+    const body = await fixture("inara/profile-ok.json");
+    const f = fakeFetch([{ match: () => true, respond: () => jsonResponse(body) }]);
+    const client = new InaraClient(
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
+      async () => current,
+      new TtlCache("inara", 60_000),
+      { now },
+    );
+    await expect(client.profile()).rejects.toBeInstanceOf(NotConfiguredError);
+    current = cfg;
+    await client.profile();
+    expect(JSON.parse(String(f.calls[0]!.init!.body)).header.APIkey).toBe("key");
+  });
+
   it("sends a correct request and maps the profile", async () => {
     const { client, f } = make(await fixture("inara/profile-ok.json"));
     const p = await client.profile();

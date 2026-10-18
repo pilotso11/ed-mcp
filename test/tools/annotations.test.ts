@@ -65,6 +65,8 @@ describe("tool annotations", () => {
       "plan_upsert",
       "prefs_set",
       "route_stops",
+      "settings_open",
+      "settings_status",
     ]);
   });
 });

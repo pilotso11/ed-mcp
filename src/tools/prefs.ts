@@ -1,9 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import { wrap } from "./result.js";
+import { wrapWarn } from "./result.js";
 
-export function registerPrefsTools(server: McpServer, deps: { prefs: PreferencesStore }): void {
+export function registerPrefsTools(
+  server: McpServer,
+  deps: { prefs: PreferencesStore; warnings?: () => Promise<string[]> },
+): void {
   server.registerTool(
     "prefs_get",
     {
@@ -19,7 +22,7 @@ export function registerPrefsTools(server: McpServer, deps: { prefs: Preferences
         "distance (soft/hard/off), planetary, fleet carrier and megaship rules, minimum pad " +
         "(auto = current ship), permit-locked systems (allow/exclude), and the travel-time model (jump range and the share of the journal's unladen range that auto uses, seconds per jump, supercruise curve, docking, planetary time, value of time in cr/h).",
     },
-    wrap(async () => deps.prefs.get()),
+    wrapWarn(async () => deps.prefs.get(), deps.warnings),
   );
 
   server.registerTool(
@@ -38,6 +41,6 @@ export function registerPrefsTools(server: McpServer, deps: { prefs: Preferences
         "full preferences. For a one-off change pass `preferences` to the search tool instead.",
       inputSchema: { patch: PrefsPatchSchema },
     },
-    wrap(async ({ patch }: { patch: PrefsPatch }) => deps.prefs.set(patch)),
+    wrapWarn(async ({ patch }: { patch: PrefsPatch }) => deps.prefs.set(patch), deps.warnings),
   );
 }

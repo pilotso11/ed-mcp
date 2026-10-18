@@ -41,7 +41,7 @@ interface RawPosition extends Envelope {
 export class EdsmClient {
   constructor(
     private readonly http: HttpClient,
-    private readonly cfg: EdsmConfig | undefined,
+    private readonly cfg: EdsmConfig | undefined | (() => Promise<EdsmConfig | undefined>),
     private readonly cache: TtlCache<unknown>,
     private readonly baseUrl = "https://www.edsm.net",
   ) {}
@@ -71,8 +71,12 @@ export class EdsmClient {
     return out;
   }
 
+  private config(): Promise<EdsmConfig | undefined> {
+    return typeof this.cfg === "function" ? this.cfg() : Promise.resolve(this.cfg);
+  }
+
   private async call(endpoint: string, params: Record<string, string>): Promise<Envelope> {
-    const cfg = this.cfg;
+    const cfg = await this.config();
     if (!cfg) throw new NotConfiguredError("EDSM", ["EDSM_API_KEY", "EDSM_CMDR"]);
     const url = new URL(`${this.baseUrl}/${endpoint}`);
     url.search = new URLSearchParams({
@@ -95,7 +99,7 @@ function check(b: Envelope): void {
   if (b.msgnum === 100) return;
   if (b.msgnum === 203) {
     throw new UserError(
-      "EDSM: commander name or API key not found. Check EDSM_CMDR and EDSM_API_KEY, and that EDSM sync is on in EDMC.",
+      "EDSM: commander name or API key not found. Check EDSM_CMDR and EDSM_API_KEY, or the values saved on the settings page (settings_open), and that EDSM sync is on in EDMC.",
     );
   }
   throw new UserError(`EDSM error ${b.msgnum}: ${b.msg}`);

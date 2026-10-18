@@ -21,6 +21,19 @@ describe("loadConfig", () => {
     );
   });
 
+  it("records ED_MCP_PLANS, which is no longer used, but not an unset placeholder", () => {
+    expect(loadConfig({ ED_MCP_PLANS: "/old/plans.json" }, dirs).legacyPlansEnv).toBe(
+      "/old/plans.json",
+    );
+    expect(
+      loadConfig({ ED_MCP_PLANS: "${user_config.plans}" }, dirs).legacyPlansEnv,
+    ).toBeUndefined();
+    expect(loadConfig({}, dirs).legacyPlansEnv).toBeUndefined();
+    expect(loadConfig({ ED_MCP_PLANS: "/old/plans.json" }, dirs).plansFile).toBe(
+      path.join("/cfg", "plans.json"),
+    );
+  });
+
   it("reads ED_JOURNAL_DIR and the Windows default", () => {
     // An absolute POSIX path resolves against the current drive on Windows.
     expect(loadConfig({ ED_JOURNAL_DIR: "/j" }, dirs).journalDir).toBe(path.resolve("/j"));
@@ -82,31 +95,10 @@ describe("loadConfig", () => {
     },
   );
 
-  it("reads EDSM, CAPI and the plans override", () => {
-    const c = loadConfig(
-      { EDSM_API_KEY: "e", EDSM_CMDR: "J", CAPI_CLIENT_ID: "cid", ED_MCP_PLANS: "/p.json" },
-      dirs,
-    );
+  it("reads EDSM and CAPI", () => {
+    const c = loadConfig({ EDSM_API_KEY: "e", EDSM_CMDR: "J", CAPI_CLIENT_ID: "cid" }, dirs);
     expect(c.edsm).toEqual({ apiKey: "e", cmdr: "J" });
     expect(c.capi).toEqual({ clientId: "cid" });
-    expect(c.plansFile).toBe(path.resolve("/p.json"));
-  });
-
-  describe("ED_MCP_PLANS paths", () => {
-    afterEach(() => vi.restoreAllMocks());
-
-    it("expands ~", () => {
-      vi.spyOn(os, "homedir").mockReturnValue(path.resolve("/home/j"));
-      const c = loadConfig({ ED_MCP_PLANS: "~/ed/plans.json" }, dirs);
-      expect(c.plansFile).toBe(path.join(path.resolve("/home/j"), "ed", "plans.json"));
-    });
-
-    it("rejects a relative path", () => {
-      expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(ConfigError);
-      expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(
-        "ED_MCP_PLANS: Use an absolute path or one starting with ~: plans.json",
-      );
-    });
   });
 
   describe("ED_JOURNAL_DIR paths", () => {
@@ -124,6 +116,88 @@ describe("loadConfig", () => {
         "ED_JOURNAL_DIR: Use an absolute path or one starting with ~: Journals",
       );
     });
+  });
+
+  it("keeps files in the settings folder without a sync folder", () => {
+    const c = loadConfig({}, dirs);
+    expect(c.syncDir).toBeUndefined();
+    expect(c.prefsFile).toBe(path.join("/cfg", "preferences.json"));
+    expect(c.secretsFile).toBe(path.join("/cfg", "secrets.json"));
+    expect(c.locksDir).toBe(path.join("/cfg", "locks"));
+    expect(c.inaraApp).toEqual({ appName: "ed-mcp", devMode: false });
+  });
+
+  it("puts plans and preferences in the sync folder", () => {
+    const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync" }, dirs);
+    expect(c.syncDir).toBe(path.resolve("/sync"));
+    expect(c.plansFile).toBe(path.join(path.resolve("/sync"), "plans.json"));
+    expect(c.prefsFile).toBe(path.join(path.resolve("/sync"), "preferences.json"));
+    // Without a password, secrets stay on this computer.
+    expect(c.secretsFile).toBe(path.join("/cfg", "secrets.json"));
+  });
+
+  it("encrypts secrets with a password, in the sync folder when there is one", () => {
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "a-long-password" }, dirs).secretsFile).toBe(
+      path.join("/cfg", "secrets.enc"),
+    );
+    const c = loadConfig(
+      { ED_MCP_SYNC_DIR: "/sync", ED_MCP_SYNC_PASSWORD: "a-long-password" },
+      dirs,
+    );
+    expect(c.syncPassword).toBe("a-long-password");
+    expect(c.secretsFile).toBe(path.join(path.resolve("/sync"), "secrets.enc"));
+  });
+
+  it("ignores ED_MCP_PLANS and keeps the Markdown copies next to plans.json", () => {
+    const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync", ED_MCP_PLANS: "/p/plans.json" }, dirs);
+    expect(c.plansFile).toBe(path.join(path.resolve("/sync"), "plans.json"));
+    expect(c.plansMarkdownDir).toBe(path.join(path.resolve("/sync"), "plans"));
+    const local = loadConfig({}, dirs);
+    expect(local.plansMarkdownDir).toBe(path.join("/cfg", "plans"));
+  });
+
+  it("rejects a sync password shorter than 12 characters", () => {
+    expect(() => loadConfig({ ED_MCP_SYNC_PASSWORD: "elevenchars" }, dirs)).toThrow(
+      "ED_MCP_SYNC_PASSWORD must be at least 12 characters.",
+    );
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "twelve-chars" }, dirs).syncPassword).toBe(
+      "twelve-chars",
+    );
+  });
+
+  it("treats an empty sync password as unset", () => {
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "" }, dirs).syncPassword).toBeUndefined();
+  });
+
+  it("ignores unset Claude Desktop placeholders for the sync settings", () => {
+    const c = loadConfig(
+      {
+        ED_MCP_SYNC_DIR: "${user_config.ed_mcp_sync_dir}",
+        ED_MCP_SYNC_PASSWORD: "${user_config.ed_mcp_sync_password}",
+      },
+      dirs,
+    );
+    expect(c.syncDir).toBeUndefined();
+    expect(c.syncPassword).toBeUndefined();
+  });
+
+  it("exposes the Inara app name and dev mode without keys", () => {
+    expect(loadConfig({}, dirs).inaraApp).toEqual({ appName: "ed-mcp", devMode: false });
+    expect(loadConfig({ INARA_APP_NAME: "x", INARA_DEV_MODE: "true" }, dirs).inaraApp).toEqual({
+      appName: "x",
+      devMode: true,
+    });
+  });
+
+  it("keeps spaces around a sync password and does not take a blank one as unset", () => {
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "  twelve-chars  " }, dirs).syncPassword).toBe(
+      "  twelve-chars  ",
+    );
+    expect(() => loadConfig({ ED_MCP_SYNC_PASSWORD: "   " }, dirs)).toThrow(ConfigError);
+  });
+
+  it("rejects a relative ED_MCP_SYNC_DIR", () => {
+    expect(() => loadConfig({ ED_MCP_SYNC_DIR: "sync/here" }, dirs)).toThrow(ConfigError);
   });
 });
 

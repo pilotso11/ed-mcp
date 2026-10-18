@@ -1,9 +1,24 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { renameSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { acquireLock } from "../../src/fs/lock.js";
 import { PlanStore } from "../../src/plans/store.js";
+import { UserError } from "../../src/errors.js";
+import { SyncFolder } from "../../src/settings/sync.js";
 import type { PlanInput } from "../../src/plans/schema.js";
 
 const input = (over: Partial<PlanInput> = {}): PlanInput => ({
@@ -193,4 +208,191 @@ describe("PlanStore", () => {
       'Plan "nope" not found',
     );
   });
+});
+
+describe("PlanStore in a sync folder", () => {
+  const plan = { id: "corsair", name: "Corsair", items: [] };
+
+  it("writes a Markdown copy of each plan and removes it with the plan", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    await s.upsert(plan);
+    expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+    await s.delete("corsair");
+    expect(await readdir(md)).toEqual([]);
+  });
+
+  it("runs the guard before reading and writing", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const guard = async () => {
+      throw new UserError("Sync folder /x is not available");
+    };
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { guard });
+    await expect(s.list()).rejects.toThrow("not available");
+    await expect(s.upsert(plan)).rejects.toThrow("not available");
+    expect(await readdir(d)).toEqual([]);
+  });
+
+  it("does not create a missing sync folder", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const sync = path.join(d, "sync");
+    const s = new PlanStore(path.join(sync, "plans.json"), undefined, {
+      guard: () => new SyncFolder(sync).check(),
+    });
+    await expect(s.upsert(plan)).rejects.toThrow("not available");
+    await expect(stat(sync)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  describe.skipIf(process.platform === "win32")("Markdown copies and links", () => {
+    it("replaces a planted symlink instead of writing through it", async () => {
+      const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+      const md = path.join(d, "plans");
+      await mkdir(md);
+      const outside = path.join(d, "outside.txt");
+      await writeFile(outside, "precious");
+      await symlink(outside, path.join(md, "corsair.md"));
+      const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+      await s.upsert(plan);
+      expect(await readFile(outside, "utf8")).toBe("precious");
+      expect((await lstat(path.join(md, "corsair.md"))).isFile()).toBe(true);
+      expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+      expect((await readdir(md)).filter((n) => n.endsWith(".tmp"))).toEqual([]);
+    });
+
+    it("writes and deletes nothing through a symlinked plans folder", async () => {
+      const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+      const real = path.join(d, "real");
+      await mkdir(real);
+      await writeFile(path.join(real, "old.md"), "keep me");
+      const md = path.join(d, "plans");
+      await symlink(real, md);
+      const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+      await s.upsert(plan);
+      await s.delete("corsair");
+      expect(await readdir(real)).toEqual(["old.md"]);
+      expect(await s.markdownProblem()).toBe(
+        `Plan copies were not written: ${md} is a symbolic link.`,
+      );
+    });
+  });
+
+  it("reports a plans path that is a file", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    await writeFile(md, "x");
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    expect(await s.markdownProblem()).toBe(`Plan copies were not written: ${md} is not a folder.`);
+  });
+
+  it("reports a failed copy until a later copy succeeds", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    // A non-empty folder where the copy belongs makes the rename fail.
+    await mkdir(path.join(md, "corsair.md"), { recursive: true });
+    await writeFile(path.join(md, "corsair.md", "x"), "x");
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    expect(await s.markdownProblem()).toBeNull();
+    await s.upsert(plan);
+    const problem = await s.markdownProblem();
+    expect(problem).toContain(`Plan copies could not be written to ${md}: `);
+    await rm(path.join(md, "corsair.md"), { recursive: true });
+    await s.upsert(plan);
+    expect(await s.markdownProblem()).toBeNull();
+    expect(await readFile(path.join(md, "corsair.md"), "utf8")).toContain("Corsair");
+  });
+
+  it("removes only the copy of a deleted plan, keeping notes and conflict copies", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const md = path.join(d, "plans");
+    await mkdir(md);
+    for (const n of ["notes.md", "corsair (1).md", "Keep.md"]) {
+      await writeFile(path.join(md, n), "x");
+    }
+    const s = new PlanStore(path.join(d, "plans.json"), undefined, { markdownDir: md });
+    await s.upsert(plan);
+    await s.upsert({ ...plan, id: "gone" });
+    expect((await readdir(md)).sort()).toEqual([
+      "Keep.md",
+      "corsair (1).md",
+      "corsair.md",
+      "gone.md",
+      "notes.md",
+    ]);
+    await s.delete("gone");
+    expect((await readdir(md)).sort()).toEqual([
+      "Keep.md",
+      "corsair (1).md",
+      "corsair.md",
+      "notes.md",
+    ]);
+  });
+
+  it("still reads a plan file between 1 MB and 8 MB", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const s = new PlanStore(path.join(d, "plans.json"));
+    await s.upsert({ ...plan, notes: "x".repeat(2 * 1024 * 1024) });
+    expect((await stat(path.join(d, "plans.json"))).size).toBeGreaterThan(1024 * 1024);
+    expect((await s.get("corsair")).notes).toHaveLength(2 * 1024 * 1024);
+  });
+
+  it("refuses a write over 8 MB and leaves the file unchanged", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const file = path.join(d, "plans.json");
+    const s = new PlanStore(file);
+    await s.upsert({ ...plan, notes: "x".repeat(5 * 1024 * 1024) });
+    const before = await readFile(file, "utf8");
+    await expect(
+      s.upsert({ ...plan, id: "second", notes: "y".repeat(5 * 1024 * 1024) }),
+    ).rejects.toThrow("Plans file would be larger than 8 MB; delete plans or shorten notes first.");
+    expect(await readFile(file, "utf8")).toBe(before);
+  });
+
+  it("refuses a plan file that is too large", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const file = path.join(d, "plans.json");
+    await writeFile(file, " ".repeat(8 * 1024 * 1024 + 1));
+    await expect(new PlanStore(file).list()).rejects.toThrow(
+      `Plan file ${file} is invalid: too large`,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")("refuses a plan file that is a symlink", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-sync-"));
+    const target = path.join(d, "t.json");
+    await writeFile(target, '{"version":1,"plans":[]}');
+    const file = path.join(d, "plans.json");
+    await symlink(target, file);
+    await expect(new PlanStore(file).list()).rejects.toThrow(
+      `Plan file ${file} is invalid: not a regular file`,
+    );
+  });
+
+  it("takes its lock in lockDir, not beside plans.json", async () => {
+    const lockDir = path.join(dir, "locks");
+    await mkdir(lockDir, { recursive: true });
+    const s = new PlanStore(file, now, { lockDir, lockTimeoutMs: 100 });
+    const release = await acquireLock(file, 1000, "held", lockDir);
+    await expect(s.upsert(input())).rejects.toThrow(UserError);
+    await release();
+    await s.upsert(input());
+    expect(await readdir(path.dirname(file))).not.toContain("plans.json.lock");
+    expect(await readdir(lockDir)).toEqual([]);
+  });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "reports an unreadable plan file as a user error",
+    async () => {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, '{"version":1,"plans":[]}');
+      await chmod(file, 0o000);
+      try {
+        await expect(new PlanStore(file, now).list()).rejects.toThrow(
+          `Plan file ${file} is invalid: not readable (EACCES)`,
+        );
+      } finally {
+        await chmod(file, 0o600);
+      }
+    },
+  );
 });

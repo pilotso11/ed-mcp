@@ -58,7 +58,7 @@ export class InaraClient {
 
   constructor(
     private readonly http: HttpClient,
-    private readonly cfg: InaraConfig | undefined,
+    private readonly cfg: InaraConfig | undefined | (() => Promise<InaraConfig | undefined>),
     private readonly cache: TtlCache<unknown>,
     opts: { endpoint?: string; now?: () => Date } = {},
   ) {
@@ -67,11 +67,14 @@ export class InaraClient {
   }
 
   async profile(name?: string): Promise<InaraProfile> {
-    const ev = (await this.cache.getOrLoad(`profile:${name ?? ""}`, () =>
+    const cfg = await this.config();
+    if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
+    const who = name ?? cfg.cmdr;
+    const ev = (await this.cache.getOrLoad(`profile:${cfg.cmdr}:${name ?? ""}`, () =>
       this.send("getCommanderProfile", name ? { searchName: name } : {}),
     )) as InaraEvent;
     if (ev.eventStatus === 204) {
-      throw new UserError(`Inara: no commander found for "${name ?? this.cfg?.cmdr}"`);
+      throw new UserError(`Inara: no commander found for "${who}"`);
     }
     const d = (ev.eventData ?? {}) as Record<string, unknown>;
     const ship = d.commanderMainShip as
@@ -142,13 +145,15 @@ export class InaraClient {
     }));
   }
 
+  private config(): Promise<InaraConfig | undefined> {
+    return typeof this.cfg === "function" ? this.cfg() : Promise.resolve(this.cfg);
+  }
+
   // Inara asks clients not to hammer the API, so requests run one at a time.
   private send(eventName: ReadEvent, eventData: unknown): Promise<InaraEvent> {
-    const cfg = this.cfg;
-    if (!cfg) {
-      return Promise.reject(new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]));
-    }
     const run = this.queue.then(async () => {
+      const cfg = await this.config();
+      if (!cfg) throw new NotConfiguredError("Inara", ["INARA_API_KEY", "INARA_CMDR"]);
       const body = {
         header: {
           appName: cfg.appName,
@@ -175,7 +180,7 @@ export class InaraClient {
       });
       if (res.header?.eventStatus === 400) {
         throw new UserError(
-          `Inara rejected the request: ${String(res.header.eventStatusText ?? "error").replace(/\.+$/, "")}. Check INARA_API_KEY, ` +
+          `Inara rejected the request: ${String(res.header.eventStatusText ?? "error").replace(/\.+$/, "")}. Check INARA_API_KEY or the key saved on the settings page (settings_open), ` +
             `and that the app name "${cfg.appName}" has been whitelisted by Inara.`,
         );
       }

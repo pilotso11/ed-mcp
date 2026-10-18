@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { loadConfig } from "../src/config.js";
@@ -27,6 +27,16 @@ describe("buildDeps", () => {
         "plan_upsert",
       ]),
     );
+  });
+
+  it("adds the ED_MCP_PLANS notice to plan tool results", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+    const config = loadConfig({ ED_MCP_PLANS: "/old/plans.json" }, { config: dir, cache: dir });
+    const client = await connectTestClient(createServer(buildDeps(config)));
+    const r = await client.callTool({ name: "plan_list", arguments: {} });
+    const texts = (r.content as { text: string }[]).map((c) => c.text);
+    expect(texts.some((t) => t.includes(`Plans are now in ${config.plansFile}.`))).toBe(true);
+    expect(texts.some((t) => t.includes("ED_MCP_PLANS is no longer used."))).toBe(true);
   });
 
   it("lists a long-lived Spansh system cache in cache_status", async () => {
@@ -60,19 +70,18 @@ describe("buildDeps", () => {
   it("clears the CAPI profile cache on logout", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
     const now = Date.now();
-    await writeFile(
-      path.join(dir, "capi-token.json"),
-      JSON.stringify({
-        refresh_token: "R",
-        access_token: "A",
-        expires_at: now + 3_600_000,
-        authorized_at: now,
-      }),
-    );
     const profile = await fixture("capi/profile.json");
     const fetchFn = fakeFetch([{ match: () => true, respond: () => jsonResponse(profile) }]);
     const deps = buildDeps(loadConfig({ CAPI_CLIENT_ID: "cid" }, { config: dir, cache: dir }), {
       fetchFn,
+    });
+    await deps.secrets!.update((d) => {
+      d.capi = {
+        refresh_token: "R",
+        access_token: "A",
+        expires_at: now + 3_600_000,
+        authorized_at: now,
+      };
     });
     const capiEntries = () => deps.caches!.stats().find((c) => c.name === "capi")!.entries;
     await deps.capi!.profile();
@@ -84,15 +93,6 @@ describe("buildDeps", () => {
   it("takes the ship and jump range from the journal first, then the ship from CAPI", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
     const now = Date.now();
-    await writeFile(
-      path.join(dir, "capi-token.json"),
-      JSON.stringify({
-        refresh_token: "R",
-        access_token: "A",
-        expires_at: now + 3_600_000,
-        authorized_at: now,
-      }),
-    );
     const profile = await fixture("capi/profile.json");
     const fetchFn = fakeFetch([{ match: () => true, respond: () => jsonResponse(profile) }]);
     let fresh: { type: string; max_jump_range: number | null } | null = {
@@ -104,10 +104,65 @@ describe("buildDeps", () => {
       fetchFn,
       journal,
     });
+    await deps.secrets!.update((d) => {
+      d.capi = {
+        refresh_token: "R",
+        access_token: "A",
+        expires_at: now + 3_600_000,
+        authorized_at: now,
+      };
+    });
     expect(await deps.currentShip!()).toEqual({ type: "Corsair", source: "journal" });
     expect(await deps.jumpRange!()).toBe(24.5);
     fresh = null;
     expect(await deps.currentShip!()).toBe("Krait_MkII");
     expect(await deps.jumpRange!()).toBeNull();
+  });
+
+  describe("Inara keys", () => {
+    async function setup(env: Record<string, string>) {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+      const profile = await fixture("inara/profile-ok.json");
+      const bodies: string[] = [];
+      const fetchFn = fakeFetch([
+        {
+          match: () => true,
+          respond: (_u, init) => {
+            bodies.push(String(init?.body));
+            return jsonResponse(profile);
+          },
+        },
+      ]);
+      const deps = buildDeps(loadConfig(env, { config: dir, cache: dir }), { fetchFn });
+      const client = await connectTestClient(createServer(deps));
+      return { dir, deps, client, bodies };
+    }
+
+    it("sends the environment key and seeds it into the secrets file", async () => {
+      const { dir, client, bodies } = await setup({
+        INARA_API_KEY: "env-key",
+        INARA_CMDR: "Artie",
+      });
+      const r = await callTool(client, "inara_commander_profile");
+      expect(r.isError).toBe(false);
+      expect(bodies[0]).toContain('"APIkey":"env-key"');
+      expect(JSON.parse(await readFile(path.join(dir, "secrets.json"), "utf8"))).toEqual({
+        version: 1,
+        inara: { apiKey: "env-key", cmdr: "Artie" },
+      });
+    });
+
+    it("uses a key saved after startup on the next call", async () => {
+      const { deps, client, bodies } = await setup({});
+      const first = await callTool(client, "inara_commander_profile");
+      expect(first.isError).toBe(true);
+      await deps.secrets!.update((d) => {
+        d.inara = { apiKey: "saved-key", cmdr: "Saved" };
+      });
+      const r = await callTool(client, "inara_commander_profile");
+      expect(r.isError).toBe(false);
+      expect(bodies).toHaveLength(1);
+      expect(bodies[0]).toContain('"APIkey":"saved-key"');
+    });
   });
 });

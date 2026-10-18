@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { CapiAuth } from "../../src/capi/auth.js";
 import { TokenStore } from "../../src/capi/tokens.js";
+import { SecretStore } from "../../src/settings/secrets.js";
 import { HttpClient } from "../../src/http/client.js";
-import { NotConfiguredError } from "../../src/errors.js";
+import { NotConfiguredError, UserError } from "../../src/errors.js";
 import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
 
 const DAY = 86_400_000;
@@ -14,7 +15,9 @@ let t: number;
 let sessionChanges: number;
 beforeEach(async () => {
   sessionChanges = 0;
-  tokens = new TokenStore(path.join(await mkdtemp(path.join(os.tmpdir(), "auth-")), "t.json"));
+  tokens = new TokenStore(
+    new SecretStore(path.join(await mkdtemp(path.join(os.tmpdir(), "auth-")), "secrets.json")),
+  );
   t = Date.parse("2026-10-11T00:00:00Z");
 });
 
@@ -307,12 +310,58 @@ describe("CapiAuth tokens", () => {
     await expect(auth.accessToken()).rejects.toThrow(/expired.*capi_login/);
   });
 
-  it("clears tokens when refresh is rejected", async () => {
-    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+  it("keeps the tokens when refresh is rejected and the store has nothing newer", async () => {
+    const saved = { refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t };
+    await tokens.save(saved);
     const { auth } = make([
       { match: () => true, respond: () => new Response("", { status: 401 }) },
     ]);
-    await expect(auth.accessToken()).rejects.toThrow(/capi_login/);
+    await expect(auth.accessToken()).rejects.toThrow(
+      /Frontier refused to refresh the login .* another computer, wait for your sync app to catch up and try again; otherwise call capi_login\./,
+    );
+    expect(await tokens.load()).toEqual(saved);
+  });
+
+  it("does not let a refresh in flight write tokens back after logout", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { auth } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await gate;
+          return jsonResponse({ access_token: "A2", refresh_token: "R2", expires_in: 14400 });
+        },
+      },
+    ]);
+    const access = auth.accessToken();
+    const settled = access.catch((e) => e);
+    await new Promise((r) => setTimeout(r, 20));
+    const out = auth.logout();
+    release();
+    expect(await settled).toBeInstanceOf(UserError);
+    await out;
+    expect(await tokens.load()).toBeNull();
+  });
+
+  it("keeps logout when a refresh starts during the logout", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { auth } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await gate;
+          return jsonResponse({ access_token: "A2", refresh_token: "R2", expires_in: 14400 });
+        },
+      },
+    ]);
+    const access = auth.accessToken().catch((e) => e);
+    await auth.logout();
+    release();
+    expect(await access).toBeInstanceOf(UserError);
     expect(await tokens.load()).toBeNull();
   });
 
@@ -367,6 +416,29 @@ describe("CapiAuth tokens", () => {
     expect(await auth.accessToken()).toBe("A9");
     expect(f.calls).toHaveLength(2);
     expect(await tokens.load()).toMatchObject({ refresh_token: "R10" });
+  });
+
+  it("does not return a rotated access token after a logout during the refresh", async () => {
+    await tokens.save({ refresh_token: "R", access_token: null, expires_at: 0, authorized_at: t });
+    let logout!: () => Promise<void>;
+    const { auth } = make([
+      {
+        match: () => true,
+        respond: async () => {
+          await logout();
+          // Another computer logs in again before this refresh is rejected.
+          await tokens.save({
+            refresh_token: "R9",
+            access_token: "A9",
+            expires_at: t + DAY,
+            authorized_at: t,
+          });
+          return new Response("", { status: 400 });
+        },
+      },
+    ]);
+    logout = () => auth.logout();
+    await expect(auth.accessToken()).rejects.toThrow("Logged out while the login was refreshing.");
   });
 
   it("does not restore the old refresh token when invalidate runs during a refresh", async () => {

@@ -7,10 +7,10 @@ import { PlanStore } from "../../src/plans/store.js";
 import { registerPlanTools } from "../../src/tools/plans.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
-async function setup() {
+async function setup(warnings?: () => Promise<string[]>) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plantools-"));
   const server = new McpServer({ name: "t", version: "0" });
-  registerPlanTools(server, { plans: new PlanStore(path.join(dir, "plans.json")) });
+  registerPlanTools(server, { plans: new PlanStore(path.join(dir, "plans.json")), warnings });
   return { dir, client: await connectTestClient(server) };
 }
 
@@ -23,6 +23,15 @@ const plan = {
 
 describe("plan tools", () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it("adds sync warnings as a second text item", async () => {
+    const { client } = await setup(async () => ["Sync conflict: x"]);
+    const r = await client.callTool({ name: "plan_list", arguments: {} });
+    expect(r.content).toEqual([
+      { type: "text", text: "[]" },
+      { type: "text", text: "Warnings:\n- Sync conflict: x" },
+    ]);
+  });
 
   it("round-trips a plan", async () => {
     const { client } = await setup();

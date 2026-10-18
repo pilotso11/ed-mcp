@@ -16,7 +16,7 @@ With ed-mcp, Claude can:
 
 Inara, EDSM, Spansh, EDSY and the community wikis already have this data, and you can do all of this on their sites. ed-mcp does not replace them. It lets Claude use them together, with your game journal, in one conversation. Some commanders find it easier to ask a question in their own words than to use several sites.
 
-ed-mcp runs on your computer. It keeps your plans and settings on your computer. It reads from Inara, EDSM, Frontier and Spansh, and it downloads game data from GitHub.
+ed-mcp runs on your computer. It keeps your plans and settings on your computer, or in a sync folder that you choose. It reads from Inara, EDSM, Frontier and Spansh, and it downloads game data from GitHub.
 
 ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 
@@ -77,20 +77,31 @@ Every account is optional. Without one, the tools for that service tell Claude w
 | EDSM     | Last known location, materials and cargo                 | Your API key (edsm.net, Settings, API Key) and commander name        |
 | Frontier | Current ship with engineering, location and fleet        | A Frontier login in your browser. No key is necessary.               |
 
-To log in to Frontier, ask Claude "Log me in to Frontier". Claude gives you a link. Open the link and sign in. Then tell Claude that you are done. The login lasts 25 days. If you log in to ed-mcp on another computer, the old login ends.
+To log in to Frontier, ask Claude "Log me in to Frontier". Claude gives you a link. Open the link and sign in. Then tell Claude that you are done. The login lasts 25 days. If you log in to ed-mcp on another computer, the old login ends. With a sync folder and password, one login serves every computer.
+
+### Change your keys without a restart
+
+Ask Claude "Open ed-mcp settings". ed-mcp opens a page in your browser. Enter your Inara and EDSM keys and commander names there, then press Save. The page explains where to find each key. The new keys apply at once.
+
+Do not type a key into the chat. Use the page.
+
+Keys that you set in Claude Desktop's settings form, or with `-e` in Claude Code, need a restart to change. They also win over keys that you saved on the page. To use the page for a service, leave that service's fields empty in the form.
+
+To see where each key comes from, ask Claude "What are my ed-mcp settings?".
 
 The game journal is the best source for most questions. It is on your computer and it is current while you play. Inara and EDSM show data from your last sync to them.
 
 ### All settings
 
-| Setting          | Meaning                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `INARA_API_KEY`  | Your Inara API key                                                                                        |
-| `INARA_CMDR`     | Your in-game commander name                                                                               |
-| `EDSM_API_KEY`   | Your EDSM API key                                                                                         |
-| `EDSM_CMDR`      | Your commander name on EDSM                                                                               |
-| `ED_JOURNAL_DIR` | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`. |
-| `ED_MCP_PLANS`   | A different file for your plans. Use a full path or one that starts with `~`. The default is `plans.json` in the settings folder (see [Your data](#your-data)). |
+| Setting                | Meaning                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INARA_API_KEY`        | Your Inara API key                                                                                                                                             |
+| `INARA_CMDR`           | Your in-game commander name                                                                                                                                    |
+| `EDSM_API_KEY`         | Your EDSM API key                                                                                                                                              |
+| `EDSM_CMDR`            | Your commander name on EDSM                                                                                                                                    |
+| `ED_JOURNAL_DIR`       | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`.                                            |
+| `ED_MCP_SYNC_DIR`      | Optional. A folder that your sync service keeps in step between computers (see [Use ed-mcp on more than one computer](#use-ed-mcp-on-more-than-one-computer)). |
+| `ED_MCP_SYNC_PASSWORD` | Optional. At least 12 characters. Encrypts your API keys and Frontier login. Use the same password on every computer.                                          |
 
 Inara needs both of its settings. EDSM needs both of its settings.
 
@@ -117,7 +128,41 @@ The journal tools warn you when the newest entry is more than 30 minutes old. Th
 
 ## Plans
 
-Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. To keep a plan in a project folder, export it as JSON and import it again later with `plan_import`. The plans stay on your computer, in `plans.json` in the settings folder (see [Your data](#your-data)). To keep them in another place, for example a folder that you back up, set `ED_MCP_PLANS`.
+Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. To keep a plan in a project folder, export it as JSON and import it again later with `plan_import`. The plans stay in `plans.json`, in the sync folder if you set one and in the settings folder if not (see [Your data](#your-data)).
+
+## Use ed-mcp on more than one computer
+
+Set a sync folder, and your plans and preferences follow you. Pick a folder that Google Drive, iCloud Drive, OneDrive or Syncthing keeps in step. In Claude Desktop, use the Sync folder field. In Claude Code, set `ED_MCP_SYNC_DIR`. Use the same folder on every computer.
+
+What syncs:
+
+- Plans and preferences always sync, in the sync folder.
+- Your API keys and Frontier login sync only when you also set a sync password. ed-mcp encrypts them with it. Without a password, they stay on each computer.
+- The cache and the journal do not sync. Each computer keeps its own.
+
+The password must be at least 12 characters. Use the same password on every computer. A computer with a different password cannot read the keys.
+
+If two computers change the same file before the sync service catches up, the service keeps both. It saves one as a "conflict copy". ed-mcp tells Claude when it sees one. Ask Claude "What is my ed-mcp settings status?", then keep the copy that you want and delete the other.
+
+If the sync folder is not available (for example, your sync app is stopped), the plan and preference tools fail with a clear message. They do not fall back to a local copy. Searches that use your stored preferences also need the folder. Pass `use_preferences: false` to search without them.
+
+ed-mcp also writes each plan as a Markdown file in the `plans` folder inside the sync folder. Claude on your phone cannot run ed-mcp, but it can read these files through the Google Drive connector.
+
+**Claude Desktop and Claude Code on the same computer** share ed-mcp's data only when both have the same sync settings. Give Claude Code the same values as Claude Desktop:
+
+```bash
+claude mcp add ed-mcp -s user \
+  -e ED_MCP_SYNC_DIR=<folder> -e ED_MCP_SYNC_PASSWORD=<password> \
+  -- npx -y ed-mcp
+```
+
+Keys that you save on the settings page are then shared by both apps, with no restart. If the apps do not agree, the settings status tells Claude.
+
+### Upgrading from 0.3
+
+Newer versions keep your Frontier login with your other secrets. They do not move a login or keys from version 0.3. Run `capi_login` again, and enter your keys again, either on the settings page or in the environment as before. Then delete the old `capi-token.json` from the settings folder.
+
+The `ED_MCP_PLANS` setting is no longer used. Plans are now in `plans.json` in the settings folder, or in the sync folder when one is set. Move your old plans file there, or use `plan_import`, then remove `ED_MCP_PLANS`.
 
 ## Preferences
 
@@ -150,12 +195,14 @@ The travel times come from about 1,300 timed trips in a commander's journals, fl
 
 ed-mcp keeps these files on your computer:
 
-| Data                         | File                                         |
-| ---------------------------- | -------------------------------------------- |
-| Plans                        | `plans.json`, or the file in `ED_MCP_PLANS`  |
-| Preferences                  | `preferences.json`                           |
-| Frontier login               | `capi-token.json`, readable only by you      |
-| Game data and cached results | The cache folder                             |
+| Data                         | File                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| Plans                        | `plans.json`, and a Markdown copy of each plan in `plans`                   |
+| Preferences                  | `preferences.json`                                                          |
+| API keys and Frontier login  | `secrets.enc` with a sync password, `secrets.json` without. Readable only by you |
+| Game data and cached results | The cache folder                                                            |
+
+Plans, preferences and `secrets.enc` are in the sync folder when you set one. Otherwise they are in the settings folder. `secrets.json` is always in the settings folder. The cache folder is always on the computer.
 
 The files are in these folders:
 

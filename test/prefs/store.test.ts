@@ -1,7 +1,20 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { acquireLock } from "../../src/fs/lock.js";
+import { UserError } from "../../src/errors.js";
+import { SyncFolder } from "../../src/settings/sync.js";
 import { PreferencesStore } from "../../src/prefs/store.js";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
 
@@ -11,6 +24,33 @@ beforeEach(async () => {
 });
 
 describe("PreferencesStore", () => {
+  it("reads a preferences file between 1 MB and 8 MB", async () => {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(DEFAULT_PREFS) + " ".repeat(2 * 1024 * 1024));
+    expect(await new PreferencesStore(file).get()).toEqual(DEFAULT_PREFS);
+  });
+
+  it("refuses a preferences file that is too large", async () => {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, " ".repeat(8 * 1024 * 1024 + 1));
+    await expect(new PreferencesStore(file).get()).rejects.toThrow(
+      `Preferences file ${file} is invalid: too large`,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "refuses a preferences file that is a symlink",
+    async () => {
+      await mkdir(path.dirname(file), { recursive: true });
+      const target = path.join(path.dirname(file), "t.json");
+      await writeFile(target, "{}");
+      await symlink(target, file);
+      await expect(new PreferencesStore(file).get()).rejects.toThrow(
+        `Preferences file ${file} is invalid: not a regular file`,
+      );
+    },
+  );
+
   it("returns defaults when the file does not exist", async () => {
     expect(await new PreferencesStore(file).get()).toEqual(DEFAULT_PREFS);
   });
@@ -77,5 +117,29 @@ describe("PreferencesStore", () => {
       const s = new PreferencesStore(file, { lockTimeoutMs: 120 });
       await expect(s.set({})).rejects.toThrow(/locked by another process/);
     });
+  });
+});
+
+describe("PreferencesStore in a sync folder", () => {
+  it("does not create a missing sync folder", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "prefs-sync-"));
+    const sync = path.join(d, "sync");
+    const s = new PreferencesStore(path.join(sync, "preferences.json"), {
+      guard: () => new SyncFolder(sync).check(),
+    });
+    await expect(s.set({ stations: { min_pad: "M" } })).rejects.toThrow("not available");
+    await expect(stat(sync)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("takes its lock in lockDir, not beside preferences.json", async () => {
+    const lockDir = path.join(path.dirname(file), "..", "locks");
+    await mkdir(lockDir, { recursive: true });
+    const s = new PreferencesStore(file, { lockDir, lockTimeoutMs: 100 });
+    const release = await acquireLock(file, 1000, "held", lockDir);
+    await expect(s.set({ stations: { min_pad: "M" } })).rejects.toThrow(UserError);
+    await release();
+    await s.set({ stations: { min_pad: "M" } });
+    expect(await readdir(path.dirname(file))).not.toContain("preferences.json.lock");
+    expect(await readdir(lockDir)).toEqual([]);
   });
 });
