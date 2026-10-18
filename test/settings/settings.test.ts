@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { acquireLock } from "../../src/fs/lock.js";
 import { SecretStore } from "../../src/settings/secrets.js";
 import { Settings } from "../../src/settings/settings.js";
 
@@ -92,5 +93,21 @@ describe("Settings", () => {
       cmdr: "S",
       differs_from_stored: false,
     });
+  });
+
+  it("still reports the environment when the secrets file is locked by another process", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "settings-"));
+    const file = path.join(dir, "secrets.json");
+    const release = await acquireLock(file, 100, "locked");
+    try {
+      const secrets = new SecretStore(file, { lockTimeoutMs: 60 });
+      const s = new Settings({ inara: { apiKey: "env", cmdr: "E" } }, app, secrets);
+      // The seed write times out with a UserError; the status call must swallow it.
+      expect((await s.sources()).inara).toMatchObject({ source: "environment", cmdr: "E" });
+      expect((await s.inara())?.apiKey).toBe("env");
+    } finally {
+      await release();
+    }
+    await expect(readFile(file)).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
