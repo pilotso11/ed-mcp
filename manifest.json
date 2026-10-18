@@ -119,7 +119,7 @@
     "inara_api_key": {
       "type": "string",
       "title": "Inara API key",
-      "description": "Personal API key from inara.cz > Settings > Inara API. Leave empty to disable Inara tools. You can also enter it on the settings page (ask Claude to open ed-mcp settings), which needs no restart.",
+      "description": "Personal API key from inara.cz > Settings > Inara API. Leave empty to use the key saved on the settings page (ask Claude to open ed-mcp settings, no restart needed), or to turn off Inara tools.",
       "sensitive": true,
       "required": false,
       "default": ""
@@ -141,7 +141,7 @@
     "edsm_api_key": {
       "type": "string",
       "title": "EDSM API key",
-      "description": "API key from edsm.net > Settings > API Key. Leave empty to disable EDSM tools. You can also enter it on the settings page (ask Claude to open ed-mcp settings), which needs no restart.",
+      "description": "API key from edsm.net > Settings > API Key. Leave empty to use the key saved on the settings page (ask Claude to open ed-mcp settings, no restart needed), or to turn off EDSM tools.",
       "sensitive": true,
       "required": false,
       "default": ""

@@ -167,6 +167,25 @@ describe("loadConfig", () => {
     expect(c.syncDir).toBeUndefined();
     expect(c.syncPassword).toBeUndefined();
   });
+
+  it("exposes the Inara app name and dev mode without keys", () => {
+    expect(loadConfig({}, dirs).inaraApp).toEqual({ appName: "ed-mcp", devMode: false });
+    expect(loadConfig({ INARA_APP_NAME: "x", INARA_DEV_MODE: "true" }, dirs).inaraApp).toEqual({
+      appName: "x",
+      devMode: true,
+    });
+  });
+
+  it("keeps spaces around a sync password and does not take a blank one as unset", () => {
+    expect(loadConfig({ ED_MCP_SYNC_PASSWORD: "  twelve-chars  " }, dirs).syncPassword).toBe(
+      "  twelve-chars  ",
+    );
+    expect(() => loadConfig({ ED_MCP_SYNC_PASSWORD: "   " }, dirs)).toThrow(ConfigError);
+  });
+
+  it("rejects a relative ED_MCP_SYNC_DIR", () => {
+    expect(() => loadConfig({ ED_MCP_SYNC_DIR: "sync/here" }, dirs)).toThrow(ConfigError);
+  });
 });
 
 describe("NotConfiguredError", () => {

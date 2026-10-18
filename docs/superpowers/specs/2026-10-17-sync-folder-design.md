@@ -80,16 +80,16 @@ Holds one document:
 ### `src/settings/settings.ts`: `Settings`
 
 - `inara(): InaraConfig | undefined` and `edsm(): EdsmConfig | undefined` merge the environment (it wins) with the store. They are called on every request.
-- `seedFromEnv()` runs once at startup. For each of Inara and EDSM: if the environment has both key and commander, and the store has no entry, it writes the environment values to the store.
+- Seeding runs lazily, on the first call to `inara()`, `edsm()` or `sources()`, and retries after a failure. A computer that sets keys only in the environment and never calls Inara, EDSM or the settings tools does not seed them. For each of Inara and EDSM: if the environment has both key and commander, and the store has no entry, it writes the environment values to the store.
 - `sources()` returns, for each setting, `"environment" | "stored" | "not set"`. It also flags an environment value that differs from the stored one.
 
 ### Changes to existing code
 
 | Where | Change |
 | --- | --- |
-| `InaraClient`, `EdsmClient` | Take `() => InaraConfig \| undefined` (or the EDSM equivalent). Missing settings still raise `NotConfiguredError`, with the same messages. |
+| `InaraClient`, `EdsmClient` | Take a static config or `() => Promise<InaraConfig \| undefined>` (or the EDSM equivalent). Missing settings still raise `NotConfiguredError`, with the same messages. |
 | `src/capi/tokens.ts` `TokenStore` | Becomes a thin view on the `capi` entry of `SecretStore`. Same interface. |
-| `CapiAuth` refresh | If a refresh fails with an auth error (400/401), read the store again. If its tokens differ from the ones used, retry once with them; another computer refreshed first. If that fails too, the error tells the user to wait for the sync app or call `capi_login`. A rejected refresh keeps the shared login: a stale copy never deletes what another computer holds. Logout sticks: a refresh or browser login that finishes after logout does not write tokens back. |
+| `CapiAuth` refresh | If a refresh is rejected (any 4xx except 408 and 429, which are transient), read the store again. If its tokens differ from the ones used, retry once with them; another computer refreshed first. If that fails too, the error tells the user to wait for the sync app or call `capi_login`. A rejected refresh keeps the shared login: a stale copy never deletes what another computer holds. Logout sticks: a refresh or browser login that finishes after logout does not write tokens back. |
 | `config.ts` | Adds `syncDir?: string`, `syncPassword?: string` and `secretsFile`. Plans, preferences and the Markdown folder live in `syncDir` when it is set, otherwise in the settings folder. It rejects a password shorter than 12 characters. |
 | `src/fs/lock.ts` | `lockedWrite` and `acquireLock` take an optional lock directory. For files in the sync folder, the lock is `<configDir>/locks/<sha256(path) prefix>.lock`. |
 | `PlanStore` | Each save also writes `plans/<id>.md` next to `plans.json` (the existing `plan_export` Markdown), in every mode. Each copy goes to a temp file and is renamed over the target. A symlinked or non-folder `plans` directory is refused, and the plan still saves. Only the copy of a plan that the change removed is deleted; other files in the folder are never touched. |
@@ -100,6 +100,8 @@ Holds one document:
 - At startup ed-mcp does not create the sync folder. If it is missing, the server still starts.
 - Plan and preference tools check the folder first. If it is missing or not writable, they fail with `UserError("Sync folder <path> is not available: <reason>. Start your sync app, or fix ED_MCP_SYNC_DIR.")`.
 - Secrets in the sync folder follow the same rule for tools that need keys.
+- Searches that use stored preferences (stations, trade, loops, routes, materials) also need the folder. Passing `use_preferences: false` searches without them.
+- File reads that fail with an I/O error (for example `EACCES`, or `EIO` from a cloud mount) are reported as a `UserError`, so `settings_status` still answers.
 
 ### Conflict copies
 
@@ -127,7 +129,7 @@ Holds one document:
   - the source of each setting, from `Settings.sources()`, with the environment-differs flag,
   - whether a Frontier login is stored,
   - any conflict copies,
-  - `notes`: hints that Claude apps on this computer disagree. With a sync folder, if the local settings folder also holds `plans.json`, `preferences.json`, `secrets.json` or `secrets.enc`, another app probably lacks the sync settings. With a password, if the secrets folder holds both `secrets.enc` and `secrets.json`, an app without the password uses the plain file. Without a sync folder, no check is possible and there are no notes.
+  - `notes`: hints that Claude apps on this computer disagree. With a sync folder, if the local settings folder also holds `plans.json`, `preferences.json`, `secrets.json` or `secrets.enc`, another app probably lacks the sync settings. With a password, if the secrets folder holds both `secrets.enc` and `secrets.json`, an app without the password uses the plain file. The first check skips the secrets store's own file: with a sync folder and no password, `secrets.json` lives in the local settings folder by design. The second check can fire only with a password and no sync folder, since a sync folder with a password puts `secrets.enc` in the sync folder and any local `secrets.json` is caught by the first check. Without a sync folder, the first check does not run.
   
   It returns no key values.
 

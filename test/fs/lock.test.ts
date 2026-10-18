@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { lockPath, lockedWrite } from "../../src/fs/lock.js";
@@ -79,5 +79,15 @@ describe("lockedWrite with a lock folder", () => {
     const file = path.join(dir, "secret.json");
     await lockedWrite(file, { ...opts, mode: 0o600 }, async () => ({ content: "s", result: 0 }));
     if (process.platform !== "win32") expect((await stat(file)).mode & 0o777).toBe(0o600);
+  });
+
+  it("removes the temp file when the rename fails", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
+    const file = path.join(dir, "data.json");
+    await mkdir(file); // renaming a file over a folder fails
+    await expect(
+      lockedWrite(file, opts, async () => ({ content: "x", result: undefined })),
+    ).rejects.toThrow();
+    expect((await readdir(dir)).filter((n) => n.endsWith(".tmp"))).toEqual([]);
   });
 });

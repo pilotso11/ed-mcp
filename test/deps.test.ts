@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { loadConfig } from "../src/config.js";
@@ -107,5 +107,52 @@ describe("buildDeps", () => {
     fresh = null;
     expect(await deps.currentShip!()).toBe("Krait_MkII");
     expect(await deps.jumpRange!()).toBeNull();
+  });
+
+  describe("Inara keys", () => {
+    async function setup(env: Record<string, string>) {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
+      const profile = await fixture("inara/profile-ok.json");
+      const bodies: string[] = [];
+      const fetchFn = fakeFetch([
+        {
+          match: () => true,
+          respond: (_u, init) => {
+            bodies.push(String(init?.body));
+            return jsonResponse(profile);
+          },
+        },
+      ]);
+      const deps = buildDeps(loadConfig(env, { config: dir, cache: dir }), { fetchFn });
+      const client = await connectTestClient(createServer(deps));
+      return { dir, deps, client, bodies };
+    }
+
+    it("sends the environment key and seeds it into the secrets file", async () => {
+      const { dir, client, bodies } = await setup({
+        INARA_API_KEY: "env-key",
+        INARA_CMDR: "Artie",
+      });
+      const r = await callTool(client, "inara_commander_profile");
+      expect(r.isError).toBe(false);
+      expect(bodies[0]).toContain('"APIkey":"env-key"');
+      expect(JSON.parse(await readFile(path.join(dir, "secrets.json"), "utf8"))).toEqual({
+        version: 1,
+        inara: { apiKey: "env-key", cmdr: "Artie" },
+      });
+    });
+
+    it("uses a key saved after startup on the next call", async () => {
+      const { deps, client, bodies } = await setup({});
+      const first = await callTool(client, "inara_commander_profile");
+      expect(first.isError).toBe(true);
+      await deps.secrets!.update((d) => {
+        d.inara = { apiKey: "saved-key", cmdr: "Saved" };
+      });
+      const r = await callTool(client, "inara_commander_profile");
+      expect(r.isError).toBe(false);
+      expect(bodies).toHaveLength(1);
+      expect(bodies[0]).toContain('"APIkey":"saved-key"');
+    });
   });
 });

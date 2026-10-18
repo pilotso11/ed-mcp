@@ -99,7 +99,7 @@ function check(b: Envelope): void {
   if (b.msgnum === 100) return;
   if (b.msgnum === 203) {
     throw new UserError(
-      "EDSM: commander name or API key not found. Check EDSM_CMDR and EDSM_API_KEY, and that EDSM sync is on in EDMC.",
+      "EDSM: commander name or API key not found. Check EDSM_CMDR and EDSM_API_KEY, or the values saved on the settings page (settings_open), and that EDSM sync is on in EDMC.",
     );
   }
   throw new UserError(`EDSM error ${b.msgnum}: ${b.msg}`);
