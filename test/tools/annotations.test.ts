@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { buildDeps } from "../../src/deps.js";
 import { loadConfig } from "../../src/config.js";
 import { createServer } from "../../src/server.js";
 import { connectTestClient } from "../helpers/client.js";
 
 async function listTools() {
-  const config = loadConfig({}, { config: "/tmp/ed-mcp-a", cache: "/tmp/ed-mcp-a" });
+  const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-annotations-"));
+  const config = loadConfig({}, { config: dir, cache: dir });
   const client = await connectTestClient(createServer(buildDeps(config)));
   return (await client.listTools()).tools;
 }

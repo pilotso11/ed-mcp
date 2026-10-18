@@ -14,7 +14,7 @@ export function registerBuildTools(server: McpServer, deps: { catalog?: CatalogS
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: false,
+        openWorldHint: true,
       },
       description:
         "Parse a SLEF ship build (export from EDSY, Coriolis or Inara) into slots, modules, " +
