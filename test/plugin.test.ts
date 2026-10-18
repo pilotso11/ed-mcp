@@ -8,14 +8,30 @@ const read = async (p: string) =>
   >;
 
 describe("Claude plugin", () => {
-  it("runs the npm release that matches the plugin version", async () => {
+  it("runs the locked npm release that matches the plugin version", async () => {
     const plugin = await read("plugin/.claude-plugin/plugin.json");
     const v = plugin.version as string;
     expect(v).toMatch(/^\d+\.\d+\.\d+$/);
-    // Inline, so the directory can check the launcher; pinned, so a plugin version runs one release.
+    // Claude Code installs the lockfile at plugin install; the server runs that copy, no launcher.
     expect(plugin.mcpServers).toMatchObject({
-      "ed-mcp": { command: "npx", args: ["-y", `ed-mcp@${v}`] },
+      "ed-mcp": {
+        command: "node",
+        args: ["${CLAUDE_PLUGIN_ROOT}/node_modules/ed-mcp/dist/index.js"],
+      },
     });
+    const pkg = await read("plugin/package.json");
+    expect(pkg.dependencies).toEqual({ "ed-mcp": v });
+    const lock = (await read("plugin/package-lock.json")) as {
+      lockfileVersion: number;
+      packages: Record<string, { version?: string; resolved?: string; integrity?: string }>;
+    };
+    expect(lock.lockfileVersion).toBeGreaterThanOrEqual(2);
+    // ed-mcp has no dependencies, so the lockfile pins exactly one tarball by hash.
+    expect(Object.keys(lock.packages).sort()).toEqual(["", "node_modules/ed-mcp"]);
+    const entry = lock.packages["node_modules/ed-mcp"]!;
+    expect(entry.version).toBe(v);
+    expect(entry.resolved).toBe(`https://registry.npmjs.org/ed-mcp/-/ed-mcp-${v}.tgz`);
+    expect(entry.integrity).toMatch(/^sha512-/);
   });
 
   it("passes every option it asks for, and nothing undeclared", async () => {
@@ -29,9 +45,15 @@ describe("Claude plugin", () => {
     expect(used).toEqual(options);
   });
 
-  it("ships only the manifest, the icon and the listing README", async () => {
+  it("ships only the manifest, the icon, the README and the lockfile", async () => {
+    // No .npmrc or other package-source config: the directory blocks one beside an install.
     const dir = new URL("../plugin/", import.meta.url);
-    expect((await readdir(dir)).sort()).toEqual([".claude-plugin", "README.md"]);
+    expect((await readdir(dir)).sort()).toEqual([
+      ".claude-plugin",
+      "README.md",
+      "package-lock.json",
+      "package.json",
+    ]);
   });
 
   it("has a README long enough for the directory listing", async () => {

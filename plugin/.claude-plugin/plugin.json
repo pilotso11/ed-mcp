@@ -1,7 +1,7 @@
 {
   "name": "elite-dangerous-mcp",
   "displayName": "ed-mcp: Elite Dangerous Companion",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Elite Dangerous tools for Claude: your game journal, Inara, EDSM, Frontier CAPI and Spansh, with build plans, engineering, materials, trade routes and station searches.",
   "author": {
     "name": "Seth Osher",
@@ -16,8 +16,8 @@
   "privacyPolicyUrl": "https://github.com/pilotso11/ed-mcp/blob/main/PRIVACY.md",
   "mcpServers": {
     "ed-mcp": {
-      "command": "npx",
-      "args": ["-y", "ed-mcp@0.3.1"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/node_modules/ed-mcp/dist/index.js"],
       "env": {
         "ED_JOURNAL_DIR": "${user_config.ed_journal_dir}",
         "ED_MCP_SYNC_DIR": "${user_config.ed_mcp_sync_dir}",
