@@ -1,7 +1,7 @@
 # Sync folder, sync password and live settings
 
 Date: 2026-10-17
-Status: approved in conversation (owner chose the options below)
+Status: approved in conversation; updated 2026-10-18 to match what was built
 
 ## Purpose
 
@@ -25,25 +25,27 @@ The owner plays on a PC with Claude open, and also uses a Mac. Mobile is a nice-
 
 | `ED_MCP_SYNC_DIR` | `ED_MCP_SYNC_PASSWORD` | In the sync folder | On this computer |
 | --- | --- | --- | --- |
-| not set | not set | — | everything, as today |
+| not set | not set | — | everything, as today (plans, preferences and `plans/<id>.md` in the settings folder) |
 | not set | set | — | everything; the secrets file is encrypted |
 | set | not set | `plans.json`, `preferences.json`, `plans/<id>.md` | secrets (`secrets.json`), caches |
 | set | set | the above and `secrets.enc` | caches |
 
-`ED_MCP_PLANS` still overrides the plans file in every mode.
+Plans, preferences and the `plans/<id>.md` Markdown copies always sit together: in the sync folder when one is set, otherwise in the settings folder. The copies are written in every mode.
+
+The password must be at least 12 characters. `loadConfig` throws a `ConfigError` for a shorter one.
 
 ## Settings
 
 | Setting | Source | Notes |
 | --- | --- | --- |
 | `ED_MCP_SYNC_DIR` | environment only | Full path or `~`. Needed at startup. |
-| `ED_MCP_SYNC_PASSWORD` | environment only | In Claude Desktop, a field marked `sensitive`, so Desktop keeps it in the system keychain. |
-| `ED_JOURNAL_DIR`, `ED_MCP_PLANS` | environment only | Unchanged. |
+| `ED_MCP_SYNC_PASSWORD` | environment only | At least 12 characters. In Claude Desktop, a field marked `sensitive`, so Desktop keeps it in the system keychain. |
+| `ED_JOURNAL_DIR` | environment only | Unchanged. |
 | `INARA_API_KEY`, `INARA_CMDR`, `EDSM_API_KEY`, `EDSM_CMDR` | environment or the settings page | The environment wins on this computer. Seed-once copies an environment value into an empty stored slot. |
 | Frontier tokens | the secrets file | As today, but in the secrets file. |
 | `CAPI_CLIENT_ID`, `INARA_DEV_MODE` | environment only | Unchanged. |
 
-`manifest.json` gains two fields: `ed_mcp_sync_dir` (type `directory`, "Sync folder") and `ed_mcp_sync_password` (type `string`, `sensitive: true`, "Sync password"). The key fields stay in the form. Their descriptions say that the settings page is the better way.
+`manifest.json` gains two fields: `ed_mcp_sync_dir` (type `directory`, "Sync folder") and `ed_mcp_sync_password` (type `string`, `sensitive: true`, "Sync password"). The key fields stay in the form. Their descriptions say that the settings page is the better way. The password field states the 12-character minimum.
 
 ## Components
 
@@ -65,14 +67,15 @@ Holds one document:
   ```ts
   { format: "ed-mcp-secrets", version: 1, kdf: "scrypt", salt, N, r, p, iv, tag, data }  // base64 fields
   ```
-  - The key is `scrypt(password, salt, 32, { N: 2^15, r: 8, p: 1 })`.
+  - The key is `scrypt(password, salt, 32, { N: 2^17, r: 8, p: 1 })`. On read, the envelope must have `N` a power of two from 2 to 2^17, `r` from 1 to 8 and `p` from 1 to 2, so a crafted file cannot make scrypt use gigabytes of memory.
   - The cipher is AES-256-GCM with a new random 12-byte IV on every write.
   - The salt is random per file and kept when the file is rewritten. The key is derived once per process and cached with its salt.
 - **Location:** with a sync folder and a password, `<syncDir>/secrets.enc`. Otherwise in the local settings folder: `secrets.enc` with a password, `secrets.json` without.
+- **Size caps:** plans and preferences are read and written up to 8 MB, secrets up to 1 MB. Only regular files are read; a symlink, folder or oversized file is an error.
 - **Reads:** `get()` stats the file and parses it again only when `mtimeMs` or the size changed. An unchanged file costs one `stat`.
 - **Writes:** `update(fn)` runs under `lockedWrite` and reads the current file inside the lock, so a change from another process is not lost.
 - **Never overwrite what could not be read.** If the file exists but cannot be decrypted or parsed, every write fails with the same error as the read. Nothing replaces it.
-- **Migration:** at startup, if the store has no `capi` entry and the old `capi-token.json` exists, its tokens move into the store and the old file is deleted. Plain `secrets.json` moves into `secrets.enc` when a password is first set, and the plain file is deleted.
+- **No migration.** Users upgrading from 0.3 log in to Frontier again (`capi_login`) and re-enter their keys, on the settings page or in the environment. They can delete the old `capi-token.json`. The README says so.
 
 ### `src/settings/settings.ts`: `Settings`
 
@@ -86,11 +89,11 @@ Holds one document:
 | --- | --- |
 | `InaraClient`, `EdsmClient` | Take `() => InaraConfig \| undefined` (or the EDSM equivalent). Missing settings still raise `NotConfiguredError`, with the same messages. |
 | `src/capi/tokens.ts` `TokenStore` | Becomes a thin view on the `capi` entry of `SecretStore`. Same interface. |
-| `CapiAuth` refresh | If a refresh fails with an auth error (400/401), read the store again. If its tokens differ from the ones used, retry once with them; another computer refreshed first. If that fails too, the existing "log in again" error. |
-| `config.ts` | Adds `syncDir?: string`, `syncPassword?: string` and `secretsFile`. When `syncDir` is set, the plans file defaults to `<syncDir>/plans.json` and the preferences file to `<syncDir>/preferences.json`. |
+| `CapiAuth` refresh | If a refresh fails with an auth error (400/401), read the store again. If its tokens differ from the ones used, retry once with them; another computer refreshed first. If that fails too, the error tells the user to wait for the sync app or call `capi_login`. A rejected refresh keeps the shared login: a stale copy never deletes what another computer holds. Logout sticks: a refresh or browser login that finishes after logout does not write tokens back. |
+| `config.ts` | Adds `syncDir?: string`, `syncPassword?: string` and `secretsFile`. Plans, preferences and the Markdown folder live in `syncDir` when it is set, otherwise in the settings folder. It rejects a password shorter than 12 characters. |
 | `src/fs/lock.ts` | `lockedWrite` and `acquireLock` take an optional lock directory. For files in the sync folder, the lock is `<configDir>/locks/<sha256(path) prefix>.lock`. |
-| `PlanStore` | When a sync folder is set, each save also writes `<syncDir>/plans/<id>.md` (the existing `plan_export` Markdown). A deleted plan deletes its Markdown file. |
-| `deps.ts` | Builds `SecretStore` and `Settings`, runs `seedFromEnv()` and the migration, and passes the getters to the clients. |
+| `PlanStore` | Each save also writes `plans/<id>.md` next to `plans.json` (the existing `plan_export` Markdown), in every mode. Each copy goes to a temp file and is renamed over the target. A symlinked or non-folder `plans` directory is refused, and the plan still saves. Only the copy of a plan that the change removed is deleted; other files in the folder are never touched. |
+| `deps.ts` | Builds `SecretStore` and `Settings`, and passes the getters to the clients. |
 
 ### Sync folder availability
 
@@ -112,16 +115,19 @@ Holds one document:
 - **`settings_open`** starts a loopback HTTP server on a random port. The page link includes a one-time key, and the server rejects requests without it. It opens the page in the browser, as `capi_login` does.
   - The page shows each setting and where it comes from. It has fields for the Inara and EDSM keys and commander names, and buttons to clear each.
   - It shows saved keys only as the last 4 characters.
+  - Each service has help on where to get its key.
+  - It refuses a half-filled entry: key and commander name are saved together.
   - Saving writes to `SecretStore` and stops the server.
   - The server also stops after 10 minutes.
-  - With an unreadable encrypted file, the page offers "Re-encrypt with the current password" (it asks for the old password) or "Start fresh" (clears keys and the Frontier login).
-  - The tool returns the link and "Waiting for you to save." It does not return any key.
+  - With an unreadable encrypted file, the page offers "Re-encrypt with the current password" (it asks for the old password) or "Start fresh" (clears keys and the Frontier login). With a sync folder, the page warns that this changes the secrets for every computer that shares it.
+  - The tool returns the link only when the browser did not open, because the link carries the one-time key. When the browser opened, it returns `opened: true` and the expiry time. It never returns a key.
 - **`settings_status`** returns:
   - the sync folder and whether it is available,
   - whether secrets are encrypted, and where the secrets file is,
   - the source of each setting, from `Settings.sources()`, with the environment-differs flag,
   - whether a Frontier login is stored,
-  - any conflict copies.
+  - any conflict copies,
+  - `notes`: hints that Claude apps on this computer disagree. With a sync folder, if the local settings folder also holds `plans.json`, `preferences.json`, `secrets.json` or `secrets.enc`, another app probably lacks the sync settings. With a password, if the secrets folder holds both `secrets.enc` and `secrets.json`, an app without the password uses the plain file. Without a sync folder, no check is possible and there are no notes.
   
   It returns no key values.
 
@@ -157,7 +163,7 @@ All tests use temp directories and no network.
   - a new IV on each write, with the salt kept,
   - a re-read after the file changes,
   - mode 0600,
-  - migration from `capi-token.json`, and from `secrets.json` to `secrets.enc`.
+  - the size caps and the regular-file rule.
 - **`Settings`:**
   - the environment wins,
   - seed-once fills only empty entries and never overwrites,
@@ -174,5 +180,7 @@ All tests use temp directories and no network.
   - saving with the key works,
   - a wrong key gets 403,
   - the server stops after a save and after the timeout,
+  - the link is returned only when the browser did not open,
   - the result never contains a key.
+- **`settings_status` notes:** both notes, no note when settings agree, and no note without a sync folder even when the settings folder holds data.
 - **Existing tests stay green.** A configuration with only environment variables behaves as today.

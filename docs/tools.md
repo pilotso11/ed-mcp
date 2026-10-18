@@ -290,7 +290,7 @@ Results:
 | ---------------- | ---------------------------------------------------------------------------------------------- |
 | `sync_folder`    | `null` without a sync folder. Otherwise `path` and `available`, and `error` when it is not available. |
 | `secrets`        | `file`, `encrypted` (a sync password is set), `readable`, and `error` when it cannot be read.   |
-| `inara`, `edsm`  | For each service, where its key comes from (`environment`, `stored` or `not set`) and the commander name. |
+| `inara`, `edsm`  | For each service, where its key comes from (`environment`, `stored` or `not set`) and the commander name. `differs_from_stored` is `true` when an environment value differs from the saved one. |
 | `frontier_login` | `true` when a Frontier login is saved.                                                          |
 | `conflicts`      | Conflict copies that the sync service made. Keep the copy that you want and delete the other.   |
 | `notes`          | Settings that look mismatched between Claude apps on this computer, with what to do.            |

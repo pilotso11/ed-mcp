@@ -93,15 +93,15 @@ The game journal is the best source for most questions. It is on your computer a
 
 ### All settings
 
-| Setting          | Meaning                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `INARA_API_KEY`  | Your Inara API key                                                                                        |
-| `INARA_CMDR`     | Your in-game commander name                                                                               |
-| `EDSM_API_KEY`   | Your EDSM API key                                                                                         |
-| `EDSM_CMDR`      | Your commander name on EDSM                                                                               |
-| `ED_JOURNAL_DIR` | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`. |
-| `ED_MCP_SYNC_DIR` | Optional. A folder that your sync service keeps in step between computers (see [Use ed-mcp on more than one computer](#use-ed-mcp-on-more-than-one-computer)). |
-| `ED_MCP_SYNC_PASSWORD` | Optional. At least 12 characters. Encrypts your API keys and Frontier login. Use the same password on every computer. |
+| Setting                | Meaning                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INARA_API_KEY`        | Your Inara API key                                                                                                                                             |
+| `INARA_CMDR`           | Your in-game commander name                                                                                                                                    |
+| `EDSM_API_KEY`         | Your EDSM API key                                                                                                                                              |
+| `EDSM_CMDR`            | Your commander name on EDSM                                                                                                                                    |
+| `ED_JOURNAL_DIR`       | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`.                                            |
+| `ED_MCP_SYNC_DIR`      | Optional. A folder that your sync service keeps in step between computers (see [Use ed-mcp on more than one computer](#use-ed-mcp-on-more-than-one-computer)). |
+| `ED_MCP_SYNC_PASSWORD` | Optional. At least 12 characters. Encrypts your API keys and Frontier login. Use the same password on every computer.                                          |
 
 Inara needs both of its settings. EDSM needs both of its settings.
 

@@ -137,9 +137,15 @@ describe("settings tools", () => {
     expect(notes).toEqual([]);
   });
 
-  it("adds no note without a sync folder", async () => {
-    const { client } = await setup();
-    const r = await callTool(client, "settings_status");
+  it("adds no note without a sync folder, even when the settings folder holds data", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "settings-notes-"));
+    await writeFile(path.join(dir, "plans.json"), "{}");
+    const secrets = new SecretStore(path.join(dir, "secrets.json"));
+    const settings = new Settings({}, { appName: "ed-mcp", devMode: false }, secrets);
+    const page = new SettingsPage({ secrets, settings }, { openUrl: async () => undefined });
+    const server = new McpServer({ name: "t", version: "0" });
+    registerSettingsTools(server, { page, settings, secrets, localDir: dir });
+    const r = await callTool(await connectTestClient(server), "settings_status");
     expect((r.json as { notes: string[] }).notes).toEqual([]);
   });
 });
