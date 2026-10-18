@@ -64,6 +64,7 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
 2. Merge the change to `main`.
 3. Tag the commit `vX.Y.Z` and push the tag.
 4. On npmjs.com, approve the staged version of `ed-mcp`.
+5. After the GitHub Release exists, set `version` and the `.mcpb` URL in `plugin/.claude-plugin/plugin.json` to the new version, and merge that change. Anthropic's directory follows `main`, so plugin users get the new version from that commit.
 
 The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. Then it stages the package on npm, unless that version is already on npm. The version goes live on npm only when a maintainer approves it with 2FA.
 
