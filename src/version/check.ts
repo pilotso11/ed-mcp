@@ -2,10 +2,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { lockedWrite } from "../fs/lock.js";
-import { HttpError, type HttpClient } from "../http/client.js";
+import { UserError } from "../errors.js";
+import type { HttpClient } from "../http/client.js";
 
 const RELEASE_URL = "https://api.github.com/repos/pilotso11/ed-mcp/releases/latest";
 const DAY_MS = 24 * 60 * 60 * 1000;
+// A failed check is not retried on every notice() call while the machine is offline.
+const RETRY_MS = 60 * 60 * 1000;
 
 const releaseSchema = z.object({ tag_name: z.string().min(1), html_url: z.string().min(1) });
 const cacheSchema = z.object({
@@ -34,6 +37,8 @@ export class VersionCheck {
   private readonly file: string;
   private readonly now: () => number;
   private running: Promise<void> = Promise.resolve();
+  private inFlight = false;
+  private lastAttempt = -Infinity;
 
   constructor(
     private readonly opts: {
@@ -49,13 +54,20 @@ export class VersionCheck {
 
   /** Starts a check in the background. It never throws and nothing waits for it. */
   start(): void {
-    this.running = this.check().catch((err: unknown) => {
-      // Network and format problems are expected and stay silent.
-      if (err instanceof HttpError || err instanceof z.ZodError || err instanceof SyntaxError) {
-        return;
-      }
-      console.error(`ed-mcp version check failed: ${err instanceof Error ? err.message : err}`);
-    });
+    if (this.inFlight) return;
+    this.inFlight = true;
+    this.lastAttempt = this.now();
+    this.running = this.check()
+      .catch((err: unknown) => {
+        // Network, format and lock problems are expected and stay silent. HttpError is a UserError.
+        if (err instanceof UserError || err instanceof z.ZodError || err instanceof SyntaxError) {
+          return;
+        }
+        console.error(`ed-mcp version check failed: ${err instanceof Error ? err.message : err}`);
+      })
+      .finally(() => {
+        this.inFlight = false;
+      });
   }
 
   /** Resolves when the check started by start() is done. */
@@ -63,10 +75,14 @@ export class VersionCheck {
     return this.running;
   }
 
-  /** Reads the saved result only. It never makes a request. */
+  /**
+   * Answers from the saved result only, so it never waits on a request. When that result is
+   * missing or over a day old it starts a background check, for servers that run for days.
+   */
   async notice(): Promise<string | null> {
     try {
       const cached = await this.read();
+      if (this.isStale(cached) && this.now() - this.lastAttempt >= RETRY_MS) this.start();
       if (!cached || !isNewer(cached.latest, this.opts.current)) return null;
       return `ed-mcp ${cached.latest} is available (you have ${this.opts.current}): ${cached.url}`;
     } catch {
@@ -82,11 +98,15 @@ export class VersionCheck {
     }
   }
 
+  // A clock set back would keep a stale entry fresh for too long, so a future time counts as old.
+  private isStale(cached: Cached | null): boolean {
+    if (!cached) return true;
+    const age = this.now() - cached.checked_at;
+    return age < 0 || age >= DAY_MS;
+  }
+
   private async check(): Promise<void> {
-    const cached = await this.read();
-    // A clock set back would keep a stale entry fresh for too long, so a future time counts as old.
-    const age = cached ? this.now() - cached.checked_at : Infinity;
-    if (age >= 0 && age < DAY_MS) return;
+    if (!this.isStale(await this.read())) return;
     const release = releaseSchema.parse(await this.opts.http.json<unknown>(RELEASE_URL));
     const entry: Cached = {
       checked_at: this.now(),

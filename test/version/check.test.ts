@@ -106,18 +106,50 @@ describe("VersionCheck", () => {
     expect(fetchFn.calls).toHaveLength(1);
   });
 
+  it("refreshes when checked_at is in the future (clock set back)", async () => {
+    const { check, fetchFn, file } = await setup(release("v0.4.0"));
+    await writeFile(file, JSON.stringify({ checked_at: NOW + HOUR, latest: "0.3.5", url: URL_ }));
+    check.start();
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(1);
+  });
+
+  it("notice() starts one background check when the cache is stale", async () => {
+    const { check, fetchFn, file } = await setup(release("v0.4.0"));
+    await writeFile(
+      file,
+      JSON.stringify({ checked_at: NOW - 25 * HOUR, latest: "0.3.5", url: URL_ }),
+    );
+    expect(await check.notice()).toContain("0.3.5 is available");
+    expect(await check.notice()).toContain("0.3.5 is available");
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(1);
+    expect(await check.notice()).toContain("0.4.0 is available");
+    expect(fetchFn.calls).toHaveLength(1);
+  });
+
+  it("notice() starts a check when there is no cache", async () => {
+    const { check, fetchFn } = await setup(release("v0.4.0"));
+    expect(await check.notice()).toBeNull();
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(1);
+    expect(await check.notice()).toContain("0.4.0 is available");
+  });
+
+  it("notice() makes no request when the cache is fresh", async () => {
+    const { check, fetchFn, file } = await setup(release("v0.4.0"));
+    await writeFile(file, JSON.stringify({ checked_at: NOW - HOUR, latest: "0.3.5", url: URL_ }));
+    await check.notice();
+    await check.whenIdle();
+    expect(fetchFn.calls).toHaveLength(0);
+  });
+
   it("keeps the old cache when a refresh fails", async () => {
     const { check, file } = await setup(() => new Response("", { status: 404 }));
     const old = { checked_at: NOW - 25 * HOUR, latest: "0.3.5", url: URL_ };
     await writeFile(file, JSON.stringify(old));
     expect(await run(check)).toContain("0.3.5 is available");
     expect(JSON.parse(await readFile(file, "utf8"))).toEqual(old);
-  });
-
-  it("notice() makes no request", async () => {
-    const { check, fetchFn } = await setup(release("v0.4.0"));
-    expect(await check.notice()).toBeNull();
-    expect(fetchFn.calls).toHaveLength(0);
   });
 });
 
