@@ -37,7 +37,6 @@ export class SecretStore {
   private readonly cipher?: SecretCipher;
   private cached: Cached | null = null;
   private salt?: string;
-  private ready: Promise<string[]> | null = null;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -47,7 +46,6 @@ export class SecretStore {
       lockDir?: string;
       scrypt?: ScryptParams;
       lockTimeoutMs?: number;
-      migrate?: { legacyTokenFile?: string; plainFile?: string };
       guard?: () => Promise<void>;
     } = {},
   ) {
@@ -56,15 +54,11 @@ export class SecretStore {
   }
 
   async get(): Promise<Secrets> {
-    await this.migrated();
     return this.read();
   }
 
   update(fn: (s: Secrets) => void): Promise<Secrets> {
-    const run = this.queue.then(async () => {
-      await this.migrated();
-      return this.write(fn);
-    });
+    const run = this.queue.then(() => this.write(fn));
     this.queue = run.catch(() => undefined);
     return run;
   }
@@ -119,19 +113,6 @@ export class SecretStore {
       this.cached = null;
       this.salt = undefined;
     });
-  }
-
-  notes(): Promise<string[]> {
-    return this.migrated();
-  }
-
-  private migrated(): Promise<string[]> {
-    this.ready ??= this.migrate().catch((err) => {
-      // Retry on the next call: the sync folder may mount, or a lock may clear, later.
-      this.ready = null;
-      throw err;
-    });
-    return this.ready;
   }
 
   private async read(): Promise<Secrets> {
@@ -222,68 +203,5 @@ export class SecretStore {
     ).finally(() => {
       this.cached = null;
     });
-  }
-
-  private async migrate(): Promise<string[]> {
-    await this.opts.guard?.();
-    const notes: string[] = [];
-    const { legacyTokenFile, plainFile } = this.opts.migrate ?? {};
-    if (plainFile && this.encrypted && plainFile !== this.file) {
-      const plain = await readFile(plainFile, "utf8").catch(() => null);
-      if (plain !== null) {
-        const exists = await stat(this.file).then(
-          () => true,
-          (err) => {
-            if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
-            throw err;
-          },
-        );
-        if (exists) {
-          notes.push(`${plainFile} was left in place because ${this.file} already exists.`);
-        } else {
-          let value: Secrets | null = null;
-          try {
-            value = new SecretStore(plainFile).parse(plain).value;
-          } catch {
-            notes.push(`${plainFile} was left in place because it is not readable.`);
-          }
-          if (value) {
-            await this.write((d) => Object.assign(d, value));
-            await rm(plainFile, { force: true });
-            notes.push(`Encrypted the secrets from ${plainFile}.`);
-          }
-        }
-      }
-    }
-    if (legacyTokenFile) {
-      const raw = await readFile(legacyTokenFile, "utf8").catch(() => null);
-      const parsed = raw === null ? null : StoredTokensSchema.safeParse(safeJson(raw));
-      if (parsed?.success) {
-        // Decide inside the lock, so a fresher login from another process is kept.
-        const stored = await this.write((d) => {
-          d.capi ??= parsed.data;
-        });
-        if (JSON.stringify(stored.capi) === JSON.stringify(parsed.data)) {
-          await rm(legacyTokenFile, { force: true });
-          notes.push(`Moved the Frontier login from ${legacyTokenFile}.`);
-        } else {
-          notes.push(LEFT(legacyTokenFile));
-        }
-      } else if (raw !== null) {
-        notes.push(LEFT(legacyTokenFile));
-      }
-    }
-    return notes;
-  }
-}
-
-const LEFT = (file: string) =>
-  `${file} was left in place; delete it once you have checked the Frontier login works.`;
-
-function safeJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
   }
 }

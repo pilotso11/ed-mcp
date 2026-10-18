@@ -90,7 +90,6 @@ The game journal is the best source for most questions. It is on your computer a
 | `EDSM_API_KEY`   | Your EDSM API key                                                                                         |
 | `EDSM_CMDR`      | Your commander name on EDSM                                                                               |
 | `ED_JOURNAL_DIR` | The game journal folder. On Windows, the default is the game's folder. Use a full path or one that starts with `~`. |
-| `ED_MCP_PLANS`   | A different file for your plans. Use a full path or one that starts with `~`. The default is `plans.json` in the settings folder (see [Your data](#your-data)). |
 
 Inara needs both of its settings. EDSM needs both of its settings.
 
@@ -117,7 +116,7 @@ The journal tools warn you when the newest entry is more than 30 minutes old. Th
 
 ## Plans
 
-Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. To keep a plan in a project folder, export it as JSON and import it again later with `plan_import`. The plans stay on your computer, in `plans.json` in the settings folder (see [Your data](#your-data)). To keep them in another place, for example a folder that you back up, set `ED_MCP_PLANS`.
+Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. To keep a plan in a project folder, export it as JSON and import it again later with `plan_import`. The plans stay on your computer, in `plans.json` in the settings folder (see [Your data](#your-data)).
 
 ## Preferences
 
@@ -152,7 +151,7 @@ ed-mcp keeps these files on your computer:
 
 | Data                         | File                                         |
 | ---------------------------- | -------------------------------------------- |
-| Plans                        | `plans.json`, or the file in `ED_MCP_PLANS`  |
+| Plans                        | `plans.json`                                 |
 | Preferences                  | `preferences.json`                           |
 | Frontier login               | `capi-token.json`, readable only by you      |
 | Game data and cached results | The cache folder                             |

@@ -30,6 +30,8 @@ export interface Config {
   syncDir?: string;
   syncPassword?: string;
   plansFile: string;
+  /** Readable Markdown copies of the plans, next to plans.json. */
+  plansMarkdownDir: string;
   prefsFile: string;
   /** secrets.json (plain, this computer) or secrets.enc (encrypted, sync folder if set). */
   secretsFile: string;
@@ -115,7 +117,8 @@ export function loadConfig(
     inaraApp: { appName, devMode },
     syncDir,
     syncPassword,
-    plansFile: userPath(env, "ED_MCP_PLANS") ?? path.join(dataDir, "plans.json"),
+    plansFile: path.join(dataDir, "plans.json"),
+    plansMarkdownDir: path.join(dataDir, "plans"),
     prefsFile: path.join(dataDir, "preferences.json"),
     secretsFile: syncPassword
       ? path.join(dataDir, "secrets.enc")

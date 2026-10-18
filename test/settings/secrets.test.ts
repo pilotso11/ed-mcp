@@ -94,73 +94,6 @@ describe("SecretStore", () => {
     expect(existsSync(path.join(dir, "secrets.json"))).toBe(false);
   });
 
-  it("moves an old capi-token.json into the store", async () => {
-    const dir = await tmp();
-    const legacy = path.join(dir, "capi-token.json");
-    await writeFile(legacy, JSON.stringify(tokens));
-    const s = new SecretStore(path.join(dir, "secrets.json"), {
-      migrate: { legacyTokenFile: legacy },
-    });
-    expect((await s.get()).capi).toEqual(tokens);
-    expect(existsSync(legacy)).toBe(false);
-    expect(await s.notes()).toEqual([`Moved the Frontier login from ${legacy}.`]);
-  });
-
-  it("keeps an old capi-token.json when the store already has a login, and says so", async () => {
-    const dir = await tmp();
-    const legacy = path.join(dir, "capi-token.json");
-    await writeFile(legacy, JSON.stringify({ ...tokens, refresh_token: "old" }));
-    const file = path.join(dir, "secrets.json");
-    await new SecretStore(file).update((d) => {
-      d.capi = tokens;
-    });
-    const s = new SecretStore(file, { migrate: { legacyTokenFile: legacy } });
-    expect((await s.get()).capi).toEqual(tokens);
-    expect(existsSync(legacy)).toBe(true);
-    expect(await s.notes()).toEqual([
-      `${legacy} was left in place; delete it once you have checked the Frontier login works.`,
-    ]);
-  });
-
-  it("moves a plain secrets.json into a new encrypted file", async () => {
-    const dir = await tmp();
-    const plain = path.join(dir, "secrets.json");
-    await new SecretStore(plain).update((d) => {
-      d.edsm = { apiKey: "e", cmdr: "J" };
-    });
-    const enc = new SecretStore(path.join(dir, "secrets.enc"), {
-      password: "pw",
-      scrypt: FAST,
-      migrate: { plainFile: plain },
-    });
-    expect((await enc.get()).edsm).toEqual({ apiKey: "e", cmdr: "J" });
-    expect(existsSync(plain)).toBe(false);
-    expect(await enc.notes()).toEqual([`Encrypted the secrets from ${plain}.`]);
-    if (process.platform !== "win32") {
-      expect((await stat(path.join(dir, "secrets.enc"))).mode & 0o777).toBe(0o600);
-    }
-  });
-
-  it("leaves a plain secrets.json alone when the encrypted file already exists", async () => {
-    const dir = await tmp();
-    const plain = path.join(dir, "secrets.json");
-    const encFile = path.join(dir, "secrets.enc");
-    await new SecretStore(encFile, { password: "pw", scrypt: FAST }).update(() => undefined);
-    await new SecretStore(plain).update((d) => {
-      d.edsm = { apiKey: "e", cmdr: "J" };
-    });
-    const enc = new SecretStore(encFile, {
-      password: "pw",
-      scrypt: FAST,
-      migrate: { plainFile: plain },
-    });
-    expect((await enc.get()).edsm).toBeUndefined();
-    expect(existsSync(plain)).toBe(true);
-    expect(await enc.notes()).toEqual([
-      `${plain} was left in place because ${encFile} already exists.`,
-    ]);
-  });
-
   it("creates nothing when the guard fails on a missing sync folder", async () => {
     const dir = await tmp();
     const sync = path.join(dir, "sync");
@@ -185,36 +118,6 @@ describe("SecretStore", () => {
     await expect(plain.get()).rejects.toThrow(message);
     await expect(plain.update(() => undefined)).rejects.toThrow(message);
     expect(await readFile(file, "utf8")).toBe(before);
-  });
-
-  it("retries a failed migration on the next call", async () => {
-    const dir = await tmp();
-    const legacy = path.join(dir, "capi-token.json");
-    await writeFile(legacy, JSON.stringify(tokens));
-    let calls = 0;
-    const guard = async () => {
-      if (calls++ === 0) throw new SecretsError("Sync folder is not available");
-    };
-    const s = new SecretStore(path.join(dir, "secrets.json"), {
-      guard,
-      migrate: { legacyTokenFile: legacy },
-    });
-    await expect(s.get()).rejects.toThrow("not available");
-    expect((await s.get()).capi).toEqual(tokens);
-  });
-
-  it("leaves a corrupt plain secrets.json in place and still opens the encrypted store", async () => {
-    const dir = await tmp();
-    const plain = path.join(dir, "secrets.json");
-    await writeFile(plain, "{bad");
-    const enc = new SecretStore(path.join(dir, "secrets.enc"), {
-      password: "pw",
-      scrypt: FAST,
-      migrate: { plainFile: plain },
-    });
-    expect(await enc.get()).toEqual({ version: 1 });
-    expect(existsSync(plain)).toBe(true);
-    expect(await enc.notes()).toEqual([`${plain} was left in place because it is not readable.`]);
   });
 
   it("keeps another store's change when it writes", async () => {

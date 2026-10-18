@@ -82,31 +82,10 @@ describe("loadConfig", () => {
     },
   );
 
-  it("reads EDSM, CAPI and the plans override", () => {
-    const c = loadConfig(
-      { EDSM_API_KEY: "e", EDSM_CMDR: "J", CAPI_CLIENT_ID: "cid", ED_MCP_PLANS: "/p.json" },
-      dirs,
-    );
+  it("reads EDSM and CAPI", () => {
+    const c = loadConfig({ EDSM_API_KEY: "e", EDSM_CMDR: "J", CAPI_CLIENT_ID: "cid" }, dirs);
     expect(c.edsm).toEqual({ apiKey: "e", cmdr: "J" });
     expect(c.capi).toEqual({ clientId: "cid" });
-    expect(c.plansFile).toBe(path.resolve("/p.json"));
-  });
-
-  describe("ED_MCP_PLANS paths", () => {
-    afterEach(() => vi.restoreAllMocks());
-
-    it("expands ~", () => {
-      vi.spyOn(os, "homedir").mockReturnValue(path.resolve("/home/j"));
-      const c = loadConfig({ ED_MCP_PLANS: "~/ed/plans.json" }, dirs);
-      expect(c.plansFile).toBe(path.join(path.resolve("/home/j"), "ed", "plans.json"));
-    });
-
-    it("rejects a relative path", () => {
-      expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(ConfigError);
-      expect(() => loadConfig({ ED_MCP_PLANS: "plans.json" }, dirs)).toThrow(
-        "ED_MCP_PLANS: Use an absolute path or one starting with ~: plans.json",
-      );
-    });
   });
 
   describe("ED_JOURNAL_DIR paths", () => {
@@ -153,9 +132,12 @@ describe("loadConfig", () => {
     expect(c.secretsFile).toBe(path.join(path.resolve("/sync"), "secrets.enc"));
   });
 
-  it("lets ED_MCP_PLANS override the sync folder", () => {
+  it("ignores ED_MCP_PLANS and keeps the Markdown copies next to plans.json", () => {
     const c = loadConfig({ ED_MCP_SYNC_DIR: "/sync", ED_MCP_PLANS: "/p/plans.json" }, dirs);
-    expect(c.plansFile).toBe(path.resolve("/p/plans.json"));
+    expect(c.plansFile).toBe(path.join(path.resolve("/sync"), "plans.json"));
+    expect(c.plansMarkdownDir).toBe(path.join(path.resolve("/sync"), "plans"));
+    const local = loadConfig({}, dirs);
+    expect(local.plansMarkdownDir).toBe(path.join("/cfg", "plans"));
   });
 
   it("ignores unset Claude Desktop placeholders for the sync settings", () => {

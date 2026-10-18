@@ -38,10 +38,6 @@ export function buildDeps(
     password: config.syncPassword,
     lockDir: lockFor(config.secretsFile),
     guard: guardFor(config.secretsFile),
-    migrate: {
-      legacyTokenFile: path.join(config.configDir, "capi-token.json"),
-      plainFile: path.join(config.configDir, "secrets.json"),
-    },
   });
   const settings = new Settings(
     { inara: envKey(config.inara), edsm: config.edsm },
@@ -95,7 +91,7 @@ export function buildDeps(
     plans: new PlanStore(config.plansFile, undefined, {
       lockDir: lockFor(config.plansFile),
       guard: guardFor(config.plansFile),
-      markdownDir: sync?.contains(config.plansFile) ? path.join(sync.dir, "plans") : undefined,
+      markdownDir: config.plansMarkdownDir,
     }),
     prefs: new PreferencesStore(config.prefsFile, {
       lockDir: lockFor(config.prefsFile),

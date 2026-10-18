@@ -76,7 +76,6 @@ export function registerSettingsTools(
         edsm: sources.edsm,
         frontier_login: frontier,
         conflicts: (await deps.syncWarnings?.()) ?? [],
-        notes: await deps.secrets.notes().catch(() => []),
       };
     }),
   );

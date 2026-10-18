@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { loadConfig } from "../src/config.js";
@@ -60,19 +60,18 @@ describe("buildDeps", () => {
   it("clears the CAPI profile cache on logout", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
     const now = Date.now();
-    await writeFile(
-      path.join(dir, "capi-token.json"),
-      JSON.stringify({
-        refresh_token: "R",
-        access_token: "A",
-        expires_at: now + 3_600_000,
-        authorized_at: now,
-      }),
-    );
     const profile = await fixture("capi/profile.json");
     const fetchFn = fakeFetch([{ match: () => true, respond: () => jsonResponse(profile) }]);
     const deps = buildDeps(loadConfig({ CAPI_CLIENT_ID: "cid" }, { config: dir, cache: dir }), {
       fetchFn,
+    });
+    await deps.secrets!.update((d) => {
+      d.capi = {
+        refresh_token: "R",
+        access_token: "A",
+        expires_at: now + 3_600_000,
+        authorized_at: now,
+      };
     });
     const capiEntries = () => deps.caches!.stats().find((c) => c.name === "capi")!.entries;
     await deps.capi!.profile();
@@ -84,15 +83,6 @@ describe("buildDeps", () => {
   it("takes the ship and jump range from the journal first, then the ship from CAPI", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-deps-"));
     const now = Date.now();
-    await writeFile(
-      path.join(dir, "capi-token.json"),
-      JSON.stringify({
-        refresh_token: "R",
-        access_token: "A",
-        expires_at: now + 3_600_000,
-        authorized_at: now,
-      }),
-    );
     const profile = await fixture("capi/profile.json");
     const fetchFn = fakeFetch([{ match: () => true, respond: () => jsonResponse(profile) }]);
     let fresh: { type: string; max_jump_range: number | null } | null = {
@@ -103,6 +93,14 @@ describe("buildDeps", () => {
     const deps = buildDeps(loadConfig({ CAPI_CLIENT_ID: "cid" }, { config: dir, cache: dir }), {
       fetchFn,
       journal,
+    });
+    await deps.secrets!.update((d) => {
+      d.capi = {
+        refresh_token: "R",
+        access_token: "A",
+        expires_at: now + 3_600_000,
+        authorized_at: now,
+      };
     });
     expect(await deps.currentShip!()).toEqual({ type: "Corsair", source: "journal" });
     expect(await deps.jumpRange!()).toBe(24.5);
