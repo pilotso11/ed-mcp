@@ -13,9 +13,9 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 
 ## What this plugin runs
 
-The plugin starts one local MCP server on your computer: `npx -y ed-mcp@<version>`, the ed-mcp package from npm, pinned to the plugin's version. The package has no dependencies; all its code is in one file. Each release is built by GitHub Actions with signed provenance. The source is at <https://github.com/pilotso11/ed-mcp>.
+The plugin starts one local MCP server on your computer: the ed-mcp package from npm, pinned to the plugin's version. `package-lock.json` in this folder fixes the exact package and its sha512 hash. When you install the plugin, Claude Code installs that one package without running any install scripts, and the server then runs it with `node`. The package has no dependencies; all its code is in one file. Each release is built by GitHub Actions with signed provenance. The source is at <https://github.com/pilotso11/ed-mcp>.
 
-The server works in Claude Code, and in Cowork when the session runs on your computer. It needs Node.js 22 or later. It does not run in claude.ai chat, because chat cannot start local programs. For Claude Desktop chat, install the `.mcpb` file from the [Releases](https://github.com/pilotso11/ed-mcp/releases) page instead.
+The server works in Claude Code, and in Cowork when the session runs on your computer. It needs Node.js 22 or later, with npm. It does not run in claude.ai chat, because chat cannot start local programs. For Claude Desktop chat, install the `.mcpb` file from the [Releases](https://github.com/pilotso11/ed-mcp/releases) page instead.
 
 ## Settings
 
