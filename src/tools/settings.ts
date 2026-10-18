@@ -36,6 +36,14 @@ export function registerSettingsTools(
   server.registerTool(
     "settings_open",
     {
+      annotations: {
+        title: "Open Settings Page",
+        // Not read-only: it starts a local page that saves keys.
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description:
         "Open the ed-mcp settings page in the browser, where the user enters or clears Inara and " +
         "EDSM API keys and commander names. Keys entered there apply at once, without a restart, " +
@@ -63,6 +71,14 @@ export function registerSettingsTools(
   server.registerTool(
     "settings_status",
     {
+      annotations: {
+        title: "Settings Status",
+        // Not read-only: a status call can copy environment keys into the store once (seed-once).
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         "Where ed-mcp keeps its data: the sync folder and whether it is available, whether secrets " +
         "are encrypted, where each API key comes from (environment or saved), whether a Frontier " +

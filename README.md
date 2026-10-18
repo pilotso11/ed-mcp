@@ -142,9 +142,9 @@ What syncs:
 
 The password must be at least 12 characters. Use the same password on every computer. A computer with a different password cannot read the keys.
 
-If two computers change the same file before the sync service catches up, the service keeps both. It saves one as a "conflict copy". ed-mcp tells Claude when it sees one.
+If two computers change the same file before the sync service catches up, the service keeps both. It saves one as a "conflict copy". ed-mcp tells Claude when it sees one. Ask Claude "What is my ed-mcp settings status?", then keep the copy that you want and delete the other.
 
-If the sync folder is not available (for example, your sync app is stopped), the plan and preference tools fail with a clear message. They do not fall back to a local copy. Searches that use your stored preferences also need the folder. Pass `use_preferences: false` to search without them. Ask Claude "What is my ed-mcp settings status?", then keep the copy that you want and delete the other.
+If the sync folder is not available (for example, your sync app is stopped), the plan and preference tools fail with a clear message. They do not fall back to a local copy. Searches that use your stored preferences also need the folder. Pass `use_preferences: false` to search without them.
 
 ed-mcp also writes each plan as a Markdown file in the `plans` folder inside the sync folder. Claude on your phone cannot run ed-mcp, but it can read these files through the Google Drive connector.
 
