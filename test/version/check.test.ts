@@ -143,6 +143,40 @@ describe("VersionCheck", () => {
   });
 });
 
+describe("error logging", () => {
+  it("logs one line for an unexpected error", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const cacheDir = await mkdtemp(path.join(os.tmpdir(), "vcheck-"));
+      // HttpClient turns every fetch failure into an HttpError, so a stub is the only way to get a plain Error.
+      const http = {
+        json: async () => {
+          throw new Error("boom");
+        },
+      } as unknown as HttpClient;
+      const check = new VersionCheck({ http, cacheDir, current: "0.3.1", now: () => NOW });
+      started.push(check);
+      check.start();
+      await check.whenIdle();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith("ed-mcp version check failed: boom");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("logs nothing for a 404", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { check } = await setup(() => new Response("", { status: 404 }));
+      await run(check);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe("schedule", () => {
   // Only setTimeout is faked: the check does real file I/O, which fake timers cannot advance.
   const fakeTimers = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
