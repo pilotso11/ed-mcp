@@ -21,6 +21,7 @@ Spec: `docs/superpowers/specs/2026-10-23-overlay-chat-design.md` (ed-mcp reposit
 - The GitHub repository stays **private** until Anthropic confirms that a published app may start the player's logged-in `claude` CLI.
 - Exact user-facing texts (each notice includes its icon):
   - `⚠ ed-mcp not connected. Run: claude mcp add ed-mcp -s user -- npx -y ed-mcp`
+  - `⚠ ed-mcp failed to start; run claude mcp list`
   - `⚠ Elite is in fullscreen; switch to Borderless to see the overlay`
   - `⚠ claude not found: install Claude Code or set claude.path`
   - `⚠ Claude stopped` (with `: <last stderr line>` when there is one)
@@ -875,18 +876,21 @@ describe("StreamParser", () => {
     expect(recorded.length).toBeGreaterThanOrEqual(3);
   });
 
+  // Real output starts with hook events before init; those map to unknown.
+  const known = (name: string) => new StreamParser().feed(read(name)).filter((e) => e.type !== "unknown");
+
   it.each(recorded)("maps %s from ready to result", (name) => {
-    const events = new StreamParser().feed(read(name));
+    const events = known(name);
     expect(events[0]?.type).toBe("ready");
     expect(events.at(-1)?.type).toBe("result");
     expect(events.some((e) => e.type === "text")).toBe(true);
   });
 
   it("finds the tool call and the denial in the recordings", () => {
-    const tool = new StreamParser().feed(read("recorded-tool.jsonl"));
+    const tool = known("recorded-tool.jsonl");
     expect(tool.some((e) => e.type === "toolStart" && e.name === "Bash")).toBe(true);
     expect(tool.some((e) => e.type === "toolEnd" && e.name === "Bash")).toBe(true);
-    const denied = new StreamParser().feed(read("recorded-denied.jsonl")).at(-1);
+    const denied = known("recorded-denied.jsonl").at(-1);
     expect(denied?.type === "result" && denied.denials).toContain("Bash");
   });
 });
@@ -1061,7 +1065,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `buildClaudeArgs(o: { permissionMode: "auto" | "default"; mcpConfigFile: string; extraArgs: string[] }): string[]`
   - `APPROVAL_TOOL = "mcp__ed_overlay__approve"`
   - `TESTED_CLI_VERSION: string`, `parseCliVersion(out: string): [number, number, number] | null`, `isOlder(a: [number, number, number], b: [number, number, number]): boolean`
-  - `edMcpConnected(tools: string[]): boolean`
+  - `type EdMcpState = "ok" | "missing" | "failed"`, `edMcpState(servers: McpServerInfo[]): EdMcpState`
   - `type BackendEvent = SessionEvent | { type: "exit"; code: number | null; stderrTail: string[] } | { type: "gaveUp"; stderrTail: string[] } | { type: "spawnError"; message: string }`
   - `interface ClaudeBackend { start(): void; send(text: string): boolean; cancel(): void; newSession(): void; stop(): void; configure(c: { command: string; args: string[]; shell: boolean }): void; onEvent(l: (e: BackendEvent) => void): () => void; readonly busy: boolean; readonly sessionId: string | null }`
   - `class ClaudeSession implements ClaudeBackend { constructor(o: { command: string; args: string[]; shell?: boolean; cwd: string; env?: NodeJS.ProcessEnv; now?: () => number }) }`
@@ -1107,7 +1111,7 @@ import { CrashTracker } from "../src/core/crashTracker.js";
 import {
   APPROVAL_TOOL,
   buildClaudeArgs,
-  edMcpConnected,
+  edMcpState,
   isOlder,
   parseCliVersion,
   quoteForCmd,
@@ -1208,11 +1212,12 @@ describe("versions", () => {
   });
 });
 
-describe("edMcpConnected", () => {
+describe("edMcpState", () => {
   it("finds ed-mcp added with claude mcp add or by the plugin", () => {
-    expect(edMcpConnected(["mcp__ed-mcp__journal_status"])).toBe(true);
-    expect(edMcpConnected(["mcp__plugin_ed-mcp_ed-mcp__journal_status"])).toBe(true);
-    expect(edMcpConnected(["Bash", "mcp__other__x"])).toBe(false);
+    expect(edMcpState([{ name: "ed-mcp", status: "pending" }])).toBe("ok");
+    expect(edMcpState([{ name: "plugin:elite-dangerous-mcp:ed-mcp", status: "connected" }])).toBe("ok");
+    expect(edMcpState([{ name: "ed-mcp", status: "failed" }])).toBe("failed");
+    expect(edMcpState([{ name: "semble", status: "pending" }])).toBe("missing");
   });
 });
 ```
@@ -1379,6 +1384,7 @@ Set `TESTED_CLI_VERSION` to the version number in `test/fixtures/stream/VERSION`
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { HUD_PROMPT } from "./prompt.js";
+import type { McpServerInfo } from "./streamJson.js";
 
 export const APPROVAL_SERVER = "ed_overlay";
 export const APPROVAL_TOOL = `mcp__${APPROVAL_SERVER}__approve`;
@@ -1455,9 +1461,14 @@ export function isOlder(a: Version, b: Version): boolean {
   return false;
 }
 
-// A plugin install prefixes tool names with plugin_<plugin>_.
-export function edMcpConnected(tools: string[]): boolean {
-  return tools.some((t) => /^mcp__(plugin_.+_)?ed-mcp__/.test(t));
+export type EdMcpState = "ok" | "missing" | "failed";
+
+// Servers are still pending at init and their tools are not listed yet, so read the configured list.
+// The Claude plugin names its server plugin:<plugin>:ed-mcp.
+export function edMcpState(servers: McpServerInfo[]): EdMcpState {
+  const s = servers.find((m) => m.name === "ed-mcp" || /^plugin:[^:]+:ed-mcp$/.test(m.name));
+  if (!s) return "missing";
+  return s.status === "failed" ? "failed" : "ok";
 }
 ```
 
@@ -3672,7 +3683,7 @@ import { ApprovalServer } from "../core/approvalServer.js";
 import {
   TESTED_CLI_VERSION,
   buildClaudeArgs,
-  edMcpConnected,
+  edMcpState,
   isOlder,
   parseCliVersion,
   quoteForCmd,
@@ -3711,6 +3722,7 @@ const dataDir = path.join(app.getPath("appData"), "ed-overlay");
 app.setPath("userData", dataDir);
 
 const ED_MCP_MISSING = "⚠ ed-mcp not connected. Run: claude mcp add ed-mcp -s user -- npx -y ed-mcp";
+const ED_MCP_FAILED = "⚠ ed-mcp failed to start; run claude mcp list";
 const FULLSCREEN = "⚠ Elite is in fullscreen; switch to Borderless to see the overlay";
 const NO_CLAUDE = "⚠ claude not found: install Claude Code or set claude.path";
 const REFOCUS = "⚠ click the game to refocus";
@@ -3857,7 +3869,14 @@ async function main(): Promise<void> {
     dispatch({ type: "backend", event: e });
     switch (e.type) {
       case "ready":
-        dispatch({ type: "notice", key: "edmcp", text: edMcpConnected(e.tools) ? null : ED_MCP_MISSING });
+        {
+          const ed = edMcpState(e.mcpServers);
+          dispatch({
+            type: "notice",
+            key: "edmcp",
+            text: ed === "missing" ? ED_MCP_MISSING : ed === "failed" ? ED_MCP_FAILED : null,
+          });
+        }
         dispatch({
           type: "notice",
           key: "mode",
