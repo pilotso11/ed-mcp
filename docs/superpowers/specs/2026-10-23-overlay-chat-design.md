@@ -242,8 +242,11 @@ claude -p --input-format stream-json --output-format stream-json
 
 ### ed-mcp check
 
-The `init` event lists the connected MCP servers. When no server gives
-`mcp__ed-mcp__*` tools, the status line shows: "⚠ ed-mcp not connected. Run:
+The `init` event lists the configured MCP servers. They are still starting
+(`pending`) at that point and their tools are not listed yet, so the check
+uses server names: `ed-mcp`, or `plugin:<plugin>:ed-mcp` for the Claude
+plugin. A server with status `failed` shows "⚠ ed-mcp failed to start; run
+claude mcp list". When there is no such server, the status line shows: "⚠ ed-mcp not connected. Run:
 `claude mcp add ed-mcp -s user -- npx -y ed-mcp`". `claude mcp add` uses local
 scope by default, which applies to one project folder only, so the message
 names `-s user`. Chat works without ed-mcp, but without game tools.
