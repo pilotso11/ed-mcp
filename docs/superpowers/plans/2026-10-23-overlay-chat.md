@@ -35,6 +35,15 @@ Spec: `docs/superpowers/specs/2026-10-23-overlay-chat-design.md` (ed-mcp reposit
 - Comments explain why, not what. Few comments.
 - Commit messages: short, plain, active voice, ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
+## Testing on the Windows PC
+
+Development happens on a Mac; the game runs on a Windows PC.
+
+- Tasks 1–12 run on the Mac. Task 11's smoke test uses `"scope": "always"`, because the game-only hotkey scope needs Win32.
+- On the Mac, set `"journalDir"` to the Syncthing copy of the journal (`/Users/<you>/EliteDangerous`). Then the docked and in-danger flags follow the game on the PC.
+- Win32 focus, topmost, koffi and the fullscreen check run only on the PC (Task 13).
+- Task 13 needs the private GitHub repository. Ask the owner to create it before Task 12's CI step. On the PC, iterate with `git pull && npm ci && npm run dev`. Use the CI installer artifact for the release checklist.
+
 ---
 
 ## File map
@@ -4297,7 +4306,7 @@ If the typecheck reports `import.meta.dirname` as unknown in `src/main/index.ts`
 
 - [ ] **Step 8: Smoke test on the development machine**
 
-Write `{"hotkeys":{"scope":"always"}}` to the settings file. It is in `~/Library/Application Support/ed-overlay/settings.json` on macOS, or `%APPDATA%\ed-overlay\settings.json` on Windows. Then run `npm run dev`.
+Write `{"hotkeys":{"scope":"always"},"journalDir":"/Users/<you>/EliteDangerous"}` to the settings file (use the real home folder). It is in `~/Library/Application Support/ed-overlay/settings.json` on macOS, or `%APPDATA%\ed-overlay\settings.json` on Windows. Then run `npm run dev`.
 
 Expected:
 - A strip appears at the top right with `● starting`, and then `● idle`.
@@ -4567,7 +4576,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 13: Verify on the game PC (phase 0, part B)
 
-The owner does this task on the Windows PC with Elite Dangerous. It needs the installer from Task 12 (CI artifact or a local `npm run dist`).
+The owner does this task on the Windows PC with Elite Dangerous. For part B and fixes, clone the repository on the PC and run `npm ci && npm run dev` (Node 22 and git needed). For the release checklist, use the installer from Task 12's CI artifact.
 
 **Files:**
 - Modify: `docs/manual-checklist.md` (results), `docs/superpowers/specs/2026-10-23-overlay-chat-design.md` (Phase 0 results)
