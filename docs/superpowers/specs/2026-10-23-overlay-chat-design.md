@@ -50,7 +50,7 @@ One Electron app. The main process does all Windows and CLI work. The renderer
 |---|---|
 | OverlayController | State machine over the modes below. The only code that changes window state (click-through, focusable, size, position). |
 | HotkeyManager | Registers the hotkeys from settings with `globalShortcut`. Registers them only while the game or the overlay is in front, unless `hotkeys.scope` is `always`. |
-| FocusManager | Watches foreground changes with a WinEvent hook (`EVENT_SYSTEM_FOREGROUND`). Saves the game window before chat opens and restores it after. Puts the overlay back on top when the game comes to the front. Uses `koffi` for Win32 calls. |
+| FocusManager | Polls the foreground window every 250 ms. Saves the game window before chat opens and restores it after. Puts the overlay back on top when the game comes to the front. Uses `koffi` for Win32 calls. |
 | ClaudeSession | Owns the CLI child process. Turns stream-json into internal events. The only code that knows the CLI's output format. |
 | ApprovalServer | The overlay's own MCP server with one tool, `approve`. The CLI calls it for permission prompts. |
 | StatusWatcher | Reads `Status.json` in the journal folder for the docked and in-danger flags. |
@@ -167,7 +167,8 @@ the saved position in `state.json` is removed.
 ## Settings
 
 File: `%APPDATA%\ed-overlay\settings.json`. Written with the defaults on first
-run. Reloaded when it changes. Hotkeys use Electron accelerator syntax.
+run. Reloaded when it changes. The file is plain JSON; the comments below only
+explain the keys. Hotkeys use Electron accelerator syntax.
 
 ```jsonc
 {
@@ -243,7 +244,7 @@ claude -p --input-format stream-json --output-format stream-json
 
 The `init` event lists the connected MCP servers. When no server gives
 `mcp__ed-mcp__*` tools, the status line shows: "⚠ ed-mcp not connected. Run:
-`claude mcp add -s user ed-mcp -- npx -y ed-mcp`". `claude mcp add` uses local
+`claude mcp add ed-mcp -s user -- npx -y ed-mcp`". `claude mcp add` uses local
 scope by default, which applies to one project folder only, so the message
 names `-s user`. Chat works without ed-mcp, but without game tools.
 
@@ -270,10 +271,9 @@ shows "🛡 blocked: <tool>" in the status line. When `init` reports a mode othe
 than the one requested (for example, an organization has turned auto mode
 off), the status line shows "⚠ auto mode unavailable, using manual approvals".
 
-ApprovalServer is a streamable-HTTP MCP server on `127.0.0.1`. It uses a random
-port and a bearer token made at each launch, both written to
-`approval-mcp.json`. When the port is taken, it tries another port before the
-CLI starts.
+ApprovalServer is a streamable-HTTP MCP server on `127.0.0.1`. The system picks
+a free port (port 0). A bearer token is made at each launch. Both go into
+`approval-mcp.json`.
 
 1. The CLI calls `approve({tool_name, input})`.
 2. The approval card shows the tool name and a one-line input summary.
