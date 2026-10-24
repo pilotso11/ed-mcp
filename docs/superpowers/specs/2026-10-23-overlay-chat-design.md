@@ -116,6 +116,21 @@ The resting state is the strip:
 - Chip row: stays until the next reply or `/new`.
 - With `strip.lines` set to `1`, only the status line shows.
 
+### Icon mode
+
+`toggleIcon` (default `` ` ``) switches the resting state between the strip and
+an icon: a small round badge at the same anchor. The badge shows a dot when the
+last reply has chips or a notice is waiting, and ⛔ while in danger. Copy-chip
+hotkeys still work in icon mode.
+
+A reply, an approval, or opening the chat or history expands the overlay and
+leaves icon mode. It does not go back to the icon by itself: only `toggleIcon`
+returns to it. Notices only set the dot, so background notices do not expand it.
+`toggleOverlay` still hides everything.
+
+Icon mode is saved in `state.json` and survives a restart. `strip.startAsIcon`
+sets it for the first run.
+
 The card opens below the strip when a reply starts. At the bottom anchors it
 opens above. It closes `card.fadeSeconds` after the reply ends. A new reply
 replaces it. A pending approval keeps it open.
@@ -176,6 +191,7 @@ explain the keys. Hotkeys use Electron accelerator syntax.
     "scope": "game",              // "game": only while the game or overlay is in front; "always"
     "openChat": "Ctrl+Shift+Space",
     "toggleOverlay": "Ctrl+Shift+O",
+    "toggleIcon": "`",
     "showHistory": "Ctrl+Shift+H",
     "approve": "Ctrl+Shift+Y",
     "deny": "Ctrl+Shift+N",
@@ -187,11 +203,11 @@ explain the keys. Hotkeys use Electron accelerator syntax.
     "moveRight": "Ctrl+Alt+Right",
     "nextDisplay": "Ctrl+Alt+M"
   },
-  "strip": { "lines": 2, "keepChips": true },
+  "strip": { "lines": 2, "keepChips": true, "startAsIcon": false },
   "card": { "maxLines": 4, "fadeSeconds": 20, "width": 420 },
   "chat": { "lines": 14 },
   "style": { "fontSize": 14 },
-  "position": { "anchor": "top-right", "offsetX": 24, "offsetY": 24, "display": "primary" },
+  "position": { "anchor": "bottom-left", "offsetX": 24, "offsetY": 24, "display": "primary" },
   "safety": { "blockWhenInDanger": true },
   "approval": { "timeoutSeconds": 120 },
   "claude": { "path": null, "permissionMode": "auto", "extraArgs": [] },
