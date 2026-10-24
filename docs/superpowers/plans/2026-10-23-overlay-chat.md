@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status: executed** on 2026-10-23 and 2026-10-24 in `pilotso11/ed-chat`. This plan is the record of what was built task by task. It was not updated afterwards. Fixes from reviews and later features live in the spec (`docs/superpowers/specs/2026-10-23-overlay-chat-design.md`) and the ed-chat code, which are the source of truth: the lazy `init` and `spawned` event, the approval queue, the tray icon, icon mode, the bottom-left default, drag-to-move, background opacity, the `needs-auth` state and the fixture scrub. Paths such as `~/projects/personal/inara-mcp` are the ones used at the time.
+
 **Goal:** A Windows app that shows a small Claude chat overlay on top of Elite Dangerous, streams short replies into a click-through card, and copies marked system names to the clipboard by hotkey.
 
 **Architecture:** Electron app in a new repository, `ed-chat`. All logic that can run without Electron lives in `src/core/` and is unit tested with vitest in plain Node. That covers settings, the anchor grid, chips, the stream-json parser, the Claude session, the approval MCP server, the state reducer, the view model, the stores and focus logic. `src/main/` wires the core to Electron and Win32 (through `koffi`). `src/renderer/` is a small React UI driven by one view model pushed over IPC.
