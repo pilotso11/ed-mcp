@@ -30,7 +30,7 @@ Sub-project 3 is built first, at the owner's request.
   injection into the game, which was rejected.
 - The overlay is published for other players, not only for the owner.
 - Electron and TypeScript, in a new repository (working name
-  `pilotso11/ed-overlay`). Electron keeps the code in the same language as
+  `pilotso11/ed-chat`). Electron keeps the code in the same language as
   ed-mcp, so the route HUD can reuse its journal and plan code.
 - Claude runs as the player's own installed and logged-in `claude` CLI. The
   overlay does not use the Agent SDK and does not ask for an API key.
