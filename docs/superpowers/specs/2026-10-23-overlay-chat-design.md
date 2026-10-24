@@ -174,7 +174,12 @@ scale. The window is placed in the work area of the chosen display.
 skip the center. From `top-right`, left gives `top`, then `top-left`.
 `nextDisplay` moves to the next monitor and keeps the anchor.
 
-The app does not write `settings.json`. A position chosen by hotkey is saved in
+While the chat is open, its status line is a drag handle. On drop, the window
+snaps to the nearest anchor (by thirds of the work area; the center cell goes
+to the nearest edge), with offsets that keep it where it was dropped. The
+strip, card and icon stay click-through, so they cannot be dragged.
+
+The app does not write `settings.json`. A position chosen by hotkey or drag is saved in
 `state.json`. Order of precedence: a changed `position` in `settings.json`,
 then `state.json`, then the defaults. When `settings.json` changes `position`,
 the saved position in `state.json` is removed.
@@ -206,7 +211,7 @@ explain the keys. Hotkeys use Electron accelerator syntax.
   "strip": { "lines": 2, "keepChips": true, "startAsIcon": false },
   "card": { "maxLines": 4, "fadeSeconds": 20, "width": 420 },
   "chat": { "lines": 14 },
-  "style": { "fontSize": 14 },
+  "style": { "fontSize": 14, "backgroundOpacity": 0.78 },
   "position": { "anchor": "bottom-left", "offsetX": 24, "offsetY": 24, "display": "primary" },
   "safety": { "blockWhenInDanger": true },
   "approval": { "timeoutSeconds": 120 },
