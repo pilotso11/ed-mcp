@@ -4,7 +4,7 @@
 
 **Goal:** A Windows app that shows a small Claude chat overlay on top of Elite Dangerous, streams short replies into a click-through card, and copies marked system names to the clipboard by hotkey.
 
-**Architecture:** Electron app in a new repository, `ed-overlay`. All logic that can run without Electron lives in `src/core/` and is unit tested with vitest in plain Node. That covers settings, the anchor grid, chips, the stream-json parser, the Claude session, the approval MCP server, the state reducer, the view model, the stores and focus logic. `src/main/` wires the core to Electron and Win32 (through `koffi`). `src/renderer/` is a small React UI driven by one view model pushed over IPC.
+**Architecture:** Electron app in a new repository, `ed-chat`. All logic that can run without Electron lives in `src/core/` and is unit tested with vitest in plain Node. That covers settings, the anchor grid, chips, the stream-json parser, the Claude session, the approval MCP server, the state reducer, the view model, the stores and focus logic. `src/main/` wires the core to Electron and Win32 (through `koffi`). `src/renderer/` is a small React UI driven by one view model pushed over IPC.
 
 **Tech Stack:** TypeScript (Node ≥ 22, ESM), Electron, electron-vite, React, zod 4, `@modelcontextprotocol/sdk`, koffi, vitest, prettier (printWidth 100), electron-builder (NSIS).
 
@@ -16,7 +16,7 @@ Spec: `docs/superpowers/specs/2026-10-23-overlay-chat-design.md` (ed-mcp reposit
 - `src/core/**` must not import `electron` or `koffi`. Only `src/main/**` and `src/preload/**` may import `electron`. Only `src/main/win32.ts` may import `koffi`.
 - TypeScript `strict` and `noUncheckedIndexedAccess`. ESM with `.js` extensions in relative imports.
 - Run `npx prettier --write <changed files>` and then `npm run check` (typecheck, format check, tests) before every commit.
-- Tests use temp directories (`mkdtemp(path.join(os.tmpdir(), "ed-overlay-"))`) and no network except `127.0.0.1`.
+- Tests use temp directories (`mkdtemp(path.join(os.tmpdir(), "ed-chat-"))`) and no network except `127.0.0.1`.
 - Chat text is never written to the log.
 - The GitHub repository stays **private** until Anthropic confirms that a published app may start the player's logged-in `claude` CLI.
 - Exact user-facing texts (each notice includes its icon):
@@ -82,7 +82,7 @@ Development happens on a Mac; the game runs on a Windows PC.
 ### Task 1: Repository scaffold and settings
 
 **Files:**
-- Create: `~/projects/personal/ed-overlay/` (new git repository), `package.json`, `tsconfig.json`, `vitest.config.ts`, `.prettierrc`, `.prettierignore`, `.gitignore`, `LICENSE`, `.github/workflows/ci.yml`, `src/core/settings.ts`, `docs/superpowers/specs/2026-10-23-overlay-chat-design.md`, `docs/superpowers/specs/2026-10-23-overlay-roadmap-design.md`, `docs/superpowers/plans/2026-10-23-overlay-chat.md`
+- Create: `~/projects/personal/ed-chat/` (new git repository), `package.json`, `tsconfig.json`, `vitest.config.ts`, `.prettierrc`, `.prettierignore`, `.gitignore`, `LICENSE`, `.github/workflows/ci.yml`, `src/core/settings.ts`, `docs/superpowers/specs/2026-10-23-overlay-chat-design.md`, `docs/superpowers/specs/2026-10-23-overlay-roadmap-design.md`, `docs/superpowers/plans/2026-10-23-overlay-chat.md`
 - Test: `test/settings.test.ts`
 
 **Interfaces:**
@@ -97,7 +97,7 @@ Development happens on a Mac; the game runs on a Windows PC.
 - [ ] **Step 1: Create the repository**
 
 ```bash
-mkdir -p ~/projects/personal/ed-overlay && cd ~/projects/personal/ed-overlay
+mkdir -p ~/projects/personal/ed-chat && cd ~/projects/personal/ed-chat
 git init -b main
 mkdir -p docs/superpowers/specs docs/superpowers/plans src/core test
 cp ~/projects/personal/inara-mcp/docs/superpowers/specs/2026-10-23-overlay-*.md docs/superpowers/specs/
@@ -111,7 +111,7 @@ Do not create the GitHub repository in this task. The owner creates it (private)
 
 ```json
 {
-  "name": "ed-overlay",
+  "name": "ed-chat",
   "version": "0.0.0",
   "private": true,
   "description": "Claude chat overlay for Elite Dangerous on Windows",
@@ -393,7 +393,7 @@ Expected: typecheck clean, format clean, 7 tests pass.
 
 ```bash
 git add -A
-git commit -m "Scaffold ed-overlay and add the settings schema
+git commit -m "Scaffold ed-chat and add the settings schema
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -414,7 +414,7 @@ This task checks spike items 1 and 2 (default mode only) from the spec against t
 - [ ] **Step 1: Record the CLI version**
 
 ```bash
-cd ~/projects/personal/ed-overlay && mkdir -p test/fixtures/stream
+cd ~/projects/personal/ed-chat && mkdir -p test/fixtures/stream
 claude --version > test/fixtures/stream/VERSION && cat test/fixtures/stream/VERSION
 ```
 
@@ -473,7 +473,7 @@ When a field has a different name or place, write the real one in the spec (Step
 `test/fixtures/stream/handwritten.jsonl` (one JSON object per line, with no blank lines):
 
 ```
-{"type":"system","subtype":"init","session_id":"sess-1","tools":["Bash","mcp__ed-mcp__journal_status","mcp__ed_overlay__approve"],"mcp_servers":[{"name":"ed-mcp","status":"connected"},{"name":"ed_overlay","status":"connected"}],"permissionMode":"auto"}
+{"type":"system","subtype":"init","session_id":"sess-1","tools":["Bash","mcp__ed-mcp__journal_status","mcp__ed_chat__approve"],"mcp_servers":[{"name":"ed-mcp","status":"connected"},{"name":"ed_chat","status":"connected"}],"permissionMode":"auto"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Checking. "}}}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ed-mcp__journal_status","input":{}}]}}
 {"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","is_error":false,"content":"ok"}]}}
@@ -829,10 +829,10 @@ describe("StreamParser", () => {
       {
         type: "ready",
         sessionId: "sess-1",
-        tools: ["Bash", "mcp__ed-mcp__journal_status", "mcp__ed_overlay__approve"],
+        tools: ["Bash", "mcp__ed-mcp__journal_status", "mcp__ed_chat__approve"],
         mcpServers: [
           { name: "ed-mcp", status: "connected" },
-          { name: "ed_overlay", status: "connected" },
+          { name: "ed_chat", status: "connected" },
         ],
         permissionMode: "auto",
       },
@@ -1063,7 +1063,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `resolveClaude(configured: string | null, env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, exists?: (p: string) => boolean): ResolvedCommand | null`
   - `quoteForCmd(arg: string): string`
   - `buildClaudeArgs(o: { permissionMode: "auto" | "default"; mcpConfigFile: string; extraArgs: string[] }): string[]`
-  - `APPROVAL_TOOL = "mcp__ed_overlay__approve"`
+  - `APPROVAL_TOOL = "mcp__ed_chat__approve"`
   - `TESTED_CLI_VERSION: string`, `parseCliVersion(out: string): [number, number, number] | null`, `isOlder(a: [number, number, number], b: [number, number, number]): boolean`
   - `type EdMcpState = "ok" | "missing" | "failed"`, `edMcpState(servers: McpServerInfo[]): EdMcpState`
   - `type BackendEvent = SessionEvent | { type: "exit"; code: number | null; stderrTail: string[] } | { type: "gaveUp"; stderrTail: string[] } | { type: "spawnError"; message: string }`
@@ -1236,7 +1236,7 @@ const fixture = path.join(import.meta.dirname, "fixtures", "stream", "handwritte
 const sessions: ClaudeSession[] = [];
 
 async function setup(mode = "ok", command = process.execPath) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "ed-overlay-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "ed-chat-"));
   const argsFile = path.join(dir, "args.jsonl");
   const s = new ClaudeSession({
     command,
@@ -1386,7 +1386,7 @@ import path from "node:path";
 import { HUD_PROMPT } from "./prompt.js";
 import type { McpServerInfo } from "./streamJson.js";
 
-export const APPROVAL_SERVER = "ed_overlay";
+export const APPROVAL_SERVER = "ed_chat";
 export const APPROVAL_TOOL = `mcp__${APPROVAL_SERVER}__approve`;
 
 // The version the stream-json fixtures were recorded with.
@@ -1697,7 +1697,7 @@ async function setup(timeoutMs = 5_000) {
     onSettled: (id) => settled.push(id),
   });
   await server.start();
-  const cfg = server.mcpConfig().mcpServers.ed_overlay!;
+  const cfg = server.mcpConfig().mcpServers.ed_chat!;
   const client = new Client({ name: "test", version: "1.0.0" });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(cfg.url), { requestInit: { headers: cfg.headers } }),
@@ -1957,7 +1957,7 @@ const server = new ApprovalServer({
   onSettled: () => {},
 });
 await server.start();
-const dir = await mkdtemp(path.join(os.tmpdir(), "ed-overlay-probe-"));
+const dir = await mkdtemp(path.join(os.tmpdir(), "ed-chat-probe-"));
 const cfg = path.join(dir, "approval-mcp.json");
 await writeFile(cfg, JSON.stringify(server.mcpConfig()));
 const child = spawn("claude", buildClaudeArgs({ permissionMode: mode, mcpConfigFile: cfg, extraArgs: [] }), {
@@ -1985,7 +1985,7 @@ When no question appears, the CLI did not call the prompt tool. Write that down 
 
 - [ ] **Step 7: Run the probe in auto mode**
 
-Run: `npx tsx scripts/probe-approval.ts auto "Delete the folder /tmp/ed-overlay-probe-target with rm -rf, then reply in one line." test/fixtures/stream/recorded-approval-auto.jsonl`
+Run: `npx tsx scripts/probe-approval.ts auto "Delete the folder /tmp/ed-chat-probe-target with rm -rf, then reply in one line." test/fixtures/stream/recorded-approval-auto.jsonl`
 Then: `node -e 'const l=require("fs").readFileSync(process.argv[1],"utf8").trim().split("\n").map(JSON.parse);console.log(JSON.stringify(l.at(-1).permission_denials));' test/fixtures/stream/recorded-approval-auto.jsonl`
 
 Write down whether the terminal asked a question, what `permission_denials` contains, and whether `init` shows `permissionMode` `auto`. The command targets a folder that does not exist, so it is harmless if it runs.
@@ -2882,7 +2882,7 @@ import {
   savePosition,
 } from "../src/core/stores.js";
 
-const tmp = () => mkdtemp(path.join(os.tmpdir(), "ed-overlay-"));
+const tmp = () => mkdtemp(path.join(os.tmpdir(), "ed-chat-"));
 
 describe("SettingsStore", () => {
   it("writes defaults on first run", async () => {
@@ -2972,7 +2972,7 @@ import { Logger } from "../src/core/logger.js";
 
 describe("Logger", () => {
   it("rotates and keeps 3 files", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-overlay-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "ed-chat-"));
     const file = path.join(dir, "logs", "overlay.log");
     const log = new Logger(file, 100, 3);
     for (let i = 0; i < 20; i++) log.log("info", `line ${i} ${"x".repeat(30)}`);
@@ -3718,7 +3718,7 @@ import { IPC } from "../shared/ipc.js";
 import { loadWin32 } from "./win32.js";
 import { applyWindow, createOverlayWindow } from "./window.js";
 
-const dataDir = path.join(app.getPath("appData"), "ed-overlay");
+const dataDir = path.join(app.getPath("appData"), "ed-chat");
 app.setPath("userData", dataDir);
 
 const ED_MCP_MISSING = "⚠ ed-mcp not connected. Run: claude mcp add ed-mcp -s user -- npx -y ed-mcp";
@@ -4325,7 +4325,7 @@ If the typecheck reports `import.meta.dirname` as unknown in `src/main/index.ts`
 
 - [ ] **Step 8: Smoke test on the development machine**
 
-Write `{"hotkeys":{"scope":"always"},"journalDir":"/Users/<you>/EliteDangerous"}` to the settings file (use the real home folder). It is in `~/Library/Application Support/ed-overlay/settings.json` on macOS, or `%APPDATA%\ed-overlay\settings.json` on Windows. Then run `npm run dev`.
+Write `{"hotkeys":{"scope":"always"},"journalDir":"/Users/<you>/EliteDangerous"}` to the settings file (use the real home folder). It is in `~/Library/Application Support/ed-chat/settings.json` on macOS, or `%APPDATA%\ed-chat\settings.json` on Windows. Then run `npm run dev`.
 
 Expected:
 - A strip appears at the top right with `● starting`, and then `● idle`.
@@ -4356,13 +4356,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: the built app from Task 11.
-- Produces: `npm run dist` makes `dist/ED Overlay Setup <version>.exe`.
+- Produces: `npm run dist` makes `dist/ED Chat Setup <version>.exe`.
 
 - [ ] **Step 1: Write `electron-builder.yml`**
 
 ```yaml
-appId: com.pilotso11.ed-overlay
-productName: ED Overlay
+appId: com.pilotso11.ed-chat
+productName: ED Chat
 directories:
   output: dist
 files:
@@ -4378,7 +4378,7 @@ nsis:
 publish:
   provider: github
   owner: pilotso11
-  repo: ed-overlay
+  repo: ed-chat
 ```
 
 - [ ] **Step 2: Add the packaged build to CI**
@@ -4389,7 +4389,7 @@ Append to the `check` job steps in `.github/workflows/ci.yml`:
       - run: npm run dist
       - uses: actions/upload-artifact@v4
         with:
-          name: ed-overlay-installer
+          name: ed-chat-installer
           path: dist/*.exe
 ```
 
@@ -4450,7 +4450,7 @@ jobs:
 - [ ] **Step 4: Write `README.md`**
 
 ````markdown
-# ED Overlay
+# ED Chat
 
 A small Claude chat window on top of Elite Dangerous. Press a hotkey, ask a
 question, press Enter, and keep flying. The reply shows in a corner of the
@@ -4474,7 +4474,7 @@ Windows 10 and 11 only.
 
 ## Install
 
-Download `ED Overlay Setup <version>.exe` from Releases and run it. The
+Download `ED Chat Setup <version>.exe` from Releases and run it. The
 installer is not code signed yet, so Windows SmartScreen warns on first run.
 Select **More info → Run anyway**.
 
@@ -4505,7 +4505,7 @@ with Ctrl+Shift+Y or Ctrl+Shift+N. To never be asked about ed-mcp tools, add
 
 ## Settings
 
-`%APPDATA%\ed-overlay\settings.json` is written with the defaults on first run.
+`%APPDATA%\ed-chat\settings.json` is written with the defaults on first run.
 Changes apply when you save the file. The file is plain JSON. Settings for
 `claude` apply after `/new`.
 
@@ -4536,7 +4536,7 @@ A position chosen with the hotkeys is saved in `state.json`, until you change
 ## Troubleshooting
 
 The first line of the overlay shows problems. The log is
-`%APPDATA%\ed-overlay\logs\overlay.log`. It never contains chat text.
+`%APPDATA%\ed-chat\logs\overlay.log`. It never contains chat text.
 ````
 
 - [ ] **Step 5: Write `docs/manual-checklist.md`**
@@ -4580,7 +4580,7 @@ next to each item.
 - [ ] **Step 6: Build the installer**
 
 Run: `npx prettier --write . && npm run check && npm run dist`
-Expected: checks pass. On Windows, `dist/ED Overlay Setup 0.0.0.exe` exists. On macOS, electron-builder may need Wine for an NSIS build; if it fails there, rely on the CI artifact from Step 2.
+Expected: checks pass. On Windows, `dist/ED Chat Setup 0.0.0.exe` exists. On macOS, electron-builder may need Wine for an NSIS build; if it fails there, rely on the CI artifact from Step 2.
 
 - [ ] **Step 7: Commit**
 

