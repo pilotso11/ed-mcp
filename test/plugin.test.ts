@@ -34,6 +34,17 @@ describe("Claude plugin", () => {
     expect(entry.integrity).toMatch(/^sha512-/);
   });
 
+  it("is listed in this repository's marketplace", async () => {
+    const plugin = await read("plugin/.claude-plugin/plugin.json");
+    const market = (await read(".claude-plugin/marketplace.json")) as {
+      plugins: { name: string; source: string; version?: string }[];
+    };
+    expect(market.plugins).toHaveLength(1);
+    // No version here: plugin.json is the single place that sets it.
+    expect(market.plugins[0]).toMatchObject({ name: plugin.name, source: "./plugin" });
+    expect(market.plugins[0]!.version).toBeUndefined();
+  });
+
   it("passes every option it asks for, and nothing undeclared", async () => {
     const plugin = await read("plugin/.claude-plugin/plugin.json");
     const options = Object.keys(plugin.userConfig as object).sort();

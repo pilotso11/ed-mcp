@@ -64,7 +64,7 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
 2. Merge the change to `main`.
 3. Tag the commit `vX.Y.Z` and push the tag.
 4. On npmjs.com, approve the staged version of `ed-mcp`.
-5. After npm serves the new version (`npm view ed-mcp version`), update the Claude plugin. Anthropic's directory follows `main`, so plugin users get the new version from that commit:
+5. After npm serves the new version (`npm view ed-mcp version`), update the Claude plugin. The plugin marketplace in `.claude-plugin/marketplace.json` and Anthropic's directory both follow `main`, so plugin users get the new version from that commit:
    ```bash
    cd plugin
    npm install --package-lock-only --ignore-scripts --save-exact ed-mcp@X.Y.Z
