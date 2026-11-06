@@ -3,7 +3,15 @@ import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
 import { HttpError, type HttpClient, type RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
-import { stationPad, type Pad } from "../systems/sweep.js";
+import { SweepCache } from "../systems/sweep-cache.js";
+import {
+  mapSystem,
+  stationPad,
+  type Coords,
+  type Pad,
+  type RawSweepSystem,
+  type SweptSystem,
+} from "../systems/sweep.js";
 
 const TRADER_FILTERS = {
   material_trader_raw: { material_trader: { value: ["Raw"] } },
@@ -293,6 +301,8 @@ const shipKey = (s: string) => s.toLowerCase().replace(/[\s-]/g, "");
 
 const MAX_JOBS = 100;
 const SEARCH_PAGE_SIZE = 50;
+// Spansh's largest page. A system record is about 16 KB, so a page is about 8 MB.
+const SWEEP_PAGE_SIZE = 500;
 const CARRIER_TYPE = "Drake-Class Carrier";
 // Spansh has no "not" filter, so carriers are left out by listing every other type.
 // Near busy systems most market records are carriers, so dropping them after the
@@ -330,6 +340,7 @@ export class SpanshClient {
   private readonly now: () => number;
   private readonly systemCache: TtlCache<unknown>;
   private readonly marketCache: TtlCache<unknown>;
+  private readonly sweepCache: SweepCache;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
@@ -350,6 +361,7 @@ export class SpanshClient {
       systemCache?: TtlCache<unknown>;
       // Mapped market records are compact but costly to fetch, so they are kept longer than raw search results.
       marketCache?: TtlCache<unknown>;
+      sweepCache?: SweepCache;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
@@ -360,6 +372,7 @@ export class SpanshClient {
     this.now = opts.now ?? Date.now;
     this.systemCache = opts.systemCache ?? cache;
     this.marketCache = opts.marketCache ?? cache;
+    this.sweepCache = opts.sweepCache ?? new SweepCache();
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -479,6 +492,61 @@ export class SpanshClient {
       this.get(`/system/${id64}`),
     )) as { record: { needs_permit?: boolean } };
     return detail.record.needs_permit ?? null;
+  }
+
+  /** Populated systems within radiusLy of near. Stops paging at opts.deadline; a partial result is not cached. */
+  async populatedSystems(
+    near: string,
+    radiusLy: number,
+    opts: { deadline?: number } = {},
+  ): Promise<{ centre: Coords; systems: SweptSystem[]; total: number; partial: boolean }> {
+    const centre = (await this.system(near, 0)).coords;
+    const cached = this.sweepCache.find(centre, radiusLy);
+    if (cached) return { centre, systems: cached, total: cached.length, partial: false };
+
+    const systems: SweptSystem[] = [];
+    let total = 0;
+    let partial = false;
+    for (let page = 0; ; page++) {
+      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+        partial = true;
+        break;
+      }
+      const body = {
+        filters: {
+          distance: { min: 0, max: radiusLy },
+          population: { comparison: "<=>", value: [1, 100_000_000_000] },
+        },
+        sort: [{ distance: { direction: "asc" } }],
+        size: SWEEP_PAGE_SIZE,
+        page,
+        reference_system: near,
+      };
+      let res: { count: number; results?: RawSweepSystem[] };
+      try {
+        res = (await this.post("/systems/search", JSON.stringify(body), "application/json")) as {
+          count: number;
+          results?: RawSweepSystem[];
+        };
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 400) {
+          throw new UserError(
+            `Spansh rejected the search (${err.detail}). Check that "${near}" is an exact system name (spansh_system).`,
+          );
+        }
+        throw err;
+      }
+      total = res.count;
+      const results = res.results ?? [];
+      // Map each page as it arrives so that only one page of full records is held at once.
+      for (const raw of results) {
+        const s = mapSystem(raw);
+        if (s) systems.push(s);
+      }
+      if (results.length < SWEEP_PAGE_SIZE) break;
+    }
+    if (!partial) this.sweepCache.add(centre, radiusLy, systems);
+    return { centre, systems, total, partial };
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {
