@@ -16,7 +16,7 @@ These rules come from player guides. They were checked against Inara's result fo
 
 - A pirate massacre mission needs a pirate faction within 10 ly of the giving station's system. A pirate faction is a faction with government Anarchy.
 - Missions stack only when different factions give them. Missions from one faction must be done one after another.
-- A source is best when the target is the only pirate faction within 10 ly of it. Then all its massacre missions are against that target.
+- A source is best when the target is the only pirate faction within 10 ly of it, not counting pirate factions in the source system itself. Massacre missions send the commander to another system, so a source's own pirates do not compete. Inara also counts such sources (NLTT 21088 for Neche, checked on 2026-11-06).
 - Factions in War, Civil War or Election give few or no massacre missions.
 
 ## The sweep
@@ -107,9 +107,9 @@ The tool sweeps `radius_ly + 20` ly. Sources can be 10 ly beyond a target, and p
 1. **Pirates.** List every faction in the sweep with government `Anarchy`, with its system.
 2. **Targets.** Keep the pirate factions whose system is within `radius_ly` of `near`.
 3. **Spread.** For each target system, `spread_ls` is the largest `arrival_ls` of its stars. Populated systems are almost always fully scanned, so a system with no stars in the sweep gets `spread_ls: 0`. Leave out targets with `spread_ls > max_star_ls`, and count them in `left_out_spread`.
-4. **Sources.** For each target, the sources are the systems within 10 ly of the target system that are not the target system, have no Anarchy faction, and have at least one station.
+4. **Sources.** For each target, the sources are the systems within 10 ly of the target system that are not the target system and have at least one station. A source can have its own Anarchy faction.
 5. **Excluded sources.** Move a source to `excluded` when any of its factions has War, Civil War or Election in `active_states`. The entry names the faction, the state and `updated_at`.
-6. **Primary or secondary.** A source is primary when the target faction is the only Anarchy faction in a system within 10 ly of the source. Otherwise it is secondary, and `other_pirates` names the other pirate factions and their systems.
+6. **Primary or secondary.** A source is primary when the target faction is the only Anarchy faction in the other systems within 10 ly of the source. Anarchy factions in the source system itself do not count. Otherwise it is secondary, and `other_pirates` names the other pirate factions and their systems.
 7. **Stack size.** `stack_size` is the number of distinct faction names in the primary sources, not counting Anarchy factions. Leave out targets with no primary source.
 8. **Travel to the target.** `travel_min` is the leg from `near` to the target system, without a station.
 
