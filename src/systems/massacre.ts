@@ -42,13 +42,15 @@ export function massacreTargets(
     let list = piratesNear.get(s.id64);
     if (!list) {
       list = pirates
+        // Missions send you to another system, so the source's own pirates do not compete.
+        .filter((p) => p.system.id64 !== s.id64)
         .filter((p) => distanceLy(p.system.coords, s.coords) <= SOURCE_RANGE_LY)
         .map((p) => ({ faction: p.faction, system: p.system.name }));
       piratesNear.set(s.id64, list);
     }
     return list;
   };
-  const candidates = systems.filter((s) => s.stations.length > 0 && !s.factions.some(isAnarchy));
+  const candidates = systems.filter((s) => s.stations.length > 0);
 
   const targets: MassacreTarget[] = [];
   let leftOutSpread = 0;
@@ -89,6 +91,8 @@ export function massacreTargets(
     const givers = new Set(
       primary.flatMap((s) => s.system.factions.filter((f) => !isAnarchy(f)).map((f) => f.name)),
     );
+    // Primary sources with only pirate factions give no missions.
+    if (givers.size === 0) continue;
     sources.sort(
       (a, b) =>
         Number(b.primary) - Number(a.primary) || a.distanceToTargetLy - b.distanceToTargetLy,

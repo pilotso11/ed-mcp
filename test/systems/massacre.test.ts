@@ -76,6 +76,25 @@ describe("massacreTargets", () => {
     );
     expect(r.targets).toEqual([]);
   });
+
+  it("counts a source that has its own pirate faction", () => {
+    const pirate = sys("P", 0, [faction("Pirates", "Anarchy")]);
+    const source = sys("S", 5, [faction("Givers", "Democracy"), faction("Locals", "Anarchy")]);
+    const { targets } = massacreTargets(
+      [pirate, source],
+      { x: 0, y: 0, z: 0 },
+      { radiusLy: 10, maxStarLs: 10_000 },
+    );
+    expect(targets.map((t) => t.faction)).toEqual(["Pirates"]);
+    const t = targets[0]!;
+    expect(t.system.name).toBe("P");
+    expect(t.sources.map((s) => [s.system.name, s.primary, s.otherPirates])).toEqual([
+      ["S", true, []],
+    ]);
+    expect(t.stackSize).toBe(1);
+    // "Locals" has only P as a source: primary, but P has no faction that gives missions.
+    expect(targets.find((x) => x.faction === "Locals")).toBeUndefined();
+  });
 });
 
 function faction(name: string, government: string) {

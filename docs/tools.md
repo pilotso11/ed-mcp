@@ -281,8 +281,8 @@ If `Market.json` is for a station in the results and is newer than the Spansh da
 
 `massacre_targets` finds pirate factions (government Anarchy) with good sources of pirate massacre missions:
 
-- A source is a populated system within 10 ly of the target, with no pirate faction of its own.
-- A source is primary when the target is the only pirate faction within 10 ly of it, so all its massacre missions are for that target. A secondary source lists its `other_pirates`.
+- A source is a populated system within 10 ly of the target. Its own pirate faction, if it has one, does not count: missions send you to another system.
+- A source is primary when the target is the only pirate faction within 10 ly of it in other systems, so all its massacre missions are for that target. A secondary source lists its `other_pirates`.
 - Sources with a faction in War, Civil War or Election give few massacre missions. They are listed in `excluded`, with the date of the data.
 - `stack_size` is the number of different factions in the primary sources. Missions from one faction do not stack.
 - Targets with a star beyond `max_star_ls` (default 10,000 ls) are left out, because pirates can be near that star. Raise it to see them.
