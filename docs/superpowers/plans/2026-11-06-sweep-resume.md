@@ -10,14 +10,21 @@
 
 Spec: `docs/superpowers/specs/2026-11-06-sweep-resume-design.md`.
 
+> **Changed during review.** The spec is current. The tasks below are the plan as it was first written:
+> - Resume is by distance, not page index: a resumed sweep requests `distance.min = covered_ly` from page 0, and `PartialSweep` has no `nextPage`.
+> - A resumed sweep keeps Spansh's count for the whole sphere (`total`).
+> - A sweep completed by resuming keeps the fetch time of its first page.
+> - The `massacre_targets` radius is not clamped at 0.
+> - `covered_ly` is rounded down.
+
 ## Global Constraints
 
 - `covered_ly` of a partial sweep = distance from the centre of the last fetched system − 0.01, never below 0. A complete sweep's `coveredLy` = its radius.
 - Partial and complete sweeps share the 1 hour TTL, the `maxSweeps` limit and the cache name `spansh-sweeps`.
 - Sweep key: `${near.toLowerCase()}:${radiusLy}` (the same key as the in-flight map in the client).
 - Each call fetches at least one page, also when resuming.
-- Partial note text, both tools: `Spansh returned systems out to ${covered} ly within the time limit. Call again to continue the search.` with `covered` rounded to 1 decimal.
-- `massacre_targets` target radius when partial: `Math.max(0, coveredLy - 20)` (`MASSACRE_MARGIN_LY`), capped at `radius_ly`.
+- Partial note text, both tools: `Spansh returned systems out to ${covered} ly within the time limit. Call again to continue the search.` with `covered` rounded down to 0.1 ly (`Math.floor(x * 10) / 10`), so a search for the shown radius hits the cache.
+- `massacre_targets` target radius when partial: `Math.min(radius_ly, coveredLy - 20)` (`MASSACRE_MARGIN_LY`). It can be negative, which lists no targets.
 - `npm run check` before each commit; comments explain why, at the density of the file.
 
 ---
