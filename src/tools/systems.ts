@@ -5,6 +5,7 @@ import type { JournalService } from "../journal/service.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient } from "../spansh/client.js";
+import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { legSeconds, type ResolvedTravel } from "../stations/travel.js";
 import { massacreTargets, SOURCE_RANGE_LY } from "../systems/massacre.js";
@@ -140,6 +141,7 @@ export function registerSystemTools(
         return {
           near,
           searched: sweep.systems.length,
+          travel: describeRules(rules).travel,
           total_matches: matches.length,
           partial: sweep.partial,
           systems: shown.map((m) => {
@@ -245,7 +247,7 @@ export function registerSystemTools(
           searched: sweep.systems.length,
           left_out_spread: leftOutSpread,
           partial: sweep.partial,
-          travel: { jump_range_ly: rules.travel.jump_range_ly },
+          travel: describeRules(rules).travel,
           targets: targets.slice(0, a.limit).map((t) => ({
             target_faction: t.faction,
             target_system: t.system.name,

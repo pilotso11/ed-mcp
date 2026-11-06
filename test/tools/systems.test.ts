@@ -113,6 +113,31 @@ describe("system tools", () => {
     expect(m.nearest_station_ls).toBe(nearestWithPad(records.get("Ganiklis"), "large_pads"));
   });
 
+  it("systems_by_state warns about data more than 3 days old", async () => {
+    // Four days after the fixture was saved, every system's data is stale.
+    const { client } = await setup({ now: () => Date.parse("2026-11-10T20:00:00Z") });
+    const r = await callTool(client, "systems_by_state", {
+      near: "LHS 1920",
+      radius_ly: 10,
+      state: ["Election"],
+    });
+    expect(r.isError).toBe(false);
+    expect((r.json as any).notes.join(" ")).toMatch(/results have data more than 3 days old/);
+  });
+
+  it("both tools report the travel settings they used", async () => {
+    const { client } = await setup();
+    const a = await callTool(client, "systems_by_state", {
+      near: "LHS 1920",
+      radius_ly: 10,
+      state: ["Election"],
+    });
+    const b = await callTool(client, "massacre_targets", { near: "LHS 1920", radius_ly: 1 });
+    for (const r of [a, b]) {
+      expect((r.json as any).travel).toMatch(/^range [\d.]+ LY \(.+\), [\d.]+ s per jump/);
+    }
+  });
+
   it("systems_by_state needs a filter", async () => {
     const { client } = await setup();
     const r = await callTool(client, "systems_by_state", { near: "LHS 1920" });
