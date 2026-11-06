@@ -50,6 +50,17 @@ For installation and setup, see the [README](../README.md).
 | `plan_export`              | Export a plan as Markdown or JSON                            |
 | `plan_import`              | Load a plan from a JSON file                                 |
 
+## Station search
+
+`spansh_find_stations` finds the best stations near a system that sell a module or a ship, or that offer a service. Give exactly one of `module`, `ship` or `service`. It ranks stations by travel time, and purchases also by price (see [Travel model](#travel-model)).
+
+The `service` values are:
+
+- Traders and brokers: `material_trader_raw`, `material_trader_manufactured`, `material_trader_encoded`, `tech_broker_human`, `tech_broker_guardian`.
+- Contacts: `interstellar_factors`, `black_market`, `universal_cartographics`, `vista_genomics`, `search_and_rescue`, `redemption_office`, `refinery_contact`, `pioneer_supplies`, `bartender`.
+- Ship services: `refuel`, `repair`, `restock`, `shipyard`, `outfitting`, `market`.
+- Other: `apex_interstellar`, `frontline_solutions`, `crew_lounge`, `squadron_bank`, `construction_services`, `powerplay`.
+
 ## Material planning
 
 `materials_plan` turns blueprints and extra materials into a checked shopping list.

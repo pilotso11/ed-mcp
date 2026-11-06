@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
-import { RoutePendingError, SpanshClient } from "../../src/spansh/client.js";
+import {
+  RoutePendingError,
+  SpanshClient,
+  STATION_SERVICES,
+  serviceFilter,
+} from "../../src/spansh/client.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
 import { fakeFetch, stalledBody, type FakeRoute } from "../helpers/fakeFetch.js";
@@ -137,6 +142,19 @@ describe("SpanshClient.findStations", () => {
     ]);
   });
 
+  it("sends a services filter for the new services", async () => {
+    const { client, f } = make([
+      { match: () => true, respond: () => text('{"count":0,"results":[]}') },
+    ]);
+    await client.findStations({ near: "Sol", service: "black_market", limit: 3 });
+    await client.findStations({ near: "Sol", service: "vista_genomics", limit: 3 });
+    const filters = f.calls.map((c) => JSON.parse(String(c.init!.body)).filters);
+    expect(filters).toEqual([
+      { services: [{ name: { value: ["Black Market"] } }] },
+      { services: [{ name: { value: ["Vista Genomics"] } }] },
+    ]);
+  });
+
   it("requires exactly one of module, ship or service", async () => {
     const { client } = make([]);
     await expect(client.findStations({ near: "Sol", limit: 3 })).rejects.toThrow(
@@ -185,6 +203,37 @@ describe("SpanshClient.findStations", () => {
     });
     const sent = JSON.parse(String(f.calls[0]!.init!.body));
     expect(sent.filters.distance_to_arrival).toEqual({ comparison: "<=>", value: [0, 1000] });
+  });
+});
+
+describe("station services", () => {
+  it("uses only service names that Spansh lists", async () => {
+    // Spansh returns no results, not an error, for a name it does not know.
+    const known = new Set<string>(
+      JSON.parse(await raw("stations-field-values-services.json")).values.name,
+    );
+    const used = STATION_SERVICES.flatMap((s) => {
+      const f = serviceFilter(s) as { services?: { name: { value: string[] } }[] };
+      return f.services?.flatMap((x) => x.name.value) ?? [];
+    });
+    expect(used.length).toBeGreaterThan(20);
+    expect(used.filter((n) => !known.has(n))).toEqual([]);
+  });
+
+  it("pairs each service with its own Spansh name", () => {
+    // Every value is its Spansh name in snake_case ("Interstellar Factors Contact" only
+    // adds a word), so a swap such as refuel -> "Repair" fails here.
+    const mismatched = STATION_SERVICES.filter((s) => {
+      const f = serviceFilter(s) as { services?: { name: { value: string[] } }[] };
+      const name = f.services?.[0]?.name.value[0];
+      return name !== undefined && !name.toLowerCase().replace(/ /g, "_").startsWith(s);
+    });
+    expect(mismatched).toEqual([]);
+  });
+
+  it("has 26 services", () => {
+    expect(STATION_SERVICES).toHaveLength(26);
+    expect(new Set(STATION_SERVICES).size).toBe(26);
   });
 });
 

@@ -4,13 +4,51 @@ import type { TtlCache } from "../http/cache.js";
 import { HttpError, type HttpClient, type RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
 
-export type StationService =
-  | "material_trader_raw"
-  | "material_trader_manufactured"
-  | "material_trader_encoded"
-  | "tech_broker_human"
-  | "tech_broker_guardian"
-  | "interstellar_factors";
+const TRADER_FILTERS = {
+  material_trader_raw: { material_trader: { value: ["Raw"] } },
+  material_trader_manufactured: { material_trader: { value: ["Manufactured"] } },
+  material_trader_encoded: { material_trader: { value: ["Encoded"] } },
+  tech_broker_human: { technology_broker: { value: ["Human"] } },
+  tech_broker_guardian: { technology_broker: { value: ["Guardian"] } },
+} as const;
+
+// Spansh names for the services that need only a name match. Spansh returns no results,
+// not an error, for a name it does not know: the tests check these against its list.
+const NAMED_SERVICES = {
+  interstellar_factors: "Interstellar Factors Contact",
+  black_market: "Black Market",
+  universal_cartographics: "Universal Cartographics",
+  vista_genomics: "Vista Genomics",
+  search_and_rescue: "Search and Rescue",
+  refuel: "Refuel",
+  repair: "Repair",
+  restock: "Restock",
+  shipyard: "Shipyard",
+  outfitting: "Outfitting",
+  market: "Market",
+  apex_interstellar: "Apex Interstellar",
+  frontline_solutions: "Frontline Solutions",
+  pioneer_supplies: "Pioneer Supplies",
+  bartender: "Bartender",
+  refinery_contact: "Refinery Contact",
+  redemption_office: "Redemption Office",
+  crew_lounge: "Crew Lounge",
+  squadron_bank: "Squadron Bank",
+  construction_services: "Construction Services",
+  powerplay: "Powerplay",
+} as const;
+
+export type StationService = keyof typeof TRADER_FILTERS | keyof typeof NAMED_SERVICES;
+
+export const STATION_SERVICES = [
+  ...Object.keys(TRADER_FILTERS),
+  ...Object.keys(NAMED_SERVICES),
+] as [StationService, ...StationService[]];
+
+export function serviceFilter(s: StationService): Record<string, unknown> {
+  if (Object.hasOwn(TRADER_FILTERS, s)) return TRADER_FILTERS[s as keyof typeof TRADER_FILTERS];
+  return { services: [{ name: { value: [NAMED_SERVICES[s as keyof typeof NAMED_SERVICES]] } }] };
+}
 
 export interface StationQuery {
   near: string;
@@ -249,15 +287,6 @@ interface RawStation {
   }>;
 }
 
-const SERVICE_FILTERS: Record<StationService, Record<string, unknown>> = {
-  material_trader_raw: { material_trader: { value: ["Raw"] } },
-  material_trader_manufactured: { material_trader: { value: ["Manufactured"] } },
-  material_trader_encoded: { material_trader: { value: ["Encoded"] } },
-  tech_broker_human: { technology_broker: { value: ["Human"] } },
-  tech_broker_guardian: { technology_broker: { value: ["Guardian"] } },
-  interstellar_factors: { services: [{ name: { value: ["Interstellar Factors Contact"] } }] },
-};
-
 const COUNT_CAP = 10_000;
 
 // Spansh spells ship names inconsistently ("Python MkII", "Kestrel Mk II").
@@ -369,7 +398,7 @@ export class SpanshClient {
       shipName = await this.resolveShip(q.ship);
       filters.ships = [{ name: { value: [shipName] } }];
     } else if (q.service) {
-      Object.assign(filters, SERVICE_FILTERS[q.service]);
+      Object.assign(filters, serviceFilter(q.service));
     }
     if (q.largePad) filters.has_large_pad = { value: true };
     if (q.maxDistanceLy !== undefined) filters.distance = { min: 0, max: q.maxDistanceLy };
