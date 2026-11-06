@@ -220,6 +220,17 @@ describe("station services", () => {
     expect(used.filter((n) => !known.has(n))).toEqual([]);
   });
 
+  it("pairs each service with its own Spansh name", () => {
+    // Every value is its Spansh name in snake_case ("Interstellar Factors Contact" only
+    // adds a word), so a swap such as refuel -> "Repair" fails here.
+    const mismatched = STATION_SERVICES.filter((s) => {
+      const f = serviceFilter(s) as { services?: { name: { value: string[] } }[] };
+      const name = f.services?.[0]?.name.value[0];
+      return name !== undefined && !name.toLowerCase().replace(/ /g, "_").startsWith(s);
+    });
+    expect(mismatched).toEqual([]);
+  });
+
   it("has 26 services", () => {
     expect(STATION_SERVICES).toHaveLength(26);
     expect(new Set(STATION_SERVICES).size).toBe(26);
