@@ -4,6 +4,7 @@ import { SpanshClient } from "../../src/spansh/client.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
 import { SweepCache } from "../../src/systems/sweep-cache.js";
+import { distanceLy } from "../../src/systems/sweep.js";
 import { fakeFetch, jsonResponse, type FakeCall, type FakeRoute } from "../helpers/fakeFetch.js";
 
 const fixtureText = () =>
@@ -110,24 +111,57 @@ describe("SpanshClient.populatedSystems", () => {
     expect(b.systems).toHaveLength(206);
   });
 
-  it("stops at the deadline, marks the result partial and does not cache it", async () => {
+  // Three full pages of distinct systems, each 0.01 ly farther than the last; the clock jumps 15 s per request.
+  async function pagedSweep() {
     const one = JSON.parse(await fixtureText()).results[0];
-    const full = {
+    const page = (p: number) => ({
       count: 1500,
-      results: Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` })),
-    };
+      results: Array.from({ length: p < 3 ? 500 : 0 }, (_, i) => ({
+        ...one,
+        id64: p * 500 + i,
+        name: `S${p * 500 + i}`,
+        x: one.x + (p * 500 + i) * 0.01,
+      })),
+    });
     let t = 0;
-    const { client, f, sweeps } = await make(
-      () => {
+    const made = await make(
+      (_u, init) => {
         t += 15_000;
-        return jsonResponse(full);
+        return jsonResponse(page(JSON.parse(String(init!.body)).page));
       },
       { now: () => t },
     );
-    const r = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
-    expect(r.partial).toBe(true);
-    expect(searches(f)).toHaveLength(2);
-    expect(sweeps.stats().entries).toBe(0);
+    return { ...made, one, reset: () => (t = 0) };
+  }
+  const pagesRequested = (f: { calls: FakeCall[] }) =>
+    searches(f).map((c) => JSON.parse(String(c.init!.body)).page);
+
+  it("stops at the deadline, marks the result partial, and resumes on the next call", async () => {
+    const { client, f, reset, one } = await pagedSweep();
+    const first = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    expect(first.partial).toBe(true);
+    expect(pagesRequested(f)).toEqual([0, 1]);
+    expect(first.systems).toHaveLength(1000);
+    expect(first.coveredLy).toBeGreaterThan(0);
+    const last = first.systems[first.systems.length - 1]!;
+    expect(first.coveredLy).toBeCloseTo(distanceLy(last.coords, await lhs1920()) - 0.01, 6);
+    expect(last.coords.x).toBeCloseTo(one.x + 999 * 0.01, 6);
+
+    reset();
+    const second = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    expect(pagesRequested(f)).toEqual([0, 1, 2, 3]);
+    expect(second.partial).toBe(false);
+    expect(second.systems).toHaveLength(1500);
+    expect(second.coveredLy).toBe(30);
+  });
+
+  it("answers a smaller search inside a partial sweep without a request", async () => {
+    const { client, f } = await pagedSweep();
+    const first = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    const before = searches(f).length;
+    const r = await client.populatedSystems("LHS 1920", Math.floor(first.coveredLy));
+    expect(searches(f)).toHaveLength(before);
+    expect(r.partial).toBe(false);
   });
 
   it("turns a 400 into a message about the system name", async () => {

@@ -7,6 +7,7 @@ import { SweepCache } from "../systems/sweep-cache.js";
 import {
   mapSystem,
   stationPad,
+  distanceLy,
   type Coords,
   type Pad,
   type RawSweepSystem,
@@ -337,6 +338,7 @@ interface PopulatedSweep {
   systems: SweptSystem[];
   total: number;
   partial: boolean;
+  coveredLy: number;
 }
 
 export class SpanshClient {
@@ -502,7 +504,7 @@ export class SpanshClient {
     return detail.record.needs_permit ?? null;
   }
 
-  /** Populated systems within radiusLy of near. Stops paging at opts.deadline; a partial result is not cached. */
+  /** Populated systems within radiusLy of near. Stops paging at opts.deadline; a partial result is cached and the next call resumes it. */
   async populatedSystems(
     near: string,
     radiusLy: number,
@@ -510,13 +512,14 @@ export class SpanshClient {
   ): Promise<PopulatedSweep> {
     const centre = (await this.system(near, 0)).coords;
     const cached = this.sweepCache.find(centre, radiusLy);
-    if (cached) return { centre, systems: cached, total: cached.length, partial: false };
+    if (cached)
+      return { centre, systems: cached, total: cached.length, partial: false, coveredLy: radiusLy };
 
     // A sweep takes many requests, so a second caller should wait for it rather than start its own.
     const key = `${near.toLowerCase()}:${radiusLy}`;
     let running = this.sweeps.get(key);
     if (!running) {
-      running = this.sweepPages(near, radiusLy, centre, opts).finally(() =>
+      running = this.sweepPages(near, radiusLy, centre, key, opts).finally(() =>
         this.sweeps.delete(key),
       );
       this.sweeps.set(key, running);
@@ -528,14 +531,18 @@ export class SpanshClient {
     near: string,
     radiusLy: number,
     centre: Coords,
+    key: string,
     opts: { deadline?: number },
   ): Promise<PopulatedSweep> {
-    const systems: SweptSystem[] = [];
-    const seen = new Set<string>();
-    let total = 0;
+    const resume = this.sweepCache.partial(key);
+    const systems: SweptSystem[] = resume ? [...resume.systems] : [];
+    const seen = new Set<string>(systems.map((s) => s.id64));
+    const first = resume?.nextPage ?? 0;
+    let total = resume?.total ?? 0;
     let partial = false;
-    for (let page = 0; ; page++) {
-      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+    let page = first;
+    for (; ; page++) {
+      if (page > first && opts.deadline !== undefined && this.now() >= opts.deadline) {
         partial = true;
         break;
       }
@@ -576,8 +583,16 @@ export class SpanshClient {
       }
       if (results.length < SWEEP_PAGE_SIZE) break;
     }
-    if (!partial) this.sweepCache.add(centre, radiusLy, systems);
-    return { centre, systems, total, partial };
+    if (!partial) {
+      this.sweepCache.add(centre, radiusLy, systems, key);
+      return { centre, systems, total, partial, coveredLy: radiusLy };
+    }
+    // Pages come nearest first, so everything inside the last system's distance is here.
+    // The margin covers systems at the same distance split across two pages.
+    const last = systems[systems.length - 1];
+    const coveredLy = last ? Math.max(0, distanceLy(last.coords, centre) - 0.01) : 0;
+    this.sweepCache.savePartial({ key, centre, coveredLy, systems, nextPage: page, total });
+    return { centre, systems, total, partial, coveredLy };
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {
@@ -788,7 +803,7 @@ export class SpanshClient {
     })) as { near: string; total: number; stations: CommodityHit[] };
   }
 
-  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has; a partial result is not cached. */
+  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has; a partial result is cached and the next call resumes it. */
   async marketStations(
     q: MarketStationsQuery,
     opts: { deadline?: number } = {},

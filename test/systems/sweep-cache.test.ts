@@ -57,4 +57,30 @@ describe("SweepCache", () => {
     expect(c.clear()).toBe(1);
     expect(c.find(O, 10)).toBeUndefined();
   });
+
+  it("answers searches inside a partial sweep's covered radius, and resumes it by key", () => {
+    const c = new SweepCache();
+    c.savePartial({
+      key: "x:70",
+      centre: O,
+      coveredLy: 30,
+      systems: [sys("a", 0), sys("b", 25), sys("c", 31)],
+      nextPage: 2,
+      total: 3000,
+    });
+    expect(c.find(O, 20)!.map((s) => s.name)).toEqual(["a"]);
+    expect(c.find(O, 30)!.map((s) => s.name)).toEqual(["a", "b"]);
+    expect(c.find(O, 40)).toBeUndefined();
+    expect(c.partial("x:70")).toMatchObject({ nextPage: 2, coveredLy: 30 });
+    expect(c.partial("y:70")).toBeUndefined();
+  });
+
+  it("drops the partial sweep when the complete sweep with its key arrives", () => {
+    const c = new SweepCache();
+    c.savePartial({ key: "x:70", centre: O, coveredLy: 30, systems: [], nextPage: 2, total: 9 });
+    c.add(O, 70, [sys("a", 0)], "x:70");
+    expect(c.partial("x:70")).toBeUndefined();
+    expect(c.stats().entries).toBe(1);
+    expect(c.find(O, 70)).toHaveLength(1);
+  });
 });
