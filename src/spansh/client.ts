@@ -3,6 +3,7 @@ import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
 import { HttpError, type HttpClient, type RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
+import { stationPad, type Pad } from "../systems/sweep.js";
 
 const TRADER_FILTERS = {
   material_trader_raw: { material_trader: { value: ["Raw"] } },
@@ -60,8 +61,6 @@ export interface StationQuery {
   maxArrivalLs?: number;
   limit: number;
 }
-
-type Pad = "L" | "M" | "S" | null;
 
 export interface StationHit {
   name: string;
@@ -292,13 +291,6 @@ const COUNT_CAP = 10_000;
 // Spansh spells ship names inconsistently ("Python MkII", "Kestrel Mk II").
 const shipKey = (s: string) => s.toLowerCase().replace(/[\s-]/g, "");
 
-function pad(s: RawStation): Pad {
-  if (s.has_large_pad || (s.large_pads ?? 0) > 0) return "L";
-  if ((s.medium_pads ?? 0) > 0) return "M";
-  if ((s.small_pads ?? 0) > 0) return "S";
-  return null;
-}
-
 const MAX_JOBS = 100;
 const SEARCH_PAGE_SIZE = 50;
 const CARRIER_TYPE = "Drake-Class Carrier";
@@ -471,7 +463,7 @@ export class SpanshClient {
         name: s.name,
         type: s.type ?? null,
         arrival_ls: s.distance_to_arrival ?? null,
-        pad: pad(s),
+        pad: stationPad(s),
         market: s.has_market ?? false,
         market_id: s.market_id ?? null,
         outfitting: s.has_outfitting ?? false,
@@ -824,7 +816,7 @@ export class SpanshClient {
       distance_ly: s.distance ?? null,
       arrival_ls: s.distance_to_arrival ?? null,
       coords: { x, y, z },
-      pad: pad(s),
+      pad: stationPad(s),
       type: s.type ?? null,
       planetary: s.is_planetary ?? false,
       market_age_hours: Number.isNaN(updated)
@@ -862,7 +854,7 @@ export class SpanshClient {
       distance_ly: s.distance ?? 0,
       arrival_ls: s.distance_to_arrival ?? null,
       type: s.type ?? null,
-      pad: pad(s),
+      pad: stationPad(s),
       planetary: s.is_planetary ?? null,
       price,
       market_updated_at: s.market_updated_at ?? null,
