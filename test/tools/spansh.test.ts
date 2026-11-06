@@ -336,6 +336,19 @@ describe("spansh tools", () => {
     expect(r.isError).toBe(true);
   });
 
+  it("rejects an unknown service", async () => {
+    // Spansh would answer an unknown service name with no results rather than an error.
+    const { client, f } = await setup();
+    const r = await client
+      .callTool({
+        name: "spansh_find_stations",
+        arguments: { near: "Sol", service: "refinery_contact_typo" },
+      })
+      .catch(() => ({ isError: true }));
+    expect(r.isError).toBe(true);
+    expect(f.calls).toHaveLength(0);
+  });
+
   it("lists the tools", async () => {
     const { client } = await setup();
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
