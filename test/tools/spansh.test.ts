@@ -85,6 +85,20 @@ describe("spansh tools", () => {
     expect(JSON.parse(String(f.calls[0]!.init!.body)).size).toBe(50);
   });
 
+  it("accepts the new services and sends their Spansh filter", async () => {
+    const { client, f } = await setup();
+    const r = await callTool(client, "spansh_find_stations", {
+      near: "Sol",
+      service: "black_market",
+      limit: 3,
+    });
+    expect(r.isError).toBe(false);
+    const search = f.calls.find((c) => c.url.endsWith("/stations/search"))!;
+    expect(JSON.parse(String(search.init!.body)).filters.services).toEqual([
+      { name: { value: ["Black Market"] } },
+    ]);
+  });
+
   it("leaves out stations in permit systems and says so", async () => {
     const { client, f } = await setup({ permits: { "82 Eridani": true } });
     const r = await callTool(client, "spansh_find_stations", {

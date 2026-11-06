@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { SpanshClient, StationService } from "../spansh/client.js";
+import { STATION_SERVICES, type SpanshClient, type StationService } from "../spansh/client.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { resolveSearchRules } from "../stations/rules.js";
@@ -8,14 +8,7 @@ import { PERMIT_TIME_MS } from "../stations/permits.js";
 import { searchStations } from "../stations/search.js";
 import { wrap } from "./result.js";
 
-const Service = z.enum([
-  "material_trader_raw",
-  "material_trader_manufactured",
-  "material_trader_encoded",
-  "tech_broker_human",
-  "tech_broker_guardian",
-  "interstellar_factors",
-]);
+const Service = z.enum(STATION_SERVICES);
 const Limit = z.number().int().min(1).max(50).default(10);
 
 export function registerSpanshTools(
@@ -42,8 +35,10 @@ export function registerSpanshTools(
         openWorldHint: true,
       },
       description:
-        "Find the best stations near a system, ranked by travel time and cost, that sell a module or ship, or offer a service " +
-        "(material trader, tech broker, interstellar factors). Give exactly one of module, ship, service. " +
+        "Find the best stations near a system, ranked by travel time and cost, that sell a module or ship, or offer a service: " +
+        "material traders, tech brokers, interstellar factors, black market, Universal Cartographics, Vista Genomics, " +
+        "Search and Rescue, refuel, repair, restock, shipyard, outfitting, market and more (see the service enum). " +
+        "Give exactly one of module, ship, service. " +
         "Module names are generic (e.g. 'Frame Shift Drive') with class 1-8 and rating A-I; give class and rating to compare prices. " +
         "Applies the commander's stored travel preferences (arrival distance, station types, pad size " +
         "from the current ship, travel-time model); override any of them for this call with `preferences` " +
