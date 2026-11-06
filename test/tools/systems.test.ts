@@ -196,6 +196,8 @@ describe("system tools", () => {
         "utf8",
       ),
     ).results[0];
+    const partialNote =
+      /Spansh returned systems out to [\d.]+ ly within the time limit\. Call again to continue the search\./;
     let t = 0;
     const page = {
       count: 1500,
@@ -215,7 +217,8 @@ describe("system tools", () => {
     });
     expect(byState.isError).toBe(false);
     expect((byState.json as any).partial).toBe(true);
-    expect((byState.json as any).notes.join(" ")).toMatch(/did not return every system/);
+    expect(typeof (byState.json as any).covered_ly).toBe("number");
+    expect((byState.json as any).notes.join(" ")).toMatch(partialNote);
 
     t = 0;
     const massacre = await callTool(client, "massacre_targets", {
@@ -224,7 +227,12 @@ describe("system tools", () => {
     });
     expect(massacre.isError).toBe(false);
     expect((massacre.json as any).partial).toBe(true);
-    expect((massacre.json as any).notes.join(" ")).toMatch(/did not return every system/);
+    const coveredLy = (massacre.json as any).covered_ly;
+    expect(typeof coveredLy).toBe("number");
+    expect((massacre.json as any).notes.join(" ")).toMatch(partialNote);
+    const targets = (massacre.json as any).targets;
+    if (coveredLy - 20 <= 0) expect(targets).toEqual([]);
+    for (const t of targets) expect(t.distance_ly).toBeLessThanOrEqual(coveredLy - 20);
   });
 
   it("asks for near without a journal", async () => {

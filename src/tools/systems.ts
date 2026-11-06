@@ -16,6 +16,8 @@ import { wrap } from "./result.js";
 const TIME_LIMIT_MS = 20_000;
 // A source can be 10 ly beyond a target, and its other pirates 10 ly beyond that.
 const MASSACRE_MARGIN_LY = 2 * SOURCE_RANGE_LY;
+const partialNote = (coveredLy: number) =>
+  `Spansh returned systems out to ${Math.round(coveredLy * 10) / 10} ly within the time limit. Call again to continue the search.`;
 const STALE_HOURS = 72;
 const FAR_STAR_LS = 1_000;
 
@@ -131,12 +133,17 @@ export function registerSystemTools(
         const sweep = await deps.spansh.populatedSystems(near, a.radius_ly, {
           deadline: now() + TIME_LIMIT_MS,
         });
-        const matches = systemsByState(sweep.systems, sweep.centre, a.radius_ly, q);
+        const matches = systemsByState(
+          sweep.systems,
+          sweep.centre,
+          Math.min(a.radius_ly, sweep.coveredLy),
+          q,
+        );
         const shown = matches.slice(0, a.limit);
         const stale = shown.filter((m) => (ageHours(m.system) ?? 0) > STALE_HOURS).length;
         if (stale) notes.push(`${stale} results have data more than ${STALE_HOURS / 24} days old.`);
         if (sweep.partial) {
-          notes.push("Spansh did not return every system in time; results may be missing.");
+          notes.push(partialNote(sweep.coveredLy));
         }
         return {
           near,
@@ -144,6 +151,7 @@ export function registerSystemTools(
           travel: describeRules(rules).travel,
           total_matches: matches.length,
           partial: sweep.partial,
+          ...(sweep.partial ? { covered_ly: Math.round(sweep.coveredLy * 10) / 10 } : {}),
           systems: shown.map((m) => {
             const s = m.system;
             const war = m.factions.some((f) =>
@@ -226,7 +234,10 @@ export function registerSystemTools(
           deadline: now() + TIME_LIMIT_MS,
         });
         const { targets, leftOutSpread } = massacreTargets(sweep.systems, sweep.centre, {
-          radiusLy: a.radius_ly,
+          // Past covered_ly - margin a source could have a pirate neighbour that was not fetched.
+          radiusLy: sweep.partial
+            ? Math.min(a.radius_ly, Math.max(0, sweep.coveredLy - MASSACRE_MARGIN_LY))
+            : a.radius_ly,
           maxStarLs: a.max_star_ls,
         });
         notes.push(
@@ -238,15 +249,14 @@ export function registerSystemTools(
           );
         }
         if (sweep.partial) {
-          notes.push(
-            "Spansh did not return every system in time: a source can look primary when a pirate faction near the edge was missed.",
-          );
+          notes.push(partialNote(sweep.coveredLy));
         }
         return {
           near,
           searched: sweep.systems.length,
           left_out_spread: leftOutSpread,
           partial: sweep.partial,
+          ...(sweep.partial ? { covered_ly: Math.round(sweep.coveredLy * 10) / 10 } : {}),
           travel: describeRules(rules).travel,
           targets: targets.slice(0, a.limit).map((t) => ({
             target_faction: t.faction,
