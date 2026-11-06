@@ -119,6 +119,11 @@ export function registerSystemTools(
             "Give at least one of state, government, allegiance, power or security.",
           );
         }
+        if (a.controlling_only && !a.state?.length) {
+          throw new UserError(
+            "controlling_only needs state: it limits the state match to the controlling faction.",
+          );
+        }
         const notes: string[] = [];
         const near = await resolveNear(a.near, notes);
         const rules = await resolveSearchRules(deps, undefined, true);

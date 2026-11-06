@@ -11,7 +11,7 @@ import { registerSystemTools } from "../../src/tools/systems.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 import { fakeFetch, jsonResponse } from "../helpers/fakeFetch.js";
 
-async function setup() {
+async function setup(opts: { search?: (fixture: string) => Response; now?: () => number } = {}) {
   const fixture = await readFile(
     new URL("../fixtures/spansh/systems-search-lhs1920-30ly.json", import.meta.url),
     "utf8",
@@ -33,18 +33,25 @@ async function setup() {
         return jsonResponse({ record: { name, id64: name, x: r.x, y: r.y, z: r.z } });
       },
     },
-    { match: (u) => u.endsWith("/systems/search"), respond: () => new Response(fixture) },
+    {
+      match: (u) => u.endsWith("/systems/search"),
+      respond: () => (opts.search ?? ((x) => new Response(x)))(fixture),
+    },
   ]);
   const spansh = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f }),
     new TtlCache("spansh", 300_000),
-    { minIntervalMs: 0 },
+    { minIntervalMs: 0, now: opts.now },
   );
   const dir = await mkdtemp(path.join(os.tmpdir(), "systemstools-"));
   const prefs = new PreferencesStore(path.join(dir, "preferences.json"));
   const server = new McpServer({ name: "t", version: "0" });
-  registerSystemTools(server, { spansh, prefs, now: () => Date.parse("2026-11-06T20:00:00Z") });
-  return { client: await connectTestClient(server), records };
+  registerSystemTools(server, {
+    spansh,
+    prefs,
+    now: opts.now ?? (() => Date.parse("2026-11-06T20:00:00Z")),
+  });
+  return { client: await connectTestClient(server), records, f };
 }
 
 // Carriers and construction depots are not stations you can use, so the tool leaves them out.
@@ -114,13 +121,16 @@ describe("system tools", () => {
   });
 
   it("massacre_targets reports the LHS 1920 group when max_star_ls allows it", async () => {
-    const { client } = await setup();
+    const { client, f } = await setup();
     const r = await callTool(client, "massacre_targets", {
       near: "LHS 1920",
       radius_ly: 1,
       max_star_ls: 200000,
     });
     expect(r.isError).toBe(false);
+    // The sweep reaches 20 ly past the radius so that sources and their other pirates are in it.
+    const sent = f.calls.find((c) => c.url.endsWith("/systems/search"))!;
+    expect(JSON.parse(String(sent.init!.body)).filters.distance.max).toBe(21);
     const j = r.json as any;
     const t = j.targets.find((x: any) => x.target_faction === "Society of LHS 1920");
     expect(t.stack_size).toBe(4);
@@ -141,6 +151,55 @@ describe("system tools", () => {
     const j = r.json as any;
     expect(j.targets.find((x: any) => x.target_system === "LHS 1920")).toBeUndefined();
     expect(j.left_out_spread).toBeGreaterThanOrEqual(1);
+  });
+
+  it("systems_by_state needs state with controlling_only", async () => {
+    const { client } = await setup();
+    const r = await callTool(client, "systems_by_state", {
+      near: "LHS 1920",
+      government: ["Corporate"],
+      controlling_only: true,
+    });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/controlling_only needs state/);
+  });
+
+  it("both tools report a partial sweep", async () => {
+    const one = JSON.parse(
+      await readFile(
+        new URL("../fixtures/spansh/systems-search-lhs1920-30ly.json", import.meta.url),
+        "utf8",
+      ),
+    ).results[0];
+    let t = 0;
+    const page = {
+      count: 1500,
+      results: Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` })),
+    };
+    const { client } = await setup({
+      search: () => {
+        t += 15_000;
+        return jsonResponse(page);
+      },
+      now: () => t,
+    });
+    const byState = await callTool(client, "systems_by_state", {
+      near: "LHS 1920",
+      radius_ly: 10,
+      state: ["War"],
+    });
+    expect(byState.isError).toBe(false);
+    expect((byState.json as any).partial).toBe(true);
+    expect((byState.json as any).notes.join(" ")).toMatch(/did not return every system/);
+
+    t = 0;
+    const massacre = await callTool(client, "massacre_targets", {
+      near: "LHS 1920",
+      radius_ly: 5,
+    });
+    expect(massacre.isError).toBe(false);
+    expect((massacre.json as any).partial).toBe(true);
+    expect((massacre.json as any).notes.join(" ")).toMatch(/did not return every system/);
   });
 
   it("asks for near without a journal", async () => {

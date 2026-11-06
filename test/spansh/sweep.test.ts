@@ -72,7 +72,10 @@ describe("SpanshClient.populatedSystems", () => {
 
   it("pages until a short page", async () => {
     const one = JSON.parse(await fixtureText()).results[0];
-    const full = { count: 501, results: Array.from({ length: 500 }, () => one) };
+    const full = {
+      count: 501,
+      results: Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` })),
+    };
     const last = { count: 501, results: [one] };
     let n = 0;
     const { client, f } = await make(() => jsonResponse(n++ === 0 ? full : last));
@@ -82,9 +85,37 @@ describe("SpanshClient.populatedSystems", () => {
     expect(r.total).toBe(501);
   });
 
+  it("skips a system that appears on two pages", async () => {
+    const one = JSON.parse(await fixtureText()).results[0];
+    const page0 = Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` }));
+    const page1 = [page0[499], { ...one, id64: 1000, name: "Other" }];
+    let n = 0;
+    const { client } = await make(() =>
+      jsonResponse(n++ === 0 ? { count: 501, results: page0 } : { count: 501, results: page1 }),
+    );
+    const r = await client.populatedSystems("LHS 1920", 30);
+    expect(r.systems).toHaveLength(501);
+    expect(new Set(r.systems.map((s) => s.id64)).size).toBe(501);
+  });
+
+  it("shares one sweep between concurrent calls", async () => {
+    const body = await fixtureText();
+    const { client, f } = await make(() => new Response(body));
+    const [a, b] = await Promise.all([
+      client.populatedSystems("LHS 1920", 30),
+      client.populatedSystems("LHS 1920", 30),
+    ]);
+    expect(searches(f)).toHaveLength(1);
+    expect(a.systems).toHaveLength(206);
+    expect(b.systems).toHaveLength(206);
+  });
+
   it("stops at the deadline, marks the result partial and does not cache it", async () => {
     const one = JSON.parse(await fixtureText()).results[0];
-    const full = { count: 1500, results: Array.from({ length: 500 }, () => one) };
+    const full = {
+      count: 1500,
+      results: Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` })),
+    };
     let t = 0;
     const { client, f, sweeps } = await make(
       () => {

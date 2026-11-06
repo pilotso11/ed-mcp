@@ -332,6 +332,13 @@ export class RoutePendingError extends UserError {
 
 const CALL_AGAIN = "call spansh_route again in a minute to collect it.";
 
+interface PopulatedSweep {
+  centre: Coords;
+  systems: SweptSystem[];
+  total: number;
+  partial: boolean;
+}
+
 export class SpanshClient {
   private readonly baseUrl: string;
   private readonly minIntervalMs: number;
@@ -345,6 +352,7 @@ export class SpanshClient {
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
   private readonly tradeSubmits = new Map<string, Promise<string>>();
+  private readonly sweeps = new Map<string, Promise<PopulatedSweep>>();
   private gate: Promise<void> = Promise.resolve();
   private lastStart = 0;
 
@@ -499,12 +507,31 @@ export class SpanshClient {
     near: string,
     radiusLy: number,
     opts: { deadline?: number } = {},
-  ): Promise<{ centre: Coords; systems: SweptSystem[]; total: number; partial: boolean }> {
+  ): Promise<PopulatedSweep> {
     const centre = (await this.system(near, 0)).coords;
     const cached = this.sweepCache.find(centre, radiusLy);
     if (cached) return { centre, systems: cached, total: cached.length, partial: false };
 
+    // A sweep takes many requests, so a second caller should wait for it rather than start its own.
+    const key = `${near.toLowerCase()}:${radiusLy}`;
+    let running = this.sweeps.get(key);
+    if (!running) {
+      running = this.sweepPages(near, radiusLy, centre, opts).finally(() =>
+        this.sweeps.delete(key),
+      );
+      this.sweeps.set(key, running);
+    }
+    return running;
+  }
+
+  private async sweepPages(
+    near: string,
+    radiusLy: number,
+    centre: Coords,
+    opts: { deadline?: number },
+  ): Promise<PopulatedSweep> {
     const systems: SweptSystem[] = [];
+    const seen = new Set<string>();
     let total = 0;
     let partial = false;
     for (let page = 0; ; page++) {
@@ -541,7 +568,11 @@ export class SpanshClient {
       // Map each page as it arrives so that only one page of full records is held at once.
       for (const raw of results) {
         const s = mapSystem(raw);
-        if (s) systems.push(s);
+        // Results can shift between page requests, which repeats a system.
+        if (s && !seen.has(s.id64)) {
+          seen.add(s.id64);
+          systems.push(s);
+        }
       }
       if (results.length < SWEEP_PAGE_SIZE) break;
     }
