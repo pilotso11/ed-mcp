@@ -569,7 +569,8 @@ export class SpanshClient {
         }
         throw err;
       }
-      total = res.count;
+      // A resumed query counts only what is left, so keep the count for the whole sphere.
+      if (!resume) total = res.count;
       const results = res.results ?? [];
       // Map each page as it arrives so that only one page of full records is held at once.
       for (const raw of results) {

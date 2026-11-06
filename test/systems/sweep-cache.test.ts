@@ -104,4 +104,15 @@ describe("SweepCache", () => {
     t = 3_600_001;
     expect(c.find(O, 70)).toBeUndefined();
   });
+
+  it("reports the age of the oldest entry, wherever it sits in the list", () => {
+    let t = 0;
+    const c = new SweepCache(3_600_000, () => t);
+    c.savePartial({ key: "x:70", centre: O, coveredLy: 30, systems: [], total: 9 });
+    t = 3_000_000;
+    c.add({ x: 500, y: 0, z: 0 }, 10, []);
+    // Saving the partial again moves it to the end, but it keeps its first fetch time.
+    c.savePartial({ key: "x:70", centre: O, coveredLy: 35, systems: [], total: 9 });
+    expect(c.stats().oldestAgeSeconds).toBe(3000);
+  });
 });

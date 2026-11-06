@@ -113,10 +113,10 @@ describe("SpanshClient.populatedSystems", () => {
 
   // 1500 distinct systems, each 0.01 ly farther than the last. Like Spansh, the fake honours
   // distance.min and pages the matching systems nearest first; the clock jumps 15 s per request.
-  async function pagedSweep(opts: { ignoreMin?: boolean } = {}) {
+  async function pagedSweep(opts: { ignoreMin?: boolean; size?: number } = {}) {
     const one = JSON.parse(await fixtureText()).results[0];
     const centre = await lhs1920();
-    const all = Array.from({ length: 1500 }, (_, i) => ({
+    const all = Array.from({ length: opts.size ?? 1500 }, (_, i) => ({
       ...one,
       id64: i,
       name: `S${i}`,
@@ -165,6 +165,26 @@ describe("SpanshClient.populatedSystems", () => {
     expect(second.systems).toHaveLength(1500);
     expect(new Set(second.systems.map((s) => s.id64)).size).toBe(1500);
     expect(second.coveredLy).toBe(30);
+  });
+
+  it("keeps the systems and the covered distance across two partial rounds", async () => {
+    const { client, f, reset } = await pagedSweep({ size: 2500 });
+    const first = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    reset();
+    const second = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    expect(second.partial).toBe(true);
+    expect(second.coveredLy).toBeGreaterThan(first.coveredLy);
+    expect(second.systems.length).toBeGreaterThan(first.systems.length);
+    reset();
+    const third = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    const resumed = bodies(f)
+      .filter((b) => b.page === 0)
+      .at(-1);
+    expect(resumed.filters.distance.min).toBe(second.coveredLy);
+    expect(third.partial).toBe(false);
+    expect(new Set(third.systems.map((s) => s.id64)).size).toBe(2500);
+    // A resumed query counts only what is left, so the total must come from the first request.
+    expect([first.total, second.total, third.total]).toEqual([2500, 2500, 2500]);
   });
 
   it("drops systems at the old boundary that the resumed query returns again", async () => {
