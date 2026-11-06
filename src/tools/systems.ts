@@ -235,8 +235,9 @@ export function registerSystemTools(
         });
         const { targets, leftOutSpread } = massacreTargets(sweep.systems, sweep.centre, {
           // Past covered_ly - margin a source could have a pirate neighbour that was not fetched.
+          // A negative radius lists nothing, not even a target at distance 0.
           radiusLy: sweep.partial
-            ? Math.min(a.radius_ly, Math.max(0, sweep.coveredLy - MASSACRE_MARGIN_LY))
+            ? Math.min(a.radius_ly, sweep.coveredLy - MASSACRE_MARGIN_LY)
             : a.radius_ly,
           maxStarLs: a.max_star_ls,
         });
