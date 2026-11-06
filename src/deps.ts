@@ -9,6 +9,7 @@ import { JournalService } from "./journal/service.js";
 import { InaraClient } from "./inara/client.js";
 import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
+import { SweepCache } from "./systems/sweep-cache.js";
 import { PlanStore } from "./plans/store.js";
 import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
@@ -67,9 +68,12 @@ export function buildDeps(
   caches.register(spanshSystemCache);
   const spanshMarketCache = new TtlCache<unknown>("spansh-markets", 600_000);
   caches.register(spanshMarketCache);
+  const spanshSweepCache = new SweepCache();
+  caches.register(spanshSweepCache);
   const spansh = new SpanshClient(http, spanshCache, {
     systemCache: spanshSystemCache,
     marketCache: spanshMarketCache,
+    sweepCache: spanshSweepCache,
   });
   const capiHttp = new HttpClient({ userAgent: `EDCD-EdMcp-${VERSION}`, fetchFn: opts.fetchFn });
   const capiCache = new TtlCache<unknown>("capi", 60_000);

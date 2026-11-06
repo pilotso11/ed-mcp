@@ -3,6 +3,15 @@ import { UserError } from "../errors.js";
 import type { TtlCache } from "../http/cache.js";
 import { HttpError, type HttpClient, type RequestOptions } from "../http/client.js";
 import { parseSpanshJson } from "./json.js";
+import { SweepCache } from "../systems/sweep-cache.js";
+import {
+  mapSystem,
+  stationPad,
+  type Coords,
+  type Pad,
+  type RawSweepSystem,
+  type SweptSystem,
+} from "../systems/sweep.js";
 
 const TRADER_FILTERS = {
   material_trader_raw: { material_trader: { value: ["Raw"] } },
@@ -60,8 +69,6 @@ export interface StationQuery {
   maxArrivalLs?: number;
   limit: number;
 }
-
-type Pad = "L" | "M" | "S" | null;
 
 export interface StationHit {
   name: string;
@@ -292,15 +299,10 @@ const COUNT_CAP = 10_000;
 // Spansh spells ship names inconsistently ("Python MkII", "Kestrel Mk II").
 const shipKey = (s: string) => s.toLowerCase().replace(/[\s-]/g, "");
 
-function pad(s: RawStation): Pad {
-  if (s.has_large_pad || (s.large_pads ?? 0) > 0) return "L";
-  if ((s.medium_pads ?? 0) > 0) return "M";
-  if ((s.small_pads ?? 0) > 0) return "S";
-  return null;
-}
-
 const MAX_JOBS = 100;
 const SEARCH_PAGE_SIZE = 50;
+// Spansh's largest page. A system record is about 16 KB, so a page is about 8 MB.
+const SWEEP_PAGE_SIZE = 500;
 const CARRIER_TYPE = "Drake-Class Carrier";
 // Spansh has no "not" filter, so carriers are left out by listing every other type.
 // Near busy systems most market records are carriers, so dropping them after the
@@ -330,6 +332,13 @@ export class RoutePendingError extends UserError {
 
 const CALL_AGAIN = "call spansh_route again in a minute to collect it.";
 
+interface PopulatedSweep {
+  centre: Coords;
+  systems: SweptSystem[];
+  total: number;
+  partial: boolean;
+}
+
 export class SpanshClient {
   private readonly baseUrl: string;
   private readonly minIntervalMs: number;
@@ -338,10 +347,12 @@ export class SpanshClient {
   private readonly now: () => number;
   private readonly systemCache: TtlCache<unknown>;
   private readonly marketCache: TtlCache<unknown>;
+  private readonly sweepCache: SweepCache;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
   private readonly tradeSubmits = new Map<string, Promise<string>>();
+  private readonly sweeps = new Map<string, Promise<PopulatedSweep>>();
   private gate: Promise<void> = Promise.resolve();
   private lastStart = 0;
 
@@ -358,6 +369,7 @@ export class SpanshClient {
       systemCache?: TtlCache<unknown>;
       // Mapped market records are compact but costly to fetch, so they are kept longer than raw search results.
       marketCache?: TtlCache<unknown>;
+      sweepCache?: SweepCache;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
@@ -368,6 +380,7 @@ export class SpanshClient {
     this.now = opts.now ?? Date.now;
     this.systemCache = opts.systemCache ?? cache;
     this.marketCache = opts.marketCache ?? cache;
+    this.sweepCache = opts.sweepCache ?? new SweepCache();
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -471,7 +484,7 @@ export class SpanshClient {
         name: s.name,
         type: s.type ?? null,
         arrival_ls: s.distance_to_arrival ?? null,
-        pad: pad(s),
+        pad: stationPad(s),
         market: s.has_market ?? false,
         market_id: s.market_id ?? null,
         outfitting: s.has_outfitting ?? false,
@@ -487,6 +500,84 @@ export class SpanshClient {
       this.get(`/system/${id64}`),
     )) as { record: { needs_permit?: boolean } };
     return detail.record.needs_permit ?? null;
+  }
+
+  /** Populated systems within radiusLy of near. Stops paging at opts.deadline; a partial result is not cached. */
+  async populatedSystems(
+    near: string,
+    radiusLy: number,
+    opts: { deadline?: number } = {},
+  ): Promise<PopulatedSweep> {
+    const centre = (await this.system(near, 0)).coords;
+    const cached = this.sweepCache.find(centre, radiusLy);
+    if (cached) return { centre, systems: cached, total: cached.length, partial: false };
+
+    // A sweep takes many requests, so a second caller should wait for it rather than start its own.
+    const key = `${near.toLowerCase()}:${radiusLy}`;
+    let running = this.sweeps.get(key);
+    if (!running) {
+      running = this.sweepPages(near, radiusLy, centre, opts).finally(() =>
+        this.sweeps.delete(key),
+      );
+      this.sweeps.set(key, running);
+    }
+    return running;
+  }
+
+  private async sweepPages(
+    near: string,
+    radiusLy: number,
+    centre: Coords,
+    opts: { deadline?: number },
+  ): Promise<PopulatedSweep> {
+    const systems: SweptSystem[] = [];
+    const seen = new Set<string>();
+    let total = 0;
+    let partial = false;
+    for (let page = 0; ; page++) {
+      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+        partial = true;
+        break;
+      }
+      const body = {
+        filters: {
+          distance: { min: 0, max: radiusLy },
+          population: { comparison: "<=>", value: [1, 100_000_000_000] },
+        },
+        sort: [{ distance: { direction: "asc" } }],
+        size: SWEEP_PAGE_SIZE,
+        page,
+        reference_system: near,
+      };
+      let res: { count: number; results?: RawSweepSystem[] };
+      try {
+        res = (await this.post("/systems/search", JSON.stringify(body), "application/json")) as {
+          count: number;
+          results?: RawSweepSystem[];
+        };
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 400) {
+          throw new UserError(
+            `Spansh rejected the search (${err.detail}). Check that "${near}" is an exact system name (spansh_system).`,
+          );
+        }
+        throw err;
+      }
+      total = res.count;
+      const results = res.results ?? [];
+      // Map each page as it arrives so that only one page of full records is held at once.
+      for (const raw of results) {
+        const s = mapSystem(raw);
+        // Results can shift between page requests, which repeats a system.
+        if (s && !seen.has(s.id64)) {
+          seen.add(s.id64);
+          systems.push(s);
+        }
+      }
+      if (results.length < SWEEP_PAGE_SIZE) break;
+    }
+    if (!partial) this.sweepCache.add(centre, radiusLy, systems);
+    return { centre, systems, total, partial };
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {
@@ -824,7 +915,7 @@ export class SpanshClient {
       distance_ly: s.distance ?? null,
       arrival_ls: s.distance_to_arrival ?? null,
       coords: { x, y, z },
-      pad: pad(s),
+      pad: stationPad(s),
       type: s.type ?? null,
       planetary: s.is_planetary ?? false,
       market_age_hours: Number.isNaN(updated)
@@ -862,7 +953,7 @@ export class SpanshClient {
       distance_ly: s.distance ?? 0,
       arrival_ls: s.distance_to_arrival ?? null,
       type: s.type ?? null,
-      pad: pad(s),
+      pad: stationPad(s),
       planetary: s.is_planetary ?? null,
       price,
       market_updated_at: s.market_updated_at ?? null,

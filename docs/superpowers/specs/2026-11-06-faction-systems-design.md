@@ -16,7 +16,7 @@ These rules come from player guides. They were checked against Inara's result fo
 
 - A pirate massacre mission needs a pirate faction within 10 ly of the giving station's system. A pirate faction is a faction with government Anarchy.
 - Missions stack only when different factions give them. Missions from one faction must be done one after another.
-- A source is best when the target is the only pirate faction within 10 ly of it. Then all its massacre missions are against that target.
+- A source is best when the target is the only pirate faction within 10 ly of it, not counting pirate factions in the source system itself. Massacre missions send the commander to another system, so a source's own pirates do not compete. Inara also counts such sources (NLTT 21088 for Neche, checked on 2026-11-06).
 - Factions in War, Civil War or Election give few or no massacre missions.
 
 ## The sweep
@@ -55,11 +55,11 @@ interface SweptSystem {
 }
 ```
 
-- `stations` leaves out fleet carriers.
+- `stations` leaves out fleet carriers and construction depots, which give no missions.
 - `stars` holds the bodies with type `Star`.
 - `active_states` is empty when Spansh gives none. When a faction has a `state` but no `active_states`, the state goes into `active_states` unless it is `None`.
 
-**Cache.** The client caches the result for 1 hour, keyed by the reference system and the radius. Before it sends a request, it looks for a cached sweep that contains the new sphere: `distance(cached centre, new centre) + new radius ≤ cached radius`. When one exists, the client filters it and does not call Spansh. `cache_refresh` gets the source `systems`, which clears this cache.
+**Cache.** The client caches the result for 1 hour, keyed by the reference system and the radius. Before it sends a request, it looks for a cached sweep that contains the new sphere: `distance(cached centre, new centre) + new radius ≤ cached radius`. When one exists, the client filters it and does not call Spansh. `cache_refresh` gets the source `spansh-sweeps`, which clears this cache. (`spansh-systems` already names the cache of single-system lookups.)
 
 **Limits.** Paging stops at a deadline of 20 s. The result then has `partial: true`, and the client does not cache it. A 400 response gives the `UserError` "Spansh rejected the search. Check that "<near>" is an exact system name (spansh_system)."
 
@@ -107,9 +107,9 @@ The tool sweeps `radius_ly + 20` ly. Sources can be 10 ly beyond a target, and p
 1. **Pirates.** List every faction in the sweep with government `Anarchy`, with its system.
 2. **Targets.** Keep the pirate factions whose system is within `radius_ly` of `near`.
 3. **Spread.** For each target system, `spread_ls` is the largest `arrival_ls` of its stars. Populated systems are almost always fully scanned, so a system with no stars in the sweep gets `spread_ls: 0`. Leave out targets with `spread_ls > max_star_ls`, and count them in `left_out_spread`.
-4. **Sources.** For each target, the sources are the systems within 10 ly of the target system that are not the target system, have no Anarchy faction, and have at least one station.
+4. **Sources.** For each target, the sources are the systems within 10 ly of the target system that are not the target system and have at least one station. A source can have its own Anarchy faction.
 5. **Excluded sources.** Move a source to `excluded` when any of its factions has War, Civil War or Election in `active_states`. The entry names the faction, the state and `updated_at`.
-6. **Primary or secondary.** A source is primary when the target faction is the only Anarchy faction in a system within 10 ly of the source. Otherwise it is secondary, and `other_pirates` names the other pirate factions and their systems.
+6. **Primary or secondary.** A source is primary when the target faction is the only Anarchy faction in the other systems within 10 ly of the source. Anarchy factions in the source system itself do not count. Otherwise it is secondary, and `other_pirates` names the other pirate factions and their systems.
 7. **Stack size.** `stack_size` is the number of distinct faction names in the primary sources, not counting Anarchy factions. Leave out targets with no primary source.
 8. **Travel to the target.** `travel_min` is the leg from `near` to the target system, without a station.
 
@@ -139,7 +139,7 @@ The result also has `searched`, `left_out_spread`, `partial`, `travel` (the trav
 
 ## Tests
 
-- **Fixture.** `test/fixtures/spansh-lhs1920.json` holds the compact records of the populated systems within 30 ly of LHS 1920, from Spansh on 2026-11-06. With `near: "LHS 1920"`, `radius_ly: 10` and `max_star_ls: 200000`, `massacre_targets` gives the target Society of LHS 1920 with:
+- **Fixture.** `test/fixtures/spansh/systems-search-lhs1920-30ly.json` holds the compact records of the populated systems within 30 ly of LHS 1920, from Spansh on 2026-11-06. With `near: "LHS 1920"`, `radius_ly: 1` and `max_star_ls: 200000`, `massacre_targets` gives the target Society of LHS 1920 with:
   - primary sources Gliese 282 C and Eeaea;
   - secondary sources Ross 880 (other pirate in LP 542-33) and LFT 507 (other pirate in Ganiklis);
   - LHS 1928 excluded for Election;
@@ -149,4 +149,4 @@ The result also has `searched`, `left_out_spread`, `partial`, `travel` (the trav
 - Cache: a sweep that contains the new sphere is reused without an HTTP call, and one that does not contain it causes a new request. A partial sweep is not cached.
 - The request body has the population and distance filters in the shape above.
 - `systems_by_state`: the state, pending, controlling-only and system filters; sorting by distance; the error without a filter.
-- `docs/tools.md` describes both tools, and `cache_refresh` lists `systems`.
+- `docs/tools.md` describes both tools, and `cache_refresh` lists `spansh-sweeps`.
