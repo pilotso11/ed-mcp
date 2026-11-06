@@ -275,7 +275,7 @@ If `Market.json` is for a station in the results and is newer than the Spansh da
 
 ## Faction systems
 
-`systems_by_state` and `massacre_targets` use one Spansh search of the populated systems near you. The server keeps it for an hour. A later search that fits inside it, for example after a few jumps, uses it again. The first call can take 10 s. `cache_refresh` with source `spansh-sweeps` clears it. Faction states come from players who visit a system, so check `age_hours`.
+`systems_by_state` and `massacre_targets` use one Spansh search of the populated systems near you. The server keeps it for an hour. A later search that fits inside it, for example after a few jumps, uses it again. The first call can take 10 s. `cache_refresh` with source `spansh-sweeps` clears it. When Spansh is slow, a search stops after 20 s with `partial: true` and `covered_ly`, the distance out to which it is complete. The server keeps what it fetched: calling again carries on from there, and a search inside `covered_ly` is answered at once. While a search is partial, `massacre_targets` lists only targets within `covered_ly` − 20 ly. Faction states come from players who visit a system, so check `age_hours`.
 
 `systems_by_state` finds the nearest systems with a faction in a state, such as War or Civil War for conflict zones, or Election or Boom. It also filters by government, allegiance, controlling power and security. Give at least one filter. `include_pending` also matches states that are about to start. `controlling_only` needs `state`: it limits the state match to the controlling faction. War and Civil War results say `conflict_zones: "likely"`: conflict zones need settlements or planets, which the search does not check.
 

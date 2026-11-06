@@ -61,7 +61,7 @@ interface SweptSystem {
 
 **Cache.** The client caches the result for 1 hour, keyed by the reference system and the radius. Before it sends a request, it looks for a cached sweep that contains the new sphere: `distance(cached centre, new centre) + new radius ≤ cached radius`. When one exists, the client filters it and does not call Spansh. `cache_refresh` gets the source `spansh-sweeps`, which clears this cache. (`spansh-systems` already names the cache of single-system lookups.)
 
-**Limits.** Paging stops at a deadline of 20 s. The result then has `partial: true`, and the client does not cache it. A 400 response gives the `UserError` "Spansh rejected the search. Check that "<near>" is an exact system name (spansh_system)."
+**Limits.** Paging stops at a deadline of 20 s. The result then has `partial: true`. `2026-11-06-sweep-resume-design.md` describes how a partial sweep is cached and resumed. A 400 response gives the `UserError` "Spansh rejected the search. Check that "<near>" is an exact system name (spansh_system)."
 
 **Reference system.** Both tools take `near`. The default is the journal location. Without either, the tool gives a `UserError` that asks for `near`.
 

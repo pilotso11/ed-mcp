@@ -7,6 +7,7 @@ import { SweepCache } from "../systems/sweep-cache.js";
 import {
   mapSystem,
   stationPad,
+  distanceLy,
   type Coords,
   type Pad,
   type RawSweepSystem,
@@ -337,6 +338,7 @@ interface PopulatedSweep {
   systems: SweptSystem[];
   total: number;
   partial: boolean;
+  coveredLy: number;
 }
 
 export class SpanshClient {
@@ -502,7 +504,7 @@ export class SpanshClient {
     return detail.record.needs_permit ?? null;
   }
 
-  /** Populated systems within radiusLy of near. Stops paging at opts.deadline; a partial result is not cached. */
+  /** Populated systems within radiusLy of near. Stops paging at opts.deadline; a partial result is cached and the next call resumes it. */
   async populatedSystems(
     near: string,
     radiusLy: number,
@@ -510,13 +512,14 @@ export class SpanshClient {
   ): Promise<PopulatedSweep> {
     const centre = (await this.system(near, 0)).coords;
     const cached = this.sweepCache.find(centre, radiusLy);
-    if (cached) return { centre, systems: cached, total: cached.length, partial: false };
+    if (cached)
+      return { centre, systems: cached, total: cached.length, partial: false, coveredLy: radiusLy };
 
     // A sweep takes many requests, so a second caller should wait for it rather than start its own.
     const key = `${near.toLowerCase()}:${radiusLy}`;
     let running = this.sweeps.get(key);
     if (!running) {
-      running = this.sweepPages(near, radiusLy, centre, opts).finally(() =>
+      running = this.sweepPages(near, radiusLy, centre, key, opts).finally(() =>
         this.sweeps.delete(key),
       );
       this.sweeps.set(key, running);
@@ -528,11 +531,13 @@ export class SpanshClient {
     near: string,
     radiusLy: number,
     centre: Coords,
+    key: string,
     opts: { deadline?: number },
   ): Promise<PopulatedSweep> {
-    const systems: SweptSystem[] = [];
-    const seen = new Set<string>();
-    let total = 0;
+    const resume = this.sweepCache.partial(key);
+    const systems: SweptSystem[] = resume ? [...resume.systems] : [];
+    const seen = new Set<string>(systems.map((s) => s.id64));
+    let total = resume?.total ?? 0;
     let partial = false;
     for (let page = 0; ; page++) {
       if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
@@ -541,7 +546,8 @@ export class SpanshClient {
       }
       const body = {
         filters: {
-          distance: { min: 0, max: radiusLy },
+          // Resuming by distance, not page: Spansh's list can shift between calls an hour apart.
+          distance: { min: resume?.coveredLy ?? 0, max: radiusLy },
           population: { comparison: "<=>", value: [1, 100_000_000_000] },
         },
         sort: [{ distance: { direction: "asc" } }],
@@ -563,7 +569,8 @@ export class SpanshClient {
         }
         throw err;
       }
-      total = res.count;
+      // A resumed query counts only what is left, so keep the count for the whole sphere.
+      if (!resume) total = res.count;
       const results = res.results ?? [];
       // Map each page as it arrives so that only one page of full records is held at once.
       for (const raw of results) {
@@ -576,8 +583,19 @@ export class SpanshClient {
       }
       if (results.length < SWEEP_PAGE_SIZE) break;
     }
-    if (!partial) this.sweepCache.add(centre, radiusLy, systems);
-    return { centre, systems, total, partial };
+    if (!partial) {
+      this.sweepCache.add(centre, radiusLy, systems, key);
+      return { centre, systems, total, partial, coveredLy: radiusLy };
+    }
+    // Pages come nearest first, so everything inside the last system's distance is here.
+    // The margin covers systems at the same distance split across two pages.
+    const last = systems[systems.length - 1];
+    const coveredLy = Math.max(
+      resume?.coveredLy ?? 0,
+      last ? distanceLy(last.coords, centre) - 0.01 : 0,
+    );
+    this.sweepCache.savePartial({ key, centre, coveredLy, systems, total });
+    return { centre, systems, total, partial, coveredLy };
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {

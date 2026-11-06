@@ -189,42 +189,82 @@ describe("system tools", () => {
     expect(r.text).toMatch(/controlling_only needs state/);
   });
 
-  it("both tools report a partial sweep", async () => {
+  // Pages come nearest first, so the last system's distance is what the sweep reports as covered.
+  // The test sets the last system's distance, and spreads the rest out to spreadLy.
+  async function partialSetup(spreadLy: number, lastLy: number) {
     const one = JSON.parse(
       await readFile(
         new URL("../fixtures/spansh/systems-search-lhs1920-30ly.json", import.meta.url),
         "utf8",
       ),
     ).results[0];
-    let t = 0;
-    const page = {
-      count: 1500,
-      results: Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` })),
-    };
+    const results = Array.from({ length: 500 }, (_, i) => ({
+      ...one,
+      id64: i,
+      name: `S${i}`,
+      x: one.x + (i === 499 ? lastLy : (i / 499) * spreadLy),
+    }));
+    let clock = 0;
     const { client } = await setup({
       search: () => {
-        t += 15_000;
-        return jsonResponse(page);
+        clock += 15_000;
+        return jsonResponse({ count: 1500, results });
       },
-      now: () => t,
+      now: () => clock,
     });
-    const byState = await callTool(client, "systems_by_state", {
-      near: "LHS 1920",
-      radius_ly: 10,
-      state: ["War"],
-    });
-    expect(byState.isError).toBe(false);
-    expect((byState.json as any).partial).toBe(true);
-    expect((byState.json as any).notes.join(" ")).toMatch(/did not return every system/);
+    return client;
+  }
+  const continueNote =
+    /Spansh returned systems out to [\d.]+ ly within the time limit\. Call again to continue the search\./;
 
-    t = 0;
-    const massacre = await callTool(client, "massacre_targets", {
+  it("systems_by_state reports a partial sweep and stays within covered_ly", async () => {
+    const client = await partialSetup(25, 3);
+    const r = await callTool(client, "systems_by_state", {
       near: "LHS 1920",
-      radius_ly: 5,
+      radius_ly: 40,
+      state: ["Boom"],
+      limit: 100,
     });
-    expect(massacre.isError).toBe(false);
-    expect((massacre.json as any).partial).toBe(true);
-    expect((massacre.json as any).notes.join(" ")).toMatch(/did not return every system/);
+    expect(r.isError).toBe(false);
+    const json = r.json as any;
+    expect(json.partial).toBe(true);
+    expect(json.covered_ly).toBeGreaterThan(2);
+    expect(json.notes.join(" ")).toMatch(continueNote);
+    expect(json.systems.length).toBeGreaterThan(0);
+    // covered_ly is rounded down to 0.1 ly, so the unrounded limit can be up to 0.1 ly higher.
+    for (const s of json.systems) expect(s.distance_ly).toBeLessThanOrEqual(json.covered_ly + 0.1);
+  });
+
+  it("massacre_targets reports a partial sweep and keeps a margin inside covered_ly", async () => {
+    const client = await partialSetup(30, 25);
+    const r = await callTool(client, "massacre_targets", {
+      near: "LHS 1920",
+      radius_ly: 40,
+      max_star_ls: 1_000_000,
+      limit: 100,
+    });
+    expect(r.isError).toBe(false);
+    const json = r.json as any;
+    expect(json.partial).toBe(true);
+    expect(json.covered_ly).toBeGreaterThan(24);
+    expect(json.notes.join(" ")).toMatch(continueNote);
+    expect(json.targets.length).toBeGreaterThan(0);
+    for (const target of json.targets) {
+      expect(target.distance_ly).toBeLessThanOrEqual(json.covered_ly - 20 + 0.1);
+    }
+  });
+
+  it("massacre_targets lists nothing while covered_ly is inside the margin", async () => {
+    const client = await partialSetup(10, 10);
+    const r = await callTool(client, "massacre_targets", {
+      near: "LHS 1920",
+      radius_ly: 40,
+      max_star_ls: 1_000_000,
+    });
+    const json = r.json as any;
+    expect(json.partial).toBe(true);
+    expect(json.covered_ly).toBeLessThanOrEqual(20);
+    expect(json.targets).toEqual([]);
   });
 
   it("asks for near without a journal", async () => {
