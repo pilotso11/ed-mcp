@@ -21,6 +21,7 @@ import { registerMaterialsTools } from "./tools/materials.js";
 import { registerMissionTools } from "./tools/missions.js";
 import { registerJournalTools } from "./tools/journal.js";
 import { registerLoopTools } from "./tools/loops.js";
+import { registerSystemTools } from "./tools/systems.js";
 import { registerInaraTools } from "./tools/inara.js";
 import { registerEdsmTools } from "./tools/edsm.js";
 import { registerRouteTools } from "./tools/routes.js";
@@ -102,6 +103,13 @@ export function createServer(deps: ServerDeps): McpServer {
       jumpRange: deps.jumpRange,
     });
     registerLoopTools(server, {
+      spansh: deps.spansh,
+      journal: deps.journal,
+      prefs: deps.prefs,
+      currentShip: deps.currentShip,
+      jumpRange: deps.jumpRange,
+    });
+    registerSystemTools(server, {
       spansh: deps.spansh,
       journal: deps.journal,
       prefs: deps.prefs,

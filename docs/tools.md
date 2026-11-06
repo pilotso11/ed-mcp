@@ -38,6 +38,8 @@ For installation and setup, see the [README](../README.md).
 | `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
 | `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
 | `trade_loops`              | Repeatable trade loops, ranked by sustained profit per hour  |
+| `systems_by_state`         | Nearest systems with a faction in a state, e.g. War          |
+| `massacre_targets`         | Pirate factions with stackable massacre mission sources      |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
@@ -270,6 +272,22 @@ If `Market.json` is for a station in the results and is newer than the Spansh da
 - `trade_route` plans a route from a start to the last hop. It does not plan loops back to the start. Use `trade_loops` for loops.
 - `trade_loops` carries one commodity on each leg and considers loops of two or three stations only. Its scores use one price snapshot. Prices fall as you repeat a loop, so `laps_supported` is the only guard.
 - Market data can be old. Check `market_age_hours` and `oldest_price_hours`. `max_price_age_days` sets the oldest prices the tools use. Prices can change before you arrive.
+
+## Faction systems
+
+`systems_by_state` and `massacre_targets` use one Spansh search of the populated systems near you. The server keeps it for an hour. A later search that fits inside it, for example after a few jumps, uses it again. The first call can take 10 s. `cache_refresh` with source `spansh-sweeps` clears it. Faction states come from players who visit a system, so check `age_hours`.
+
+`systems_by_state` finds the nearest systems with a faction in a state, such as War or Civil War for conflict zones, or Election or Boom. It also filters by government, allegiance, controlling power and security. Give at least one filter. `include_pending` also matches states that are about to start. `controlling_only` matches only the controlling faction. War and Civil War results say `conflict_zones: "likely"`: conflict zones need settlements or planets, which the search does not check.
+
+`massacre_targets` finds pirate factions (government Anarchy) with good sources of pirate massacre missions:
+
+- A source is a populated system within 10 ly of the target, with no pirate faction of its own.
+- A source is primary when the target is the only pirate faction within 10 ly of it, so all its massacre missions are for that target. A secondary source lists its `other_pirates`.
+- Sources with a faction in War, Civil War or Election give few massacre missions. They are listed in `excluded`, with the date of the data.
+- `stack_size` is the number of different factions in the primary sources. Missions from one faction do not stack.
+- Targets with a star beyond `max_star_ls` (default 10,000 ls) are left out, because pirates can be near that star. Raise it to see them.
+
+Targets are ranked by `stack_size`, then by `spread_ls` (the farthest star), then by distance. Each source lists its allegiance counts, its factions and states, and the arrival distance of its nearest station for each pad size. The results are candidates: no service publishes mission boards.
 
 ## Station info
 

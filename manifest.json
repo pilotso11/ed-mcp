@@ -82,6 +82,14 @@
       "name": "trade_loops",
       "description": "Repeatable two- and three-station trade loops, ranked by sustained profit per hour"
     },
+    {
+      "name": "systems_by_state",
+      "description": "Nearest systems with a faction in a state, such as War or Election"
+    },
+    {
+      "name": "massacre_targets",
+      "description": "Pirate factions with stackable massacre mission sources"
+    },
     { "name": "spansh_system", "description": "System coordinates and stations" },
     { "name": "spansh_route", "description": "Neutron route between systems" },
     { "name": "missions_route", "description": "Best stop order for accepted missions" },
