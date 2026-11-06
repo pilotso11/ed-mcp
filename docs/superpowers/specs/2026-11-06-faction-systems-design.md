@@ -98,7 +98,7 @@ Input:
 - `radius_ly`: 1 to 50, default 50. Targets are within this distance.
 - `max_star_ls`: default 10,000. Targets with a star farther from the arrival star than this are left out.
 - `limit`: 1 to 100, default 50.
-- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`. Only the travel model (jump range and supercruise times) is used. Pad, arrival-distance and station-type preferences do not filter sources, because a commander can change ships for massacre missions.
+- `preferences` and `use_preferences`: travel preferences, as for `spansh_find_stations`. Only the travel model is used, for `travel_min`. Pad, arrival-distance and station-type preferences do not filter sources, because a commander can change ships for massacre missions.
 
 The tool sweeps `radius_ly + 20` ly. Sources can be 10 ly beyond a target, and pirate factions can be 10 ly beyond a source.
 
@@ -111,26 +111,22 @@ The tool sweeps `radius_ly + 20` ly. Sources can be 10 ly beyond a target, and p
 5. **Excluded sources.** Move a source to `excluded` when any of its factions has War, Civil War or Election in `active_states`. The entry names the faction, the state and `updated_at`.
 6. **Primary or secondary.** A source is primary when the target faction is the only Anarchy faction in a system within 10 ly of the source. Otherwise it is secondary, and `other_pirates` names the other pirate factions and their systems.
 7. **Stack size.** `stack_size` is the number of distinct faction names in the primary sources, not counting Anarchy factions. Leave out targets with no primary source.
-8. **Cycle time.** For each primary source, add two legs from the travel model (`legSeconds`):
-   - source to target, at the target's `spread_ls`, as the place where the fights are;
-   - target to source, at the source's nearest station.
-
-   `cycle_min` is the mean over the primary sources, in minutes.
-9. **Travel to the target.** `travel_min` is the leg from `near` to the target system, without a station.
+8. **Travel to the target.** `travel_min` is the leg from `near` to the target system, without a station.
 
 ### Ranking
 
 1. `stack_size`, largest first.
 2. `spread_ls`, smallest first.
-3. `cycle_min`, smallest first.
-4. `travel_min`, smallest first.
+3. `travel_min`, smallest first.
+
+Time between the sources and the target is not ranked. A stack takes 30 to 50 kills, so the fighting takes far longer than the few trips to take and hand in missions.
 
 ### Result
 
 Each target has:
 
 - `target_faction`, `target_system`, `distance_ly`, `travel_min`.
-- `stack_size`, `spread_ls`, `far_stars` (stars beyond 1,000 ls, with `arrival_ls`), `cycle_min`.
+- `stack_size`, `spread_ls`, `far_stars` (stars beyond 1,000 ls, with `arrival_ls`).
 - `sources`: each has `system`, `primary`, `other_pirates`, `distance_to_target_ly`, `allegiance_counts` (`federation`, `empire`, `alliance`, `independent`, for factions that are not Anarchy), `pads` (for each pad size, the nearest station's `arrival_ls`), `factions` (name, allegiance, `active_states`), `updated_at` and `age_hours`.
 - `excluded`: the sources from step 5, each with `system`, `faction`, `state` and `updated_at`.
 
