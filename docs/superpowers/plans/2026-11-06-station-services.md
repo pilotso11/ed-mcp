@@ -4,7 +4,7 @@
 
 **Goal:** Let `spansh_find_stations` search for 20 more station services, such as black market and Vista Genomics.
 
-**Architecture:** `src/spansh/client.ts` exports one `STATION_SERVICES` array. The `StationService` type and the tool's zod enum both derive from it. `SERVICE_FILTERS` maps each new value to a Spansh `services` filter. A fixture copy of Spansh's service names guards against misspelt names.
+**Architecture:** `src/spansh/client.ts` exports one `STATION_SERVICES` array. The `StationService` type and the tool's zod enum both derive from it. `serviceFilter()` maps each value to its Spansh filter: `TRADER_FILTERS` for traders and brokers, and a `services` name filter from `NAMED_SERVICES` for the rest. A fixture copy of Spansh's service names guards against misspelt names.
 
 **Tech Stack:** TypeScript, zod, vitest, Prettier.
 

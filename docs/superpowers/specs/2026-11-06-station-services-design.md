@@ -39,7 +39,7 @@ The other Spansh names are left out. They are interface pages (Dock, Station Men
 ## Changes
 
 - `StationService` in `src/spansh/client.ts` and the `Service` enum in `src/tools/spansh.ts` get the new values.
-- `SERVICE_FILTERS` maps each new value to `{ services: [{ name: { value: ["<Spansh name>"] } }] }`, the same shape as `interstellar_factors`.
+- `serviceFilter()` maps each value to its Spansh filter. Traders and brokers keep their filters in `TRADER_FILTERS`. Every other value has its Spansh name in `NAMED_SERVICES` and maps to `{ services: [{ name: { value: ["<Spansh name>"] } }] }`, the shape `interstellar_factors` already used. `STATION_SERVICES`, the `StationService` type and the tool's enum all come from these two maps.
 - The tool description names the service groups instead of listing only three.
 - `docs/tools.md` lists the new values.
 
@@ -51,6 +51,6 @@ Spansh returns no results for a service name that it does not know. It does not 
 
 ## Tests
 
-- `test/fixtures/spansh-services.json` holds the 42 names from `GET /api/stations/field_values/services` on 2026-11-06. Every name that `SERVICE_FILTERS` uses must be in that list.
-- Every `Service` enum value has a `SERVICE_FILTERS` entry, and the reverse.
+- `test/fixtures/spansh/stations-field-values-services.json` holds the 42 names from `GET /api/stations/field_values/services` on 2026-11-06. Every name that `serviceFilter()` sends must be in that list.
+- `STATION_SERVICES` has 26 values and no duplicates.
 - With a stubbed HTTP layer, `findStations({ service: "black_market", ... })` sends `services: [{ name: { value: ["Black Market"] } }]` in the request body.

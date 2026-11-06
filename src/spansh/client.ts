@@ -46,7 +46,7 @@ export const STATION_SERVICES = [
 ] as [StationService, ...StationService[]];
 
 export function serviceFilter(s: StationService): Record<string, unknown> {
-  if (s in TRADER_FILTERS) return TRADER_FILTERS[s as keyof typeof TRADER_FILTERS];
+  if (Object.hasOwn(TRADER_FILTERS, s)) return TRADER_FILTERS[s as keyof typeof TRADER_FILTERS];
   return { services: [{ name: { value: [NAMED_SERVICES[s as keyof typeof NAMED_SERVICES]] } }] };
 }
 
