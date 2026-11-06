@@ -49,7 +49,24 @@ To make sure that the file came from this project, run the GitHub CLI command be
 gh attestation verify ed-mcp-<version>.mcpb --repo pilotso11/ed-mcp
 ```
 
-### Claude Code
+### Claude Code plugin
+
+In Claude Code 2.1.275 or later, run:
+
+```
+/plugin install elite-dangerous-mcp --marketplace pilotso11/ed-mcp
+```
+
+On older versions, add the marketplace first, then install:
+
+```
+/plugin marketplace add pilotso11/ed-mcp
+/plugin install elite-dangerous-mcp@ed-mcp
+```
+
+To set the optional journal folder, sync folder and sync password, run `/plugin configure elite-dangerous-mcp@ed-mcp`. The plugin needs Node.js 22 or later, with npm.
+
+### Claude Code without the plugin
 
 Run this command. Put your own values in place of `<...>`:
 

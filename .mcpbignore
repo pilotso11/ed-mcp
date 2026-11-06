@@ -17,3 +17,4 @@ tsconfig.json
 vitest.config.ts
 *.mcpb
 plugin/
+.claude-plugin/

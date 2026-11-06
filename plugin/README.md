@@ -11,6 +11,16 @@ ed-mcp connects Claude to Elite Dangerous. Claude can then read your commander d
 
 ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 
+## Install
+
+In Claude Code 2.1.275 or later, run:
+
+```
+/plugin install elite-dangerous-mcp --marketplace pilotso11/ed-mcp
+```
+
+On older versions, run `/plugin marketplace add pilotso11/ed-mcp` and then `/plugin install elite-dangerous-mcp@ed-mcp`.
+
 ## What this plugin runs
 
 The plugin starts one local MCP server on your computer: the ed-mcp package from npm, pinned to the plugin's version. `package-lock.json` in this folder fixes the exact package and its sha512 hash. When you install the plugin, Claude Code installs that one package without running any install scripts, and the server then runs it with `node`. The package has no dependencies; all its code is in one file. Each release is built by GitHub Actions with signed provenance. The source is at <https://github.com/pilotso11/ed-mcp>.

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "ed-mcp",
+  "description": "The ed-mcp Elite Dangerous plugin for Claude Code.",
+  "owner": {
+    "name": "Seth Osher"
+  },
+  "plugins": [
+    {
+      "name": "elite-dangerous-mcp",
+      "description": "Elite Dangerous tools for Claude: your game journal, Inara, EDSM, Frontier CAPI and Spansh, with build plans, engineering, materials, trade routes and station searches.",
+      "source": "./plugin",
+      "category": "games",
+      "homepage": "https://github.com/pilotso11/ed-mcp#readme"
+    }
+  ]
+}
