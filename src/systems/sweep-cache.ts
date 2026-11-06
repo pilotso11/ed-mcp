@@ -46,12 +46,14 @@ export class SweepCache implements Clearable {
   }
 
   savePartial(p: PartialSweep): void {
+    // A resumed sweep keeps its first fetch time, so page-0 data still expires after the TTL.
+    const storedAt = this.sweeps.find((s) => s.resume?.key === p.key)?.storedAt ?? this.now();
     this.sweeps = this.sweeps.filter((s) => s.resume?.key !== p.key);
     this.push({
       centre: p.centre,
       coveredLy: p.coveredLy,
       systems: p.systems,
-      storedAt: this.now(),
+      storedAt,
       resume: p,
     });
   }

@@ -83,4 +83,16 @@ describe("SweepCache", () => {
     expect(c.stats().entries).toBe(1);
     expect(c.find(O, 70)).toHaveLength(1);
   });
+
+  it("keeps the first fetch time when a partial sweep is saved again", () => {
+    let t = 0;
+    const c = new SweepCache(3_600_000, () => t);
+    const p = { key: "x:70", centre: O, coveredLy: 30, systems: [], nextPage: 1, total: 9 };
+    c.savePartial(p);
+    t = 3_000_000;
+    c.savePartial({ ...p, nextPage: 2 });
+    expect(c.partial("x:70")).toMatchObject({ nextPage: 2 });
+    t = 3_600_001;
+    expect(c.partial("x:70")).toBeUndefined();
+  });
 });

@@ -803,7 +803,7 @@ export class SpanshClient {
     })) as { near: string; total: number; stations: CommodityHit[] };
   }
 
-  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has; a partial result is cached and the next call resumes it. */
+  /** Stops paging at opts.deadline (ms since the epoch) and returns what it has; a partial result is not cached. */
   async marketStations(
     q: MarketStationsQuery,
     opts: { deadline?: number } = {},
