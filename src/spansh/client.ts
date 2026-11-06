@@ -537,18 +537,17 @@ export class SpanshClient {
     const resume = this.sweepCache.partial(key);
     const systems: SweptSystem[] = resume ? [...resume.systems] : [];
     const seen = new Set<string>(systems.map((s) => s.id64));
-    const first = resume?.nextPage ?? 0;
     let total = resume?.total ?? 0;
     let partial = false;
-    let page = first;
-    for (; ; page++) {
-      if (page > first && opts.deadline !== undefined && this.now() >= opts.deadline) {
+    for (let page = 0; ; page++) {
+      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
         partial = true;
         break;
       }
       const body = {
         filters: {
-          distance: { min: 0, max: radiusLy },
+          // Resuming by distance, not page: Spansh's list can shift between calls an hour apart.
+          distance: { min: resume?.coveredLy ?? 0, max: radiusLy },
           population: { comparison: "<=>", value: [1, 100_000_000_000] },
         },
         sort: [{ distance: { direction: "asc" } }],
@@ -590,8 +589,11 @@ export class SpanshClient {
     // Pages come nearest first, so everything inside the last system's distance is here.
     // The margin covers systems at the same distance split across two pages.
     const last = systems[systems.length - 1];
-    const coveredLy = last ? Math.max(0, distanceLy(last.coords, centre) - 0.01) : 0;
-    this.sweepCache.savePartial({ key, centre, coveredLy, systems, nextPage: page, total });
+    const coveredLy = Math.max(
+      resume?.coveredLy ?? 0,
+      last ? distanceLy(last.coords, centre) - 0.01 : 0,
+    );
+    this.sweepCache.savePartial({ key, centre, coveredLy, systems, total });
     return { centre, systems, total, partial, coveredLy };
   }
 

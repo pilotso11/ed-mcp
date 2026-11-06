@@ -17,7 +17,7 @@ const TIME_LIMIT_MS = 20_000;
 // A source can be 10 ly beyond a target, and its other pirates 10 ly beyond that.
 const MASSACRE_MARGIN_LY = 2 * SOURCE_RANGE_LY;
 const partialNote = (coveredLy: number) =>
-  `Spansh returned systems out to ${Math.round(coveredLy * 10) / 10} ly within the time limit. Call again to continue the search.`;
+  `Spansh returned systems out to ${Math.floor(coveredLy * 10) / 10} ly within the time limit. Call again to continue the search.`;
 const STALE_HOURS = 72;
 const FAR_STAR_LS = 1_000;
 
@@ -151,7 +151,7 @@ export function registerSystemTools(
           travel: describeRules(rules).travel,
           total_matches: matches.length,
           partial: sweep.partial,
-          ...(sweep.partial ? { covered_ly: Math.round(sweep.coveredLy * 10) / 10 } : {}),
+          ...(sweep.partial ? { covered_ly: Math.floor(sweep.coveredLy * 10) / 10 } : {}),
           systems: shown.map((m) => {
             const s = m.system;
             const war = m.factions.some((f) =>
@@ -257,7 +257,7 @@ export function registerSystemTools(
           searched: sweep.systems.length,
           left_out_spread: leftOutSpread,
           partial: sweep.partial,
-          ...(sweep.partial ? { covered_ly: Math.round(sweep.coveredLy * 10) / 10 } : {}),
+          ...(sweep.partial ? { covered_ly: Math.floor(sweep.coveredLy * 10) / 10 } : {}),
           travel: describeRules(rules).travel,
           targets: targets.slice(0, a.limit).map((t) => ({
             target_faction: t.faction,

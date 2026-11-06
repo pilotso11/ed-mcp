@@ -6,7 +6,6 @@ export interface PartialSweep {
   centre: Coords;
   coveredLy: number;
   systems: SweptSystem[];
-  nextPage: number;
   total: number;
 }
 
@@ -41,8 +40,10 @@ export class SweepCache implements Clearable {
   }
 
   add(centre: Coords, radiusLy: number, systems: SweptSystem[], key?: string): void {
+    // A sweep completed by resuming still expires one TTL after its first page was fetched.
+    const storedAt = key ? this.sweeps.find((s) => s.resume?.key === key)?.storedAt : undefined;
     if (key) this.sweeps = this.sweeps.filter((s) => s.resume?.key !== key);
-    this.push({ centre, coveredLy: radiusLy, systems, storedAt: this.now() });
+    this.push({ centre, coveredLy: radiusLy, systems, storedAt: storedAt ?? this.now() });
   }
 
   savePartial(p: PartialSweep): void {
@@ -64,6 +65,7 @@ export class SweepCache implements Clearable {
   }
 
   private push(s: Sweep): void {
+    // Eviction drops the least recently saved entry, which keeps a sweep that is being resumed.
     this.sweeps.push(s);
     while (this.sweeps.length > this.maxSweeps) this.sweeps.shift();
   }
@@ -76,7 +78,7 @@ export class SweepCache implements Clearable {
 
   stats(): CacheStats {
     this.dropExpired();
-    const oldest = this.sweeps[0]?.storedAt;
+    const oldest = this.sweeps.length ? Math.min(...this.sweeps.map((s) => s.storedAt)) : undefined;
     return {
       name: this.name,
       entries: this.sweeps.length,

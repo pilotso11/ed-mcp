@@ -231,7 +231,8 @@ describe("system tools", () => {
     expect(json.covered_ly).toBeGreaterThan(2);
     expect(json.notes.join(" ")).toMatch(continueNote);
     expect(json.systems.length).toBeGreaterThan(0);
-    for (const s of json.systems) expect(s.distance_ly).toBeLessThanOrEqual(json.covered_ly);
+    // covered_ly is rounded down to 0.1 ly, so the unrounded limit can be up to 0.1 ly higher.
+    for (const s of json.systems) expect(s.distance_ly).toBeLessThanOrEqual(json.covered_ly + 0.1);
   });
 
   it("massacre_targets reports a partial sweep and keeps a margin inside covered_ly", async () => {
@@ -249,7 +250,7 @@ describe("system tools", () => {
     expect(json.notes.join(" ")).toMatch(continueNote);
     expect(json.targets.length).toBeGreaterThan(0);
     for (const target of json.targets) {
-      expect(target.distance_ly).toBeLessThanOrEqual(json.covered_ly - 20);
+      expect(target.distance_ly).toBeLessThanOrEqual(json.covered_ly - 20 + 0.1);
     }
   });
 

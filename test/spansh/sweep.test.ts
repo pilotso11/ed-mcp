@@ -111,33 +111,43 @@ describe("SpanshClient.populatedSystems", () => {
     expect(b.systems).toHaveLength(206);
   });
 
-  // Three full pages of distinct systems, each 0.01 ly farther than the last; the clock jumps 15 s per request.
-  async function pagedSweep() {
+  // 1500 distinct systems, each 0.01 ly farther than the last. Like Spansh, the fake honours
+  // distance.min and pages the matching systems nearest first; the clock jumps 15 s per request.
+  async function pagedSweep(opts: { ignoreMin?: boolean } = {}) {
     const one = JSON.parse(await fixtureText()).results[0];
-    const page = (p: number) => ({
-      count: 1500,
-      results: Array.from({ length: p < 3 ? 500 : 0 }, (_, i) => ({
-        ...one,
-        id64: p * 500 + i,
-        name: `S${p * 500 + i}`,
-        x: one.x + (p * 500 + i) * 0.01,
-      })),
-    });
+    const centre = await lhs1920();
+    const all = Array.from({ length: 1500 }, (_, i) => ({
+      ...one,
+      id64: i,
+      name: `S${i}`,
+      x: one.x + i * 0.01,
+    })).sort(
+      (a, b) =>
+        distanceLy({ x: a.x, y: a.y, z: a.z }, centre) -
+        distanceLy({ x: b.x, y: b.y, z: b.z }, centre),
+    );
     let t = 0;
     const made = await make(
       (_u, init) => {
         t += 15_000;
-        return jsonResponse(page(JSON.parse(String(init!.body)).page));
+        const body = JSON.parse(String(init!.body));
+        const min = opts.ignoreMin ? 0 : body.filters.distance.min;
+        const matching = all.filter((r) => distanceLy({ x: r.x, y: r.y, z: r.z }, centre) >= min);
+        return jsonResponse({
+          count: matching.length,
+          results: matching.slice(body.page * 500, body.page * 500 + 500),
+        });
       },
       { now: () => t },
     );
     return { ...made, one, reset: () => (t = 0) };
   }
-  const pagesRequested = (f: { calls: FakeCall[] }) =>
-    searches(f).map((c) => JSON.parse(String(c.init!.body)).page);
+  const bodies = (f: { calls: FakeCall[] }) =>
+    searches(f).map((c) => JSON.parse(String(c.init!.body)));
+  const pagesRequested = (f: { calls: FakeCall[] }) => bodies(f).map((b) => b.page);
 
-  it("stops at the deadline, marks the result partial, and resumes on the next call", async () => {
-    const { client, f, reset, one } = await pagedSweep();
+  it("stops at the deadline, marks the result partial, and resumes by distance on the next call", async () => {
+    const { client, f, reset } = await pagedSweep();
     const first = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
     expect(first.partial).toBe(true);
     expect(pagesRequested(f)).toEqual([0, 1]);
@@ -145,14 +155,26 @@ describe("SpanshClient.populatedSystems", () => {
     expect(first.coveredLy).toBeGreaterThan(0);
     const last = first.systems[first.systems.length - 1]!;
     expect(first.coveredLy).toBeCloseTo(distanceLy(last.coords, await lhs1920()) - 0.01, 6);
-    expect(last.coords.x).toBeCloseTo(one.x + 999 * 0.01, 6);
 
     reset();
     const second = await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
-    expect(pagesRequested(f)).toEqual([0, 1, 2, 3]);
+    const resumed = bodies(f)[2];
+    expect(resumed.filters.distance).toEqual({ min: first.coveredLy, max: 30 });
+    expect(resumed.page).toBe(0);
     expect(second.partial).toBe(false);
     expect(second.systems).toHaveLength(1500);
+    expect(new Set(second.systems.map((s) => s.id64)).size).toBe(1500);
     expect(second.coveredLy).toBe(30);
+  });
+
+  it("drops systems at the old boundary that the resumed query returns again", async () => {
+    // This fake ignores min, so the resumed query repeats everything already fetched.
+    const { client, reset } = await pagedSweep({ ignoreMin: true });
+    await client.populatedSystems("LHS 1920", 30, { deadline: 20_000 });
+    reset();
+    const second = await client.populatedSystems("LHS 1920", 30, { deadline: 100_000 });
+    expect(second.systems).toHaveLength(1500);
+    expect(new Set(second.systems.map((s) => s.id64)).size).toBe(1500);
   });
 
   it("answers a smaller search inside a partial sweep without a request", async () => {

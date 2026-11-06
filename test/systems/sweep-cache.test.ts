@@ -65,19 +65,18 @@ describe("SweepCache", () => {
       centre: O,
       coveredLy: 30,
       systems: [sys("a", 0), sys("b", 25), sys("c", 31)],
-      nextPage: 2,
       total: 3000,
     });
     expect(c.find(O, 20)!.map((s) => s.name)).toEqual(["a"]);
     expect(c.find(O, 30)!.map((s) => s.name)).toEqual(["a", "b"]);
     expect(c.find(O, 40)).toBeUndefined();
-    expect(c.partial("x:70")).toMatchObject({ nextPage: 2, coveredLy: 30 });
+    expect(c.partial("x:70")).toMatchObject({ coveredLy: 30 });
     expect(c.partial("y:70")).toBeUndefined();
   });
 
   it("drops the partial sweep when the complete sweep with its key arrives", () => {
     const c = new SweepCache();
-    c.savePartial({ key: "x:70", centre: O, coveredLy: 30, systems: [], nextPage: 2, total: 9 });
+    c.savePartial({ key: "x:70", centre: O, coveredLy: 30, systems: [], total: 9 });
     c.add(O, 70, [sys("a", 0)], "x:70");
     expect(c.partial("x:70")).toBeUndefined();
     expect(c.stats().entries).toBe(1);
@@ -87,12 +86,22 @@ describe("SweepCache", () => {
   it("keeps the first fetch time when a partial sweep is saved again", () => {
     let t = 0;
     const c = new SweepCache(3_600_000, () => t);
-    const p = { key: "x:70", centre: O, coveredLy: 30, systems: [], nextPage: 1, total: 9 };
+    const p = { key: "x:70", centre: O, coveredLy: 30, systems: [], total: 9 };
     c.savePartial(p);
     t = 3_000_000;
-    c.savePartial({ ...p, nextPage: 2 });
-    expect(c.partial("x:70")).toMatchObject({ nextPage: 2 });
+    c.savePartial({ ...p, coveredLy: 40 });
+    expect(c.partial("x:70")).toMatchObject({ coveredLy: 40 });
     t = 3_600_001;
     expect(c.partial("x:70")).toBeUndefined();
+  });
+
+  it("keeps the first fetch time when a resumed sweep completes", () => {
+    let t = 0;
+    const c = new SweepCache(3_600_000, () => t);
+    c.savePartial({ key: "x:70", centre: O, coveredLy: 30, systems: [], total: 9 });
+    t = 3_000_000;
+    c.add(O, 70, [], "x:70");
+    t = 3_600_001;
+    expect(c.find(O, 70)).toBeUndefined();
   });
 });
