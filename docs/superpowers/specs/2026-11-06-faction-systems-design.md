@@ -55,11 +55,11 @@ interface SweptSystem {
 }
 ```
 
-- `stations` leaves out fleet carriers.
+- `stations` leaves out fleet carriers and construction depots, which give no missions.
 - `stars` holds the bodies with type `Star`.
 - `active_states` is empty when Spansh gives none. When a faction has a `state` but no `active_states`, the state goes into `active_states` unless it is `None`.
 
-**Cache.** The client caches the result for 1 hour, keyed by the reference system and the radius. Before it sends a request, it looks for a cached sweep that contains the new sphere: `distance(cached centre, new centre) + new radius ≤ cached radius`. When one exists, the client filters it and does not call Spansh. `cache_refresh` gets the source `systems`, which clears this cache.
+**Cache.** The client caches the result for 1 hour, keyed by the reference system and the radius. Before it sends a request, it looks for a cached sweep that contains the new sphere: `distance(cached centre, new centre) + new radius ≤ cached radius`. When one exists, the client filters it and does not call Spansh. `cache_refresh` gets the source `spansh-sweeps`, which clears this cache. (`spansh-systems` already names the cache of single-system lookups.)
 
 **Limits.** Paging stops at a deadline of 20 s. The result then has `partial: true`, and the client does not cache it. A 400 response gives the `UserError` "Spansh rejected the search. Check that "<near>" is an exact system name (spansh_system)."
 
@@ -149,4 +149,4 @@ The result also has `searched`, `left_out_spread`, `partial`, `travel` (the trav
 - Cache: a sweep that contains the new sphere is reused without an HTTP call, and one that does not contain it causes a new request. A partial sweep is not cached.
 - The request body has the population and distance filters in the shape above.
 - `systems_by_state`: the state, pending, controlling-only and system filters; sorting by distance; the error without a filter.
-- `docs/tools.md` describes both tools, and `cache_refresh` lists `systems`.
+- `docs/tools.md` describes both tools, and `cache_refresh` lists `spansh-sweeps`.
