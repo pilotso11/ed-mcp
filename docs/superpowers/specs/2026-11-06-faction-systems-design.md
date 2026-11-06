@@ -139,7 +139,7 @@ The result also has `searched`, `left_out_spread`, `partial`, `travel` (the trav
 
 ## Tests
 
-- **Fixture.** `test/fixtures/spansh-lhs1920.json` holds the compact records of the populated systems within 30 ly of LHS 1920, from Spansh on 2026-11-06. With `near: "LHS 1920"`, `radius_ly: 10` and `max_star_ls: 200000`, `massacre_targets` gives the target Society of LHS 1920 with:
+- **Fixture.** `test/fixtures/spansh/systems-search-lhs1920-30ly.json` holds the compact records of the populated systems within 30 ly of LHS 1920, from Spansh on 2026-11-06. With `near: "LHS 1920"`, `radius_ly: 1` and `max_star_ls: 200000`, `massacre_targets` gives the target Society of LHS 1920 with:
   - primary sources Gliese 282 C and Eeaea;
   - secondary sources Ross 880 (other pirate in LP 542-33) and LFT 507 (other pirate in Ganiklis);
   - LHS 1928 excluded for Election;

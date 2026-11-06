@@ -44,12 +44,21 @@ async function setup() {
   const prefs = new PreferencesStore(path.join(dir, "preferences.json"));
   const server = new McpServer({ name: "t", version: "0" });
   registerSystemTools(server, { spansh, prefs, now: () => Date.parse("2026-11-06T20:00:00Z") });
-  return { client: await connectTestClient(server) };
+  return { client: await connectTestClient(server), records };
+}
+
+// Carriers and construction depots are not stations you can use, so the tool leaves them out.
+function nearestWithPad(record: any, pad: "large_pads" | "medium_pads" | "small_pads"): number {
+  const arrivals = record.stations
+    .filter((x: any) => x.type !== "Drake-Class Carrier" && !x.type?.includes("Construction Depot"))
+    .filter((x: any) => x[pad] > 0)
+    .map((x: any) => x.distance_to_arrival);
+  return Math.round(Math.min(...arrivals));
 }
 
 describe("system tools", () => {
   it("systems_by_state finds the Election in LHS 1928", async () => {
-    const { client } = await setup();
+    const { client, records } = await setup();
     const r = await callTool(client, "systems_by_state", {
       near: "LHS 1920",
       radius_ly: 10,
@@ -62,7 +71,39 @@ describe("system tools", () => {
     expect(typeof m.jumps).toBe("number");
     expect(typeof m.age_hours).toBe("number");
     expect(m.conflict_zones).toBeUndefined();
+    expect(m.best_pad).toBe("L");
+    expect(m.nearest_station_ls).toBe(nearestWithPad(records.get("LHS 1928"), "large_pads"));
     expect(j.searched).toBeGreaterThan(0);
+  });
+
+  it("systems_by_state marks War and Civil War matches as likely conflict zones", async () => {
+    const { client } = await setup();
+    const r = await callTool(client, "systems_by_state", {
+      near: "LHS 1920",
+      radius_ly: 30,
+      state: ["War", "Civil War"],
+    });
+    expect(r.isError).toBe(false);
+    const systems = (r.json as any).systems;
+    expect(systems.length).toBeGreaterThan(0);
+    for (const s of systems) expect(s.conflict_zones).toBe("likely");
+  });
+
+  it("systems_by_state reports the nearest station with the best pad, not any pad", async () => {
+    const { client, records } = await setup();
+    const r = await callTool(client, "systems_by_state", {
+      near: "LHS 1920",
+      radius_ly: 15,
+      government: ["Corporate"],
+    });
+    expect(r.isError).toBe(false);
+    const m = (r.json as any).systems.find((s: any) => s.system === "Ganiklis");
+    // Ganiklis has a small-pad station much closer than its nearest large-pad one.
+    expect(nearestWithPad(records.get("Ganiklis"), "small_pads")).toBeLessThan(
+      nearestWithPad(records.get("Ganiklis"), "large_pads"),
+    );
+    expect(m.best_pad).toBe("L");
+    expect(m.nearest_station_ls).toBe(nearestWithPad(records.get("Ganiklis"), "large_pads"));
   });
 
   it("systems_by_state needs a filter", async () => {

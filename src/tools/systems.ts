@@ -45,7 +45,8 @@ export function registerSystemTools(
         notes.push(`Journal unavailable: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    throw new UserError("Give near, or set up the journal to use the current system.");
+    const why = notes.length ? ` (${notes.join(" ")})` : "";
+    throw new UserError(`Give near, or set up the journal to use the current system${why}.`);
   };
   const ageHours = (s: SweptSystem) =>
     s.updated_at ? Math.round(((now() - Date.parse(s.updated_at)) / 3_600_000) * 10) / 10 : null;
@@ -141,7 +142,9 @@ export function registerSystemTools(
             const war = m.factions.some((f) =>
               f.active_states.some((x) => /^(war|civil war)$/i.test(x)),
             );
-            const best = pads(s);
+            const nearest = pads(s);
+            const bestPad =
+              nearest.L !== null ? "L" : nearest.M !== null ? "M" : nearest.S !== null ? "S" : null;
             return {
               system: s.name,
               distance_ly: Math.round(m.distanceLy * 100) / 100,
@@ -158,9 +161,8 @@ export function registerSystemTools(
               security: s.security,
               controlling_power: s.controlling_power,
               power_state: s.power_state,
-              best_pad:
-                best.L !== null ? "L" : best.M !== null ? "M" : best.S !== null ? "S" : null,
-              nearest_station_ls: best.S,
+              best_pad: bestPad,
+              nearest_station_ls: bestPad ? nearest[bestPad] : null,
               updated_at: s.updated_at,
               age_hours: ageHours(s),
               ...(war ? { conflict_zones: "likely" } : {}),
@@ -185,7 +187,8 @@ export function registerSystemTools(
       description:
         "Find pirate (Anarchy) factions near you with good sources of stackable pirate massacre missions, as " +
         "Inara's 'nearest massacre missions' does. Sources are populated systems within 10 ly of the target; a " +
-        "primary source has no other pirate faction within 10 ly, so all its massacre missions are for this " +
+        "primary source has no other pirate faction in other systems within 10 ly (its own pirate faction does " +
+        "not count, as missions send you to another system), so all its massacre missions are for this " +
         "target. Sources with a faction in War, Civil War or Election are excluded and listed. stack_size is the " +
         "number of distinct giving factions in the primary sources. Targets whose farthest star is beyond " +
         "max_star_ls (default 10,000) are left out, because fights there can be far from the arrival star. " +

@@ -53,11 +53,12 @@ describe("massacreTargets", () => {
 
   it("ranks by stack size, then spread, then distance", async () => {
     const { systems, centre } = await load();
-    const { targets } = massacreTargets(systems, centre, { radiusLy: 10, maxStarLs: 200_000 });
+    const { targets } = massacreTargets(systems, centre, { radiusLy: 20, maxStarLs: 200_000 });
+    expect(targets.length).toBeGreaterThan(1);
     for (let i = 1; i < targets.length; i++) {
       const [a, b] = [targets[i - 1]!, targets[i]!];
       const order =
-        b.stackSize - a.stackSize || a.spreadLs - b.spreadLs || a.distanceLy - b.distanceLy;
+        a.stackSize - b.stackSize || b.spreadLs - a.spreadLs || b.distanceLy - a.distanceLy;
       expect(order, `${a.faction} before ${b.faction}`).toBeGreaterThanOrEqual(0);
     }
   });
