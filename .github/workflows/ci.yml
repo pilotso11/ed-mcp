@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      # Installs the plugin's pinned ed-mcp tarball, so a wrong sha512 in its lockfile fails here, not for users.
+      - run: npm ci --ignore-scripts
+        working-directory: plugin
 
   mcpb:
     runs-on: ubuntu-latest

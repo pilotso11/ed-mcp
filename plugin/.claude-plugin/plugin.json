@@ -1,7 +1,7 @@
 {
   "name": "elite-dangerous-mcp",
   "displayName": "ed-mcp: Elite Dangerous Companion",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Elite Dangerous tools for Claude: your game journal, Inara, EDSM, Frontier CAPI and Spansh, with build plans, engineering, materials, trade routes and station searches.",
   "author": {
     "name": "Seth Osher",
