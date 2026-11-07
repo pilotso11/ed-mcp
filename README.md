@@ -76,6 +76,7 @@ If the extension does not install, you can add the server by hand. You need Node
    {
      "mcpServers": {
        "ed-mcp": {
+         "type": "stdio",
          "command": "npx",
          "args": ["-y", "ed-mcp@latest"],
          "env": {
