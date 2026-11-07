@@ -37,17 +37,66 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 
 ## Install
 
+Pick the install for the app that you use:
+
+| App | Install | Node.js |
+| --- | --- | --- |
+| Claude Desktop (chat) | The `.mcpb` extension, below | Not needed: Claude Desktop has its own |
+| Claude Code, or Cowork on your computer | The Claude Code plugin | 22 or later, with npm |
+| Claude Code, without the plugin | `claude mcp add` | 22 or later |
+
+The plugin marketplace (`pilotso11/ed-mcp`) works only in Claude Code and Cowork. If you add it in Claude Desktop, nothing changes in Claude Desktop chat.
+
 ### Claude Desktop
 
 1. Download `ed-mcp-<version>.mcpb` from the [Releases](https://github.com/pilotso11/ed-mcp/releases) page.
-2. Open the file. Claude Desktop shows the ed-mcp settings form.
-3. Fill in the fields for the services that you use (see [Connect your accounts](#connect-your-accounts)). All fields are optional.
+2. Install it from Claude Desktop's settings. Opening the file, or dragging it onto the Claude Desktop window, can also work, but not always:
+   - Open **Settings**, then **Desktop app**. Click **Manage** next to **Extensions**. In older versions, open **Settings**, then **Extensions**.
+   - Click **Advanced settings**. Under **Extension Developer**, click **Install Extension…** and select the `.mcpb` file.
+3. Claude Desktop shows the ed-mcp settings form. Fill in the fields for the services that you use (see [Connect your accounts](#connect-your-accounts)). All fields are optional.
+   - To share plans, preferences and keys between computers, set **Sync folder** and **Sync password** here (see [Use ed-mcp on more than one computer](#use-ed-mcp-on-more-than-one-computer)). The password must be at least 12 characters, and the same on every computer.
+4. To change a setting later, open the Extensions list again and select ed-mcp. Then turn the extension off and on, or restart Claude Desktop.
+
+To update, install the new `.mcpb` file in the same way. Your settings stay.
 
 To make sure that the file came from this project, run the GitHub CLI command below. It shows that the ed-mcp release workflow built the file from this repository. This command works for version 0.1.1 and later.
 
 ```bash
 gh attestation verify ed-mcp-<version>.mcpb --repo pilotso11/ed-mcp
 ```
+
+#### Claude Desktop without the extension
+
+If the extension does not install, you can add the server by hand. You need Node.js 22 or later.
+
+1. In Claude Desktop, open **Settings**, then **Developer**, and click **Edit Config**. This opens `claude_desktop_config.json`.
+2. Add `ed-mcp` under `mcpServers`. Put your own values in place of `<...>`, and leave out the lines that you do not need:
+
+   ```json
+   {
+     "mcpServers": {
+       "ed-mcp": {
+         "type": "stdio",
+         "command": "npx",
+         "args": ["-y", "ed-mcp@latest"],
+         "env": {
+           "ED_JOURNAL_DIR": "<journal folder>",
+           "ED_MCP_SYNC_DIR": "<sync folder>",
+           "ED_MCP_SYNC_PASSWORD": "<sync password>"
+         }
+       }
+     }
+   }
+   ```
+
+   - On Windows, write each `\` in a folder as `\\`, for example `"C:\\Users\\you\\Google Drive\\ed-mcp"`.
+   - If the file already has other servers, add `"ed-mcp": {...}` next to them, inside the same `mcpServers`.
+   - After you leave lines out, check the commas. Each line inside `env` ends with a comma, except the last one. If you leave out all of `env`, the `args` line must not end with a comma. A file with a stray or missing comma is not valid JSON, and then Claude Desktop starts none of its servers.
+   - On Windows, start `npx` through `cmd`: use `"command": "cmd"` and `"args": ["/c", "npx", "-y", "ed-mcp@latest"]`. On Windows `npx` is a script, and Claude Desktop often cannot start it directly.
+   - `ED_JOURNAL_DIR` is the game journal folder. On the gaming PC, leave it out. On a Mac, set it to the synced copy of the journal (see [Your game journal](#your-game-journal)).
+3. Save the file and restart Claude Desktop. `ed-mcp@latest` makes `npx` check for a new release each time Claude Desktop starts the server. Without `@latest`, `npx` can keep running an older copy.
+
+This file keeps the password as plain text. The extension masks it and stores it securely, so use the extension when you can.
 
 ### Claude Code plugin
 
@@ -74,7 +123,7 @@ Run this command. Put your own values in place of `<...>`:
 claude mcp add ed-mcp -s user \
   -e INARA_API_KEY=<key> -e INARA_CMDR=<commander name> \
   -e EDSM_API_KEY=<key> -e EDSM_CMDR=<commander name> \
-  -- npx -y ed-mcp
+  -- npx -y ed-mcp@latest
 ```
 
 - Keep `ed-mcp` directly after `add`. The `-e` options take every word after them until the `--`.
@@ -134,7 +183,7 @@ Elite Dangerous writes a journal while you play. ed-mcp reads it and never chang
 2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set the folder type to **Send Only**.
 3. Pair the two devices. Share the folder with the Mac.
 4. On the Mac, accept the folder into a local folder, for example `~/EliteDangerous`. Set the folder type to **Receive Only**.
-5. Set `ED_JOURNAL_DIR` to that folder. In Claude Desktop, use the Journal folder field.
+5. Set `ED_JOURNAL_DIR` to that folder. In the Claude Desktop extension, use the Journal folder field. In a hand-written `claude_desktop_config.json`, add it to `env`.
 6. Ask Claude "What is my journal status?". While you play, the newest journal is a few minutes old.
 
 Do not share `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous`. That folder has the same name, but it holds only the game's settings. If you share it by mistake, the journal status tells you.
@@ -170,7 +219,7 @@ ed-mcp also writes each plan as a Markdown file in the `plans` folder inside the
 ```bash
 claude mcp add ed-mcp -s user \
   -e ED_MCP_SYNC_DIR=<folder> -e ED_MCP_SYNC_PASSWORD=<password> \
-  -- npx -y ed-mcp
+  -- npx -y ed-mcp@latest
 ```
 
 Keys that you save on the settings page are then shared by both apps, with no restart. If the apps do not agree, the settings status tells Claude.
