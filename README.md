@@ -79,6 +79,7 @@ If the extension does not install, you can add the server by hand. You need Node
          "command": "npx",
          "args": ["-y", "ed-mcp"],
          "env": {
+           "ED_JOURNAL_DIR": "<journal folder>",
            "ED_MCP_SYNC_DIR": "<sync folder>",
            "ED_MCP_SYNC_PASSWORD": "<sync password>"
          }
@@ -90,7 +91,8 @@ If the extension does not install, you can add the server by hand. You need Node
    - On Windows, write each `\` in a folder as `\\`, for example `"C:\\Users\\you\\Google Drive\\ed-mcp"`.
    - If the file already has other servers, add `"ed-mcp": {...}` next to them, inside the same `mcpServers`.
    - When you leave out a line, also remove the comma at the end of the line before it. A file with a stray comma is not valid JSON, and then Claude Desktop starts none of its servers.
-   - On Windows, if ed-mcp does not start, run `npx` through `cmd`: use `"command": "cmd"` and `"args": ["/c", "npx", "-y", "ed-mcp"]`.
+   - On Windows, start `npx` through `cmd`: use `"command": "cmd"` and `"args": ["/c", "npx", "-y", "ed-mcp"]`. On Windows `npx` is a script, and Claude Desktop often cannot start it directly.
+   - `ED_JOURNAL_DIR` is the game journal folder. On the gaming PC, leave it out. On a Mac, set it to the synced copy of the journal (see [Your game journal](#your-game-journal)).
 3. Save the file and restart Claude Desktop.
 
 This file keeps the password as plain text. The extension masks it and stores it securely, so use the extension when you can.
@@ -180,7 +182,7 @@ Elite Dangerous writes a journal while you play. ed-mcp reads it and never chang
 2. On the PC, add the folder `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`. Set the folder type to **Send Only**.
 3. Pair the two devices. Share the folder with the Mac.
 4. On the Mac, accept the folder into a local folder, for example `~/EliteDangerous`. Set the folder type to **Receive Only**.
-5. Set `ED_JOURNAL_DIR` to that folder. In Claude Desktop, use the Journal folder field.
+5. Set `ED_JOURNAL_DIR` to that folder. In the Claude Desktop extension, use the Journal folder field. In a hand-written `claude_desktop_config.json`, add it to `env`.
 6. Ask Claude "What is my journal status?". While you play, the newest journal is a few minutes old.
 
 Do not share `%LOCALAPPDATA%\Frontier Developments\Elite Dangerous`. That folder has the same name, but it holds only the game's settings. If you share it by mistake, the journal status tells you.
