@@ -91,7 +91,7 @@ If the extension does not install, you can add the server by hand. You need Node
 
    - On Windows, write each `\` in a folder as `\\`, for example `"C:\\Users\\you\\Google Drive\\ed-mcp"`.
    - If the file already has other servers, add `"ed-mcp": {...}` next to them, inside the same `mcpServers`.
-   - When you leave out a line, also remove the comma at the end of the line before it. A file with a stray comma is not valid JSON, and then Claude Desktop starts none of its servers.
+   - After you leave lines out, check the commas. Each line inside `env` ends with a comma, except the last one. If you leave out all of `env`, the `args` line must not end with a comma. A file with a stray or missing comma is not valid JSON, and then Claude Desktop starts none of its servers.
    - On Windows, start `npx` through `cmd`: use `"command": "cmd"` and `"args": ["/c", "npx", "-y", "ed-mcp@latest"]`. On Windows `npx` is a script, and Claude Desktop often cannot start it directly.
    - `ED_JOURNAL_DIR` is the game journal folder. On the gaming PC, leave it out. On a Mac, set it to the synced copy of the journal (see [Your game journal](#your-game-journal)).
 3. Save the file and restart Claude Desktop. `ed-mcp@latest` makes `npx` check for a new release each time Claude Desktop starts the server. Without `@latest`, `npx` can keep running an older copy.
