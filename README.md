@@ -89,6 +89,8 @@ If the extension does not install, you can add the server by hand. You need Node
 
    - On Windows, write each `\` in a folder as `\\`, for example `"C:\\Users\\you\\Google Drive\\ed-mcp"`.
    - If the file already has other servers, add `"ed-mcp": {...}` next to them, inside the same `mcpServers`.
+   - When you leave out a line, also remove the comma at the end of the line before it. A file with a stray comma is not valid JSON, and then Claude Desktop starts none of its servers.
+   - On Windows, if ed-mcp does not start, run `npx` through `cmd`: use `"command": "cmd"` and `"args": ["/c", "npx", "-y", "ed-mcp"]`.
 3. Save the file and restart Claude Desktop.
 
 This file keeps the password as plain text. The extension masks it and stores it securely, so use the extension when you can.
