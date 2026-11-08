@@ -276,7 +276,7 @@ describe("system tools", () => {
 });
 
 describe("ground_cz_targets", () => {
-  async function czSetup(opts: { copy?: boolean } = {}) {
+  async function czSetup(opts: { copy?: boolean; dumpFails?: boolean } = {}) {
     const read = async (name: string) =>
       readFile(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
     const search = JSON.parse(await read("systems-search-ground-cz.json"));
@@ -308,6 +308,7 @@ describe("ground_cz_targets", () => {
         match: (u) => u.includes("/dump/"),
         respond: () => {
           // Each detail fetch takes 25 s, past the tool's 20 s limit.
+          if (opts.dumpFails) return new Response("broken", { status: 500 });
           if (opts.copy) clock += 25_000;
           return new Response(dump, { headers: { "content-type": "application/json" } });
         },
@@ -364,6 +365,17 @@ describe("ground_cz_targets", () => {
     expect(j.targets).toHaveLength(2);
     expect(f.calls.filter((c) => c.url.includes("/dump/"))).toHaveLength(1);
     expect(j.targets.filter((t: any) => t.body_family === null)).toHaveLength(1);
-    expect(j.notes.join(" ")).toMatch(/1 results are without body detail/);
+    expect(j.notes.join(" ")).toMatch(/1 result is without body detail/);
+  });
+
+  it("reports a failed body fetch per system, not as a time limit", async () => {
+    const { client } = await czSetup({ dumpFails: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan" });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.targets[0].body_family).toBeNull();
+    const notes = j.notes.join(" ");
+    expect(notes).toMatch(/No body detail for Njulngan/);
+    expect(notes).not.toMatch(/time limit/);
   });
 });

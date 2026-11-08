@@ -40,7 +40,7 @@ For installation and setup, see the [README](../README.md).
 | `trade_loops`              | Repeatable trade loops, ranked by sustained profit per hour  |
 | `systems_by_state`         | Nearest systems with a faction in a state, e.g. War          |
 | `massacre_targets`         | Pirate factions with stackable massacre mission sources      |
-| `ground_cz_targets` | Likely ground conflict zones near you, with the best Frontline station |
+| `ground_cz_targets`        | Likely ground conflict zones, with the best Frontline station |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |

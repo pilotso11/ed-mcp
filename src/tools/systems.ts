@@ -357,10 +357,10 @@ export function registerSystemTools(
         });
         const shown = targets.slice(0, a.limit);
         const details = new Map<string, CzDetail>();
-        let skipped = 0;
+        let timedOut = 0;
         for (const t of shown.slice(0, a.detail_count)) {
           if (now() >= deadline) {
-            skipped++;
+            timedOut++;
             continue;
           }
           try {
@@ -369,7 +369,6 @@ export function registerSystemTools(
               czDetail(t.best, await deps.spansh.systemBodies(t.system.id64), a.max_gap_ls),
             );
           } catch (err) {
-            skipped++;
             notes.push(
               `No body detail for ${t.system.name}: ${err instanceof Error ? err.message : String(err)}`,
             );
@@ -378,9 +377,9 @@ export function registerSystemTools(
         notes.push(
           "These are likely ground conflict zones, not confirmed: Spansh does not see live conflict zone signals, and a war can end at the daily tick.",
         );
-        if (skipped) {
+        if (timedOut) {
           notes.push(
-            `${skipped} results are without body detail: the time limit was reached. Call again to fill them in.`,
+            `${timedOut} ${timedOut === 1 ? "result is" : "results are"} without body detail: the time limit was reached. Call again to fill them in.`,
           );
         }
         if (found.partial) {
