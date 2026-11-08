@@ -315,7 +315,7 @@ describe("ground_cz_targets", () => {
       },
     ]);
     const spansh = new SpanshClient(
-      new HttpClient({ userAgent: "t", fetchFn: f }),
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
       new TtlCache("spansh", 300_000),
       { minIntervalMs: 0, now: () => clock },
     );

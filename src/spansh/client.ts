@@ -680,22 +680,28 @@ export class SpanshClient {
 
   /** The bodies of a system, with the stations and settlements on each. Bodies rarely change. */
   async systemBodies(id64: string): Promise<BodyInfo[]> {
-    return (await this.systemCache.getOrLoad(`bodies:${id64}`, async () => {
-      const raw = (await this.get(`/dump/${id64}`)) as {
-        system?: { bodies?: RawDumpBody[] };
-        bodies?: RawDumpBody[];
-      };
-      const bodies = raw.system?.bodies ?? raw.bodies ?? [];
-      // Keep only the body tree and station names: a dump is about 1 MB.
-      return bodies.map((b) => ({
-        name: b.name,
-        bodyId: b.bodyId,
-        subType: b.subType ?? null,
-        arrival_ls: b.distanceToArrival ?? 0,
-        parentPlanetId: (b.parents ?? []).map((p) => p.Planet).find((x) => x !== undefined) ?? null,
-        stations: (b.stations ?? []).map((s) => s.name),
-      }));
-    })) as BodyInfo[];
+    return (await this.systemCache.getOrLoad(
+      `bodies:${id64}`,
+      async () => {
+        const raw = (await this.get(`/dump/${id64}`)) as {
+          system?: { bodies?: RawDumpBody[] };
+          bodies?: RawDumpBody[];
+        };
+        const bodies = raw.system?.bodies ?? raw.bodies ?? [];
+        // Keep only the body tree and station names: a dump is about 1 MB.
+        return bodies.map((b) => ({
+          name: b.name,
+          bodyId: b.bodyId,
+          subType: b.subType ?? null,
+          arrival_ls: b.distanceToArrival ?? 0,
+          parentPlanetId:
+            (b.parents ?? []).map((p) => p.Planet).find((x) => x !== undefined) ?? null,
+          stations: (b.stations ?? []).map((s) => s.name),
+        }));
+      },
+      // An empty list is probably a dump that was not ready yet; fetch it again next time.
+      { keep: (b) => (b as BodyInfo[]).length > 0 },
+    )) as BodyInfo[];
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {

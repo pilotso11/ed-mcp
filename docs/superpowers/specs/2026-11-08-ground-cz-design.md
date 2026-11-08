@@ -65,10 +65,11 @@ For the first `detail_count` ranked systems (default 8, at most 15), the tool fe
 - **Bodies.** Each nearby settlement gets its `body`.
 - **Planetary port.** For a planetary Frontline station, `drop` is `same_body` when a nearby settlement is on the station's own body.
 - **Orbital station.** For an orbital Frontline station, `near_body` is the body whose `distanceToArrival` is closest to the station's `arrival_ls`, within `max_gap_ls`. `drop` is `orbital` when a nearby settlement is on `near_body`, on one of its moons, or (when `near_body` is a moon) on its parent or a sibling moon. The `parents` field gives the moon structure.
-- **Not confirmed.** When neither case applies, `drop` is `gap_only`.
+- **Not confirmed.** When neither case applies, `drop` is `gap_only`: the station and the settlements are at about the same distance from the arrival star, but the body data could not confirm the same planet or its moons.
+- **No detail.** `drop` is null, with `near_body` and `body_family` null and no `body` on settlements, when no body detail was fetched: the result is beyond `detail_count`, the time limit was reached, or the fetch failed.
 - **Body families.** `body_family` lists the bodies that hold nearby settlements, each with its subtype and settlement count.
 
-The dump is about 1 MB. Only the mapping from bodies to stations and settlements is kept, and it is cached for 24 hours in the system cache (`spansh-systems`), because bodies rarely change. Settlement owners still come from the 10-minute candidate search. Dumps share the 20 s deadline. Results that do not get detail before the deadline have `detail: null`, and a note says so.
+The dump is about 1 MB. Only the mapping from bodies to stations and settlements is kept, and it is cached for 24 hours (an empty body list is not cached) in the system cache (`spansh-systems`), because bodies rarely change. Settlement owners still come from the 10-minute candidate search. Dumps share the 20 s deadline. Results that do not get detail before the deadline have `drop`, `near_body` and `body_family` set to null and no `body` on their settlements, and a note says so.
 
 ## Tool: `ground_cz_targets`
 
@@ -102,5 +103,5 @@ The result also has `searched`, `left_out` (`stale`, `no_warring_settlements`, `
 - **Pad.** With `min_pad` L, a Frontline station with only medium pads cannot be the best station.
 - **Gap.** With `max_gap_ls` 0.05, Tesla Terminal has no nearby settlement (its smallest gap is 0.081 ls), and the best station is Wylie's Inheritance. It is a planetary port on Njulngan A 1 at 15.2465 ls, with 4 warring settlements within 0.02 ls, and it docks sooner than Przhevalsky Legacy (15.2515 ls) and Boyer Horizons (23.18 ls).
 - **Request body.** It has the war and Frontline filters in the shape above.
-- **Detail deadline.** When the deadline passes before all dumps, the remaining results have `detail: null` and the note.
+- **Detail deadline.** When the deadline passes before all dumps, the remaining results have no body detail (`drop`, `near_body` and `body_family` null, no `body` on settlements) and the note.
 - `docs/tools.md` describes the tool, and `manifest.json` lists it.

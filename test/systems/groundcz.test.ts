@@ -126,12 +126,58 @@ describe("groundCzTargets", () => {
     );
     expect(names).toEqual(["Two", "One", "Old"]);
   });
+
+  it("treats data from the same whole hour as equally fresh", () => {
+    const station = {
+      name: "F",
+      type: "Coriolis Starport",
+      pad: "L" as const,
+      arrival_ls: 10,
+      services: ["Frontline Solutions"],
+      owner: "X",
+    };
+    const camp = (n: number) => ({
+      name: `C${n}`,
+      type: "Settlement",
+      pad: null,
+      arrival_ls: 10.1,
+      services: [],
+      owner: "A",
+    });
+    const fresh = synthetic([station, camp(1)], "Fresh", "2026-11-08T19:54:00Z");
+    const busy = synthetic([station, camp(1), camp(2)], "Busy", "2026-11-08T19:06:00Z");
+    const names = groundCzTargets([fresh, busy], fresh.coords, opts()).targets.map(
+      (t) => t.system.name,
+    );
+    expect(names).toEqual(["Busy", "Fresh"]);
+  });
+
+  it("counts a system without updated_at as stale", () => {
+    const sys = synthetic(
+      [
+        {
+          name: "F",
+          type: "Coriolis Starport",
+          pad: "L",
+          arrival_ls: 10,
+          services: ["Frontline Solutions"],
+          owner: "X",
+        },
+        { name: "C", type: "Settlement", pad: null, arrival_ls: 10.1, services: [], owner: "A" },
+      ],
+      "NoDate",
+      null,
+    );
+    const r = groundCzTargets([sys], sys.coords, opts());
+    expect(r.targets).toEqual([]);
+    expect(r.leftOut.stale).toBe(1);
+  });
 });
 
 function synthetic(
   stations: SweptSystem["stations"],
   name = "S",
-  updated_at = "2026-11-08T19:00:00Z",
+  updated_at: string | null = "2026-11-08T19:00:00Z",
 ): SweptSystem {
   return {
     name,
@@ -210,5 +256,41 @@ describe("czDetail", () => {
       },
     ];
     expect(czDetail(st, bodies, 1).drop).toBe("gap_only");
+  });
+
+  it("says orbital when the nearest body is a moon and the settlements are on its planet or a sibling", () => {
+    const st = {
+      name: "F",
+      type: "Coriolis Starport",
+      pad: "L" as const,
+      arrival_ls: 500.2,
+      planetary: false,
+      dock_s: 60,
+      settlements: [{ name: "C", owner: "A", arrival_ls: 500.4, gap_ls: 0.2 }],
+    };
+    const body = (
+      name: string,
+      bodyId: number,
+      arrival_ls: number,
+      parentPlanetId: number | null,
+    ) => ({
+      name,
+      bodyId,
+      subType: "Icy body",
+      arrival_ls,
+      parentPlanetId,
+      stations: [] as string[],
+    });
+    const planet = body("P", 1, 500, null);
+    const moon = body("P a", 2, 500.2, 1);
+    const sibling = body("P b", 3, 501, 1);
+    for (const home of [planet, sibling]) {
+      const bodies = [planet, moon, sibling].map((b) =>
+        b === home ? { ...b, stations: ["C"] } : b,
+      );
+      const d = czDetail(st, bodies, 1);
+      expect(d.drop).toBe("orbital");
+      expect(d.near_body).toBe("P a");
+    }
   });
 });

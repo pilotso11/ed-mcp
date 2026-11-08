@@ -318,6 +318,10 @@ export function registerSystemTools(
         "dock at (a planetary landing counts against it), then the one with most warring settlements nearby. For the " +
         "top detail_count results, body detail says whether the station is a planetary port on the settlements' " +
         "planet (drop: same_body) or an orbital station next to that planet and its moons (drop: orbital). " +
+        "drop: gap_only means the station and settlements are at about the same distance from the arrival star, " +
+        "but the body data could not confirm the same planet or its moons: check each settlement's body. " +
+        "drop: null (with near_body and body_family null, and no body on settlements) means no body detail was " +
+        "fetched: the result is beyond detail_count, the time limit was reached, or the fetch failed. " +
         "Zones are likely, not confirmed. near defaults to the journal location.",
       inputSchema: {
         near: z.string().optional().describe("Exact reference system name"),

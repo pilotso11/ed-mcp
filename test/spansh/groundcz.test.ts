@@ -81,4 +81,21 @@ describe("SpanshClient ground conflict zone data", () => {
     await client.systemBodies("40547175385864");
     expect(f.calls.filter((c) => c.url.includes("/dump/"))).toHaveLength(1);
   });
+
+  it("does not keep an empty body list", async () => {
+    const empty = fakeFetch([
+      {
+        match: (u) => u.includes("/dump/"),
+        respond: () => jsonResponse({ system: { bodies: [] } }),
+      },
+    ]);
+    const c = new SpanshClient(
+      new HttpClient({ userAgent: "t", fetchFn: empty, retryDelayMs: 0 }),
+      new TtlCache("spansh", 300_000),
+      { minIntervalMs: 0 },
+    );
+    expect(await c.systemBodies("1")).toEqual([]);
+    expect(await c.systemBodies("1")).toEqual([]);
+    expect(empty.calls.filter((x) => x.url.includes("/dump/"))).toHaveLength(2);
+  });
 });
