@@ -70,10 +70,13 @@ export function buildDeps(
   caches.register(spanshMarketCache);
   const spanshSweepCache = new SweepCache();
   caches.register(spanshSweepCache);
+  const spanshWarCache = new TtlCache<unknown>("spansh-wars", 600_000);
+  caches.register(spanshWarCache);
   const spansh = new SpanshClient(http, spanshCache, {
     systemCache: spanshSystemCache,
     marketCache: spanshMarketCache,
     sweepCache: spanshSweepCache,
+    warCache: spanshWarCache,
   });
   const capiHttp = new HttpClient({ userAgent: `EDCD-EdMcp-${VERSION}`, fetchFn: opts.fetchFn });
   const capiCache = new TtlCache<unknown>("capi", 60_000);

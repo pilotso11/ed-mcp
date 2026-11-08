@@ -295,6 +295,25 @@ interface RawStation {
   }>;
 }
 
+interface RawDumpBody {
+  name: string;
+  bodyId: number;
+  subType?: string | null;
+  distanceToArrival?: number | null;
+  parents?: Record<string, number>[] | null;
+  stations?: { name: string }[] | null;
+}
+
+export interface BodyInfo {
+  name: string;
+  bodyId: number;
+  subType: string | null;
+  arrival_ls: number;
+  // The planet this body orbits, when it is a moon.
+  parentPlanetId: number | null;
+  stations: string[];
+}
+
 const COUNT_CAP = 10_000;
 
 // Spansh spells ship names inconsistently ("Python MkII", "Kestrel Mk II").
@@ -350,6 +369,7 @@ export class SpanshClient {
   private readonly systemCache: TtlCache<unknown>;
   private readonly marketCache: TtlCache<unknown>;
   private readonly sweepCache: SweepCache;
+  private readonly warCache: TtlCache<unknown>;
   // Job ids by route form, so a call after a timeout collects the job instead of resubmitting.
   private readonly routeJobs = new Map<string, string>();
   private readonly tradeJobs = new Map<string, string>();
@@ -372,6 +392,8 @@ export class SpanshClient {
       // Mapped market records are compact but costly to fetch, so they are kept longer than raw search results.
       marketCache?: TtlCache<unknown>;
       sweepCache?: SweepCache;
+      // War states change at the daily tick and players report them through the day, so this search is kept briefly.
+      warCache?: TtlCache<unknown>;
     } = {},
   ) {
     this.baseUrl = opts.baseUrl ?? "https://spansh.co.uk/api";
@@ -383,6 +405,7 @@ export class SpanshClient {
     this.systemCache = opts.systemCache ?? cache;
     this.marketCache = opts.marketCache ?? cache;
     this.sweepCache = opts.sweepCache ?? new SweepCache();
+    this.warCache = opts.warCache ?? cache;
   }
 
   async resolveShip(name: string): Promise<string> {
@@ -596,6 +619,83 @@ export class SpanshClient {
     );
     this.sweepCache.savePartial({ key, centre, coveredLy, systems, total });
     return { centre, systems, total, partial, coveredLy };
+  }
+
+  /** Systems within radiusLy of near with a faction at war and a Frontline Solutions station. */
+  async frontlineWarSystems(
+    near: string,
+    radiusLy: number,
+    opts: { deadline?: number } = {},
+  ): Promise<{ centre: Coords; systems: SweptSystem[]; partial: boolean }> {
+    const centre = (await this.system(near, 0)).coords;
+    const key = `wars:${near.toLowerCase()}:${radiusLy}`;
+    const hit = this.warCache.get(key) as SweptSystem[] | undefined;
+    if (hit) return { centre, systems: hit, partial: false };
+    const systems: SweptSystem[] = [];
+    const seen = new Set<string>();
+    let partial = false;
+    for (let page = 0; ; page++) {
+      if (page > 0 && opts.deadline !== undefined && this.now() >= opts.deadline) {
+        partial = true;
+        break;
+      }
+      const body = {
+        filters: {
+          distance: { min: 0, max: radiusLy },
+          minor_faction_presences: [{ state: { value: ["War", "Civil War"] } }],
+          stations: [{ services: { value: ["Frontline Solutions"] } }],
+        },
+        sort: [{ distance: { direction: "asc" } }],
+        size: SWEEP_PAGE_SIZE,
+        page,
+        reference_system: near,
+      };
+      let res: { count: number; results?: RawSweepSystem[] };
+      try {
+        res = (await this.post("/systems/search", JSON.stringify(body), "application/json")) as {
+          count: number;
+          results?: RawSweepSystem[];
+        };
+      } catch (err) {
+        if (err instanceof SpanshError && err.status === 400) {
+          throw new UserError(
+            `Spansh rejected the search (${err.detail}). Check that "${near}" is an exact system name (spansh_system).`,
+          );
+        }
+        throw err;
+      }
+      const results = res.results ?? [];
+      for (const raw of results) {
+        const s = mapSystem(raw);
+        if (s && !seen.has(s.id64)) {
+          seen.add(s.id64);
+          systems.push(s);
+        }
+      }
+      if (results.length < SWEEP_PAGE_SIZE) break;
+    }
+    if (!partial) this.warCache.set(key, systems);
+    return { centre, systems, partial };
+  }
+
+  /** The bodies of a system, with the stations and settlements on each. Bodies rarely change. */
+  async systemBodies(id64: string): Promise<BodyInfo[]> {
+    return (await this.systemCache.getOrLoad(`bodies:${id64}`, async () => {
+      const raw = (await this.get(`/dump/${id64}`)) as {
+        system?: { bodies?: RawDumpBody[] };
+        bodies?: RawDumpBody[];
+      };
+      const bodies = raw.system?.bodies ?? raw.bodies ?? [];
+      // Keep only the body tree and station names: a dump is about 1 MB.
+      return bodies.map((b) => ({
+        name: b.name,
+        bodyId: b.bodyId,
+        subType: b.subType ?? null,
+        arrival_ls: b.distanceToArrival ?? 0,
+        parentPlanetId: (b.parents ?? []).map((p) => p.Planet).find((x) => x !== undefined) ?? null,
+        stations: (b.stations ?? []).map((s) => s.name),
+      }));
+    })) as BodyInfo[];
   }
 
   async route(q: RouteQuery, opts: { budgetMs?: number } = {}): Promise<RouteResult> {
