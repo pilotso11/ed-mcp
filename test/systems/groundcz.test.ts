@@ -102,6 +102,31 @@ describe("groundCzTargets", () => {
     expect(groundCzTargets([sys], sys.coords, opts({ minPad: "M" })).targets).toHaveLength(1);
   });
 
+  it("counts a Frontline station far from the settlements as no_station_near, whatever its pad", () => {
+    const camp = {
+      name: "Camp",
+      type: "Settlement",
+      pad: null,
+      arrival_ls: 500,
+      services: [],
+      owner: "A",
+    };
+    const station = (pad: "L" | "M") => ({
+      name: "Far",
+      type: "Coriolis Starport",
+      pad,
+      arrival_ls: 100,
+      services: ["Frontline Solutions"],
+      owner: "X",
+    });
+    for (const pad of ["L", "M"] as const) {
+      const sys = synthetic([station(pad), camp]);
+      const r = groundCzTargets([sys], sys.coords, opts({ minPad: "L" }));
+      expect(r.targets).toEqual([]);
+      expect(r.leftOut, `pad ${pad}`).toMatchObject({ no_station_near: 1, pad_too_small: 0 });
+    }
+  });
+
   it("ranks fresher systems first, then more settlements at the best station", () => {
     const station = {
       name: "F",
