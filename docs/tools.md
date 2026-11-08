@@ -40,6 +40,7 @@ For installation and setup, see the [README](../README.md).
 | `trade_loops`              | Repeatable trade loops, ranked by sustained profit per hour  |
 | `systems_by_state`         | Nearest systems with a faction in a state, e.g. War          |
 | `massacre_targets`         | Pirate factions with stackable massacre mission sources      |
+| `ground_cz_targets` | Likely ground conflict zones near you, with the best Frontline station |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
@@ -288,6 +289,8 @@ If `Market.json` is for a station in the results and is newer than the Spansh da
 - Targets with a star beyond `max_star_ls` (default 10,000 ls) are left out, because pirates can be near that star. Raise it to see them.
 
 Targets are ranked by `stack_size`, then by `spread_ls` (the farthest star), then by distance. Each source lists its allegiance counts, its factions and states, and the arrival distance of its nearest station for each pad size. The results are candidates: no service publishes mission boards.
+
+`ground_cz_targets` looks for ground (on-foot) conflict zones. It searches Spansh for systems with a faction at War or Civil War and a station with Frontline Solutions, and keeps the result for 10 minutes. It keeps only settlements owned by the warring factions: zones appear only there. A Frontline station counts when such settlements are within `max_gap_ls` (default 1 ls) of its distance from the arrival star, which usually means the same planet or its moons. Systems with data older than `max_age_hours` (default 6) are left out. The best station is the quickest to dock at, then the one with the most warring settlements nearby. For the top `detail_count` results (default 8), the tool reads the system's bodies and says whether the station is a planetary port on the settlements' planet (`drop: same_body`) or an orbital station next to that planet and its moons (`drop: orbital`). Spansh does not record which body an orbital station orbits, so the nearest body is used. The zones are likely, not confirmed.
 
 ## Station info
 
