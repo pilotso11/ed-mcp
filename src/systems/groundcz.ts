@@ -50,9 +50,14 @@ export function groundCzTargets(
   opts: GroundCzOptions,
 ): {
   targets: GroundCzTarget[];
-  leftOut: { stale: number; no_warring_settlements: number; no_station_near: number };
+  leftOut: {
+    stale: number;
+    no_warring_settlements: number;
+    no_station_near: number;
+    pad_too_small: number;
+  };
 } {
-  const leftOut = { stale: 0, no_warring_settlements: 0, no_station_near: 0 };
+  const leftOut = { stale: 0, no_warring_settlements: 0, no_station_near: 0, pad_too_small: 0 };
   const targets: GroundCzTarget[] = [];
   for (const system of systems) {
     const updated = system.updated_at ? Date.parse(system.updated_at) : NaN;
@@ -80,9 +85,7 @@ export function groundCzTargets(
       warringSettlements[s.owner] = (warringSettlements[s.owner] ?? 0) + 1;
 
     const stations: CzStation[] = system.stations
-      .filter(
-        (s) => s.services.includes(FRONTLINE) && s.arrival_ls !== null && padOk(s.pad, opts.minPad),
-      )
+      .filter((s) => s.services.includes(FRONTLINE) && s.arrival_ls !== null)
       .map((s) => {
         const planetary = PLANETARY.test(s.type ?? "");
         const near = settlements
@@ -104,7 +107,10 @@ export function groundCzTargets(
           settlements: near,
         };
       })
-      .filter((s) => s.settlements.length > 0)
+      .filter((s) => s.settlements.length > 0);
+    // Counted apart from distance, so a commander knows a smaller ship would help here.
+    const fit = stations
+      .filter((s) => padOk(s.pad, opts.minPad))
       // A quick dock matters more than extra settlements: zones appear at only some of them.
       .sort(
         (a, b) =>
@@ -116,13 +122,17 @@ export function groundCzTargets(
       leftOut.no_station_near++;
       continue;
     }
+    if (!fit.length) {
+      leftOut.pad_too_small++;
+      continue;
+    }
     targets.push({
       system,
       distanceLy: distanceLy(system.coords, centre),
       ageHours,
       warring,
-      best: stations[0]!,
-      others: stations.slice(1),
+      best: fit[0]!,
+      others: fit.slice(1),
       warringSettlements,
     });
   }

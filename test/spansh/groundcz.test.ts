@@ -101,6 +101,16 @@ describe("SpanshClient ground conflict zone data", () => {
     expect(await c.systemBodies("1")).toEqual([]);
     expect(empty.calls.filter((x) => x.url.includes("/dump/"))).toHaveLength(2);
   });
+  it("shares one war search between concurrent calls", async () => {
+    const [a, b] = await Promise.all([
+      client.frontlineWarSystems("Njulngan", 50),
+      client.frontlineWarSystems("Njulngan", 50),
+    ]);
+    expect(searches(f)).toHaveLength(1);
+    expect(a.systems).toHaveLength(2);
+    expect(b.systems).toHaveLength(2);
+  });
+
   it("stops at the deadline, marks the war search partial and does not cache it", async () => {
     const one = JSON.parse(await fixture("systems-search-ground-cz.json")).results[0];
     // Full pages of distinct systems, and 15 s per page, so the 20 s deadline stops it after page 1.

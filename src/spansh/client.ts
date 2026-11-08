@@ -375,6 +375,10 @@ export class SpanshClient {
   private readonly tradeJobs = new Map<string, string>();
   private readonly tradeSubmits = new Map<string, Promise<string>>();
   private readonly sweeps = new Map<string, Promise<PopulatedSweep>>();
+  private readonly warSearches = new Map<
+    string,
+    Promise<{ centre: Coords; systems: SweptSystem[]; partial: boolean }>
+  >();
   private gate: Promise<void> = Promise.resolve();
   private lastStart = 0;
 
@@ -631,6 +635,24 @@ export class SpanshClient {
     const key = `wars:${near.toLowerCase()}:${radiusLy}`;
     const hit = this.warCache.get(key) as SweptSystem[] | undefined;
     if (hit) return { centre, systems: hit, partial: false };
+    // A second caller waits for a search in progress rather than starting its own.
+    let running = this.warSearches.get(key);
+    if (!running) {
+      running = this.warPages(near, radiusLy, centre, key, opts).finally(() =>
+        this.warSearches.delete(key),
+      );
+      this.warSearches.set(key, running);
+    }
+    return running;
+  }
+
+  private async warPages(
+    near: string,
+    radiusLy: number,
+    centre: Coords,
+    key: string,
+    opts: { deadline?: number },
+  ): Promise<{ centre: Coords; systems: SweptSystem[]; partial: boolean }> {
     const systems: SweptSystem[] = [];
     const seen = new Set<string>();
     let partial = false;

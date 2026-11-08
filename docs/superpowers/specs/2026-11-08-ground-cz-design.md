@@ -47,8 +47,8 @@ Within 50 ly of Njulngan this returns 29 systems, where the populated sweep retu
 1. **Freshness.** `age_hours` comes from the system's `updated_at`. A system older than `max_age_hours` is left out and counted in `left_out.stale`.
 2. **Warring factions.** These are the factions with War or Civil War in `active_states`.
 3. **Warring settlements.** These are stations with `type` `Settlement` and an `owner` among the warring factions. Stations with `type: null` and carriers are not settlements. A system with no warring settlement is left out and counted in `left_out.no_warring_settlements`.
-4. **Frontline stations.** These are stations with `Frontline Solutions` in `services` that meet the commander's minimum pad. The pad comes from the travel preferences, and from the current ship when set to `auto`.
-5. **Pairing.** For each Frontline station, its nearby settlements are the warring settlements with `|settlement.arrival_ls − station.arrival_ls| ≤ max_gap_ls`. The gap is a proxy for "same planet or the same planet and its moons". Moons of one planet are within about 1 ls of each other, and separate planets are usually tens of ls apart. A system with no Frontline station that has a nearby settlement is left out and counted in `left_out.no_station_near`.
+4. **Frontline stations.** These are stations with `Frontline Solutions` in `services`. The minimum pad is checked after pairing (step 5), so that pad rejections are counted on their own. The pad comes from the travel preferences, and from the current ship when set to `auto`.
+5. **Pairing.** For each Frontline station, its nearby settlements are the warring settlements with `|settlement.arrival_ls − station.arrival_ls| ≤ max_gap_ls`. The gap is a proxy for "same planet or the same planet and its moons". Moons of one planet are within about 1 ls of each other, and separate planets are usually tens of ls apart. A system with no Frontline station that has a nearby settlement is left out and counted in `left_out.no_station_near`. A system whose Frontline stations with nearby settlements all have pads below the minimum is left out and counted in `left_out.pad_too_small`, so that the commander knows a smaller ship would help.
 6. **Best station.** Among stations with at least one nearby settlement, pick the one with the shortest time to dock from the arrival star, then the most nearby settlements, then the smallest gap. The docking time uses the travel model (`legSeconds` with `distanceLy` 0, the station's `arrival_ls` and its planetary flag), so landing on a planet counts against a planetary port. Beyond a few settlements, the count matters less than a quick dock, because zones appear at only some settlements. In Njulngan this picks Tesla Terminal (orbital, 4 warring settlements 0.08–0.11 ls away), which the commander used, and not Boyer Horizons (a planetary port with 6). Boyer Horizons is listed under `other_frontline_stations`.
 
 ## Ranking
@@ -92,7 +92,7 @@ Each result has:
 - `warring_settlements`: the number of settlements each warring faction owns in the system, wherever they are.
 - `body_family` with detail, otherwise null.
 
-The result also has `searched`, `left_out` (`stale`, `no_warring_settlements`, `no_station_near`), `partial`, `travel` (the same travel line as the other tools) and `notes`. The notes always say that these are likely ground zones and not confirmed ones: Spansh does not see live conflict zone signals, and a war can end at the daily tick.
+The result also has `searched`, `left_out` (`stale`, `no_warring_settlements`, `no_station_near`, `pad_too_small`), `partial`, `travel` (the same travel line as the other tools) and `notes`. The notes always say that these are likely ground zones and not confirmed ones: Spansh does not see live conflict zone signals, and a war can end at the daily tick.
 
 ## Tests
 

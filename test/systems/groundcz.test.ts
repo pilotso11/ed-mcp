@@ -97,7 +97,8 @@ describe("groundCzTargets", () => {
     ]);
     const r = groundCzTargets([sys], sys.coords, opts({ minPad: "L" }));
     expect(r.targets).toEqual([]);
-    expect(r.leftOut.no_station_near).toBe(1);
+    // The station is next to the settlement, so this is the pad, not the distance.
+    expect(r.leftOut).toMatchObject({ pad_too_small: 1, no_station_near: 0 });
     expect(groundCzTargets([sys], sys.coords, opts({ minPad: "M" })).targets).toHaveLength(1);
   });
 
@@ -233,6 +234,39 @@ describe("czDetail", () => {
     const d = czDetail(t.best, await dumpBodies(), 0.05);
     expect(d.drop).toBe("same_body");
     expect(d.near_body).toBe("Njulngan A 1");
+  });
+
+  it("says gap_only for a planetary port on a body without the settlements", () => {
+    const port = {
+      name: "Port",
+      type: "Planetary Outpost",
+      pad: "L" as const,
+      arrival_ls: 300,
+      planetary: true,
+      dock_s: 150,
+      settlements: [{ name: "Camp", owner: "A", arrival_ls: 300.4, gap_ls: 0.4 }],
+    };
+    const bodies = [
+      {
+        name: "P",
+        bodyId: 3,
+        subType: "Rocky body",
+        arrival_ls: 300,
+        parentPlanetId: null,
+        stations: ["Port"],
+      },
+      {
+        name: "Q",
+        bodyId: 4,
+        subType: "Icy body",
+        arrival_ls: 300.4,
+        parentPlanetId: null,
+        stations: ["Camp"],
+      },
+    ];
+    const d = czDetail(port, bodies, 1);
+    expect(d).toMatchObject({ drop: "gap_only", near_body: "P" });
+    expect(d.settlementBodies["Camp"]).toBe("Q");
   });
 
   it("says gap_only when no body is close enough to an orbital station", () => {

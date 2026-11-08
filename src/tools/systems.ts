@@ -313,7 +313,8 @@ export function registerSystemTools(
       description:
         "Find likely ground (on-foot) conflict zones near you: systems with a faction at War or Civil War, " +
         "settlements owned by the warring factions, and a Frontline Solutions station close to those settlements " +
-        "(within max_gap_ls of distance from the arrival star, so on the same planet or its moons). Data older than " +
+        "(within max_gap_ls of distance from the arrival star, so on the same planet or its moons) that meets the " +
+        "minimum pad; left_out.pad_too_small counts systems where only smaller-pad stations are close. Data older than " +
         "max_age_hours (default 6) is left out: wars often end at the daily tick. The best station is the quickest to " +
         "dock at (a planetary landing counts against it), then the one with most warring settlements nearby. For the " +
         "top detail_count results, body detail says whether the station is a planetary port on the settlements' " +
