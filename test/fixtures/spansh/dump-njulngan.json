@@ -1,0 +1,399 @@
+{
+ "system": {
+  "name": "Njulngan",
+  "id64": 40547175385864,
+  "bodies": [
+   {
+    "name": "Njulngan A",
+    "bodyId": 1,
+    "subType": "L (Brown dwarf) Star",
+    "distanceToArrival": 0.0,
+    "parents": [
+     {
+      "Null": 0
+     }
+    ],
+    "stations": []
+   },
+   {
+    "name": "Njulngan B",
+    "bodyId": 2,
+    "subType": "T (Brown dwarf) Star",
+    "distanceToArrival": 2120.565642,
+    "parents": [
+     {
+      "Null": 0
+     }
+    ],
+    "stations": []
+   },
+   {
+    "name": "Njulngan A 1",
+    "bodyId": 7,
+    "subType": "High metal content world",
+    "distanceToArrival": 15.241791,
+    "parents": [
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Przhevalsky Legacy",
+      "type": "Planetary Outpost"
+     },
+     {
+      "name": "Wylie's Inheritance",
+      "type": "Planetary Outpost"
+     },
+     {
+      "name": "Morrison Terminal",
+      "type": null
+     },
+     {
+      "name": "Levada Industrial Base",
+      "type": "Settlement"
+     },
+     {
+      "name": "Perez Industrial Workshop",
+      "type": "Settlement"
+     },
+     {
+      "name": "Oyekan Chemical Site",
+      "type": "Settlement"
+     },
+     {
+      "name": "Vannier Dredging Hub",
+      "type": "Settlement"
+     },
+     {
+      "name": "Mahajan Dredging Exchange",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan A 1 a",
+    "bodyId": 8,
+    "subType": "Rocky body",
+    "distanceToArrival": 15.261849,
+    "parents": [
+     {
+      "Planet": 7
+     },
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Cataldo's Syntheticals",
+      "type": "Settlement"
+     },
+     {
+      "name": "Oluwusi's Biological",
+      "type": "Settlement"
+     },
+     {
+      "name": "Wilton Hydroponics Biosphere",
+      "type": "Settlement"
+     },
+     {
+      "name": "Ito Botanical Hub",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan A 2",
+    "bodyId": 9,
+    "subType": "High metal content world",
+    "distanceToArrival": 23.175767,
+    "parents": [
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Boyer Horizons",
+      "type": "Planetary Outpost"
+     },
+     {
+      "name": "Nnamani Drilling Exchange",
+      "type": "Settlement"
+     },
+     {
+      "name": "Emem's Reserve",
+      "type": "Settlement"
+     },
+     {
+      "name": "Aravena Prospecting Territory",
+      "type": "Settlement"
+     },
+     {
+      "name": "Ganguly's Lodges",
+      "type": "Settlement"
+     },
+     {
+      "name": "Ludwig Manufacturing Exchange",
+      "type": "Settlement"
+     },
+     {
+      "name": "Mahto's Creations",
+      "type": "Settlement"
+     },
+     {
+      "name": "Hickey Construction",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan A 2 a",
+    "bodyId": 10,
+    "subType": "Rocky body",
+    "distanceToArrival": 23.175265,
+    "parents": [
+     {
+      "Planet": 9
+     },
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Aubakirov Keep",
+      "type": null
+     },
+     {
+      "name": "Sakurai's Command",
+      "type": "Settlement"
+     },
+     {
+      "name": "Ghatak Munitions Site",
+      "type": "Settlement"
+     },
+     {
+      "name": "Igwe Construction",
+      "type": "Settlement"
+     },
+     {
+      "name": "Bianchi Horticultural Plantation",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan A 3",
+    "bodyId": 11,
+    "subType": "Icy body",
+    "distanceToArrival": 41.234337,
+    "parents": [
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Bahuguna Biochemical Forum",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan A 4",
+    "bodyId": 12,
+    "subType": "Icy body",
+    "distanceToArrival": 60.707013,
+    "parents": [
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": []
+   },
+   {
+    "name": "Njulngan A 5",
+    "bodyId": 13,
+    "subType": "Icy body",
+    "distanceToArrival": 95.104929,
+    "parents": [
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": []
+   },
+   {
+    "name": "Njulngan A 6",
+    "bodyId": 14,
+    "subType": "Icy body",
+    "distanceToArrival": 177.385524,
+    "parents": [
+     {
+      "Star": 1
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Ranganathan's Berth",
+      "type": "Settlement"
+     },
+     {
+      "name": "Holland Synthetics Complex",
+      "type": "Settlement"
+     },
+     {
+      "name": "McDarsh Engineering",
+      "type": "Settlement"
+     },
+     {
+      "name": "Dzuba Engineering Installation",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan B 1",
+    "bodyId": 25,
+    "subType": "Icy body",
+    "distanceToArrival": 2127.363757,
+    "parents": [
+     {
+      "Star": 2
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": []
+   },
+   {
+    "name": "Njulngan B 2",
+    "bodyId": 26,
+    "subType": "Icy body",
+    "distanceToArrival": 2139.30706,
+    "parents": [
+     {
+      "Star": 2
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Hope Point",
+      "type": null
+     },
+     {
+      "name": "Bojti Engineering Site",
+      "type": "Settlement"
+     },
+     {
+      "name": "Ishida's Syntheticals",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan B 3",
+    "bodyId": 27,
+    "subType": "Icy body",
+    "distanceToArrival": 2093.084206,
+    "parents": [
+     {
+      "Star": 2
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Pavluk's Consulting",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan B 4",
+    "bodyId": 28,
+    "subType": "Icy body",
+    "distanceToArrival": 2105.771697,
+    "parents": [
+     {
+      "Star": 2
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Nechuy Astrophysics Assembly",
+      "type": "Settlement"
+     }
+    ]
+   },
+   {
+    "name": "Njulngan B 5",
+    "bodyId": 29,
+    "subType": "Icy body",
+    "distanceToArrival": 2138.785076,
+    "parents": [
+     {
+      "Star": 2
+     },
+     {
+      "Null": 0
+     }
+    ],
+    "stations": [
+     {
+      "name": "Botman's Lodges",
+      "type": "Settlement"
+     },
+     {
+      "name": "Walter Synthetics Installation",
+      "type": "Settlement"
+     },
+     {
+      "name": "Berdo Synthetics",
+      "type": "Settlement"
+     },
+     {
+      "name": "Vaillant Synthetics Enterprise",
+      "type": "Settlement"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -8,6 +8,7 @@ import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { legSeconds, type ResolvedTravel } from "../stations/travel.js";
+import { czDetail, groundCzTargets, type CzDetail } from "../systems/groundcz.js";
 import { massacreTargets, SOURCE_RANGE_LY } from "../systems/massacre.js";
 import { hasFilter, systemsByState } from "../systems/state.js";
 import { isAnarchy, type Pad, type SweptSystem } from "../systems/sweep.js";
@@ -293,6 +294,147 @@ export function registerSystemTools(
             }),
             excluded: t.excluded,
           })),
+          notes,
+        };
+      },
+    ),
+  );
+
+  server.registerTool(
+    "ground_cz_targets",
+    {
+      annotations: {
+        title: "Find Ground Conflict Zones",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+      description:
+        "Find likely ground (on-foot) conflict zones near you: systems with a faction at War or Civil War, " +
+        "settlements owned by the warring factions, and a Frontline Solutions station close to those settlements " +
+        "(within max_gap_ls of distance from the arrival star, so on the same planet or its moons) that meets the " +
+        "minimum pad; left_out.pad_too_small counts systems where only smaller-pad stations are close. Data older than " +
+        "max_age_hours (default 6) is left out: wars often end at the daily tick. The best station is the quickest to " +
+        "dock at (a planetary landing counts against it), then the one with most warring settlements nearby. For the " +
+        "top detail_count results, body detail says whether the station is a planetary port on the settlements' " +
+        "planet (drop: same_body) or an orbital station next to that planet and its moons (drop: orbital). " +
+        "drop: gap_only means the station and settlements are at about the same distance from the arrival star, " +
+        "but the body data could not confirm the same planet or its moons: check each settlement's body. " +
+        "drop: null (with near_body and body_family null, and no body on settlements) means no body detail was " +
+        "fetched: the result is beyond detail_count, the time limit was reached, or the fetch failed. " +
+        "Zones are likely, not confirmed. near defaults to the journal location.",
+      inputSchema: {
+        near: z.string().optional().describe("Exact reference system name"),
+        radius_ly: Radius,
+        max_age_hours: z.number().min(1).max(168).default(6),
+        max_gap_ls: z.number().min(0.1).max(20).default(1),
+        detail_count: z.number().int().min(0).max(15).default(8),
+        limit: z.number().int().min(1).max(100).default(20),
+        preferences: PrefsPatchSchema.optional(),
+        use_preferences: z.boolean().default(true),
+      },
+    },
+    wrap(
+      async (a: {
+        near?: string;
+        radius_ly: number;
+        max_age_hours: number;
+        max_gap_ls: number;
+        detail_count: number;
+        limit: number;
+        preferences?: PrefsPatch;
+        use_preferences: boolean;
+      }) => {
+        const notes: string[] = [];
+        const near = await resolveNear(a.near, notes);
+        const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
+        const deadline = now() + TIME_LIMIT_MS;
+        const found = await deps.spansh.frontlineWarSystems(near, a.radius_ly, { deadline });
+        const { targets, leftOut } = groundCzTargets(found.systems, found.centre, {
+          now: now(),
+          maxAgeHours: a.max_age_hours,
+          maxGapLs: a.max_gap_ls,
+          minPad: rules.pad.size,
+          dockSeconds: (arrivalLs, planetary) =>
+            legSeconds({ distanceLy: 0, arrivalLs, planetary, stationKnown: true }, rules.travel)
+              .seconds,
+        });
+        const shown = targets.slice(0, a.limit);
+        const details = new Map<string, CzDetail>();
+        let timedOut = 0;
+        for (const t of shown.slice(0, a.detail_count)) {
+          if (now() >= deadline) {
+            timedOut++;
+            continue;
+          }
+          try {
+            const bodies = await deps.spansh.systemBodies(t.system.id64);
+            // No bodies is no detail, not a failed match: drop stays null.
+            if (!bodies.length)
+              notes.push(`No body detail for ${t.system.name}: Spansh returned no bodies.`);
+            else details.set(t.system.id64, czDetail(t.best, bodies, a.max_gap_ls));
+          } catch (err) {
+            notes.push(
+              `No body detail for ${t.system.name}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+        notes.push(
+          "These are likely ground conflict zones, not confirmed: Spansh does not see live conflict zone signals, and a war can end at the daily tick.",
+        );
+        if (timedOut) {
+          notes.push(
+            `${timedOut} ${timedOut === 1 ? "result is" : "results are"} without body detail: the time limit was reached. Call again to fill them in.`,
+          );
+        }
+        if (found.partial) {
+          notes.push("Spansh did not return every system in time; results may be missing.");
+        }
+        const minutes = (s: number) => Math.round(s / 6) / 10;
+        return {
+          near,
+          searched: found.systems.length,
+          left_out: leftOut,
+          partial: found.partial,
+          travel: describeRules(rules).travel,
+          targets: shown.map((t) => {
+            const d = details.get(t.system.id64) ?? null;
+            const l = leg(t.distanceLy, rules.travel);
+            return {
+              system: t.system.name,
+              distance_ly: Math.round(t.distanceLy * 100) / 100,
+              jumps: l.jumps,
+              travel_min: minutes(l.seconds),
+              age_hours: Math.round(t.ageHours * 10) / 10,
+              updated_at: t.system.updated_at,
+              warring_factions: t.warring,
+              best_station: {
+                name: t.best.name,
+                type: t.best.type,
+                pad: t.best.pad,
+                arrival_ls: Math.round(t.best.arrival_ls * 100) / 100,
+                dock_min: minutes(t.best.dock_s),
+                drop: d?.drop ?? null,
+                near_body: d?.near_body ?? null,
+                settlements: t.best.settlements.map((s) => ({
+                  name: s.name,
+                  owner: s.owner,
+                  gap_ls: Math.round(s.gap_ls * 1000) / 1000,
+                  ...(d ? { body: d.settlementBodies[s.name] ?? null } : {}),
+                })),
+              },
+              other_frontline_stations: t.others.map((s) => ({
+                name: s.name,
+                type: s.type,
+                pad: s.pad,
+                arrival_ls: Math.round(s.arrival_ls * 100) / 100,
+                settlements: s.settlements.length,
+              })),
+              warring_settlements: t.warringSettlements,
+              body_family: d?.body_family ?? null,
+            };
+          }),
           notes,
         };
       },

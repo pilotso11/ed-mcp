@@ -274,3 +274,146 @@ describe("system tools", () => {
     expect(r.text).toMatch(/Give near/);
   });
 });
+
+describe("ground_cz_targets", () => {
+  async function czSetup(
+    opts: { copy?: boolean; dumpFails?: boolean; fullPages?: boolean; emptyDump?: boolean } = {},
+  ) {
+    const read = async (name: string) =>
+      readFile(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
+    const search = JSON.parse(await read("systems-search-ground-cz.json"));
+    const dump = await read("dump-njulngan.json");
+    const records = new Map<string, any>(search.results.map((r: any) => [r.name, r]));
+    if (opts.copy) {
+      const njulngan = records.get("Njulngan");
+      search.results.push({ ...njulngan, id64: 40547175385865, name: "Njulngan Copy" });
+    }
+    let clock = Date.parse("2026-11-08T20:00:00Z");
+    const f = fakeFetch([
+      {
+        match: (u) => u.includes("/search/systems?"),
+        respond: (u) => {
+          const name = new URL(u).searchParams.get("q")!;
+          return jsonResponse({ results: [{ id64: name, name }] });
+        },
+      },
+      {
+        match: (u) => u.includes("/system/"),
+        respond: (u) => {
+          const name = decodeURIComponent(u.split("/system/")[1]!);
+          const r = records.get(name);
+          return jsonResponse({ record: { name, id64: name, x: r.x, y: r.y, z: r.z } });
+        },
+      },
+      {
+        match: (u) => u.endsWith("/systems/search"),
+        respond: () => {
+          if (!opts.fullPages) return jsonResponse(search);
+          // Full pages that take 15 s each, so the 20 s limit stops the search after two.
+          clock += 15_000;
+          const njulngan = records.get("Njulngan");
+          return jsonResponse({
+            count: 1500,
+            results: Array.from({ length: 500 }, (_, i) => ({
+              ...njulngan,
+              id64: i,
+              name: `S${i}`,
+            })),
+          });
+        },
+      },
+      {
+        match: (u) => u.includes("/dump/"),
+        respond: () => {
+          // Each detail fetch takes 25 s, past the tool's 20 s limit.
+          if (opts.dumpFails) return new Response("broken", { status: 500 });
+          if (opts.emptyDump) return jsonResponse({ system: { bodies: [] } });
+          if (opts.copy) clock += 25_000;
+          return new Response(dump, { headers: { "content-type": "application/json" } });
+        },
+      },
+    ]);
+    const spansh = new SpanshClient(
+      new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
+      new TtlCache("spansh", 300_000),
+      { minIntervalMs: 0, now: () => clock },
+    );
+    const dir = await mkdtemp(path.join(os.tmpdir(), "czstools-"));
+    const prefs = new PreferencesStore(path.join(dir, "preferences.json"));
+    const server = new McpServer({ name: "t", version: "0" });
+    registerSystemTools(server, { spansh, prefs, currentShip: async () => null, now: () => clock });
+    return { client: await connectTestClient(server), f };
+  }
+
+  it("treats a dump with no bodies as no detail, not gap_only", async () => {
+    const { client } = await czSetup({ emptyDump: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan" });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.targets[0].best_station.drop).toBeNull();
+    expect(j.targets[0].body_family).toBeNull();
+    expect(j.notes.join(" ")).toMatch(/No body detail for Njulngan: Spansh returned no bodies/);
+  });
+
+  it("reports a war search that stopped at the time limit", async () => {
+    const { client } = await czSetup({ fullPages: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan", detail_count: 0 });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.partial).toBe(true);
+    expect(j.notes.join(" ")).toMatch(/Spansh did not return every system in time/);
+  });
+
+  it("reports Njulngan with Tesla Terminal and the body detail", async () => {
+    const { client } = await czSetup();
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan" });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.targets.map((t: any) => t.system)).toEqual(["Njulngan"]);
+    const t = j.targets[0];
+    expect(t.best_station).toMatchObject({
+      name: "Tesla Terminal",
+      drop: "orbital",
+      near_body: "Njulngan A 1",
+    });
+    expect(t.best_station.settlements).toHaveLength(4);
+    expect(t.best_station.settlements[0]).toHaveProperty("body");
+    expect(t.other_frontline_stations.map((s: any) => s.name)).toContain("Boyer Horizons");
+    expect(t.body_family.map((b: any) => b.name).sort()).toEqual([
+      "Njulngan A 1",
+      "Njulngan A 1 a",
+    ]);
+    expect(j.left_out).toMatchObject({ no_warring_settlements: 1 });
+    expect(j.notes.join(" ")).toMatch(/likely/);
+  });
+
+  it("skips body detail when detail_count is 0", async () => {
+    const { client, f } = await czSetup();
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan", detail_count: 0 });
+    const t = (r.json as any).targets[0];
+    expect(t.best_station.drop).toBeNull();
+    expect(t.body_family).toBeNull();
+    expect(f.calls.some((c) => c.url.includes("/dump/"))).toBe(false);
+  });
+
+  it("leaves results without detail when the deadline passes, and says so", async () => {
+    const { client, f } = await czSetup({ copy: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan" });
+    const j = r.json as any;
+    expect(j.targets).toHaveLength(2);
+    expect(f.calls.filter((c) => c.url.includes("/dump/"))).toHaveLength(1);
+    expect(j.targets.filter((t: any) => t.body_family === null)).toHaveLength(1);
+    expect(j.notes.join(" ")).toMatch(/1 result is without body detail/);
+  });
+
+  it("reports a failed body fetch per system, not as a time limit", async () => {
+    const { client } = await czSetup({ dumpFails: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan" });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.targets[0].body_family).toBeNull();
+    const notes = j.notes.join(" ");
+    expect(notes).toMatch(/No body detail for Njulngan/);
+    expect(notes).not.toMatch(/time limit/);
+  });
+});

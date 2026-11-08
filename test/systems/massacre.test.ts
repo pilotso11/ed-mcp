@@ -123,7 +123,16 @@ function sys(name: string, x: number, factions: SweptSystem["factions"]): SweptS
     power_state: null,
     updated_at: null,
     factions,
-    stations: [{ name: `${name} Port`, type: "Outpost", pad: "M", arrival_ls: 100 }],
+    stations: [
+      {
+        name: `${name} Port`,
+        type: "Outpost",
+        pad: "M",
+        arrival_ls: 100,
+        services: [],
+        owner: null,
+      },
+    ],
     stars: [{ name: `${name} A`, arrival_ls: 0 }],
   };
 }

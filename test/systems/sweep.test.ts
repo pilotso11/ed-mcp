@@ -62,6 +62,33 @@ describe("mapSystem", () => {
     expect(s.factions[1]).toMatchObject({ controlling: false, active_states: [] });
   });
 
+  it("keeps station services and owners", async () => {
+    const raw = JSON.parse(
+      await readFile(
+        new URL("../fixtures/spansh/systems-search-ground-cz.json", import.meta.url),
+        "utf8",
+      ),
+    ).results.find((r: { name: string }) => r.name === "Njulngan");
+    const s = mapSystem(raw)!;
+    const tesla = s.stations.find((x) => x.name === "Tesla Terminal")!;
+    expect(tesla.services).toContain("Frontline Solutions");
+    expect(tesla.owner).toBe("Pikum Public Group");
+    const oyekan = s.stations.find((x) => x.name === "Oyekan Chemical Site")!;
+    expect(oyekan).toMatchObject({ type: "Settlement", owner: "Njulngan Future" });
+  });
+
+  it("reads services given as objects, as the station search does", () => {
+    const s = mapSystem({
+      name: "X",
+      id64: 1,
+      x: 0,
+      y: 0,
+      z: 0,
+      stations: [{ name: "P", type: "Outpost", services: [{ name: "Frontline Solutions" }] }],
+    })!;
+    expect(s.stations[0]).toMatchObject({ services: ["Frontline Solutions"], owner: null });
+  });
+
   it("returns null without coordinates", () => {
     expect(mapSystem({ name: "X", id64: 1 } as RawSweepSystem)).toBeNull();
   });
