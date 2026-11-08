@@ -100,7 +100,7 @@ The result also has `searched`, `left_out` (`stale`, `no_warring_settlements`, `
 - **Seleru Bao.** It is left out under `no_warring_settlements`.
 - **Freshness.** With the tool clock later than `updated_at` plus `max_age_hours`, both systems are left out under `stale`.
 - **Pad.** With `min_pad` L, a Frontline station with only medium pads cannot be the best station.
-- **Gap.** With `max_gap_ls` 0.05, Tesla Terminal has no nearby settlement (its smallest gap is 0.081 ls), and the best station is Wylie's Inheritance. It is a planetary port on Njulngan A 1 at 15.2465 ls, with 4 warring settlements within 0.005 ls, and it docks sooner than Przhevalsky Legacy (15.2515 ls) and Boyer Horizons (23.18 ls).
+- **Gap.** With `max_gap_ls` 0.05, Tesla Terminal has no nearby settlement (its smallest gap is 0.081 ls), and the best station is Wylie's Inheritance. It is a planetary port on Njulngan A 1 at 15.2465 ls, with 4 warring settlements within 0.02 ls, and it docks sooner than Przhevalsky Legacy (15.2515 ls) and Boyer Horizons (23.18 ls).
 - **Request body.** It has the war and Frontline filters in the shape above.
 - **Detail deadline.** When the deadline passes before all dumps, the remaining results have `detail: null` and the note.
 - `docs/tools.md` describes the tool, and `manifest.json` lists it.
