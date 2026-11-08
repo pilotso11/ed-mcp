@@ -369,10 +369,11 @@ export function registerSystemTools(
             continue;
           }
           try {
-            details.set(
-              t.system.id64,
-              czDetail(t.best, await deps.spansh.systemBodies(t.system.id64), a.max_gap_ls),
-            );
+            const bodies = await deps.spansh.systemBodies(t.system.id64);
+            // No bodies is no detail, not a failed match: drop stays null.
+            if (!bodies.length)
+              notes.push(`No body detail for ${t.system.name}: Spansh returned no bodies.`);
+            else details.set(t.system.id64, czDetail(t.best, bodies, a.max_gap_ls));
           } catch (err) {
             notes.push(
               `No body detail for ${t.system.name}: ${err instanceof Error ? err.message : String(err)}`,

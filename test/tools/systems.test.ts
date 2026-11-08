@@ -276,7 +276,9 @@ describe("system tools", () => {
 });
 
 describe("ground_cz_targets", () => {
-  async function czSetup(opts: { copy?: boolean; dumpFails?: boolean; fullPages?: boolean } = {}) {
+  async function czSetup(
+    opts: { copy?: boolean; dumpFails?: boolean; fullPages?: boolean; emptyDump?: boolean } = {},
+  ) {
     const read = async (name: string) =>
       readFile(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
     const search = JSON.parse(await read("systems-search-ground-cz.json"));
@@ -325,6 +327,7 @@ describe("ground_cz_targets", () => {
         respond: () => {
           // Each detail fetch takes 25 s, past the tool's 20 s limit.
           if (opts.dumpFails) return new Response("broken", { status: 500 });
+          if (opts.emptyDump) return jsonResponse({ system: { bodies: [] } });
           if (opts.copy) clock += 25_000;
           return new Response(dump, { headers: { "content-type": "application/json" } });
         },
@@ -341,6 +344,16 @@ describe("ground_cz_targets", () => {
     registerSystemTools(server, { spansh, prefs, currentShip: async () => null, now: () => clock });
     return { client: await connectTestClient(server), f };
   }
+
+  it("treats a dump with no bodies as no detail, not gap_only", async () => {
+    const { client } = await czSetup({ emptyDump: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan" });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.targets[0].best_station.drop).toBeNull();
+    expect(j.targets[0].body_family).toBeNull();
+    expect(j.notes.join(" ")).toMatch(/No body detail for Njulngan: Spansh returned no bodies/);
+  });
 
   it("reports a war search that stopped at the time limit", async () => {
     const { client } = await czSetup({ fullPages: true });
