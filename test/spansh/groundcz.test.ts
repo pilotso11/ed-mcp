@@ -3,12 +3,12 @@ import { readFile } from "node:fs/promises";
 import { SpanshClient } from "../../src/spansh/client.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
-import { fakeFetch, jsonResponse, type FakeCall } from "../helpers/fakeFetch.js";
+import { fakeFetch, jsonResponse, type FakeCall, type FakeRoute } from "../helpers/fakeFetch.js";
 
 const fixture = (name: string) =>
   readFile(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
 
-async function make() {
+async function make(opts: { search?: FakeRoute["respond"]; now?: () => number } = {}) {
   const search = await fixture("systems-search-ground-cz.json");
   const dump = await fixture("dump-njulngan.json");
   const njulngan = JSON.parse(search).results.find((s: any) => s.name === "Njulngan");
@@ -31,14 +31,17 @@ async function make() {
         }),
     },
     { match: (u) => u.includes("/dump/"), respond: () => new Response(dump) },
-    { match: (u) => u.endsWith("/systems/search"), respond: () => new Response(search) },
+    {
+      match: (u) => u.endsWith("/systems/search"),
+      respond: opts.search ?? (() => new Response(search)),
+    },
   ]);
   const client = new SpanshClient(
     new HttpClient({ userAgent: "t", fetchFn: f, retryDelayMs: 0 }),
     new TtlCache("spansh", 300_000),
-    { minIntervalMs: 0 },
+    { minIntervalMs: 0, now: opts.now },
   );
-  return { client, f };
+  return { client, f, search };
 }
 
 const searches = (f: { calls: FakeCall[] }) =>
@@ -97,5 +100,28 @@ describe("SpanshClient ground conflict zone data", () => {
     expect(await c.systemBodies("1")).toEqual([]);
     expect(await c.systemBodies("1")).toEqual([]);
     expect(empty.calls.filter((x) => x.url.includes("/dump/"))).toHaveLength(2);
+  });
+  it("stops at the deadline, marks the war search partial and does not cache it", async () => {
+    const one = JSON.parse(await fixture("systems-search-ground-cz.json")).results[0];
+    // Full pages of distinct systems, and 15 s per page, so the 20 s deadline stops it after page 1.
+    const page = {
+      count: 1500,
+      results: Array.from({ length: 500 }, (_, i) => ({ ...one, id64: i, name: `S${i}` })),
+    };
+    let t = 0;
+    const p = await make({
+      search: () => {
+        t += 15_000;
+        return jsonResponse(page);
+      },
+      now: () => t,
+    });
+    const first = await p.client.frontlineWarSystems("Njulngan", 50, { deadline: 20_000 });
+    expect(first.partial).toBe(true);
+    expect(searches(p.f)).toHaveLength(2);
+    t = 0;
+    await p.client.frontlineWarSystems("Njulngan", 50, { deadline: 20_000 });
+    // Not cached: the second call searches again.
+    expect(searches(p.f)).toHaveLength(4);
   });
 });
