@@ -276,7 +276,7 @@ describe("system tools", () => {
 });
 
 describe("ground_cz_targets", () => {
-  async function czSetup(opts: { copy?: boolean; dumpFails?: boolean } = {}) {
+  async function czSetup(opts: { copy?: boolean; dumpFails?: boolean; fullPages?: boolean } = {}) {
     const read = async (name: string) =>
       readFile(new URL(`../fixtures/spansh/${name}`, import.meta.url), "utf8");
     const search = JSON.parse(await read("systems-search-ground-cz.json"));
@@ -303,7 +303,23 @@ describe("ground_cz_targets", () => {
           return jsonResponse({ record: { name, id64: name, x: r.x, y: r.y, z: r.z } });
         },
       },
-      { match: (u) => u.endsWith("/systems/search"), respond: () => jsonResponse(search) },
+      {
+        match: (u) => u.endsWith("/systems/search"),
+        respond: () => {
+          if (!opts.fullPages) return jsonResponse(search);
+          // Full pages that take 15 s each, so the 20 s limit stops the search after two.
+          clock += 15_000;
+          const njulngan = records.get("Njulngan");
+          return jsonResponse({
+            count: 1500,
+            results: Array.from({ length: 500 }, (_, i) => ({
+              ...njulngan,
+              id64: i,
+              name: `S${i}`,
+            })),
+          });
+        },
+      },
       {
         match: (u) => u.includes("/dump/"),
         respond: () => {
@@ -325,6 +341,15 @@ describe("ground_cz_targets", () => {
     registerSystemTools(server, { spansh, prefs, currentShip: async () => null, now: () => clock });
     return { client: await connectTestClient(server), f };
   }
+
+  it("reports a war search that stopped at the time limit", async () => {
+    const { client } = await czSetup({ fullPages: true });
+    const r = await callTool(client, "ground_cz_targets", { near: "Njulngan", detail_count: 0 });
+    expect(r.isError).toBe(false);
+    const j = r.json as any;
+    expect(j.partial).toBe(true);
+    expect(j.notes.join(" ")).toMatch(/Spansh did not return every system in time/);
+  });
 
   it("reports Njulngan with Tesla Terminal and the body detail", async () => {
     const { client } = await czSetup();
