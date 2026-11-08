@@ -16,6 +16,8 @@ export interface SweptStation {
   type: string | null;
   pad: Pad;
   arrival_ls: number | null;
+  services: string[];
+  owner: string | null;
 }
 
 export interface SweptSystem {
@@ -52,6 +54,8 @@ interface RawSweepStation {
   medium_pads?: number | null;
   small_pads?: number | null;
   distance_to_arrival?: number | null;
+  services?: (string | { name: string })[] | null;
+  controlling_minor_faction?: string | null;
 }
 
 export interface RawSweepSystem {
@@ -120,6 +124,9 @@ export function mapSystem(raw: RawSweepSystem): SweptSystem | null {
         type: s.type ?? null,
         pad: stationPad(s),
         arrival_ls: s.distance_to_arrival ?? null,
+        // System search gives service names; station search gives { name } objects.
+        services: (s.services ?? []).map((x) => (typeof x === "string" ? x : x.name)),
+        owner: s.controlling_minor_faction ?? null,
       })),
     stars: (raw.bodies ?? [])
       .filter((b) => b.type === "Star")
