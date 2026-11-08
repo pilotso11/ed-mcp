@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 import { mapSystem, type RawSweepSystem, type SweptSystem } from "../../src/systems/sweep.js";
-import { groundCzTargets, type GroundCzOptions } from "../../src/systems/groundcz.js";
+import { czDetail, groundCzTargets, type GroundCzOptions } from "../../src/systems/groundcz.js";
+import type { BodyInfo } from "../../src/spansh/client.js";
 
 async function load() {
   const raw = JSON.parse(
@@ -23,6 +24,28 @@ const opts = (o: Partial<GroundCzOptions> = {}): GroundCzOptions => ({
   dockSeconds: (ls, planetary) => 30 + ls / 100 + (planetary ? 90 : 0),
   ...o,
 });
+
+// Maps the dump the same way SpanshClient.systemBodies does.
+async function dumpBodies(): Promise<BodyInfo[]> {
+  const raw = JSON.parse(
+    await readFile(new URL("../fixtures/spansh/dump-njulngan.json", import.meta.url), "utf8"),
+  ).system.bodies as {
+    name: string;
+    bodyId: number;
+    subType?: string;
+    distanceToArrival?: number;
+    parents?: Record<string, number>[];
+    stations?: { name: string }[];
+  }[];
+  return raw.map((b) => ({
+    name: b.name,
+    bodyId: b.bodyId,
+    subType: b.subType ?? null,
+    arrival_ls: b.distanceToArrival ?? 0,
+    parentPlanetId: (b.parents ?? []).map((p) => p.Planet).find((x) => x !== undefined) ?? null,
+    stations: (b.stations ?? []).map((s) => s.name),
+  }));
+}
 
 describe("groundCzTargets", () => {
   it("picks Tesla Terminal in Njulngan and leaves out Seleru Bao", async () => {
@@ -145,3 +168,47 @@ function synthetic(
     stars: [],
   };
 }
+
+describe("czDetail", () => {
+  it("places Tesla Terminal next to Njulngan A 1 and its moon", async () => {
+    const { systems, centre } = await load();
+    const t = groundCzTargets(systems, centre, opts()).targets[0]!;
+    const d = czDetail(t.best, await dumpBodies(), 1);
+    expect(d.drop).toBe("orbital");
+    expect(d.near_body).toBe("Njulngan A 1");
+    expect(d.body_family.map((b) => b.name).sort()).toEqual(["Njulngan A 1", "Njulngan A 1 a"]);
+    expect(d.settlementBodies["Oyekan Chemical Site"]).toBe("Njulngan A 1");
+    expect(d.settlementBodies["Oluwusi's Biological"]).toBe("Njulngan A 1 a");
+  });
+
+  it("says same_body for a planetary port on the settlements' planet", async () => {
+    const { systems, centre } = await load();
+    const t = groundCzTargets(systems, centre, opts({ maxGapLs: 0.05 })).targets[0]!;
+    const d = czDetail(t.best, await dumpBodies(), 0.05);
+    expect(d.drop).toBe("same_body");
+    expect(d.near_body).toBe("Njulngan A 1");
+  });
+
+  it("says gap_only when no body is close enough to an orbital station", () => {
+    const st = {
+      name: "F",
+      type: "Coriolis Starport",
+      pad: "L" as const,
+      arrival_ls: 500,
+      planetary: false,
+      dock_s: 60,
+      settlements: [{ name: "C", owner: "A", arrival_ls: 500.5, gap_ls: 0.5 }],
+    };
+    const bodies = [
+      {
+        name: "P",
+        bodyId: 3,
+        subType: "Icy body",
+        arrival_ls: 900,
+        parentPlanetId: null,
+        stations: ["C"],
+      },
+    ];
+    expect(czDetail(st, bodies, 1).drop).toBe("gap_only");
+  });
+});

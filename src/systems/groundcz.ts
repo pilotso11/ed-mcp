@@ -1,3 +1,4 @@
+import type { BodyInfo } from "../spansh/client.js";
 import { PLANETARY } from "../routes/legs.js";
 import { distanceLy, type Coords, type Pad, type SweptStation, type SweptSystem } from "./sweep.js";
 
@@ -133,4 +134,54 @@ export function groundCzTargets(
       a.distanceLy - b.distanceLy,
   );
   return { targets, leftOut };
+}
+
+export interface CzDetail {
+  drop: "same_body" | "orbital" | "gap_only";
+  near_body: string | null;
+  settlementBodies: Record<string, string>;
+  body_family: { name: string; subType: string | null; settlements: number }[];
+}
+
+const isStar = (b: BodyInfo) => /Star$/.test(b.subType ?? "");
+
+export function czDetail(best: CzStation, bodies: BodyInfo[], maxGapLs: number): CzDetail {
+  const bodyOf = (station: string) => bodies.find((b) => b.stations.includes(station)) ?? null;
+  const settlementBodies: Record<string, string> = {};
+  for (const s of best.settlements) {
+    const b = bodyOf(s.name);
+    if (b) settlementBodies[s.name] = b.name;
+  }
+  const counts = new Map<string, number>();
+  for (const name of Object.values(settlementBodies)) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const body_family = bodies
+    .filter((b) => counts.has(b.name))
+    .map((b) => ({ name: b.name, subType: b.subType, settlements: counts.get(b.name)! }));
+  const onBody = (b: BodyInfo | null) => !!b && counts.has(b.name);
+
+  if (best.planetary) {
+    const own = bodyOf(best.name);
+    return {
+      drop: onBody(own) ? "same_body" : "gap_only",
+      near_body: own?.name ?? null,
+      settlementBodies,
+      body_family,
+    };
+  }
+  // Spansh does not record what an orbital station orbits, so use the body nearest to it.
+  const near = bodies
+    .filter((b) => !isStar(b) && Math.abs(b.arrival_ls - best.arrival_ls) <= maxGapLs)
+    .sort(
+      (a, b) => Math.abs(a.arrival_ls - best.arrival_ls) - Math.abs(b.arrival_ls - best.arrival_ls),
+    )[0];
+  if (!near) return { drop: "gap_only", near_body: null, settlementBodies, body_family };
+  // The planet and its moons, or, when the nearest body is a moon, its planet and sibling moons.
+  const root = near.parentPlanetId ?? near.bodyId;
+  const family = bodies.filter((b) => b.bodyId === root || b.parentPlanetId === root);
+  return {
+    drop: family.some(onBody) ? "orbital" : "gap_only",
+    near_body: near.name,
+    settlementBodies,
+    body_family,
+  };
 }
