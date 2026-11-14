@@ -14,13 +14,16 @@ import {
   type PlanInput,
   type PlanItem,
   type PlanRoute,
+  type Stop,
 } from "./schema.js";
+import { findStop, nextStop, type NextStop } from "./stops.js";
 
 export interface PlanSummary {
   id: string;
   name: string;
   items: number;
   done: number;
+  next_stop: NextStop | null;
   updated_at: string;
 }
 
@@ -64,6 +67,7 @@ export class PlanStore {
       name: p.name,
       items: p.items.length,
       done: p.items.filter((i) => i.status === "done" || i.status === "skipped").length,
+      next_stop: nextStop(p),
       updated_at: p.updated_at,
     }));
   }
@@ -83,11 +87,23 @@ export class PlanStore {
       if (idx >= 0 && opts.overwrite === false) {
         throw new PlanExistsError(parsed.data.id);
       }
-      const plan: Plan = {
+      const old = idx >= 0 ? data.plans[idx]! : undefined;
+      const plan: Plan = cleanRoute({
         ...parsed.data,
-        created_at: idx >= 0 ? data.plans[idx]!.created_at : stamp,
+        created_at: old ? old.created_at : stamp,
         updated_at: stamp,
-      };
+      });
+      // The same saved route with other stops (a stop inserted, removed or moved) has indexes
+      // that point at the wrong stops; without them, the route is matched by name. A new route,
+      // for example from plan_import, carries indexes for its own stops and keeps them.
+      const route = plan.route;
+      if (
+        route?.stop_indexes &&
+        old?.route?.computed_at === route.computed_at &&
+        !sameStops(old.stops, plan.stops)
+      ) {
+        delete route.stop_indexes;
+      }
       if (idx >= 0) data.plans[idx] = plan;
       else data.plans.push(plan);
       return plan;
@@ -111,10 +127,35 @@ export class PlanStore {
     });
   }
 
-  setRoute(planId: string, route: PlanRoute): Promise<Plan> {
+  updateStop(
+    planId: string,
+    ref: { label?: string; index?: number },
+    patch: { status?: Stop["status"]; notes?: string },
+  ): Promise<Plan> {
     return this.mutate((data) => {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      const stop = plan.stops[findStop(plan, ref)]!;
+      if (patch.status !== undefined) stop.status = patch.status;
+      if (patch.notes !== undefined) stop.notes = patch.notes;
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  /**
+   * Saves a computed route. With `stops`, the stops the route was computed from, it refuses when
+   * the plan's stops have changed since, because the route's stop_indexes would point at others.
+   */
+  setRoute(planId: string, route: PlanRoute, opts: { stops?: Stop[] } = {}): Promise<Plan> {
+    return this.mutate((data) => {
+      const plan = data.plans.find((p) => p.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      if (opts.stops && !sameStops(opts.stops, plan.stops)) {
+        throw new UserError(
+          `The stops of plan "${planId}" changed while the route was computed; run route_stops again to save it`,
+        );
+      }
       plan.route = route;
       plan.updated_at = this.now().toISOString();
       return plan;
@@ -147,6 +188,7 @@ export class PlanStore {
     if (!parsed.success) {
       throw new UserError(`Plan file ${this.file} is invalid: ${z.prettifyError(parsed.error)}`);
     }
+    parsed.data.plans.forEach(cleanRoute);
     return parsed.data;
   }
 
@@ -254,6 +296,25 @@ export class PlanStore {
       console.error(`Could not write Markdown plan copies to ${dir}: ${(err as Error).message}`);
     }
   }
+}
+
+// Progress (status, notes) may change during a long route_stops call; the places may not.
+// A hand-edited or older file can hold stop indexes that do not fit the plan. They are dropped
+// rather than failing the load: the route then falls back to name matching.
+function cleanRoute(plan: Plan): Plan {
+  const route = plan.route;
+  if (!route?.stop_indexes) return plan;
+  if (route.stop_indexes.length !== route.stops.length) {
+    delete route.stop_indexes;
+  } else {
+    route.stop_indexes = route.stop_indexes.map((e) => e.filter((i) => i < plan.stops.length));
+  }
+  return plan;
+}
+
+const stopKey = (s: Stop) => JSON.stringify([s.system, s.station, s.body, s.label, s.purpose]);
+function sameStops(a: Stop[], b: Stop[]): boolean {
+  return a.length === b.length && a.every((s, i) => stopKey(s) === stopKey(b[i]!));
 }
 
 const PRUNABLE = /^[a-z0-9][a-z0-9-]{0,63}\.md$/;

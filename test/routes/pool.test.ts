@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UserError } from "../../src/errors.js";
 import { buildPool, type StopEntry } from "../../src/routes/pool.js";
-import type { Plan } from "../../src/plans/schema.js";
+import { StopSchema, type Plan, type PlanInput } from "../../src/plans/schema.js";
 
 const ENGINEERS: Record<string, { name: string; system: string; base: string }> = {
   "felicity farseer": { name: "Felicity Farseer", system: "Deciat", base: "Farseer Inc" },
@@ -15,14 +15,15 @@ const catalog = {
   },
 };
 
-const plan = (over: Partial<Plan> = {}): Plan => ({
+// Stops as a caller writes them; the schema fills in defaults such as status.
+const plan = (over: Omit<Partial<Plan>, "stops"> & Pick<PlanInput, "stops"> = {}): Plan => ({
   id: "p",
   name: "P",
   items: [],
-  stops: [],
   created_at: "",
   updated_at: "",
   ...over,
+  stops: (over.stops ?? []).map((s) => StopSchema.parse(s)),
 });
 
 const item = (id: string, engineer: string, status = "todo", description = id) =>
@@ -62,6 +63,27 @@ describe("buildPool", () => {
     const pool = buildPool({ ...base, plan: p }, catalog);
     expect(pool.stops).toHaveLength(1);
     expect(pool.stops[0]).toMatchObject({ purpose: "a; b", kind: "engineer" });
+    expect(pool.stops[0]!.planStops).toEqual([0, 1, 2]);
+  });
+
+  it("keeps the plan index of each stop and leaves out done and skipped stops", () => {
+    const p = plan({
+      stops: [
+        { system: "Sol", station: "Daedalus", purpose: "a", status: "done" },
+        { system: "Sol", body: "Sol 3", purpose: "b" },
+        { system: "Sol", body: "Sol 4", purpose: "c", status: "skipped" },
+        { system: "Sol", body: "Sol 5", purpose: "d" },
+      ],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops.map((s) => [s.label, s.planStops])).toEqual([
+      ["Sol 3", [1]],
+      ["Sol 5", [3]],
+    ]);
+    // Stops given to route_stops directly are not plan stops.
+    expect(buildPool({ ...base, stops: [{ system: "Sol" }] }, catalog).stops[0]!.planStops).toEqual(
+      [],
+    );
   });
 
   it("names the plan item with an unknown engineer", () => {

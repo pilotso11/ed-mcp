@@ -1,13 +1,14 @@
 import type { Catalog } from "../catalog/catalog.js";
 import { UserError } from "../errors.js";
-import type { Plan } from "../plans/schema.js";
+import type { Plan, Stop } from "../plans/schema.js";
 
-type Kind = "shop" | "trader" | "engineer" | "other";
+type Kind = NonNullable<Stop["kind"]>;
 
 export interface StopInput {
   label?: string;
   system?: string;
   station?: string;
+  body?: string;
   engineer?: string;
   kind?: Kind;
   after?: string[];
@@ -22,10 +23,14 @@ export interface PoolStop {
   aliases: string[];
   system: string;
   station: string | null;
+  body: string | null;
   engineer: { name: string; system: string; base: string } | null;
   kind: Kind;
   purpose: string | null;
+  notes: string | null;
   after: string[] | undefined;
+  // Indexes in the plan's stops that this stop comes from.
+  planStops: number[];
 }
 
 export interface Pool {
@@ -76,7 +81,10 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
   };
 
   const byKey = new Map<string, PoolStop>();
-  const make = (input: StopInput, over: { purpose?: string; kind?: Kind } = {}): PoolStop => {
+  const make = (
+    input: StopInput,
+    over: { purpose?: string; kind?: Kind; notes?: string; planStop?: number } = {},
+  ): PoolStop => {
     let engineer: PoolStop["engineer"] = null;
     if (input.engineer) engineer = resolveEngineer(input.engineer);
     const system = input.system ?? engineer?.system;
@@ -87,15 +95,19 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
     }
     const station = input.station ?? (input.system ? undefined : engineer?.base);
     // An engineer is the place of their base, so a station entry there merges with them.
+    // Without a station, each body in a system is its own place.
     const key = engineer
       ? `${lc(engineer.system)}|${lc(engineer.base)}`
-      : `${lc(system)}|${lc(station ?? "")}`;
-    const name = input.label ?? engineer?.name ?? input.station ?? system;
+      : `${lc(system)}|${lc(station ?? "")}${!station && input.body ? `|${lc(input.body)}` : ""}`;
+    const name = input.label ?? engineer?.name ?? input.station ?? input.body ?? system;
     const hit = byKey.get(key);
     if (hit) {
       if (!namesOf(hit).some((n) => lc(n) === lc(name))) hit.aliases.push(unique(name));
       if (input.after) hit.after = [...new Set([...(hit.after ?? []), ...input.after])];
       hit.purpose = joinPurposes(hit.purpose, over.purpose ?? null);
+      hit.notes = joinPurposes(hit.notes, over.notes ?? null);
+      hit.body ??= input.body ?? null;
+      if (over.planStop !== undefined) hit.planStops.push(over.planStop);
       hit.engineer ??= engineer;
       if (engineer || (over.kind ?? input.kind) === "engineer") hit.kind = "engineer";
       return hit;
@@ -106,10 +118,13 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       aliases: [],
       system,
       station: station ?? null,
+      body: input.body ?? null,
       engineer,
       kind: over.kind ?? input.kind ?? (engineer ? "engineer" : "other"),
       purpose: over.purpose ?? null,
+      notes: over.notes ?? null,
       after: input.after,
+      planStops: over.planStop === undefined ? [] : [over.planStop],
     };
     byKey.set(key, stop);
     return stop;
@@ -117,10 +132,18 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
 
   const entries: StopEntry[] = a.stops ?? [];
   const candidates: Candidate[] = [];
+  // Names of finished plan stops: only and skip may still name them, as a saved selection does.
+  const finished = new Map<string, string>();
 
   if (a.plan) {
+    // Stops already visited or dropped stay in the plan as a record but leave the route.
+    const planStops = a.plan.stops.filter((s) => s.status !== "done" && s.status !== "skipped");
+    for (const s of a.plan.stops) {
+      if (s.status !== "done" && s.status !== "skipped") continue;
+      for (const n of [s.label, s.station, s.body, s.system]) if (n) finished.set(lc(n), n);
+    }
     const named = new Set<string>();
-    for (const s of a.plan.stops) if (s.kind === "engineer" && s.label) named.add(lc(s.label));
+    for (const s of planStops) if (s.kind === "engineer" && s.label) named.add(lc(s.label));
     for (const e of entries) {
       if ("one_of" in e) continue;
       if (e.engineer) named.add(lc(e.engineer));
@@ -140,7 +163,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
 
     // A plan stop of kind engineer with no station, in the system of an item's engineer, is that
     // engineer under another label. It gets their base so that the two merge into one stop.
-    const baseFor = new Map<(typeof a.plan.stops)[number], { base: string; engineer: string }>();
+    const baseFor = new Map<Stop, { base: string; engineer: string }>();
     if (catalog) {
       for (const [key, { name }] of byEngineer) {
         let e: ReturnType<typeof resolveEngineer>;
@@ -149,7 +172,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
         } catch {
           continue; // Reported with the item's id below.
         }
-        const here = a.plan.stops.filter(
+        const here = planStops.filter(
           (s) =>
             s.kind === "engineer" &&
             !s.station &&
@@ -164,18 +187,19 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       }
     }
 
-    for (const s of a.plan.stops) {
+    for (const s of planStops) {
       candidates.push({
         fixed: make(
           {
             label: s.label,
             system: s.system,
             station: s.station ?? baseFor.get(s)?.base,
+            body: s.body,
             engineer: baseFor.get(s)?.engineer,
             kind: s.kind,
             after: s.after,
           },
-          { purpose: s.purpose },
+          { purpose: s.purpose, notes: s.notes, planStop: a.plan.stops.indexOf(s) },
         ),
       });
     }
@@ -219,6 +243,10 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
     }
   }
   for (const l of [...(a.only ?? []), ...(a.skip ?? [])]) {
+    if (!known.has(lc(l)) && finished.has(lc(l))) {
+      notes.push(`"${l}" is done or skipped in the plan, so the route leaves it out.`);
+      continue;
+    }
     if (!known.has(lc(l))) {
       throw new UserError(`Unknown stop label "${l}". Known: ${[...known.values()].join(", ")}`);
     }

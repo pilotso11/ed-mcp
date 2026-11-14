@@ -10,6 +10,7 @@ import { InaraClient } from "./inara/client.js";
 import { EdsmClient } from "./edsm/client.js";
 import { SpanshClient } from "./spansh/client.js";
 import { SweepCache } from "./systems/sweep-cache.js";
+import { ActivityStore } from "./activity/store.js";
 import { PlanStore } from "./plans/store.js";
 import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
@@ -54,7 +55,8 @@ export function buildDeps(
     ? `ED_MCP_PLANS is no longer used. Plans are now in ${config.plansFile}. Move your old plans file there, or use plan_import, then remove ED_MCP_PLANS.`
     : undefined;
   const syncWarnings = sync
-    ? () => sync.warnings([config.plansFile, config.prefsFile, config.secretsFile])
+    ? () =>
+        sync.warnings([config.plansFile, config.prefsFile, config.activityFile, config.secretsFile])
     : undefined;
   const inaraCache = new TtlCache<unknown>("inara", 60_000);
   caches.register(inaraCache);
@@ -121,6 +123,10 @@ export function buildDeps(
     prefs: new PreferencesStore(config.prefsFile, {
       lockDir: lockFor(config.prefsFile),
       guard: guardFor(config.prefsFile),
+    }),
+    activity: new ActivityStore(config.activityFile, undefined, {
+      lockDir: lockFor(config.activityFile),
+      guard: guardFor(config.activityFile),
     }),
     sync,
     syncWarnings,

@@ -41,6 +41,7 @@ describe("tool annotations", () => {
       .map((t) => t.name)
       .sort();
     expect(destructive).toEqual([
+      "activity_set",
       "capi_logout",
       "plan_delete",
       "plan_export",
@@ -55,6 +56,7 @@ describe("tool annotations", () => {
       .map((t) => t.name)
       .sort();
     expect(writing).toEqual([
+      "activity_set",
       "cache_refresh",
       "capi_login",
       "capi_logout",
@@ -62,6 +64,7 @@ describe("tool annotations", () => {
       "plan_export",
       "plan_import",
       "plan_update_item",
+      "plan_update_stop",
       "plan_upsert",
       "prefs_set",
       "route_stops",

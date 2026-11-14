@@ -4,7 +4,8 @@ import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { planToMarkdown } from "../plans/markdown.js";
-import { ItemStatus, PlanInputSchema, type PlanInput } from "../plans/schema.js";
+import { ItemStatus, PlanInputSchema, StopStatus, type PlanInput } from "../plans/schema.js";
+import { nextStop } from "../plans/stops.js";
 import { PlanExistsError, type PlanStore } from "../plans/store.js";
 import { UserError } from "../errors.js";
 import { resolveUserPath, sameFile } from "../paths.js";
@@ -62,7 +63,9 @@ export function registerPlanTools(
         idempotentHint: true,
         openWorldHint: false,
       },
-      description: "List saved build plans with item counts and progress.",
+      description:
+        "List saved plans with item counts, progress and next_stop (the first stop still to do). " +
+        "A plan is a ship build or a route, or both.",
     },
     wrapWarn(async () => plans.list(), warnings),
   );
@@ -77,10 +80,15 @@ export function registerPlanTools(
         idempotentHint: true,
         openWorldHint: false,
       },
-      description: "Get a saved plan by id.",
+      description:
+        "Get a saved plan (a build or a route) by id. next_stop is the first stop still to do, " +
+        "in the saved route's order when there is one, else in the order of stops.",
       inputSchema: { id: z.string() },
     },
-    wrapWarn(async ({ id }: { id: string }) => plans.get(id), warnings),
+    wrapWarn(async ({ id }: { id: string }) => {
+      const plan = await plans.get(id);
+      return { ...plan, next_stop: nextStop(plan) };
+    }, warnings),
   );
 
   server.registerTool(
@@ -94,8 +102,10 @@ export function registerPlanTools(
         openWorldHint: false,
       },
       description:
-        "Create or replace a build plan. Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision); " +
-        "stops are the places to visit (optionally with label, kind and after rules); route is the saved visiting order. Replacing keeps created_at.",
+        "Create or replace a plan. A plan is a ship build, a route, or both: for example system X, planet Y for bios, then planet Z, then station A to hand in. " +
+        "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
+        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a label, a kind, a status (todo, done, skipped), notes and after rules. " +
+        "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },
     wrapWarn(
@@ -145,6 +155,64 @@ export function registerPlanTools(
           ].join(", ");
           throw new UserError(
             `Item "${a.item_id}" in plan "${a.plan_id}" was not updated (${changes}). ${reason(err)}`,
+          );
+        }
+      },
+      warnings,
+    ),
+  );
+
+  server.registerTool(
+    "plan_update_stop",
+    {
+      annotations: {
+        title: "Update Plan Stop",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      description:
+        "Set the status (todo, done, skipped) and/or notes of one stop in a plan. Name the stop by " +
+        "label (its label, else its station, body or system) or by index in the plan's stops, from 0; give exactly one. " +
+        "Mark a stop done when the player has finished there; returns the plan with the new next_stop.",
+      inputSchema: {
+        plan_id: z.string(),
+        label: z.string().min(1).optional(),
+        index: z.number().int().min(0).optional(),
+        status: StopStatus.optional(),
+        notes: z.string().optional(),
+      },
+    },
+    wrapWarn(
+      async (a: {
+        plan_id: string;
+        label?: string;
+        index?: number;
+        status?: z.infer<typeof StopStatus>;
+        notes?: string;
+      }) => {
+        if ((a.label === undefined) === (a.index === undefined)) {
+          throw new UserError("Give exactly one of label or index to name the stop");
+        }
+        if (a.status === undefined && a.notes === undefined) {
+          throw new UserError("Give status or notes to update");
+        }
+        const which = a.label !== undefined ? `"${a.label}"` : String(a.index);
+        try {
+          const plan = await plans.updateStop(
+            a.plan_id,
+            { label: a.label, index: a.index },
+            { status: a.status, notes: a.notes },
+          );
+          return { ...plan, next_stop: nextStop(plan) };
+        } catch (err) {
+          const changes = [
+            ...(a.status !== undefined ? [`status: ${a.status}`] : []),
+            ...(a.notes !== undefined ? ["notes changed"] : []),
+          ].join(", ");
+          throw new UserError(
+            `Stop ${which} in plan "${a.plan_id}" was not updated (${changes}). ${reason(err)}`,
           );
         }
       },

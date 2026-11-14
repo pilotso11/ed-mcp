@@ -124,6 +124,7 @@ export function registerSettingsTools(
           await existing(localDir, [
             "plans.json",
             "preferences.json",
+            "activity.json",
             "secrets.json",
             "secrets.enc",
           ])

@@ -60,6 +60,78 @@ describe("plan tools", () => {
     expect((await callTool(client, "plan_list")).json).toEqual([]);
   });
 
+  it("keeps a route plan's stops, gives next_stop and marks stops done", async () => {
+    const { client } = await setup();
+    const route = {
+      id: "bios",
+      name: "HIP 87621 bios",
+      stops: [
+        { system: "HIP 87621", body: "HIP 87621 2 b a", purpose: "bios", kind: "exobiology" },
+        { system: "HIP 87621", body: "HIP 87621 3 a", purpose: "bios", kind: "exobiology" },
+        { system: "Sol", station: "Daedalus", purpose: "sell", kind: "hand_in", label: "sell" },
+      ],
+    };
+    expect((await callTool(client, "plan_upsert", { plan: route })).isError).toBe(false);
+    const got = (await callTool(client, "plan_get", { id: "bios" })).json as any;
+    expect(got.stops.map((s: { status: string }) => s.status)).toEqual(["todo", "todo", "todo"]);
+    expect(got.next_stop).toMatchObject({ index: 0, body: "HIP 87621 2 b a" });
+
+    const done = await callTool(client, "plan_update_stop", {
+      plan_id: "bios",
+      label: "HIP 87621 2 b a",
+      status: "done",
+    });
+    expect(done.json).toMatchObject({
+      stops: [{ status: "done" }, { status: "todo" }, { status: "todo" }],
+      next_stop: { index: 1, body: "HIP 87621 3 a" },
+    });
+    const noted = await callTool(client, "plan_update_stop", {
+      plan_id: "bios",
+      index: 1,
+      status: "skipped",
+      notes: "No Osseus here",
+    });
+    expect(noted.json).toMatchObject({ next_stop: { index: 2, label: "sell" } });
+    expect((await callTool(client, "plan_list")).json).toMatchObject([
+      { id: "bios", next_stop: { index: 2, label: "sell" } },
+    ]);
+    const md = (await callTool(client, "plan_export", { id: "bios" })).json as any;
+    expect(md.markdown).toContain("2. [-] **exobiology** HIP 87621 — HIP 87621 3 a: bios");
+    expect(md.markdown).toContain("   - Notes: No Osseus here");
+    expect(md.markdown).toContain("3. [ ] **hand_in** Sol — Daedalus: sell ← next");
+  });
+
+  it("says what plan_update_stop did not change", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", { plan });
+    const none = await callTool(client, "plan_update_stop", { plan_id: "cutter", index: 0 });
+    expect(none).toMatchObject({ isError: true, text: "Give status or notes to update" });
+    const one = "Give exactly one of label or index to name the stop";
+    for (const ref of [{}, { label: "Sol", index: 0 }]) {
+      const r = await callTool(client, "plan_update_stop", {
+        plan_id: "cutter",
+        ...ref,
+        notes: "x",
+      });
+      expect(r).toMatchObject({ isError: true, text: one });
+    }
+    const empty = await callTool(client, "plan_update_stop", {
+      plan_id: "cutter",
+      label: "",
+      notes: "x",
+    });
+    expect(empty.isError).toBe(true);
+    const missing = await callTool(client, "plan_update_stop", {
+      plan_id: "cutter",
+      label: "Sol",
+      status: "done",
+    });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toBe(
+      'Stop "Sol" in plan "cutter" was not updated (status: done). Plan "cutter" has no stops.',
+    );
+  });
+
   describe("failed saves", () => {
     const failing = (message = "Sync folder is unavailable") => {
       const dir = path.join(os.tmpdir(), "plan-fail");
@@ -305,7 +377,10 @@ describe("plan tools", () => {
   it("exports JSON inline and to a file", async () => {
     const { client, dir } = await setup();
     await callTool(client, "plan_upsert", { plan });
-    const stored = (await callTool(client, "plan_get", { id: "cutter" })).json;
+    const got = (await callTool(client, "plan_get", { id: "cutter" })).json as object;
+    // next_stop is worked out for plan_get, not stored.
+    const { next_stop, ...stored } = got as { next_stop: unknown };
+    expect(next_stop).toBeNull();
     const inline = await callTool(client, "plan_export", { id: "cutter", format: "json" });
     expect(inline.json).toEqual({ json: stored });
 

@@ -24,7 +24,7 @@ const plan: Plan = {
       notes: "pin blueprint",
     },
   ],
-  stops: [{ system: "Deciat", station: "Farseer Inc", purpose: "FSD G5" }],
+  stops: [{ system: "Deciat", station: "Farseer Inc", purpose: "FSD G5", status: "todo" }],
   created_at: "2026-10-11T00:00:00.000Z",
   updated_at: "2026-10-11T01:00:00.000Z",
 };
@@ -48,7 +48,7 @@ describe("planToMarkdown", () => {
         "",
         "## Stops",
         "",
-        "1. Deciat — Farseer Inc: FSD G5",
+        "1. [ ] Deciat — Farseer Inc: FSD G5 ← next",
         "",
       ].join("\n"),
     );
@@ -91,6 +91,37 @@ describe("planToMarkdown", () => {
       },
     });
     expect(md).toContain("From Sol; plotted. Total 12.5 min");
+  });
+
+  it("shows each stop's body, kind, status and notes, and marks the next stop", () => {
+    const md = planToMarkdown({
+      ...plan,
+      stops: [
+        { system: "HIP 87621", body: "HIP 87621 2 b a", purpose: "bios", status: "done" },
+        {
+          system: "HIP 87621",
+          body: "HIP 87621 3 a",
+          purpose: "bios",
+          kind: "exobiology",
+          status: "todo",
+          notes: "Osseus on the slopes",
+        },
+        { system: "HIP 87621", station: "Ray Port", purpose: "sell", status: "skipped" },
+        { system: "Sol", station: "Daedalus", purpose: "hand in", kind: "hand_in", status: "todo" },
+      ],
+    });
+    expect(md).toContain(
+      [
+        "## Stops",
+        "",
+        "1. [x] HIP 87621 — HIP 87621 2 b a: bios",
+        "2. [ ] **exobiology** HIP 87621 — HIP 87621 3 a: bios ← next",
+        "   - Notes: Osseus on the slopes",
+        "3. [-] HIP 87621 — Ray Port: sell",
+        "4. [ ] **hand_in** Sol — Daedalus: hand in",
+        "",
+      ].join("\n"),
+    );
   });
 
   it("omits the Route section without a saved route", () => {

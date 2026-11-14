@@ -38,7 +38,7 @@ For installation and setup, see the [README](../README.md).
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `missions_route`           | Best stop order for accepted missions, with deadlines        |
-| `route_stops`              | Best order for a build's shops, traders and engineers        |
+| `route_stops`              | Best order for a plan's stops: shops, engineers, bodies      |
 | `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
 | `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
 | `trade_loops`              | Repeatable trade loops, ranked by sustained profit per hour  |
@@ -47,12 +47,15 @@ For installation and setup, see the [README](../README.md).
 | `ground_cz_targets`        | Likely ground conflict zones, with the best Frontline stop   |
 | `prefs_get`                | Get your stored travel preferences                           |
 | `prefs_set`                | Change stored travel preferences                             |
+| `activity_get`             | What you were last doing, and where you are now              |
+| `activity_set`             | Save what you are doing now                                  |
 | `cache_refresh`            | Clear cached data or refresh game data                       |
 | `cache_status`             | Cache and game data status                                   |
 | `plan_list`                | List saved plans                                             |
 | `plan_get`                 | Get a plan                                                   |
 | `plan_upsert`              | Create or replace a plan                                     |
 | `plan_update_item`         | Update one plan item                                         |
+| `plan_update_stop`         | Mark a plan stop done or skipped, or add notes               |
 | `plan_delete`              | Delete a plan                                                |
 | `plan_export`              | Export a plan as Markdown or JSON                            |
 | `plan_import`              | Load a plan from a JSON file                                 |
@@ -167,14 +170,35 @@ Assumptions and limits:
 - The tool does not model heat, fuel scoop rates, damage falloff or target hardness.
 - The fixed values of experimental effects come from coriolis-data `modifierActions.json`. If the catalog does not have that file, experimental effects from changes and from builds without modifier values are left out, and a note names each slot. The next catalog refresh downloads the file.
 
+## Plans
+
+A plan is a ship build, a route, or both. For example: system X, planet Y for bios, then planet Z, then station A to hand in.
+
+- `items`: things to buy, engineer, unlock, gather or trade, and refits. Each has a `status`: `todo`, `in_progress`, `done` or `skipped`.
+- `stops`: places to visit. A stop has a `system`, a `purpose`, and optionally a `station`, a `body` (planet or moon), a `label`, a `kind`, `after` rules and `notes`. The kinds are `shop`, `trader`, `engineer`, `exobiology`, `exploration`, `combat`, `mission`, `hand_in`, `trade`, `mining`, `fuel` and `other`. Each stop has a `status`: `todo` (the default), `done` or `skipped`.
+- `route`: the order that `route_stops` saved. Without a route, the order of `stops` is the visit order.
+
+`plan_get` and `plan_list` add `next_stop`: the first stop with status `todo`, in route order when the plan has a route. It has the stop's `index` in `stops`, from 0. A route saved by `route_stops` keeps `stop_indexes`, the plan stops of each route entry, so the order is exact. When the indexes no longer fit, ed-mcp matches the route's names to the stops instead. That happens for a route saved before `stop_indexes`, and when `plan_upsert` keeps the saved route but inserts, removes or moves stops. Stops that the route does not visit come after the route's stops.
+
+`plan_update_stop` sets the `status` and/or `notes` of one stop. Name the stop by `label` or by `index`, not both. A label matches the stop's label, or, for a stop without one, its station, body or system. If more than one stop matches, give the index.
+
+Plans saved before stops had a status load unchanged: every stop is `todo`.
+
+## Activity
+
+The activity note says what you were last doing, so a new conversation can pick it up. It is `activity.json`, next to `plans.json`.
+
+- `activity_set`: replaces the note. Give `kind` and `summary` (at most 500 characters). `plan_id` names the active plan. The kinds are `exobiology`, `exploration`, `massacre`, `missions`, `hauling`, `trading`, `mining`, `engineering`, `combat` and `other`. `clear: true` deletes the note.
+- `activity_get`: the note, its age in minutes (`age_minutes`), and your location from the journal (`location`), so Claude can tell when you have moved on. With no note, `activity` is `null` and a `note` says so. If the journal cannot be read, `location` is `null` and `location_note` says why.
+
 ## Build routes
 
-`route_stops` puts the stops for a build in the fastest order: shops, material traders and engineers. It takes the stops from a plan (`plan_id`), from a list (`stops`), or both. It uses Spansh coordinates and the travel model, as `missions_route` does.
+`route_stops` puts the stops of a plan in the fastest order: shops, material traders and engineers for a build, or the systems, bodies and stations of a route. It takes the stops from a plan (`plan_id`), from a list (`stops`), or both. It uses Spansh coordinates and the travel model, as `missions_route` does.
 
 Inputs:
 
-- `plan_id`: load the stops from a plan. Each engineer named in an open plan item gets a stop.
-- `stops`: stops to add to the pool, or the whole pool without `plan_id`. A stop has an optional `label`, a `system` and `station` or an `engineer`, a `kind` (`shop`, `trader`, `engineer` or `other`) and an `after` list. A `{ label, one_of: [...] }` entry is a group of alternatives.
+- `plan_id`: load the stops from a plan. Each engineer named in an open plan item gets a stop. Plan stops with status `done` or `skipped` are left out.
+- `stops`: stops to add to the pool, or the whole pool without `plan_id`. A stop has an optional `label`, a `system` and `station` or `body`, or an `engineer`, a `kind` (see [Plans](#plans)) and an `after` list. Without a station, each body in a system is its own stop. A `{ label, one_of: [...] }` entry is a group of alternatives.
 - `only` and `skip`: labels to keep or leave out, so one plan can serve several trips. A label that is not in the pool is an error.
 - `from`: the start system. The default is the journal location.
 - `return_to`: a system and optional station to add as the final stop.
@@ -191,7 +215,7 @@ Shared candidates: one place can meet several groups, for example an engineer wh
 
 Plot: with `plot: true`, the tool plots each leg of the chosen route with the Spansh neutron plotter, at your jump range. A plotted leg uses the plotted number of jumps, and the refuel stops for that number. If a plotted leg differs from its estimate by more than 20% and by at least 2 jumps, the tool solves again with the plotted times and plots only the new legs. It stops after 2 rounds. All plots share a time budget of about 40 s for the call, so the call ends before MCP clients give up. If Spansh has not finished a leg, the budget runs out before a leg, or Spansh has a network or server error while the leg plots, the tool keeps the estimate, sets `plotted: false` on that stop and adds the note "Spansh is still plotting; call again to finish." Call again to collect the plot. If Spansh cannot plot a leg, for example because it does not know a system or rejects the request, the tool keeps the estimate, sets `plotted: false` and adds the note "Spansh could not plot the leg to <label>: <error>; the estimate is used." Calling again does not help for that leg. Without `plot`, each leg longer than 200 LY gets a note, because a neutron route or a detour can change its time.
 
-The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `meets` (the groups that this visit meets), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. Stops in permit-locked systems stay in the route, because you chose them. A note such as "BetaShop is in a permit-locked system." names each one, whatever the `permit_systems` setting. For the `return_to` stop, the note names the system: "return_to (Sol) is in a permit-locked system." A saved route has `plotted: true` only if every leg was plotted. `plan_export` shows the saved route with its start and whether it was plotted or is an estimate.
+The result lists the `stops` in order, each with `labels`, `system`, `station`, `engineer`, `kind`, `purpose`, `body` and `notes` (when the stop has them), `meets` (the groups that this visit meets), `jumps`, `leg_min`, `arrive_min` and (with `plot`) `plotted`. It also gives `total_min`, `chosen`, `runner_up`, `combinations`, `rules_applied`, `applied_preferences`, `notes`, `warnings` and `saved`. Stops in permit-locked systems stay in the route, because you chose them. A note such as "BetaShop is in a permit-locked system." names each one, whatever the `permit_systems` setting. For the `return_to` stop, the note names the system: "return_to (Sol) is in a permit-locked system." A saved route has `plotted: true` only if every leg was plotted. `plan_export` shows the saved route with its start and whether it was plotted or is an estimate.
 
 ## Trading
 
