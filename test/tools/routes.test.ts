@@ -226,6 +226,14 @@ describe("route_stops", () => {
     await callTool(client, "plan_update_stop", { plan_id: "p", index: 0, status: "done" });
     got = (await callTool(client, "plan_get", { id: "p" })).json as any;
     expect(got.next_stop).toMatchObject({ index: 2 });
+    // The same selection again: the finished stop is left out with a note, not an error.
+    const again = await callTool(client, "route_stops", {
+      ...range,
+      plan_id: "p",
+      only: ["Alpha Port", "Lock Base"],
+    });
+    expect(labels(again.json as Record<string, any>)).toEqual(["Lock Base"]);
+    expect(JSON.stringify(again.json)).toMatch(/Alpha Port.{0,4} is done or skipped/);
   });
 
   it("saves both plan stops of a merged visit and follows them for next_stop", async () => {

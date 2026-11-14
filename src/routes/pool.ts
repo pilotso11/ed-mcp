@@ -132,10 +132,16 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
 
   const entries: StopEntry[] = a.stops ?? [];
   const candidates: Candidate[] = [];
+  // Names of finished plan stops: only and skip may still name them, as a saved selection does.
+  const finished = new Map<string, string>();
 
   if (a.plan) {
     // Stops already visited or dropped stay in the plan as a record but leave the route.
     const planStops = a.plan.stops.filter((s) => s.status !== "done" && s.status !== "skipped");
+    for (const s of a.plan.stops) {
+      if (s.status !== "done" && s.status !== "skipped") continue;
+      for (const n of [s.label, s.station, s.body, s.system]) if (n) finished.set(lc(n), n);
+    }
     const named = new Set<string>();
     for (const s of planStops) if (s.kind === "engineer" && s.label) named.add(lc(s.label));
     for (const e of entries) {
@@ -237,6 +243,10 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
     }
   }
   for (const l of [...(a.only ?? []), ...(a.skip ?? [])]) {
+    if (!known.has(lc(l)) && finished.has(lc(l))) {
+      notes.push(`"${l}" is done or skipped in the plan, so the route leaves it out.`);
+      continue;
+    }
     if (!known.has(lc(l))) {
       throw new UserError(`Unknown stop label "${l}". Known: ${[...known.values()].join(", ")}`);
     }
