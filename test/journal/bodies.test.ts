@@ -119,6 +119,16 @@ describe("exobiology", () => {
     expect(sp(r, "Stratum")).toMatchObject({ samples: 0, abandoned: true });
   });
 
+  it("drops a species here when the next Log is in another system", () => {
+    const elsewhere = { ...organic(11, "Log", "Osseus", "Osseus Elsewhere", 9), SystemAddress: 77 };
+    const r = exobiology([...events, elsewhere], ADDR);
+    expect(r.bodies[0]!.species.find((s) => s.genus === "Tubus")).toMatchObject({
+      samples: 0,
+      abandoned: true,
+    });
+    expect(r.bodies[0]!.not_started).toContain("Tubus");
+  });
+
   it("drops the species in progress on death", () => {
     const r = exobiology([...events, ev(T(11), "Died", {})], ADDR);
     expect(r.bodies[0]!.species.find((s) => s.genus === "Tubus")).toMatchObject({
