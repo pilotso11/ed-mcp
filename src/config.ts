@@ -35,6 +35,8 @@ export interface Config {
   /** Readable Markdown copies of the plans, next to plans.json. */
   plansMarkdownDir: string;
   prefsFile: string;
+  /** What the commander was last doing; next to plans.json. */
+  activityFile: string;
   /** secrets.json (plain, this computer) or secrets.enc (encrypted, sync folder if set). */
   secretsFile: string;
   locksDir: string;
@@ -129,6 +131,7 @@ export function loadConfig(
     legacyPlansEnv: get(env, "ED_MCP_PLANS"),
     plansMarkdownDir: path.join(dataDir, "plans"),
     prefsFile: path.join(dataDir, "preferences.json"),
+    activityFile: path.join(dataDir, "activity.json"),
     secretsFile: syncPassword
       ? path.join(dataDir, "secrets.enc")
       : path.join(dirs.config, "secrets.json"),

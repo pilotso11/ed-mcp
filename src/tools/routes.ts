@@ -32,9 +32,10 @@ const StopInputSchema = z.object({
     .string()
     .min(1)
     .optional()
-    .describe("Name for rules and output; default the engineer, station or system"),
+    .describe("Name for rules and output; default the engineer, station, body or system"),
   system: z.string().optional(),
   station: z.string().optional(),
+  body: z.string().min(1).optional().describe("Planet or moon, for a stop with no station"),
   engineer: z.string().optional().describe("Places the stop from the engineer catalog"),
   kind: StopKind.optional(),
   after: z.array(z.string()).optional().describe("Labels of stops that must come before this one"),
@@ -54,6 +55,8 @@ interface Node {
   engineer: string | null;
   kind: PoolStop["kind"];
   purpose: string | null;
+  body: string | null;
+  notes: string | null;
 }
 
 export function registerRouteTools(
@@ -81,7 +84,8 @@ export function registerRouteTools(
         openWorldHint: true,
       },
       description:
-        "Order the stops for a build: shops, material traders and engineers, from a plan (plan_id) or a list (stops). " +
+        "Order the stops of a plan (plan_id) or a list (stops): shops, material traders and engineers for a build, " +
+        "or the systems, bodies and stations of a route. Plan stops marked done or skipped are left out. " +
         "Uses Spansh coordinates and the travel-time model. For each engineer stop, set `after` to the shops and " +
         "traders that supply what that engineer needs (the module to buy, the materials to trade). Give `after: []` " +
         "to an engineer who needs nothing from the other stops, so they can come first. Without your rules, a plan " +
@@ -208,6 +212,8 @@ export function registerRouteTools(
             node.engineer ??= s.engineer?.name ?? null;
             if (s.kind === "engineer" || s.engineer) node.kind = "engineer";
             node.purpose = joinPurposes(node.purpose, s.purpose);
+            node.notes = joinPurposes(node.notes, s.notes);
+            node.body ??= s.body;
             idx = hit;
           } else {
             nodes.push({
@@ -216,6 +222,8 @@ export function registerRouteTools(
               engineer: s.engineer?.name ?? null,
               kind: s.kind,
               purpose: s.purpose,
+              body: s.body,
+              notes: s.notes,
             });
             idx = nodes.length - 1;
             if (merge && key) byStation.set(key, idx);
@@ -404,6 +412,8 @@ export function registerRouteTools(
             engineer: node?.engineer ?? null,
             kind: node ? node.kind : "other",
             purpose: node ? node.purpose : null,
+            ...(node?.body ? { body: node.body } : {}),
+            ...(node?.notes ? { notes: node.notes } : {}),
             meets: allChosen.filter((c) => c.option === t).map((c) => c.group),
             jumps: plottedJumps.get(key(f, t)) ?? l.jumps,
             leg_min: min(seconds),

@@ -156,6 +156,32 @@ describe("route_stops", () => {
     expect(j.stops[0].purpose).toBe("buy");
   });
 
+  it("routes a plan's bodies as separate stops, keeps their notes and leaves out finished stops", async () => {
+    const { client, plans } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith([
+        { system: "Beta", body: "Beta 2 b a", purpose: "bios", kind: "exobiology", status: "done" },
+        { system: "Beta", body: "Beta 3 a", purpose: "bios", kind: "exobiology", notes: "Osseus" },
+        { system: "Beta", body: "Beta 4", purpose: "bios", kind: "exobiology" },
+        { system: "Gamma", purpose: "scan", kind: "exploration", status: "skipped" },
+        { system: "Alpha", station: "Alpha Port", purpose: "sell", kind: "hand_in" },
+      ]),
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p", save_to_plan: true });
+    const j = r.json as Record<string, any>;
+    expect(r.isError).toBe(false);
+    expect([...labels(j)].sort()).toEqual(["Alpha Port", "Beta 3 a", "Beta 4"]);
+    const three = j.stops.find((s: any) => s.labels[0] === "Beta 3 a");
+    expect(three).toMatchObject({ body: "Beta 3 a", kind: "exobiology", notes: "Osseus" });
+    expect(j.stops.find((s: any) => s.labels[0] === "Alpha Port").body).toBeUndefined();
+    // The saved route orders next_stop.
+    const first = labels(j)[0];
+    const p = await plans.get("p");
+    expect((await plans.list())[0]!.next_stop).toMatchObject({
+      index: p.stops.findIndex((s) => (s.station ?? s.body) === first),
+    });
+  });
+
   it("keeps the engineer when a plan shop at the engineer's base merges with the engineer", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", {

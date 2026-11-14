@@ -1,4 +1,5 @@
-import type { Plan, PlanItem } from "./schema.js";
+import type { Plan, PlanItem, Stop } from "./schema.js";
+import { nextStop } from "./stops.js";
 
 const box: Record<PlanItem["status"], string> = {
   todo: "[ ]",
@@ -6,6 +7,7 @@ const box: Record<PlanItem["status"], string> = {
   done: "[x]",
   skipped: "[-]",
 };
+const stopBox: Record<Stop["status"], string> = { todo: "[ ]", done: "[x]", skipped: "[-]" };
 
 export function planToMarkdown(plan: Plan): string {
   const done = plan.items.filter((i) => i.status === "done" || i.status === "skipped").length;
@@ -35,8 +37,13 @@ export function planToMarkdown(plan: Plan): string {
   }
   if (plan.stops.length) {
     out.push("## Stops", "");
+    const next = nextStop(plan)?.index;
     plan.stops.forEach((s, n) => {
-      out.push(`${n + 1}. ${s.system}${s.station ? ` — ${s.station}` : ""}: ${s.purpose}`);
+      const place = [s.system, s.body, s.station].filter(Boolean).join(" — ");
+      const kind = s.kind ? `**${s.kind}** ` : "";
+      const mark = n === next ? " ← next" : "";
+      out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);
+      if (s.notes) out.push(`   - Notes: ${s.notes}`);
     });
     out.push("");
   }

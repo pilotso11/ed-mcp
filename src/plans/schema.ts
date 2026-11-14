@@ -24,15 +24,33 @@ export const PlanItemSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const StopKind = z.enum(["shop", "trader", "engineer", "other"]);
+export const StopKind = z.enum([
+  "shop",
+  "trader",
+  "engineer",
+  "exobiology",
+  "exploration",
+  "combat",
+  "mission",
+  "hand_in",
+  "trade",
+  "mining",
+  "fuel",
+  "other",
+]);
+export const StopStatus = z.enum(["todo", "done", "skipped"]);
 
+// Every field added after the first release is optional or has a default, so old files load.
 export const StopSchema = z.object({
   system: z.string().min(1),
   station: z.string().optional(),
+  body: z.string().min(1).optional(),
   purpose: z.string().min(1),
   label: z.string().min(1).optional(),
   kind: StopKind.optional(),
   after: z.array(z.string().min(1)).optional(),
+  status: StopStatus.default("todo"),
+  notes: z.string().optional(),
 });
 
 export const PlanRouteSchema = z.object({

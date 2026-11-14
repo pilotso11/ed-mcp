@@ -122,6 +122,7 @@ describe("loadConfig", () => {
     const c = loadConfig({}, dirs);
     expect(c.syncDir).toBeUndefined();
     expect(c.prefsFile).toBe(path.join("/cfg", "preferences.json"));
+    expect(c.activityFile).toBe(path.join("/cfg", "activity.json"));
     expect(c.secretsFile).toBe(path.join("/cfg", "secrets.json"));
     expect(c.locksDir).toBe(path.join("/cfg", "locks"));
     expect(c.inaraApp).toEqual({ appName: "ed-mcp", devMode: false });
@@ -132,6 +133,7 @@ describe("loadConfig", () => {
     expect(c.syncDir).toBe(path.resolve("/sync"));
     expect(c.plansFile).toBe(path.join(path.resolve("/sync"), "plans.json"));
     expect(c.prefsFile).toBe(path.join(path.resolve("/sync"), "preferences.json"));
+    expect(c.activityFile).toBe(path.join(path.resolve("/sync"), "activity.json"));
     // Without a password, secrets stay on this computer.
     expect(c.secretsFile).toBe(path.join("/cfg", "secrets.json"));
   });

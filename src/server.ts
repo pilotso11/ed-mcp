@@ -9,9 +9,11 @@ import type { CapiAuth } from "./capi/auth.js";
 import type { CapiClient } from "./capi/client.js";
 import type { SpanshClient } from "./spansh/client.js";
 import type { JournalService } from "./journal/service.js";
+import type { ActivityStore } from "./activity/store.js";
 import type { PlanStore } from "./plans/store.js";
 import type { PreferencesStore } from "./prefs/store.js";
 import type { ShipDataService } from "./ships/data.js";
+import { registerActivityTools } from "./tools/activity.js";
 import { registerBuildStatsTool } from "./tools/build.js";
 import { registerBuildTools } from "./tools/builds.js";
 import { registerCacheTools, type Refreshable } from "./tools/cache.js";
@@ -41,6 +43,7 @@ export interface ServerDeps {
   refreshables?: Refreshable[];
   plans?: PlanStore;
   prefs?: PreferencesStore;
+  activity?: ActivityStore;
   catalog?: CatalogService;
   ships?: ShipDataService;
   inara?: InaraClient;
@@ -73,6 +76,13 @@ export function createServer(deps: ServerDeps): McpServer {
       warnings: deps.planWarnings ?? deps.syncWarnings,
     });
   if (deps.prefs) registerPrefsTools(server, { prefs: deps.prefs, warnings: deps.syncWarnings });
+  if (deps.activity) {
+    registerActivityTools(server, {
+      activity: deps.activity,
+      journal: deps.journal,
+      warnings: deps.syncWarnings,
+    });
+  }
   if (deps.settingsPage && deps.settings && deps.secrets) {
     registerSettingsTools(server, {
       page: deps.settingsPage,

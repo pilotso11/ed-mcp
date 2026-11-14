@@ -75,7 +75,14 @@ describe("PlanStore", () => {
     expect(p.created_at).toBe("2026-10-11T00:00:00.000Z");
     expect(await s.get("python-mk2")).toEqual(p);
     expect(await s.list()).toEqual([
-      { id: "python-mk2", name: "Python Mk II", items: 2, done: 0, updated_at: p.updated_at },
+      {
+        id: "python-mk2",
+        name: "Python Mk II",
+        items: 2,
+        done: 0,
+        next_stop: { index: 0, ...p.stops[0] },
+        updated_at: p.updated_at,
+      },
     ]);
     const onDisk = JSON.parse(await readFile(file, "utf8"));
     expect(onDisk.version).toBe(1);
@@ -205,6 +212,78 @@ describe("PlanStore", () => {
   it("fails to save a route for an unknown plan", async () => {
     const route = { computed_at: "x", from: "Sol", stops: [], total_min: 0, plotted: false };
     await expect(new PlanStore(file, now).setRoute("nope", route)).rejects.toThrow(
+      'Plan "nope" not found',
+    );
+  });
+
+  it("loads a plan file saved before stops had a body, status or notes", async () => {
+    const old = {
+      version: 1,
+      plans: [
+        {
+          id: "corsair",
+          name: "Corsair",
+          items: [],
+          stops: [
+            { system: "Sol", station: "Daedalus", purpose: "buy", kind: "shop", label: "shop" },
+            { system: "Deciat", purpose: "G5 FSD", kind: "engineer", after: ["shop"] },
+          ],
+          route: {
+            computed_at: "2026-10-14T00:00:00.000Z",
+            from: "Sol",
+            stops: ["Deciat", "shop"],
+            total_min: 12,
+            plotted: false,
+          },
+          created_at: "2026-10-14T00:00:00.000Z",
+          updated_at: "2026-10-14T00:00:00.000Z",
+        },
+      ],
+    };
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(old, null, 2));
+    const s = new PlanStore(file, now);
+    const p = await s.get("corsair");
+    expect(p.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
+    expect(p.stops[0]).toEqual({ ...old.plans[0]!.stops[0], status: "todo" });
+    // In route order, Deciat comes first.
+    expect((await s.list())[0]!.next_stop).toMatchObject({ index: 1, system: "Deciat" });
+    // Reading does not rewrite the file.
+    expect(JSON.parse(await readFile(file, "utf8"))).toEqual(old);
+  });
+
+  it("updates one stop by label or index", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(
+      input({
+        stops: [
+          { system: "HIP 87621", body: "HIP 87621 2 b a", purpose: "bios", kind: "exobiology" },
+          { system: "HIP 87621", body: "HIP 87621 3 a", purpose: "bios", label: "three-a" },
+          { system: "HIP 87621", station: "Ray Port", purpose: "sell", kind: "hand_in" },
+        ],
+      }),
+    );
+    t += 1000;
+    let p = await s.updateStop("python-mk2", { label: "hip 87621 2 B A" }, { status: "done" });
+    expect(p.stops[0]!.status).toBe("done");
+    expect(p.updated_at).toBe("2026-10-11T00:00:01.000Z");
+    p = await s.updateStop("python-mk2", { label: "THREE-A" }, { notes: "Osseus south" });
+    expect(p.stops[1]).toMatchObject({ status: "todo", notes: "Osseus south" });
+    p = await s.updateStop("python-mk2", { index: 2 }, { status: "skipped" });
+    expect(p.stops[2]!.status).toBe("skipped");
+    expect((await s.list())[0]!.next_stop).toMatchObject({ index: 1, label: "three-a" });
+  });
+
+  it("explains a stop it cannot find", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(input());
+    await expect(s.updateStop("python-mk2", { label: "nope" }, { status: "done" })).rejects.toThrow(
+      'No stop "nope" in plan "python-mk2". Stops: 0: Jameson Memorial',
+    );
+    await expect(s.updateStop("python-mk2", { index: 3 }, { status: "done" })).rejects.toThrow(
+      'Plan "python-mk2" has no stop 3; indexes run from 0 to 0',
+    );
+    await expect(s.updateStop("nope", { index: 0 }, { status: "done" })).rejects.toThrow(
       'Plan "nope" not found',
     );
   });

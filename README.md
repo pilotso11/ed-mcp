@@ -36,6 +36,8 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 - "Which bio signals in this system have I not sampled yet?"
 - "How many kills do I have left on my massacre missions?"
 - "Plan the route for my Corsair build plan."
+- "Make a route: Bios on HIP 87621 2 b a, then 3 a, then hand in at the nearest station."
+- "I'm done with this planet. What's next?"
 - "From now on, ignore stations more than 2,000 ls from the star."
 
 ## Install
@@ -197,7 +199,9 @@ The journal tools warn you when the newest entry is more than 30 minutes old. Th
 
 ## Plans
 
-Claude can save plans for you, for example a ship build with its modules, engineering and materials. Ask Claude to add items, mark them done, or export the plan as a Markdown file. To keep a plan in a project folder, export it as JSON and import it again later with `plan_import`. The plans stay in `plans.json`, in the sync folder if you set one and in the settings folder if not (see [Your data](#your-data)).
+Claude can save plans for you. A plan is a ship build, a route, or both. A build plan holds modules, engineering and materials. A route plan holds the stops to visit, for example a system, then a planet for bios, then another planet, then a station to hand in. Each stop can name a body (planet or moon), and each has a status: to do, done or skipped. Ask Claude to add items or stops, mark them done, or export the plan as a Markdown file. Claude sees the next stop to visit in each plan. To keep a plan in a project folder, export it as JSON and import it again later with `plan_import`. The plans stay in `plans.json`, in the sync folder if you set one and in the settings folder if not (see [Your data](#your-data)).
+
+Claude also keeps a short note of what you are doing, for example "exobiology on HIP 87621 2 b a, 2 of 5 done". A new conversation reads the note and your location from the journal, so it can carry on where you stopped. The note is in `activity.json`, next to the plans.
 
 ## Use ed-mcp on more than one computer
 
@@ -205,7 +209,7 @@ Set a sync folder, and your plans and preferences follow you. Pick a folder that
 
 What syncs:
 
-- Plans and preferences always sync, in the sync folder.
+- Plans, preferences and the activity note always sync, in the sync folder.
 - Your API keys and Frontier login sync only when you also set a sync password. ed-mcp encrypts them with it. Without a password, they stay on each computer.
 - The cache and the journal do not sync. Each computer keeps its own.
 
@@ -213,7 +217,7 @@ The password must be at least 12 characters. Use the same password on every comp
 
 If two computers change the same file before the sync service catches up, the service keeps both. It saves one as a "conflict copy". ed-mcp tells Claude when it sees one. Ask Claude "What is my ed-mcp settings status?", then keep the copy that you want and delete the other.
 
-If the sync folder is not available (for example, your sync app is stopped), the plan and preference tools fail with a clear message. They do not fall back to a local copy. Searches that use your stored preferences also need the folder. Pass `use_preferences: false` to search without them.
+If the sync folder is not available (for example, your sync app is stopped), the plan, preference and activity tools fail with a clear message. They do not fall back to a local copy. Searches that use your stored preferences also need the folder. Pass `use_preferences: false` to search without them.
 
 ed-mcp also writes each plan as a Markdown file in the `plans` folder inside the sync folder. Claude on your phone cannot run ed-mcp, but it can read these files through the Google Drive connector.
 
@@ -268,10 +272,11 @@ ed-mcp keeps these files on your computer:
 | ---------------------------- | --------------------------------------------------------------------------- |
 | Plans                        | `plans.json`, and a Markdown copy of each plan in `plans`                   |
 | Preferences                  | `preferences.json`                                                          |
+| What you are doing now       | `activity.json`                                                             |
 | API keys and Frontier login  | `secrets.enc` with a sync password, `secrets.json` without. Readable only by you |
 | Game data and cached results | The cache folder                                                            |
 
-Plans, preferences and `secrets.enc` are in the sync folder when you set one. Otherwise they are in the settings folder. `secrets.json` is always in the settings folder. The cache folder is always on the computer.
+Plans, preferences, `activity.json` and `secrets.enc` are in the sync folder when you set one. Otherwise they are in the settings folder. `secrets.json` is always in the settings folder. The cache folder is always on the computer.
 
 The files are in these folders:
 

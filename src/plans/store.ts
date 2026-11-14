@@ -14,13 +14,16 @@ import {
   type PlanInput,
   type PlanItem,
   type PlanRoute,
+  type Stop,
 } from "./schema.js";
+import { findStop, nextStop, type NextStop } from "./stops.js";
 
 export interface PlanSummary {
   id: string;
   name: string;
   items: number;
   done: number;
+  next_stop: NextStop | null;
   updated_at: string;
 }
 
@@ -64,6 +67,7 @@ export class PlanStore {
       name: p.name,
       items: p.items.length,
       done: p.items.filter((i) => i.status === "done" || i.status === "skipped").length,
+      next_stop: nextStop(p),
       updated_at: p.updated_at,
     }));
   }
@@ -106,6 +110,22 @@ export class PlanStore {
       if (!item) throw new UserError(`Item "${itemId}" not found in plan "${planId}"`);
       if (patch.status !== undefined) item.status = patch.status;
       if (patch.notes !== undefined) item.notes = patch.notes;
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  updateStop(
+    planId: string,
+    ref: { label?: string; index?: number },
+    patch: { status?: Stop["status"]; notes?: string },
+  ): Promise<Plan> {
+    return this.mutate((data) => {
+      const plan = data.plans.find((p) => p.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      const stop = plan.stops[findStop(plan, ref)]!;
+      if (patch.status !== undefined) stop.status = patch.status;
+      if (patch.notes !== undefined) stop.notes = patch.notes;
       plan.updated_at = this.now().toISOString();
       return plan;
     });

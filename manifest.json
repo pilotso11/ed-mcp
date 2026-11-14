@@ -32,6 +32,8 @@
   "tools": [
     { "name": "prefs_get", "description": "Stored travel preferences" },
     { "name": "prefs_set", "description": "Change stored travel preferences" },
+    { "name": "activity_get", "description": "What you were last doing, and where you are now" },
+    { "name": "activity_set", "description": "Save what you are doing now" },
     { "name": "settings_open", "description": "Enter API keys on a local page (no restart)" },
     {
       "name": "settings_status",
@@ -135,6 +137,7 @@
     { "name": "plan_get", "description": "Get a plan" },
     { "name": "plan_upsert", "description": "Create or replace a plan" },
     { "name": "plan_update_item", "description": "Update one plan item" },
+    { "name": "plan_update_stop", "description": "Mark a plan stop done or skipped, or add notes" },
     { "name": "plan_delete", "description": "Delete a plan" },
     { "name": "plan_export", "description": "Export a plan as Markdown or JSON" },
     { "name": "plan_import", "description": "Load a plan from a JSON file" }

@@ -6,7 +6,7 @@ const base = { id: "p", name: "P" };
 describe("PlanInputSchema stops", () => {
   it("parses a plan without the new fields", () => {
     const p = PlanInputSchema.parse({ ...base, stops: [{ system: "Deciat", purpose: "G5" }] });
-    expect(p.stops[0]).toEqual({ system: "Deciat", purpose: "G5" });
+    expect(p.stops[0]).toEqual({ system: "Deciat", purpose: "G5", status: "todo" });
     expect(p.route).toBeUndefined();
   });
 

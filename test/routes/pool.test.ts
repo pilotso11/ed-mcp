@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UserError } from "../../src/errors.js";
 import { buildPool, type StopEntry } from "../../src/routes/pool.js";
-import type { Plan } from "../../src/plans/schema.js";
+import { StopSchema, type Plan, type PlanInput } from "../../src/plans/schema.js";
 
 const ENGINEERS: Record<string, { name: string; system: string; base: string }> = {
   "felicity farseer": { name: "Felicity Farseer", system: "Deciat", base: "Farseer Inc" },
@@ -15,14 +15,15 @@ const catalog = {
   },
 };
 
-const plan = (over: Partial<Plan> = {}): Plan => ({
+// Stops as a caller writes them; the schema fills in defaults such as status.
+const plan = (over: Omit<Partial<Plan>, "stops"> & Pick<PlanInput, "stops"> = {}): Plan => ({
   id: "p",
   name: "P",
   items: [],
-  stops: [],
   created_at: "",
   updated_at: "",
   ...over,
+  stops: (over.stops ?? []).map((s) => StopSchema.parse(s)),
 });
 
 const item = (id: string, engineer: string, status = "todo", description = id) =>
