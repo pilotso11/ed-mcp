@@ -94,6 +94,14 @@ describe("exobiology", () => {
     ]);
   });
 
+  it("counts a Sample as at least the second sample when the Log is outside the window", () => {
+    const r = exobiology([...events, organic(13, "Sample", "Stratum", "Stratum Tectonicas")], ADDR);
+    expect(r.bodies[0]!.species.find((s) => s.genus === "Stratum")).toMatchObject({
+      samples: 2,
+      stage: "2/3",
+    });
+  });
+
   it("counts analysed species in any system since the last sale", () => {
     expect(exobiology(events, ADDR).unsold_analysed).toBe(2);
     const sold = [...events, ev(T(11), "SellOrganicData", { BioData: [] })];

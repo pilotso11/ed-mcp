@@ -154,7 +154,7 @@ export function exobiology(
         s.variant = str(e.Variant_Localised) ?? s.variant;
         // The game writes Log for the first sample, Sample for the second and third, then Analyse.
         if (e.ScanType === "Log") s.samples = Math.max(s.samples, 1);
-        else if (e.ScanType === "Sample") s.samples = Math.min(3, s.samples + 1);
+        else if (e.ScanType === "Sample") s.samples = Math.min(3, Math.max(2, s.samples + 1));
         else if (e.ScanType === "Analyse") {
           s.samples = 3;
           s.analysed = true;
