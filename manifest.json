@@ -101,7 +101,7 @@
     { "name": "missions_route", "description": "Best stop order for accepted missions" },
     {
       "name": "route_stops",
-      "description": "Best stop order for a build: shops, traders, engineers"
+      "description": "Best order for a plan's stops: shops, engineers, bodies"
     },
     { "name": "journal_status", "description": "Journal folder and sync status" },
     {
@@ -198,7 +198,7 @@
     "ed_mcp_sync_dir": {
       "type": "directory",
       "title": "Sync folder",
-      "description": "Optional. A folder that Google Drive, iCloud Drive, OneDrive or Syncthing keeps in step, so plans and preferences follow you between computers.",
+      "description": "Optional. A folder that Google Drive, iCloud Drive, OneDrive or Syncthing keeps in step, so plans, preferences and the activity note follow you between computers.",
       "required": false,
       "default": ""
     },

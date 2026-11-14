@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -6,6 +6,23 @@ import { ActivityStore } from "../../src/activity/store.js";
 import { UserError } from "../../src/errors.js";
 import { acquireLock } from "../../src/fs/lock.js";
 import { SyncFolder } from "../../src/settings/sync.js";
+
+// Lets a test make the next delete fail the way a held file does on Windows.
+const unlinkFault = vi.hoisted(() => ({ code: null as string | null }));
+vi.mock("node:fs/promises", async (orig) => {
+  const real = await orig<typeof import("node:fs/promises")>();
+  return {
+    ...real,
+    unlink: async (p: Parameters<typeof real.unlink>[0]) => {
+      const code = unlinkFault.code;
+      if (code) {
+        unlinkFault.code = null;
+        throw Object.assign(new Error(`${code}: operation not permitted`), { code });
+      }
+      return real.unlink(p);
+    },
+  };
+});
 
 let file: string;
 const now = () => new Date("2026-11-14T20:00:00Z");
@@ -61,6 +78,14 @@ describe("ActivityStore", () => {
     expect(await s.clear()).toBe(true);
     expect(await s.get()).toBeNull();
     expect(await s.clear()).toBe(false);
+  });
+
+  it("asks to try again when another program holds the file", async () => {
+    const s = new ActivityStore(file, now);
+    await s.set(note);
+    unlinkFault.code = "EPERM";
+    await expect(s.clear()).rejects.toThrow(UserError);
+    expect(await s.clear()).toBe(true);
   });
 
   it("reports an invalid file", async () => {

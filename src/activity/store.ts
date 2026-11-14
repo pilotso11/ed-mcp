@@ -91,7 +91,12 @@ export class ActivityStore {
         await unlink(this.file);
         return true;
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === "ENOENT") return false;
+        // On Windows a sync app or indexer holding the file makes the delete fail for a moment.
+        if (code === "EPERM" || code === "EACCES" || code === "EBUSY") {
+          throw new UserError("Activity file is in use by another program; try again");
+        }
         throw err;
       } finally {
         await release();
