@@ -22,6 +22,10 @@ For installation and setup, see the [README](../README.md).
 | `journal_materials`        | Materials held, by kind, from the journal                    |
 | `journal_missions`         | Accepted missions (active and complete), soonest expiry first |
 | `journal_engineers`        | Engineer progress from the journal                           |
+| `journal_exobiology`       | Bio signals, genera and samples per body                     |
+| `journal_exploration`      | Discovery scan and scanned bodies in a system                |
+| `journal_massacre`         | Kills left on active massacre missions (an estimate)         |
+| `journal_events`           | Raw journal events, newest first, with filters               |
 | `station_info`             | Market, outfitting and shipyard of the last station you opened |
 | `build_parse_slef`         | Parse a SLEF build from EDSY, Coriolis or Inara              |
 | `build_stats`              | Ship build numbers, with what-if changes                     |
@@ -341,8 +345,12 @@ Tools:
 - `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
 - `journal_missions`: accepted missions (active and complete) with destination, expiry, reward and passenger or cargo details. `expired: true` marks missions past their expiry. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
 - `journal_engineers`: engineers with progress, rank and rank progress.
+- `journal_exobiology`: for each body with biological signals, the signal count, the genera from the surface scan, and each species sampled with its stage (1/3 to 3/3, `analysed` when complete). `not_started` lists genera with no sample. `unsold_analysed` counts the species analysed since you last sold organic data or died. Give `system` (default: the current system) and `body` (a full name, or the part after the system name, such as `A 4`). The journal has no sample positions.
+- `journal_exploration`: the discovery scan of a system (body count, progress, all bodies found) and each scanned body, nearest first: type, distance, landable, terraformable, atmosphere, rings, `was_discovered`, `was_mapped`, `mapped_by_you` and signals. Give `system` (default: the current system). It does not estimate values.
+- `journal_massacre`: active massacre missions by target faction and then by giving faction, with kills required, kills counted and kills left. It counts bounties and combat bonds against the target after each mission was accepted. Each kill counts for the oldest open mission of each giving faction, as in the game. A redirected mission is done. The counts are an estimate: the mission panel in the game is correct.
+- `journal_events`: raw events as the game wrote them, newest first. Filter by `events` (names), `since` (an ISO time) and `system`. `limit` is 50 by default and 200 at most. Arrays longer than 20 entries are cut, and the last entry says how many are left out. Use it for anything the other tools do not cover.
 
-`journal_commander`, `journal_materials`, `journal_missions` and `journal_engineers` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.
+All the journal tools except `journal_status` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.
 
 Freshness rules:
 

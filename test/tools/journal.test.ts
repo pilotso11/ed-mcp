@@ -122,12 +122,113 @@ describe("journal tools", () => {
       "journal_materials",
       "journal_missions",
       "journal_engineers",
+      "journal_exobiology",
+      "journal_exploration",
+      "journal_massacre",
+      "journal_events",
     ]) {
       const r = (await callTool(c, tool)).json as any;
       expect(r.as_of, tool).toBe("2026-10-12T10:04:00Z");
       expect(r.age_minutes, tool).toBe(60);
       expect(r.warnings, tool).toEqual([expect.stringMatching(/60 minutes old.*Syncthing/)]);
     }
+  });
+
+  it("journal_exobiology, journal_exploration and journal_massacre default to the current system", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jbody-"));
+    const sys = "Test Sector AB-C d1";
+    const bio = { Type: "$SAA_SignalType_Biological;", Type_Localised: "Biological", Count: 2 };
+    const genus = { Genus: "$Codex_Ent_Tubus_Genus_Name;", Genus_Localised: "Tubus" };
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "FSDJump", { StarSystem: sys, SystemAddress: 7 }),
+      ev("2026-10-12T10:00:30Z", "MissionAccepted", {
+        MissionID: 5,
+        Name: "Mission_Massacre",
+        Faction: "Alpha",
+        TargetFaction: "Pirates",
+        KillCount: 3,
+      }),
+      ev("2026-10-12T10:01:00Z", "Scan", {
+        BodyName: `${sys} 2`,
+        BodyID: 2,
+        StarSystem: sys,
+        SystemAddress: 7,
+        PlanetClass: "Rocky body",
+        DistanceFromArrivalLS: 100,
+        Landable: true,
+      }),
+      ev("2026-10-12T10:02:00Z", "SAASignalsFound", {
+        BodyName: `${sys} 2`,
+        BodyID: 2,
+        SystemAddress: 7,
+        Signals: [bio],
+        Genuses: [genus, { Genus: "$Codex_Ent_Stratum_Genus_Name;", Genus_Localised: "Stratum" }],
+      }),
+      ev("2026-10-12T10:03:00Z", "ScanOrganic", {
+        ScanType: "Log",
+        ...genus,
+        Species: "$Codex_Ent_Tubus_02_Name;",
+        Species_Localised: "Tubus Sororibus",
+        SystemAddress: 7,
+        Body: 2,
+      }),
+      ev("2026-10-12T10:04:00Z", "Bounty", { VictimFaction: "Pirates" }),
+    ]);
+    const server = new McpServer({ name: "t", version: "0" });
+    registerJournalTools(server, {
+      journal: new JournalService(dir, { now: at("2026-10-12T10:10:00Z") }),
+    });
+    const c = await connectTestClient(server);
+
+    const exo = (await callTool(c, "journal_exobiology", { body: "2" })).json as any;
+    expect(exo.system).toBe(sys);
+    expect(exo.bodies[0]).toMatchObject({
+      body: `${sys} 2`,
+      bio_signals: 2,
+      species: [{ species: "Tubus Sororibus", stage: "1/3", analysed: false }],
+      not_started: ["Stratum"],
+    });
+    expect(exo.unsold_analysed).toBe(0);
+    expect(exo.as_of).toBe("2026-10-12T10:04:00Z");
+
+    const x = (await callTool(c, "journal_exploration")).json as any;
+    expect(x.bodies[0]).toMatchObject({ type: "Rocky body", distance_ls: 100, landable: true });
+
+    const m = (await callTool(c, "journal_massacre")).json as any;
+    expect(m.targets[0]).toMatchObject({ target_faction: "Pirates", kills_left: 2 });
+    expect(m.note).toMatch(/estimate/);
+
+    const other = (await callTool(c, "journal_exploration", { system: "Nowhere" })).json as any;
+    expect(other.bodies).toEqual([]);
+    expect(other.note).toMatch(/no events in Nowhere/);
+  });
+
+  it("journal_events returns raw events newest first and rejects a bad time", async () => {
+    const c = await setup();
+    const r = (await callTool(c, "journal_events", { events: ["MissionAccepted"], limit: 1 }))
+      .json as any;
+    expect(r.events).toEqual([
+      {
+        timestamp: "2026-10-12T10:03:30Z",
+        event: "MissionAccepted",
+        MissionID: 2,
+        Name: "Late",
+        Expiry: "2026-10-12T10:05:00Z",
+      },
+    ]);
+    expect(r.as_of).toBe("2026-10-12T10:04:00Z");
+    const sol = (await callTool(c, "journal_events", { system: "Sol" })).json as any;
+    expect(sol.events.map((e: any) => e.event)).toEqual([
+      "EngineerProgress",
+      "MissionAccepted",
+      "MissionAccepted",
+      "Materials",
+      "Docked",
+    ]);
+    const bad = await callTool(c, "journal_events", { since: "yesterday" });
+    expect(bad.text).toContain("since is not a time");
+    const big = await callTool(c, "journal_events", { limit: 500 });
+    expect(big.isError).toBe(true);
   });
 
   it("returns the not-configured message", async () => {

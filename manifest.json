@@ -113,6 +113,19 @@
     },
     { "name": "journal_engineers", "description": "Engineer progress from the journal" },
     {
+      "name": "journal_exobiology",
+      "description": "Bio signals, genera and sample progress per body, from the journal"
+    },
+    {
+      "name": "journal_exploration",
+      "description": "Discovery scan and scanned bodies in a system, from the journal"
+    },
+    {
+      "name": "journal_massacre",
+      "description": "Kills left on active massacre missions (an estimate), from the journal"
+    },
+    { "name": "journal_events", "description": "Raw journal events, newest first, with filters" },
+    {
       "name": "station_info",
       "description": "Market, outfitting and shipyard of the station you last opened, from the journal folder"
     },

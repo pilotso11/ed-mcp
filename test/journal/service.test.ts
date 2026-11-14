@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { listJournals } from "../../src/journal/files.js";
 import { JournalReader } from "../../src/journal/reader.js";
-import { JournalService } from "../../src/journal/service.js";
+import { JournalService, KEPT_EVENTS } from "../../src/journal/service.js";
+import { STATE_EVENTS } from "../../src/journal/state.js";
 import { ev, writeJournal } from "../helpers/journal.js";
 
 const at = (iso: string) => () => Date.parse(iso);
@@ -206,5 +207,60 @@ describe("JournalService.freshShip", () => {
     ).toBeNull();
     expect(await new JournalService("/no/such/dir").freshShip()).toBeNull();
     expect(await new JournalService(undefined).freshShip()).toBeNull();
+  });
+});
+
+describe("JournalService events", () => {
+  it("keeps the state events and the events the body and massacre tools read", async () => {
+    for (const name of STATE_EVENTS) expect(KEPT_EVENTS.has(name), name).toBe(true);
+    for (const name of ["Scan", "ScanOrganic", "SAASignalsFound", "Bounty", "FactionKillBond"]) {
+      expect(KEPT_EVENTS.has(name), name).toBe(true);
+    }
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "Scan", { BodyName: "Sol 3", BodyID: 3 }),
+      ev("2026-10-12T11:00:01Z", "Music", { MusicTrack: "Exploration" }),
+      ev("2026-10-12T11:00:02Z", "Bounty", { VictimFaction: "Pirates" }),
+    ]);
+    const s = await new JournalService(dir).state();
+    expect(s.events.map((e) => e.event)).toEqual([
+      "MissionAccepted",
+      "Materials",
+      "LoadGame",
+      "Loadout",
+      "Docked",
+      "Scan",
+      "Bounty",
+    ]);
+  });
+
+  it("returns every matching event newest first across files, up to the limit", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "Music", { MusicTrack: "Exploration" }),
+      ev("2026-10-12T11:00:01Z", "ReceiveText", { Message: "hi" }),
+    ]);
+    const svc = new JournalService(dir);
+    const all = await svc.recentEvents({}, 4);
+    expect(all.events.map((e) => e.event)).toEqual(["ReceiveText", "Music", "Docked", "Loadout"]);
+    const named = await svc.recentEvents({ events: ["MissionAccepted"] }, 10);
+    // The file older than the 14-day window is not read.
+    expect(named.events.map((e) => e.MissionID)).toEqual([1]);
+  });
+
+  it("stops reading at files older than since", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-11T100000.01.log", [
+      ev("2026-10-11T10:00:00Z", "Music", { MusicTrack: "Exploration" }),
+    ]);
+    const svc = new JournalService(dir);
+    const read = vi.spyOn(JournalReader.prototype, "read");
+    const r = await svc.recentEvents({ since: Date.parse("2026-10-12T10:00:01Z") }, 50);
+    expect(r.events.map((e) => e.event)).toEqual(["Docked", "Loadout"]);
+    expect(read.mock.calls.map(([f]) => f.name)).toEqual([
+      "Journal.2026-10-12T100000.01.log",
+      "Journal.2026-10-11T100000.01.log",
+    ]);
+    read.mockRestore();
   });
 });
