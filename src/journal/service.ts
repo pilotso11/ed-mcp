@@ -5,6 +5,9 @@ import { listJournals, type JournalFile } from "./files.js";
 import { JournalReader, type JournalEvent } from "./reader.js";
 import type { MarketRow } from "../spansh/client.js";
 import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.js";
+import { BODY_EVENTS } from "./bodies.js";
+import { LOCATION_EVENTS, matchFile, systemAt, type EventFilter } from "./events.js";
+import { MASSACRE_EVENTS } from "./massacre.js";
 
 export interface JournalStatus {
   dir: string;
@@ -30,6 +33,14 @@ function staleWarning(minutes: number): string {
 const STATE_WINDOW_MS = 14 * 86_400_000;
 const FRESH_MS = 86_400_000;
 const MEMO_MS = 1_000;
+// journal_events reads every event, so its cache holds only the files most likely read again.
+const RAW_CACHE_FILES = 2;
+
+export const KEPT_EVENTS: ReadonlySet<string> = new Set([
+  ...STATE_EVENTS,
+  ...BODY_EVENTS,
+  ...MASSACRE_EVENTS,
+]);
 
 export interface StationFile {
   kind: "market" | "outfitting" | "shipyard";
@@ -51,10 +62,13 @@ type JournalSnapshot = JournalState & {
   age_minutes: number | null;
   warnings: string[];
   loadout: JournalEvent | null;
+  /** The kept events in the state window, oldest first. */
+  events: JournalEvent[];
 };
 
 export class JournalService {
   protected readonly reader: JournalReader;
+  private readonly rawReader = new JournalReader();
   readonly now: () => number;
   // Timed with performance.now so an injected test clock cannot freeze it.
   private memo?: { at: number; value: Promise<JournalSnapshot> };
@@ -63,7 +77,7 @@ export class JournalService {
     readonly dir: string | undefined,
     opts: { now?: () => number; reader?: JournalReader } = {},
   ) {
-    this.reader = opts.reader ?? new JournalReader({ keep: STATE_EVENTS });
+    this.reader = opts.reader ?? new JournalReader({ keep: KEPT_EVENTS });
     this.now = opts.now ?? Date.now;
   }
 
@@ -211,7 +225,46 @@ export class JournalService {
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
     const loadout = events.findLast((e) => e.event === "Loadout") ?? null;
-    return { ...state, age_minutes: ageMinutes, warnings, loadout };
+    return { ...state, age_minutes: ageMinutes, warnings, loadout, events };
+  }
+
+  /**
+   * Every recorded event that matches, newest first, from the state window. Files are read newest
+   * first and reading stops once the limit is reached or the files are older than since.
+   */
+  async recentEvents(
+    filter: EventFilter,
+    limit: number,
+  ): Promise<{ events: JournalEvent[]; warnings: string[] }> {
+    const found = await this.files(STATE_WINDOW_MS);
+    if (!("files" in found)) throw new UserError(`${found.missing}. Run journal_status for help.`);
+    if (found.error) throw new UserError(`${found.error}. Run journal_status for help.`);
+    const warnings: string[] = [];
+    const out: JournalEvent[] = [];
+    // The kept state events hold every location event in the window, so the system at the start
+    // of each file comes from them, without reading older files in full.
+    const locations = filter.system
+      ? (await this.state()).events.filter((e) => LOCATION_EVENTS.has(e.event))
+      : [];
+    for (const file of [...found.files].reverse()) {
+      if (out.length >= limit) break;
+      let events: JournalEvent[];
+      try {
+        events = await this.rawReader.read(file);
+      } catch (err) {
+        warnings.push(`Cannot read ${file.name}: ${errText(err)}`);
+        continue;
+      }
+      const first = events[0];
+      const start = first && filter.system ? systemAt(locations, first.timestamp) : null;
+      const matched = matchFile(events, filter, start);
+      for (let i = matched.length - 1; i >= 0 && out.length < limit; i--) out.push(matched[i]!);
+      const last = events.at(-1);
+      // Files are in time order, so an older file holds nothing newer than since.
+      if (filter.since !== undefined && last && Date.parse(last.timestamp) < filter.since) break;
+    }
+    this.rawReader.retain(found.files.slice(-RAW_CACHE_FILES).map((f) => f.path));
+    return { events: out, warnings };
   }
 
   // Newer game builds keep the cargo list here instead of in the Cargo event. Syncthing can

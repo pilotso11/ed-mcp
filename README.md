@@ -10,7 +10,8 @@ With ed-mcp, Claude can:
 - find the best station for a module, ship or service, ranked by travel time and price,
 - plan trade runs and loops, and find where to sell or buy a commodity,
 - put the stops for your accepted missions in the best order,
-- read your game journal for your location, ship, cargo, materials, missions and engineer progress.
+- read your game journal for your location, ship, cargo, materials, missions and engineer progress,
+- track exobiology samples, exploration scans and massacre mission kills from your journal.
 
 ### Why use it
 
@@ -32,6 +33,8 @@ ed-mcp is not affiliated with Frontier Developments, Inara, EDSM or Spansh.
 - "What does this station sell, and is anything cheap?"
 - "Which modules can I buy at this outfitting?"
 - "Plan the best order for my passenger missions."
+- "Which bio signals in this system have I not sampled yet?"
+- "How many kills do I have left on my massacre missions?"
 - "Plan the route for my Corsair build plan."
 - "From now on, ignore stations more than 2,000 ls from the star."
 
