@@ -194,8 +194,9 @@ export function registerJournalTools(
       description:
         "Exobiology progress in a system from the local game journal (last 14 days). For each body " +
         "with biological signals: bio_signals (the count from the FSS or surface scan), genera found " +
-        "by the surface scan, each species sampled with samples taken (stage 1/3 to 3/3, analysed " +
-        "once complete), and not_started genera with no sample yet. unsold_analysed counts species " +
+        "by the surface scan, each species sampled with samples taken (stage 0/3 to 3/3, analysed " +
+        "once complete; abandoned when another species was started first, which drops an unfinished " +
+        "sample, or after a death), and not_started genera with no sample yet. unsold_analysed counts species " +
         "analysed since the last sale of organic data (or death), in any system. The journal has no " +
         "sample positions. system defaults to the current system; body is a full body name or the " +
         'part after the system name, such as "A 4". ' +

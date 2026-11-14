@@ -104,6 +104,39 @@ describe("exobiology", () => {
     });
   });
 
+  it("drops an unfinished species when another is started, and restarts it on a new Log", () => {
+    const sp = (r: ReturnType<typeof exobiology>, g: string) =>
+      r.bodies[0]!.species.find((s) => s.genus === g);
+    const switched = [...events, organic(11, "Log", "Stratum", "Stratum Tectonicas")];
+    let r = exobiology(switched, ADDR);
+    expect(sp(r, "Tubus")).toMatchObject({ samples: 0, stage: "0/3", abandoned: true });
+    expect(sp(r, "Stratum")).toMatchObject({ samples: 1, stage: "1/3" });
+    expect(sp(r, "Bacterium")).toMatchObject({ analysed: true });
+    expect(r.bodies[0]!.not_started).toEqual(["Tubus"]);
+    r = exobiology([...switched, organic(12, "Log", "Tubus", "Tubus Sororibus")], ADDR);
+    expect(sp(r, "Tubus")).toEqual(expect.not.objectContaining({ abandoned: true }));
+    expect(sp(r, "Tubus")).toMatchObject({ samples: 1 });
+    expect(sp(r, "Stratum")).toMatchObject({ samples: 0, abandoned: true });
+  });
+
+  it("drops a species here when the next Log is in another system", () => {
+    const elsewhere = { ...organic(11, "Log", "Osseus", "Osseus Elsewhere", 9), SystemAddress: 77 };
+    const r = exobiology([...events, elsewhere], ADDR);
+    expect(r.bodies[0]!.species.find((s) => s.genus === "Tubus")).toMatchObject({
+      samples: 0,
+      abandoned: true,
+    });
+    expect(r.bodies[0]!.not_started).toContain("Tubus");
+  });
+
+  it("drops the species in progress on death", () => {
+    const r = exobiology([...events, ev(T(11), "Died", {})], ADDR);
+    expect(r.bodies[0]!.species.find((s) => s.genus === "Tubus")).toMatchObject({
+      samples: 0,
+      abandoned: true,
+    });
+  });
+
   it("counts analysed species in any system since the last sale", () => {
     expect(exobiology(events, ADDR).unsold_analysed).toBe(2);
     const sold = [...events, ev(T(11), "SellOrganicData", { BioData: [] })];

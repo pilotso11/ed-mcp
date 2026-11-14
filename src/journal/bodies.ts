@@ -80,6 +80,9 @@ export interface Species {
   samples: number;
   stage: string;
   analysed: boolean;
+  // Set when the player started another species before finishing this one: the game drops an
+  // unfinished sample then, so this species must be started again.
+  abandoned?: true;
 }
 
 export interface ExobiologyBody {
@@ -111,17 +114,37 @@ export function exobiology(
     return b;
   };
   let unsold = 0;
+  // The species being sampled, anywhere. The game holds one unfinished species at a time.
+  let active = null as { key: string; species?: Species } | null;
+  const drop = () => {
+    if (active?.species && !active.species.analysed) {
+      active.species.samples = 0;
+      active.species.stage = "0/3";
+      active.species.abandoned = true;
+    }
+    active = null;
+  };
 
   for (const e of events) {
     switch (e.event) {
       case "SellOrganicData":
-      case "Died":
-        // Selling hands in all the data; dying loses it.
         unsold = 0;
         break;
-      case "ScanOrganic":
-        if (e.ScanType === "Analyse") unsold++;
+      case "Died":
+        // Dying loses the data held, and the sample in progress.
+        unsold = 0;
+        drop();
         break;
+      case "ScanOrganic": {
+        if (e.ScanType === "Analyse") unsold++;
+        const key = `${num(e.SystemAddress)}|${num(e.Body)}|${str(e.Species)}`;
+        if (e.ScanType === "Log" && active && active.key !== key) drop();
+        active =
+          e.ScanType === "Analyse"
+            ? null
+            : { key, species: active?.key === key ? active.species : undefined };
+        break;
+      }
     }
     if (num(e.SystemAddress) !== address) continue;
     switch (e.event) {
@@ -154,14 +177,18 @@ export function exobiology(
         };
         s.variant = str(e.Variant_Localised) ?? s.variant;
         // The game writes Log for the first sample, Sample for the second and third, then Analyse.
-        if (e.ScanType === "Log") s.samples = Math.max(s.samples, 1);
-        else if (e.ScanType === "Sample") s.samples = Math.min(3, Math.max(2, s.samples + 1));
+        // A Log starts the species again, after an abandoned or a dropped attempt.
+        if (e.ScanType === "Log") {
+          if (!s.analysed) s.samples = 1;
+          delete s.abandoned;
+        } else if (e.ScanType === "Sample") s.samples = Math.min(3, Math.max(2, s.samples + 1));
         else if (e.ScanType === "Analyse") {
           s.samples = 3;
           s.analysed = true;
         }
         s.stage = `${s.samples}/3`;
         b.species.set(key, s);
+        if (active && e.ScanType !== "Analyse") active.species = s;
         if (genusKey && !b.genera.has(genusKey)) b.genera.set(genusKey, s.genus);
         break;
       }
@@ -172,7 +199,9 @@ export function exobiology(
   for (const [id, b] of bodies) {
     const name = names.get(id) ?? `Body ${id}`;
     if (opts.body && !bodyMatches(name, opts.system ?? null, opts.body)) continue;
-    const sampled = new Set([...b.species.values()].map((s) => s.genusKey));
+    const sampled = new Set(
+      [...b.species.values()].filter((s) => !s.abandoned).map((s) => s.genusKey),
+    );
     out.push({
       body: name,
       body_id: id,
