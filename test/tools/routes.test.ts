@@ -204,6 +204,62 @@ describe("route_stops", () => {
     expect(list[0].next_stop).toMatchObject({ index: 1 });
   });
 
+  it("saves both plan stops of a merged visit and follows them for next_stop", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith([
+        { system: "Gamma", station: "Lock Base", purpose: "sell", kind: "hand_in" },
+        { system: "Beta", station: "Palin Lab", purpose: "buy", kind: "shop" },
+        { system: "Beta", station: "Palin Lab", purpose: "g5", kind: "engineer" },
+      ]),
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p", save_to_plan: true });
+    expect(labels(r.json as Record<string, any>)).toEqual(["Palin Lab", "Lock Base"]);
+    let got = (await callTool(client, "plan_get", { id: "p" })).json as any;
+    expect(got.route.stop_indexes).toEqual([[1, 2], [0]]);
+    expect(got.next_stop).toMatchObject({ index: 1, purpose: "buy" });
+    await callTool(client, "plan_update_stop", { plan_id: "p", index: 1, status: "done" });
+    got = (await callTool(client, "plan_get", { id: "p" })).json as any;
+    expect(got.next_stop).toMatchObject({ index: 2, purpose: "g5" });
+  });
+
+  it("does not save a route when the plan's stops changed while it was computed", async () => {
+    const { client, plans } = await setup();
+    const first = planWith([
+      { system: "Gamma", station: "Lock Base", purpose: "sell", kind: "hand_in" },
+      { system: "Alpha", station: "Alpha Port", purpose: "buy", kind: "trade" },
+    ]);
+    await callTool(client, "plan_upsert", { plan: first });
+    const setRoute = plans.setRoute.bind(plans);
+    vi.spyOn(plans, "setRoute").mockImplementationOnce(async (...args) => {
+      // Another app replaces the stops during the call.
+      await plans.upsert({ ...first, stops: [...first.stops].reverse() } as never);
+      return setRoute(...args);
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p", save_to_plan: true });
+    const j = r.json as Record<string, any>;
+    expect(r.isError).toBe(false);
+    expect(j.saved).toBe(false);
+    expect(j.notes).toContain(
+      'The route was not saved to plan "p": The stops of plan "p" changed while the route was computed; run route_stops again to save it',
+    );
+    expect((await plans.get("p")).route).toBeUndefined();
+  });
+
+  it("saves a route when only stop progress changed while it was computed", async () => {
+    const { client, plans } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith([{ system: "Alpha", station: "Alpha Port", purpose: "buy", kind: "trade" }]),
+    });
+    const setRoute = plans.setRoute.bind(plans);
+    vi.spyOn(plans, "setRoute").mockImplementationOnce(async (...args) => {
+      await plans.updateStop("p", { index: 0 }, { notes: "busy pad" });
+      return setRoute(...args);
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p", save_to_plan: true });
+    expect((r.json as Record<string, any>).saved).toBe(true);
+  });
+
   it("gives the first stop of a saved route as next_stop when two stations share a name", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", {

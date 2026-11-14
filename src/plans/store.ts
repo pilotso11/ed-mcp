@@ -131,10 +131,19 @@ export class PlanStore {
     });
   }
 
-  setRoute(planId: string, route: PlanRoute): Promise<Plan> {
+  /**
+   * Saves a computed route. With `stops`, the stops the route was computed from, it refuses when
+   * the plan's stops have changed since, because the route's stop_indexes would point at others.
+   */
+  setRoute(planId: string, route: PlanRoute, opts: { stops?: Stop[] } = {}): Promise<Plan> {
     return this.mutate((data) => {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      if (opts.stops && !sameStops(opts.stops, plan.stops)) {
+        throw new UserError(
+          `The stops of plan "${planId}" changed while the route was computed; run route_stops again to save it`,
+        );
+      }
       plan.route = route;
       plan.updated_at = this.now().toISOString();
       return plan;
@@ -274,6 +283,12 @@ export class PlanStore {
       console.error(`Could not write Markdown plan copies to ${dir}: ${(err as Error).message}`);
     }
   }
+}
+
+// Progress (status, notes) may change during a long route_stops call; the places may not.
+const stopKey = (s: Stop) => JSON.stringify([s.system, s.station, s.body, s.label, s.purpose]);
+function sameStops(a: Stop[], b: Stop[]): boolean {
+  return a.length === b.length && a.every((s, i) => stopKey(s) === stopKey(b[i]!));
 }
 
 const PRUNABLE = /^[a-z0-9][a-z0-9-]{0,63}\.md$/;

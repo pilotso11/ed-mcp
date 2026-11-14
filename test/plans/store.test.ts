@@ -252,6 +252,31 @@ describe("PlanStore", () => {
     expect(JSON.parse(await readFile(file, "utf8"))).toEqual(old);
   });
 
+  it("reads a stop's empty station as no station", async () => {
+    const old = {
+      version: 1,
+      plans: [
+        {
+          id: "bios",
+          name: "Bios",
+          items: [],
+          stops: [{ system: "Sol", station: "", body: "Sol 3", purpose: "bios" }],
+          created_at: "2026-10-14T00:00:00.000Z",
+          updated_at: "2026-10-14T00:00:00.000Z",
+        },
+      ],
+    };
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(old));
+    const s = new PlanStore(file, now);
+    expect((await s.get("bios")).stops[0]!.station).toBeUndefined();
+    expect((await s.list())[0]!.next_stop).toMatchObject({ index: 0, body: "Sol 3" });
+    let p = await s.updateStop("bios", { label: "Sol 3" }, { status: "done" });
+    expect(p.stops[0]!.status).toBe("done");
+    p = await s.updateStop("bios", { label: "sol" }, { notes: "found by system" });
+    expect(p.stops[0]!.notes).toBe("found by system");
+  });
+
   it("updates one stop by label or index", async () => {
     const s = new PlanStore(file, now);
     await s.upsert(

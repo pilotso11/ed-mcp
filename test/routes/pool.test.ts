@@ -63,6 +63,27 @@ describe("buildPool", () => {
     const pool = buildPool({ ...base, plan: p }, catalog);
     expect(pool.stops).toHaveLength(1);
     expect(pool.stops[0]).toMatchObject({ purpose: "a; b", kind: "engineer" });
+    expect(pool.stops[0]!.planStops).toEqual([0, 1, 2]);
+  });
+
+  it("keeps the plan index of each stop and leaves out done and skipped stops", () => {
+    const p = plan({
+      stops: [
+        { system: "Sol", station: "Daedalus", purpose: "a", status: "done" },
+        { system: "Sol", body: "Sol 3", purpose: "b" },
+        { system: "Sol", body: "Sol 4", purpose: "c", status: "skipped" },
+        { system: "Sol", body: "Sol 5", purpose: "d" },
+      ],
+    });
+    const pool = buildPool({ ...base, plan: p }, catalog);
+    expect(pool.stops.map((s) => [s.label, s.planStops])).toEqual([
+      ["Sol 3", [1]],
+      ["Sol 5", [3]],
+    ]);
+    // Stops given to route_stops directly are not plan stops.
+    expect(buildPool({ ...base, stops: [{ system: "Sol" }] }, catalog).stops[0]!.planStops).toEqual(
+      [],
+    );
   });
 
   it("names the plan item with an unknown engineer", () => {

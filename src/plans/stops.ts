@@ -55,7 +55,10 @@ export function nextStop(plan: Pick<Plan, "stops" | "route">): NextStop | null {
   return i === undefined ? null : { index: i, ...plan.stops[i]! };
 }
 
-/** The index of the stop named by label (its label, else station, body or system) or index. */
+/**
+ * The index of the stop named by label or index. A label matches a stop's label, else its
+ * main name (station, body or system), else any of its station, body or system.
+ */
 export function findStop(plan: Plan, ref: { label?: string; index?: number }): number {
   if (ref.label === undefined && ref.index === undefined) {
     throw new UserError("Give the stop's label or its index");
@@ -74,9 +77,12 @@ export function findStop(plan: Plan, ref: { label?: string; index?: number }): n
   }
   const want = lc(ref.label!);
   const byLabel = plan.stops.flatMap((s, i) => (s.label && lc(s.label) === want ? [i] : []));
+  const byName = plan.stops.flatMap((s, i) => (lc(stopName(s)) === want ? [i] : []));
   const hits = byLabel.length
     ? byLabel
-    : plan.stops.flatMap((s, i) => (lc(stopName(s)) === want ? [i] : []));
+    : byName.length
+      ? byName
+      : plan.stops.flatMap((s, i) => (namesOf(s).includes(want) ? [i] : []));
   if (hits.length === 1) return hits[0]!;
   if (hits.length > 1) {
     throw new UserError(
