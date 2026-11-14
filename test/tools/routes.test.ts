@@ -204,6 +204,30 @@ describe("route_stops", () => {
     expect(list[0].next_stop).toMatchObject({ index: 1 });
   });
 
+  it("saves the plan indexes of a partial route chosen with only", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith([
+        { system: "Alpha", station: "Alpha Port", purpose: "buy", kind: "trade" },
+        { system: "Beta", station: "Beta Hub", purpose: "fuel", kind: "fuel" },
+        { system: "Gamma", station: "Lock Base", purpose: "sell", kind: "hand_in" },
+      ]),
+    });
+    const r = await callTool(client, "route_stops", {
+      ...range,
+      plan_id: "p",
+      only: ["Alpha Port", "Lock Base"],
+      save_to_plan: true,
+    });
+    expect(labels(r.json as Record<string, any>)).toEqual(["Alpha Port", "Lock Base"]);
+    let got = (await callTool(client, "plan_get", { id: "p" })).json as any;
+    expect(got.route.stop_indexes).toEqual([[0], [2]]);
+    expect(got.next_stop).toMatchObject({ index: 0 });
+    await callTool(client, "plan_update_stop", { plan_id: "p", index: 0, status: "done" });
+    got = (await callTool(client, "plan_get", { id: "p" })).json as any;
+    expect(got.next_stop).toMatchObject({ index: 2 });
+  });
+
   it("saves both plan stops of a merged visit and follows them for next_stop", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", {

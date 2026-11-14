@@ -252,6 +252,70 @@ describe("PlanStore", () => {
     expect(JSON.parse(await readFile(file, "utf8"))).toEqual(old);
   });
 
+  describe("saved route stop indexes", () => {
+    const stops = [
+      { system: "Gamma", station: "Far Port", purpose: "sell" },
+      { system: "Alpha", station: "Near Port", purpose: "buy" },
+    ];
+    const route = {
+      computed_at: "2026-10-14T00:00:00.000Z",
+      from: "Sol",
+      stops: ["Near Port", "Far Port"],
+      total_min: 5,
+      plotted: false,
+      stop_indexes: [[1], [0]],
+    };
+
+    it("keeps them when plan_upsert keeps the stops", async () => {
+      const s = new PlanStore(file, now);
+      await s.upsert(input({ stops, route }));
+      const p = await s.get("python-mk2");
+      const again = await s.upsert({
+        ...p,
+        name: "Renamed",
+        stops: p.stops.map((x) => ({ ...x })),
+      });
+      expect(again.route!.stop_indexes).toEqual([[1], [0]]);
+      expect((await s.list())[0]!.next_stop).toMatchObject({ index: 1 });
+    });
+
+    it("drops them when plan_upsert inserts a stop under the same route", async () => {
+      const s = new PlanStore(file, now);
+      await s.upsert(input({ stops, route }));
+      const p = await s.get("python-mk2");
+      // Inserted first, so the old index 1 would now name Far Port.
+      const inserted = [{ system: "Beta", station: "Mid Port", purpose: "fuel" }, ...p.stops];
+      const again = await s.upsert({ ...p, stops: inserted });
+      expect(again.route!.stop_indexes).toBeUndefined();
+      // Name matching still puts Near Port first; the unrouted Mid Port comes last.
+      expect((await s.list())[0]!.next_stop).toMatchObject({ index: 2, station: "Near Port" });
+    });
+
+    it("keeps the indexes of a new route given with new stops", async () => {
+      const s = new PlanStore(file, now);
+      await s.upsert(input({ stops, route }));
+      const p = await s.get("python-mk2");
+      const fresh = { ...route, computed_at: "2026-10-15T00:00:00.000Z", stop_indexes: [[0], [1]] };
+      const again = await s.upsert({ ...p, stops: [...p.stops].reverse(), route: fresh });
+      expect(again.route!.stop_indexes).toEqual([[0], [1]]);
+    });
+
+    it("drops indexes that do not fit the plan instead of failing", async () => {
+      const s = new PlanStore(file, now);
+      const short = await s.upsert(input({ stops, route: { ...route, stop_indexes: [[1]] } }));
+      expect(short.route!.stop_indexes).toBeUndefined();
+      const past = await s.upsert(
+        input({ stops, route: { ...route, stop_indexes: [[1, 5], [0]] } }),
+      );
+      expect(past.route!.stop_indexes).toEqual([[1], [0]]);
+
+      const onDisk = JSON.parse(await readFile(file, "utf8"));
+      onDisk.plans[0].route.stop_indexes = [[0], [1], [2]];
+      await writeFile(file, JSON.stringify(onDisk));
+      expect((await s.get("python-mk2")).route!.stop_indexes).toBeUndefined();
+    });
+  });
+
   it("reads a stop's empty station as no station", async () => {
     const old = {
       version: 1,
