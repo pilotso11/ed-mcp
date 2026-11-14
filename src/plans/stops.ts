@@ -10,26 +10,41 @@ export function stopName(s: Stop): string {
   return s.label ?? s.station ?? s.body ?? s.system;
 }
 
+/** Every name a stop can go by in a route: label, station, body and system. */
+function namesOf(s: Stop): string[] {
+  return [s.label, s.station, s.body, s.system].flatMap((n) => (n ? [lc(n)] : []));
+}
+
 /**
  * Indexes into plan.stops in visit order. Without a saved route that is the array order. With
- * one, stops follow the route's labels; stops the route does not name (added later, or merged
- * into another stop at the same station) come after, in array order.
+ * one, stops follow the route; stops it does not visit (added later, done before it was
+ * computed, or only matched by a name the plan does not hold) come after, in array order.
  */
 export function visitOrder(plan: Pick<Plan, "stops" | "route">): number[] {
   const all = plan.stops.map((_, i) => i);
-  if (!plan.route) return all;
+  const route = plan.route;
+  if (!route) return all;
   const used = new Set<number>();
   const order: number[] = [];
-  const take = (name: string) => {
-    const i = all.find((j) => !used.has(j) && lc(stopName(plan.stops[j]!)) === lc(name));
-    if (i === undefined) return false;
+  const take = (i: number | undefined) => {
+    if (i === undefined || used.has(i) || i >= plan.stops.length) return false;
     used.add(i);
     order.push(i);
     return true;
   };
-  for (const name of plan.route.stops) {
-    // route_stops adds -2, -3 to repeated names.
-    if (!take(name)) take(name.replace(/-\d+$/, ""));
+  if (route.stop_indexes && route.stop_indexes.length === route.stops.length) {
+    for (const entry of route.stop_indexes) for (const i of entry) take(i);
+  } else {
+    // Routes saved before stop_indexes only have names. route_stops names a stop by its label,
+    // else station, body or system, and names repeats "X", "X-2", ... in plan order.
+    const primary = plan.stops.map((s) => lc(stopName(s)));
+    for (const raw of route.stops) {
+      const name = lc(raw);
+      if (take(all.find((j) => !used.has(j) && primary[j] === name))) continue;
+      const m = /^(.*)-(\d+)$/.exec(name);
+      if (m && take(all.filter((j) => primary[j] === m[1])[Number(m[2]) - 1])) continue;
+      take(all.find((j) => !used.has(j) && namesOf(plan.stops[j]!).includes(name)));
+    }
   }
   return [...order, ...all.filter((i) => !used.has(i))];
 }
@@ -48,6 +63,7 @@ export function findStop(plan: Plan, ref: { label?: string; index?: number }): n
   if (ref.label !== undefined && ref.index !== undefined) {
     throw new UserError("Give the stop's label or its index, not both");
   }
+  if (plan.stops.length === 0) throw new UserError(`Plan "${plan.id}" has no stops.`);
   if (ref.index !== undefined) {
     if (!Number.isInteger(ref.index) || ref.index < 0 || ref.index >= plan.stops.length) {
       throw new UserError(
@@ -68,5 +84,5 @@ export function findStop(plan: Plan, ref: { label?: string; index?: number }): n
     );
   }
   const known = plan.stops.map((s, i) => `${i}: ${stopName(s)}`).join(", ");
-  throw new UserError(`No stop "${ref.label}" in plan "${plan.id}". Stops: ${known || "none"}`);
+  throw new UserError(`No stop "${ref.label}" in plan "${plan.id}". Stops: ${known}`);
 }

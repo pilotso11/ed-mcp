@@ -39,15 +39,36 @@ describe("plan stops", () => {
     expect(visitOrder(plan(bios, ["port", "hip 87621 3 a"]))).toEqual([3, 2, 0, 1]);
   });
 
-  it("matches the -2 names route_stops gives repeated names", () => {
+  it("follows the saved stop indexes, merged stops together", () => {
+    const p = plan(bios, ["port", "Merged"]);
+    p.route!.stop_indexes = [[3], [2, 0]];
+    expect(visitOrder(p)).toEqual([3, 2, 0, 1]);
+    // Indexes that no longer exist are ignored.
+    p.route!.stop_indexes = [[9], [1]];
+    expect(visitOrder(p)).toEqual([1, 0, 2, 3]);
+  });
+
+  it("reads an old route's X-2 name as the second stop named X, in plan order", () => {
+    // route_stops names a second Ray Port (in another system) "Ray Port-2".
     const p = plan(
       [
-        { system: "Sol", purpose: "a" },
-        { system: "Sol", purpose: "b" },
+        { system: "Sol", station: "Ray Port", purpose: "a" },
+        { system: "Lave", station: "Ray Port", purpose: "b" },
       ],
-      ["Sol-2", "Sol"],
+      ["Ray Port-2", "Ray Port"],
     );
-    expect(visitOrder(p)).toEqual([0, 1]);
+    expect(visitOrder(p)).toEqual([1, 0]);
+  });
+
+  it("matches an old route's name against a stop's station, body or system", () => {
+    const p = plan(
+      [
+        { system: "Sol", station: "Daedalus", purpose: "a", label: "shop" },
+        { system: "Deciat", purpose: "b" },
+      ],
+      ["Deciat", "daedalus"],
+    );
+    expect(visitOrder(p)).toEqual([1, 0]);
   });
 
   it("gives the first stop to do as next_stop, with its index", () => {
@@ -78,5 +99,6 @@ describe("plan stops", () => {
   it("needs exactly one of label and index", () => {
     expect(() => findStop(plan(bios), {})).toThrow("Give the stop's label or its index");
     expect(() => findStop(plan(bios), { label: "port", index: 0 })).toThrow("not both");
+    expect(() => findStop(plan([]), { index: 0 })).toThrow('Plan "p" has no stops.');
   });
 });

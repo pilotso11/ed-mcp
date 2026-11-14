@@ -59,6 +59,10 @@ export const PlanRouteSchema = z.object({
   stops: z.array(z.string()),
   total_min: z.number(),
   plotted: z.boolean(),
+  // For each entry of stops, the indexes in the plan's stops that it visits. Names alone do not
+  // map back: an engineer stop takes the engineer's name, and repeated names get -2, -3.
+  // Optional, so routes saved before it load.
+  stop_indexes: z.array(z.array(z.number().int().min(0))).optional(),
 });
 
 export const PlanInputSchema = z.object({

@@ -5,7 +5,7 @@ ed-mcp is a local program. It runs on your computer, inside Claude Desktop or Cl
 ## What ed-mcp reads
 
 - The Elite Dangerous journal and the `Cargo.json`, `Market.json`, `Outfitting.json` and `Shipyard.json` files that the game writes. ed-mcp only reads them. It never changes them.
-- Its own files: plans, preferences, API keys and the Frontier login. See [Your data](README.md#your-data) for where they are.
+- Its own files: plans, preferences, the activity note (`activity.json`), API keys and the Frontier login. See [Your data](README.md#your-data) for where they are.
 
 ## What ed-mcp sends, and to whom
 
@@ -26,7 +26,7 @@ ed-mcp has no analytics and no telemetry.
 ## Where your data is kept
 
 - On your computer, in the ed-mcp settings and cache folders.
-- If you set a sync folder, plans and preferences are also in that folder, and your sync service (for example Google Drive) stores them under its own privacy terms. API keys and the Frontier login go to the sync folder only when you also set a sync password. ed-mcp then encrypts them with that password.
+- If you set a sync folder, plans, preferences and the activity note are also in that folder, and your sync service (for example Google Drive) stores them under its own privacy terms. API keys and the Frontier login go to the sync folder only when you also set a sync password. ed-mcp then encrypts them with that password.
 
 To remove everything, delete the ed-mcp settings and cache folders (and the files in your sync folder, if you set one), and log out of Frontier with `capi_logout`.
 

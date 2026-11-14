@@ -29,6 +29,8 @@ export interface PoolStop {
   purpose: string | null;
   notes: string | null;
   after: string[] | undefined;
+  // Indexes in the plan's stops that this stop comes from.
+  planStops: number[];
 }
 
 export interface Pool {
@@ -81,7 +83,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
   const byKey = new Map<string, PoolStop>();
   const make = (
     input: StopInput,
-    over: { purpose?: string; kind?: Kind; notes?: string } = {},
+    over: { purpose?: string; kind?: Kind; notes?: string; planStop?: number } = {},
   ): PoolStop => {
     let engineer: PoolStop["engineer"] = null;
     if (input.engineer) engineer = resolveEngineer(input.engineer);
@@ -105,6 +107,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       hit.purpose = joinPurposes(hit.purpose, over.purpose ?? null);
       hit.notes = joinPurposes(hit.notes, over.notes ?? null);
       hit.body ??= input.body ?? null;
+      if (over.planStop !== undefined) hit.planStops.push(over.planStop);
       hit.engineer ??= engineer;
       if (engineer || (over.kind ?? input.kind) === "engineer") hit.kind = "engineer";
       return hit;
@@ -121,6 +124,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
       purpose: over.purpose ?? null,
       notes: over.notes ?? null,
       after: input.after,
+      planStops: over.planStop === undefined ? [] : [over.planStop],
     };
     byKey.set(key, stop);
     return stop;
@@ -189,7 +193,7 @@ export function buildPool(a: PoolArgs, catalog: Pick<Catalog, "engineer"> | null
             kind: s.kind,
             after: s.after,
           },
-          { purpose: s.purpose, notes: s.notes },
+          { purpose: s.purpose, notes: s.notes, planStop: a.plan.stops.indexOf(s) },
         ),
       });
     }

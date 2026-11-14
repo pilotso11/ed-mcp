@@ -106,6 +106,21 @@ describe("plan tools", () => {
     await callTool(client, "plan_upsert", { plan });
     const none = await callTool(client, "plan_update_stop", { plan_id: "cutter", index: 0 });
     expect(none).toMatchObject({ isError: true, text: "Give status or notes to update" });
+    const one = "Give exactly one of label or index to name the stop";
+    for (const ref of [{}, { label: "Sol", index: 0 }]) {
+      const r = await callTool(client, "plan_update_stop", {
+        plan_id: "cutter",
+        ...ref,
+        notes: "x",
+      });
+      expect(r).toMatchObject({ isError: true, text: one });
+    }
+    const empty = await callTool(client, "plan_update_stop", {
+      plan_id: "cutter",
+      label: "",
+      notes: "x",
+    });
+    expect(empty.isError).toBe(true);
     const missing = await callTool(client, "plan_update_stop", {
       plan_id: "cutter",
       label: "Sol",
@@ -113,7 +128,7 @@ describe("plan tools", () => {
     });
     expect(missing.isError).toBe(true);
     expect(missing.text).toBe(
-      'Stop "Sol" in plan "cutter" was not updated (status: done). No stop "Sol" in plan "cutter". Stops: none',
+      'Stop "Sol" in plan "cutter" was not updated (status: done). Plan "cutter" has no stops.',
     );
   });
 

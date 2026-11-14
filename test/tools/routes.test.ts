@@ -15,9 +15,9 @@ import { callTool, connectTestClient } from "../helpers/client.js";
 const coords: Record<string, number> = { sol: 0, alpha: 10, beta: 50, gamma: 90, far: 300 };
 const stationNames: Record<string, string[]> = {
   sol: ["Abraham Lincoln"],
-  alpha: ["Alpha Port", "Farseer Inc"],
+  alpha: ["Alpha Port", "Farseer Inc", "Twin Port"],
   beta: ["Beta Hub", "Palin Lab"],
-  gamma: ["Lock Base"],
+  gamma: ["Lock Base", "Twin Port"],
 };
 
 const engineers: Record<string, { name: string; system: string; base: string; permit: boolean }> = {
@@ -180,6 +180,55 @@ describe("route_stops", () => {
     expect((await plans.list())[0]!.next_stop).toMatchObject({
       index: p.stops.findIndex((s) => (s.station ?? s.body) === first),
     });
+  });
+
+  it("gives the first stop of a saved route as next_stop for an unlabelled engineer stop", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith(
+        [
+          { system: "Beta", station: "Beta Hub", purpose: "sell", kind: "hand_in" },
+          { system: "Alpha", purpose: "g5", kind: "engineer" },
+        ],
+        engItem,
+      ),
+    });
+    const r = await callTool(client, "route_stops", { ...range, plan_id: "p", save_to_plan: true });
+    const j = r.json as Record<string, any>;
+    // The engineer stop takes the engineer's name, which the plan stop does not hold.
+    expect(labels(j)).toEqual(["Felicity Farseer", "Beta Hub"]);
+    const got = (await callTool(client, "plan_get", { id: "p" })).json as any;
+    expect(got.route.stop_indexes).toEqual([[1], [0]]);
+    expect(got.next_stop).toMatchObject({ index: 1, system: "Alpha" });
+    const list = (await callTool(client, "plan_list")).json as any;
+    expect(list[0].next_stop).toMatchObject({ index: 1 });
+  });
+
+  it("gives the first stop of a saved route as next_stop when two stations share a name", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: planWith([
+        { system: "Gamma", station: "Twin Port", purpose: "far", kind: "trade" },
+        { system: "Alpha", station: "Twin Port", purpose: "near", kind: "trade" },
+      ]),
+    });
+    const r = await callTool(client, "route_stops", {
+      ...range,
+      plan_id: "p",
+      save_to_plan: true,
+      return_to: { system: "Sol" },
+    });
+    expect(labels(r.json as Record<string, any>)).toEqual([
+      "Twin Port-2",
+      "Twin Port",
+      "return_to",
+    ]);
+    const got = (await callTool(client, "plan_get", { id: "p" })).json as any;
+    expect(got.route.stop_indexes).toEqual([[1], [0], []]);
+    expect(got.next_stop).toMatchObject({ index: 1, system: "Alpha" });
+    await callTool(client, "plan_update_stop", { plan_id: "p", index: 1, status: "done" });
+    const list = (await callTool(client, "plan_list")).json as any;
+    expect(list[0].next_stop).toMatchObject({ index: 0, system: "Gamma" });
   });
 
   it("keeps the engineer when a plan shop at the engineer's base merges with the engineer", async () => {

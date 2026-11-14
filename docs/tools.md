@@ -178,9 +178,9 @@ A plan is a ship build, a route, or both. For example: system X, planet Y for bi
 - `stops`: places to visit. A stop has a `system`, a `purpose`, and optionally a `station`, a `body` (planet or moon), a `label`, a `kind`, `after` rules and `notes`. The kinds are `shop`, `trader`, `engineer`, `exobiology`, `exploration`, `combat`, `mission`, `hand_in`, `trade`, `mining`, `fuel` and `other`. Each stop has a `status`: `todo` (the default), `done` or `skipped`.
 - `route`: the order that `route_stops` saved. Without a route, the order of `stops` is the visit order.
 
-`plan_get` and `plan_list` add `next_stop`: the first stop with status `todo`, in route order when the plan has a route. It has the stop's `index` in `stops`, from 0. Stops that the route does not name come after the route's stops.
+`plan_get` and `plan_list` add `next_stop`: the first stop with status `todo`, in route order when the plan has a route. It has the stop's `index` in `stops`, from 0. A route saved by `route_stops` keeps `stop_indexes`, the plan stops of each route entry, so the order is exact. For a route saved before `stop_indexes`, ed-mcp matches the route's names to the stops. Stops that the route does not visit come after the route's stops.
 
-`plan_update_stop` sets the `status` and/or `notes` of one stop. Name the stop by `label` or by `index`. A label matches the stop's label, or, for a stop without one, its station, body or system. If more than one stop matches, give the index.
+`plan_update_stop` sets the `status` and/or `notes` of one stop. Name the stop by `label` or by `index`, not both. A label matches the stop's label, or, for a stop without one, its station, body or system. If more than one stop matches, give the index.
 
 Plans saved before stops had a status load unchanged: every stop is `todo`.
 

@@ -174,11 +174,11 @@ export function registerPlanTools(
       },
       description:
         "Set the status (todo, done, skipped) and/or notes of one stop in a plan. Name the stop by " +
-        "label (its label, else its station, body or system) or by index in the plan's stops, from 0. " +
+        "label (its label, else its station, body or system) or by index in the plan's stops, from 0; give exactly one. " +
         "Mark a stop done when the player has finished there; returns the plan with the new next_stop.",
       inputSchema: {
         plan_id: z.string(),
-        label: z.string().optional(),
+        label: z.string().min(1).optional(),
         index: z.number().int().min(0).optional(),
         status: StopStatus.optional(),
         notes: z.string().optional(),
@@ -192,10 +192,13 @@ export function registerPlanTools(
         status?: z.infer<typeof StopStatus>;
         notes?: string;
       }) => {
+        if ((a.label === undefined) === (a.index === undefined)) {
+          throw new UserError("Give exactly one of label or index to name the stop");
+        }
         if (a.status === undefined && a.notes === undefined) {
           throw new UserError("Give status or notes to update");
         }
-        const which = a.label !== undefined ? `"${a.label}"` : `${a.index ?? "?"}`;
+        const which = a.label !== undefined ? `"${a.label}"` : String(a.index);
         try {
           const plan = await plans.updateStop(
             a.plan_id,

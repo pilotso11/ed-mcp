@@ -57,6 +57,7 @@ interface Node {
   purpose: string | null;
   body: string | null;
   notes: string | null;
+  planStops: number[];
 }
 
 export function registerRouteTools(
@@ -214,6 +215,7 @@ export function registerRouteTools(
             node.purpose = joinPurposes(node.purpose, s.purpose);
             node.notes = joinPurposes(node.notes, s.notes);
             node.body ??= s.body;
+            node.planStops.push(...s.planStops);
             idx = hit;
           } else {
             nodes.push({
@@ -224,6 +226,7 @@ export function registerRouteTools(
               purpose: s.purpose,
               body: s.body,
               notes: s.notes,
+              planStops: [...s.planStops],
             });
             idx = nodes.length - 1;
             if (merge && key) byStation.set(key, idx);
@@ -468,6 +471,10 @@ export function registerRouteTools(
               ],
               total_min: total,
               plotted: a.plot && allPlotted,
+              stop_indexes: [
+                ...solved.order.map((i) => [...new Set(nodes[i]!.planStops)]),
+                ...(returnPlace ? [[]] : []),
+              ],
             });
             saved = true;
           } catch (err) {
