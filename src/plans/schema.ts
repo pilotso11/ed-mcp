@@ -65,10 +65,13 @@ export const PlanRouteSchema = z.object({
   stop_indexes: z.array(z.array(z.number().int().min(0))).optional(),
 });
 
+// Also bounds the activity note's plan_id, which keeps activity.json small.
+export const PlanId = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "id must be lowercase letters, digits and dashes");
+
 export const PlanInputSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "id must be lowercase letters, digits and dashes"),
+  id: PlanId,
   name: z.string().min(1),
   target_build: z.unknown().optional(),
   items: z.array(PlanItemSchema).default([]),

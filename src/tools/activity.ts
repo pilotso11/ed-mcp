@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ActivityKind, MAX_SUMMARY } from "../activity/schema.js";
+import { PlanId } from "../plans/schema.js";
 import type { ActivityStore } from "../activity/store.js";
 import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
@@ -81,7 +82,7 @@ export function registerActivityTools(
       inputSchema: {
         kind: ActivityKind.optional(),
         summary: z.string().max(MAX_SUMMARY).optional(),
-        plan_id: z.string().min(1).optional(),
+        plan_id: PlanId.optional(),
         clear: z.boolean().optional(),
       },
     },

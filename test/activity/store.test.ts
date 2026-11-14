@@ -39,11 +39,15 @@ describe("ActivityStore", () => {
     expect(await s.get()).toEqual(next);
   });
 
-  it("rejects a summary over 500 characters and an unknown kind without writing", async () => {
+  it("rejects a long summary, an unknown kind or a bad plan_id without writing", async () => {
     const s = new ActivityStore(file, now);
     await expect(s.set({ ...note, summary: "x".repeat(501) })).rejects.toThrow(/Invalid activity/);
     await expect(s.set({ ...note, kind: "piracy" as never })).rejects.toThrow(/Invalid activity/);
     await expect(s.set({ ...note, summary: "  " })).rejects.toThrow(/Invalid activity/);
+    await expect(s.set({ ...note, plan_id: "x".repeat(5_000_000) })).rejects.toThrow(
+      /Invalid activity/,
+    );
+    await expect(s.set({ ...note, plan_id: "Not An Id" })).rejects.toThrow(/Invalid activity/);
     expect(await s.get()).toBeNull();
     expect(await s.set({ ...note, summary: "x".repeat(500) })).toMatchObject({
       kind: "exobiology",
