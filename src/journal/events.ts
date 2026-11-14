@@ -15,7 +15,21 @@ export function truncate(value: unknown): unknown {
   return value;
 }
 
-const LOCATION_EVENTS = new Set(["Location", "FSDJump", "CarrierJump", "Docked"]);
+export const LOCATION_EVENTS: ReadonlySet<string> = new Set([
+  "Location",
+  "FSDJump",
+  "CarrierJump",
+  "Docked",
+]);
+
+/** The system named by the newest location event at or before the time, or null. */
+export function systemAt(locations: JournalEvent[], timestamp: string): string | null {
+  for (let i = locations.length - 1; i >= 0; i--) {
+    const e = locations[i]!;
+    if (e.timestamp <= timestamp && typeof e.StarSystem === "string") return e.StarSystem;
+  }
+  return null;
+}
 
 export interface EventFilter {
   events?: string[];
@@ -25,15 +39,20 @@ export interface EventFilter {
 
 /**
  * The events of one file that match, oldest first. An event is in a system when it names the
- * system itself or comes after the file's last jump, location or docking event there.
+ * system itself or comes after the last jump, location or docking event there. start is the
+ * system when the file begins: a part file after a rollover has no location event of its own.
  * StartJump names the system it jumps to, so it belongs where it starts.
  */
-export function matchFile(events: JournalEvent[], filter: EventFilter): JournalEvent[] {
+export function matchFile(
+  events: JournalEvent[],
+  filter: EventFilter,
+  start: string | null = null,
+): JournalEvent[] {
   const names = filter.events?.length
     ? new Set(filter.events.map((n) => n.toLowerCase()))
     : undefined;
   const system = filter.system?.toLowerCase();
-  let current: string | null = null;
+  let current = start?.toLowerCase() ?? null;
   const out: JournalEvent[] = [];
   for (const e of events) {
     if (LOCATION_EVENTS.has(e.event) && typeof e.StarSystem === "string") {

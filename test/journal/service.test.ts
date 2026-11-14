@@ -248,6 +248,22 @@ describe("JournalService events", () => {
     expect(named.events.map((e) => e.MissionID)).toEqual([1]);
   });
 
+  it("places events at the start of a part file in the system of the previous file", async () => {
+    const dir = await folder();
+    // A rollover part file starts with a Fileheader and no location event.
+    await writeJournal(dir, "Journal.2026-10-12T100000.02.log", [
+      ev("2026-10-12T10:30:00Z", "Fileheader", { part: 2 }),
+      ev("2026-10-12T10:31:00Z", "Bounty", { VictimFaction: "Pirates" }),
+      ev("2026-10-12T10:32:00Z", "FSDJump", { StarSystem: "Lave" }),
+      ev("2026-10-12T10:33:00Z", "Bounty", { VictimFaction: "Pirates" }),
+    ]);
+    const svc = new JournalService(dir);
+    const sol = await svc.recentEvents({ system: "Sol", events: ["Bounty"] }, 10);
+    expect(sol.events.map((e) => e.timestamp)).toEqual(["2026-10-12T10:31:00Z"]);
+    const lave = await svc.recentEvents({ system: "Lave", events: ["Bounty"] }, 10);
+    expect(lave.events.map((e) => e.timestamp)).toEqual(["2026-10-12T10:33:00Z"]);
+  });
+
   it("stops reading at files older than since", async () => {
     const dir = await folder();
     await writeJournal(dir, "Journal.2026-10-11T100000.01.log", [

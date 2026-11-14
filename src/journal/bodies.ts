@@ -21,8 +21,6 @@ const objs = (v: unknown): Obj[] =>
   Array.isArray(v) ? v.filter((x): x is Obj => typeof x === "object" && x !== null) : [];
 const same = (a: string | null, b: string) => a !== null && a.toLowerCase() === b.toLowerCase();
 
-const BIOLOGICAL = "$SAA_SignalType_Biological;";
-
 /** The SystemAddress of the newest event that names the system, or null. */
 export function systemAddress(events: JournalEvent[], system: string): number | null {
   for (let i = events.length - 1; i >= 0; i--) {
@@ -48,9 +46,12 @@ function signalsOf(e: Obj): BodySignal[] {
 }
 
 function bioCount(e: Obj): number {
-  return objs(e.Signals)
-    .filter((s) => s.Type === BIOLOGICAL || s.Type_Localised === "Biological")
-    .reduce((n, s) => n + (num(s.Count) ?? 0), 0);
+  return (
+    objs(e.Signals)
+      // FSS and surface scans use different prefixes; the localised name is in the client's language.
+      .filter((s) => typeof s.Type === "string" && s.Type.endsWith("SignalType_Biological;"))
+      .reduce((n, s) => n + (num(s.Count) ?? 0), 0)
+  );
 }
 
 // Body names come from whichever event saw the body; ScanOrganic gives only the BodyID.

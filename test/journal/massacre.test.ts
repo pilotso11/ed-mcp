@@ -60,16 +60,46 @@ describe("massacre", () => {
     expect(counts(r)).toEqual({ 1: "1/5" });
   });
 
-  it("marks a redirected mission done and moves later kills to the next one", () => {
+  it("marks a mission redirected back to its giver done and moves later kills to the next one", () => {
     const r = run([
+      ev(T(0), "Docked", { StarSystem: "Home", StationName: "Port" }),
       accept(1, 1, "Alpha", 5),
       accept(2, 2, "Alpha", 5),
       bounty(3),
-      ev(T(4), "MissionRedirected", { MissionID: 1, NewDestinationSystem: "Home" }),
+      ev(T(4), "MissionRedirected", {
+        MissionID: 1,
+        NewDestinationSystem: "Home",
+        NewDestinationStation: "Port",
+      }),
       bounty(5),
     ]);
     expect(counts(r)).toEqual({ 1: "1/5D", 2: "1/5" });
     expect(r.groups[0]!.factions[0]!.missions[0]!.kills_left).toBe(0);
+  });
+
+  it("keeps counting kills for a mission redirected somewhere other than its giver", () => {
+    const r = run([
+      ev(T(0), "Docked", { StarSystem: "Home", StationName: "Port" }),
+      accept(1, 1, "Alpha", 5),
+      accept(2, 2, "Alpha", 5),
+      bounty(3),
+      ev(T(4), "MissionRedirected", {
+        MissionID: 1,
+        NewDestinationSystem: "Elsewhere",
+        NewDestinationStation: "Outpost",
+      }),
+      bounty(5),
+    ]);
+    expect(counts(r)).toEqual({ 1: "2/5", 2: "0/5" });
+  });
+
+  it("treats a mission the Missions list calls complete as done", () => {
+    const r = run([
+      accept(1, 1, "Alpha", 5),
+      bounty(2),
+      ev(T(3), "Missions", { Active: [], Complete: [{ MissionID: 1 }] }),
+    ]);
+    expect(counts(r)).toEqual({ 1: "1/5D" });
   });
 
   it("groups by target and lists massacre missions accepted before the window as uncounted", () => {

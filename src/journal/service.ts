@@ -6,7 +6,7 @@ import { JournalReader, type JournalEvent } from "./reader.js";
 import type { MarketRow } from "../spansh/client.js";
 import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.js";
 import { BODY_EVENTS } from "./bodies.js";
-import { matchFile, type EventFilter } from "./events.js";
+import { LOCATION_EVENTS, matchFile, systemAt, type EventFilter } from "./events.js";
 import { MASSACRE_EVENTS } from "./massacre.js";
 
 export interface JournalStatus {
@@ -241,6 +241,11 @@ export class JournalService {
     if (found.error) throw new UserError(`${found.error}. Run journal_status for help.`);
     const warnings: string[] = [];
     const out: JournalEvent[] = [];
+    // The kept state events hold every location event in the window, so the system at the start
+    // of each file comes from them, without reading older files in full.
+    const locations = filter.system
+      ? (await this.state()).events.filter((e) => LOCATION_EVENTS.has(e.event))
+      : [];
     for (const file of [...found.files].reverse()) {
       if (out.length >= limit) break;
       let events: JournalEvent[];
@@ -250,7 +255,9 @@ export class JournalService {
         warnings.push(`Cannot read ${file.name}: ${errText(err)}`);
         continue;
       }
-      const matched = matchFile(events, filter);
+      const first = events[0];
+      const start = first && filter.system ? systemAt(locations, first.timestamp) : null;
+      const matched = matchFile(events, filter, start);
       for (let i = matched.length - 1; i >= 0 && out.length < limit; i--) out.push(matched[i]!);
       const last = events.at(-1);
       // Files are in time order, so an older file holds nothing newer than since.

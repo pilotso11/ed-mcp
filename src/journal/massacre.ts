@@ -52,12 +52,14 @@ export function massacre(
     .sort((a, b) => a.out.accepted.localeCompare(b.out.accepted) || a.out.id - b.out.id);
   // Missions listed before the journal window have no target or kill count.
   const uncounted = missions.filter((m) => m.details_missing && /massacre/i.test(m.name));
-  const byId = new Map(tracked.map((t) => [t.out.id, t.out]));
+  const byId = new Map(tracked.map((t) => [t.out.id, t]));
 
   for (const e of events) {
     if (e.event === "MissionRedirected") {
-      const m = byId.get(typeof e.MissionID === "number" ? e.MissionID : -1);
-      if (m) m.done = true;
+      // The state decides completion: only a redirect back to the giver ends the mission, and a
+      // later Missions list can override it. A complete mission stops taking kills at its redirect.
+      const t = byId.get(typeof e.MissionID === "number" ? e.MissionID : -1);
+      if (t?.mission.status === "complete") t.out.done = true;
       continue;
     }
     if (e.event !== "Bounty" && e.event !== "FactionKillBond") continue;
@@ -77,6 +79,7 @@ export function massacre(
 
   const groups = new Map<string, Map<string, MassacreMission[]>>();
   for (const { mission, out } of tracked) {
+    if (mission.status === "complete") out.done = true;
     out.kills_left = out.done ? 0 : out.kills_required - out.kills_counted;
     const target = mission.target_faction!;
     const giver = mission.faction ?? "unknown";

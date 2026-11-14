@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchFile, truncate } from "../../src/journal/events.js";
+import { matchFile, systemAt, truncate } from "../../src/journal/events.js";
 import { ev } from "../helpers/journal.js";
 
 const T = (n: number) => `2026-11-01T10:${String(n).padStart(2, "0")}:00Z`;
@@ -40,5 +40,27 @@ describe("matchFile", () => {
   it("places events by their own system field or by the last jump", () => {
     expect(times(matchFile(events, { system: "sol" }))).toEqual([T(1), T(2), T(3), T(5)]);
     expect(times(matchFile(events, { system: "Lave", events: ["Bounty"] }))).toEqual([T(4)]);
+  });
+
+  it("starts in the given system until the file names another", () => {
+    const part = [
+      ev(T(0), "Fileheader"),
+      ev(T(1), "Bounty"),
+      ev(T(2), "FSDJump", { StarSystem: "Lave" }),
+    ];
+    expect(times(matchFile(part, { system: "Sol" }, "Sol"))).toEqual([T(0), T(1)]);
+    expect(matchFile(part, { system: "Sol" })).toEqual([]);
+  });
+});
+
+describe("systemAt", () => {
+  it("gives the system of the newest location event at or before the time", () => {
+    const locations = [
+      ev(T(1), "Location", { StarSystem: "Sol" }),
+      ev(T(3), "FSDJump", { StarSystem: "Lave" }),
+    ];
+    expect(systemAt(locations, T(0))).toBeNull();
+    expect(systemAt(locations, T(2))).toBe("Sol");
+    expect(systemAt(locations, T(3))).toBe("Lave");
   });
 });

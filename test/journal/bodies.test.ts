@@ -6,6 +6,8 @@ const T = (n: number) => `2026-11-01T10:${String(n).padStart(2, "0")}:00Z`;
 const SYS = "Test Sector AB-C d1";
 const ADDR = 1001;
 const BIO = { Type: "$SAA_SignalType_Biological;", Type_Localised: "Biological" };
+// FSSBodySignals uses its own symbol; Type_Localised is in the client's language.
+const FSS_BIO = { Type: "$FSS_SignalType_Biological;", Type_Localised: "Biologisch" };
 const genus = (name: string) => ({
   Genus: `$Codex_Ent_${name}_Genus_Name;`,
   Genus_Localised: name,
@@ -40,7 +42,7 @@ describe("exobiology", () => {
       BodyName: `${SYS} 3`,
       BodyID: 3,
       SystemAddress: ADDR,
-      Signals: [{ ...BIO, Count: 3 }],
+      Signals: [{ ...FSS_BIO, Count: 3 }],
     }),
     ev(T(3), "FSSBodySignals", {
       BodyName: `${SYS} 4`,
@@ -114,6 +116,11 @@ describe("exobiology", () => {
     expect(exobiology(events, ADDR, { system: SYS, body: "3" }).bodies).toHaveLength(1);
     expect(exobiology(events, ADDR, { system: SYS, body: `${SYS} 3` }).bodies).toHaveLength(1);
     expect(exobiology(events, ADDR, { system: SYS, body: "4" }).bodies).toEqual([]);
+  });
+
+  it("counts biological signals from the FSS before a surface scan, in any language", () => {
+    const r = exobiology(events.slice(0, 4), ADDR);
+    expect(r.bodies.map((b) => [b.body_id, b.bio_signals, b.genera])).toEqual([[3, 3, []]]);
   });
 
   it("names a body by its id when no event gave its name", () => {
