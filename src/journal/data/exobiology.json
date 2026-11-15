@@ -1,0 +1,460 @@
+{
+  "source": "https://us-central1-canonn-api-236217.cloudfunctions.net/query/codex/ref",
+  "species": {
+    "$Codex_Ent_Aleoids_01_Name;": {
+      "name": "Aleoida Arcus",
+      "genus": "Aleoids",
+      "value": 7252500
+    },
+    "$Codex_Ent_Aleoids_02_Name;": {
+      "name": "Aleoida Coronamus",
+      "genus": "Aleoids",
+      "value": 6284600
+    },
+    "$Codex_Ent_Aleoids_03_Name;": {
+      "name": "Aleoida Spica",
+      "genus": "Aleoids",
+      "value": 3385200
+    },
+    "$Codex_Ent_Aleoids_04_Name;": {
+      "name": "Aleoida Laminiae",
+      "genus": "Aleoids",
+      "value": 3385200
+    },
+    "$Codex_Ent_Aleoids_05_Name;": {
+      "name": "Aleoida Gravis",
+      "genus": "Aleoids",
+      "value": 12934900
+    },
+    "$Codex_Ent_Bacterial_01_Name;": {
+      "name": "Bacterium Aurasus",
+      "genus": "Bacterial",
+      "value": 1000000
+    },
+    "$Codex_Ent_Bacterial_02_Name;": {
+      "name": "Bacterium Nebulus",
+      "genus": "Bacterial",
+      "value": 5289900
+    },
+    "$Codex_Ent_Bacterial_03_Name;": {
+      "name": "Bacterium Scopulum",
+      "genus": "Bacterial",
+      "value": 4934500
+    },
+    "$Codex_Ent_Bacterial_04_Name;": {
+      "name": "Bacterium Acies",
+      "genus": "Bacterial",
+      "value": 1000000
+    },
+    "$Codex_Ent_Bacterial_05_Name;": {
+      "name": "Bacterium Vesicula",
+      "genus": "Bacterial",
+      "value": 1000000
+    },
+    "$Codex_Ent_Bacterial_06_Name;": {
+      "name": "Bacterium Alcyoneum",
+      "genus": "Bacterial",
+      "value": 1658500
+    },
+    "$Codex_Ent_Bacterial_07_Name;": {
+      "name": "Bacterium Tela",
+      "genus": "Bacterial",
+      "value": 1949000
+    },
+    "$Codex_Ent_Bacterial_08_Name;": {
+      "name": "Bacterium Informem",
+      "genus": "Bacterial",
+      "value": 8418000
+    },
+    "$Codex_Ent_Bacterial_09_Name;": {
+      "name": "Bacterium Volu",
+      "genus": "Bacterial",
+      "value": 7774700
+    },
+    "$Codex_Ent_Bacterial_10_Name;": {
+      "name": "Bacterium Bullaris",
+      "genus": "Bacterial",
+      "value": 1152500
+    },
+    "$Codex_Ent_Bacterial_11_Name;": {
+      "name": "Bacterium Omentum",
+      "genus": "Bacterial",
+      "value": 4638900
+    },
+    "$Codex_Ent_Bacterial_12_Name;": {
+      "name": "Bacterium Cerbrus",
+      "genus": "Bacterial",
+      "value": 1689800
+    },
+    "$Codex_Ent_Bacterial_13_Name;": {
+      "name": "Bacterium Verrata",
+      "genus": "Bacterial",
+      "value": 3897000
+    },
+    "$Codex_Ent_Cactoid_01_Name;": {
+      "name": "Cactoida Cortexum",
+      "genus": "Cactoid",
+      "value": 3667600
+    },
+    "$Codex_Ent_Cactoid_02_Name;": {
+      "name": "Cactoida Lapis",
+      "genus": "Cactoid",
+      "value": 2483600
+    },
+    "$Codex_Ent_Cactoid_03_Name;": {
+      "name": "Cactoida Vermis",
+      "genus": "Cactoid",
+      "value": 16202800
+    },
+    "$Codex_Ent_Cactoid_04_Name;": {
+      "name": "Cactoida Pullulanta",
+      "genus": "Cactoid",
+      "value": 3667600
+    },
+    "$Codex_Ent_Cactoid_05_Name;": {
+      "name": "Cactoida Peperatis",
+      "genus": "Cactoid",
+      "value": 2483600
+    },
+    "$Codex_Ent_Clypeus_01_Name;": {
+      "name": "Clypeus Lacrimam",
+      "genus": "Clypeus",
+      "value": 8418000
+    },
+    "$Codex_Ent_Clypeus_02_Name;": {
+      "name": "Clypeus Margaritus",
+      "genus": "Clypeus",
+      "value": 11873200
+    },
+    "$Codex_Ent_Clypeus_03_Name;": {
+      "name": "Clypeus Speculumi",
+      "genus": "Clypeus",
+      "value": 16202800
+    },
+    "$Codex_Ent_Conchas_01_Name;": {
+      "name": "Concha Renibus",
+      "genus": "Conchas",
+      "value": 4572400
+    },
+    "$Codex_Ent_Conchas_02_Name;": {
+      "name": "Concha Aureolas",
+      "genus": "Conchas",
+      "value": 7774700
+    },
+    "$Codex_Ent_Conchas_03_Name;": {
+      "name": "Concha Labiata",
+      "genus": "Conchas",
+      "value": 2352400
+    },
+    "$Codex_Ent_Conchas_04_Name;": {
+      "name": "Concha Biconcavis",
+      "genus": "Conchas",
+      "value": 19010800
+    },
+    "$Codex_Ent_Electricae_01_Name;": {
+      "name": "Electricae Pluma",
+      "genus": "Electricae",
+      "value": 6284600
+    },
+    "$Codex_Ent_Electricae_02_Name;": {
+      "name": "Electricae Radialem",
+      "genus": "Electricae",
+      "value": 6284600
+    },
+    "$Codex_Ent_Fonticulus_01_Name;": {
+      "name": "Fonticulua Segmentatus",
+      "genus": "Fonticulus",
+      "value": 19010800
+    },
+    "$Codex_Ent_Fonticulus_02_Name;": {
+      "name": "Fonticulua Campestris",
+      "genus": "Fonticulus",
+      "value": 1000000
+    },
+    "$Codex_Ent_Fonticulus_03_Name;": {
+      "name": "Fonticulua Upupam",
+      "genus": "Fonticulus",
+      "value": 5727600
+    },
+    "$Codex_Ent_Fonticulus_04_Name;": {
+      "name": "Fonticulua Lapida",
+      "genus": "Fonticulus",
+      "value": 3111000
+    },
+    "$Codex_Ent_Fonticulus_05_Name;": {
+      "name": "Fonticulua Fluctus",
+      "genus": "Fonticulus",
+      "value": 20000000
+    },
+    "$Codex_Ent_Fonticulus_06_Name;": {
+      "name": "Fonticulua Digitos",
+      "genus": "Fonticulus",
+      "value": 1804100
+    },
+    "$Codex_Ent_Fumerolas_01_Name;": {
+      "name": "Fumerola Carbosis",
+      "genus": "Fumerolas",
+      "value": 6284600
+    },
+    "$Codex_Ent_Fumerolas_02_Name;": {
+      "name": "Fumerola Extremus",
+      "genus": "Fumerolas",
+      "value": 16202800
+    },
+    "$Codex_Ent_Fumerolas_03_Name;": {
+      "name": "Fumerola Nitris",
+      "genus": "Fumerolas",
+      "value": 7500900
+    },
+    "$Codex_Ent_Fumerolas_04_Name;": {
+      "name": "Fumerola Aquatis",
+      "genus": "Fumerolas",
+      "value": 6284600
+    },
+    "$Codex_Ent_Fungoids_01_Name;": {
+      "name": "Fungoida Setisis",
+      "genus": "Fungoids",
+      "value": 1670100
+    },
+    "$Codex_Ent_Fungoids_02_Name;": {
+      "name": "Fungoida Stabitis",
+      "genus": "Fungoids",
+      "value": 2680300
+    },
+    "$Codex_Ent_Fungoids_03_Name;": {
+      "name": "Fungoida Bullarum",
+      "genus": "Fungoids",
+      "value": 3703200
+    },
+    "$Codex_Ent_Fungoids_04_Name;": {
+      "name": "Fungoida Gelata",
+      "genus": "Fungoids",
+      "value": 3330300
+    },
+    "$Codex_Ent_Ingensradices_Unicus_Name;": {
+      "name": "Radicoida Unica",
+      "genus": "Ingensradices",
+      "value": 119037
+    },
+    "$Codex_Ent_Osseus_01_Name;": {
+      "name": "Osseus Fractus",
+      "genus": "Osseus",
+      "value": 4027800
+    },
+    "$Codex_Ent_Osseus_02_Name;": {
+      "name": "Osseus Discus",
+      "genus": "Osseus",
+      "value": 12934900
+    },
+    "$Codex_Ent_Osseus_03_Name;": {
+      "name": "Osseus Spiralis",
+      "genus": "Osseus",
+      "value": 2404700
+    },
+    "$Codex_Ent_Osseus_04_Name;": {
+      "name": "Osseus Pumice",
+      "genus": "Osseus",
+      "value": 3156300
+    },
+    "$Codex_Ent_Osseus_05_Name;": {
+      "name": "Osseus Cornibus",
+      "genus": "Osseus",
+      "value": 1483000
+    },
+    "$Codex_Ent_Osseus_06_Name;": {
+      "name": "Osseus Pellebantus",
+      "genus": "Osseus",
+      "value": 9739000
+    },
+    "$Codex_Ent_Recepta_01_Name;": {
+      "name": "Recepta Umbrux",
+      "genus": "Recepta",
+      "value": 12934900
+    },
+    "$Codex_Ent_Recepta_02_Name;": {
+      "name": "Recepta Deltahedronix",
+      "genus": "Recepta",
+      "value": 16202800
+    },
+    "$Codex_Ent_Recepta_03_Name;": {
+      "name": "Recepta Conditivus",
+      "genus": "Recepta",
+      "value": 14313700
+    },
+    "$Codex_Ent_Shrubs_01_Name;": {
+      "name": "Frutexa Flabellum",
+      "genus": "Shrubs",
+      "value": 1808900
+    },
+    "$Codex_Ent_Shrubs_02_Name;": {
+      "name": "Frutexa Acus",
+      "genus": "Shrubs",
+      "value": 7774700
+    },
+    "$Codex_Ent_Shrubs_03_Name;": {
+      "name": "Frutexa Metallicum",
+      "genus": "Shrubs",
+      "value": 1632500
+    },
+    "$Codex_Ent_Shrubs_04_Name;": {
+      "name": "Frutexa Flammasis",
+      "genus": "Shrubs",
+      "value": 10326000
+    },
+    "$Codex_Ent_Shrubs_05_Name;": {
+      "name": "Frutexa Fera",
+      "genus": "Shrubs",
+      "value": 1632500
+    },
+    "$Codex_Ent_Shrubs_06_Name;": {
+      "name": "Frutexa Sponsae",
+      "genus": "Shrubs",
+      "value": 5988000
+    },
+    "$Codex_Ent_Shrubs_07_Name;": {
+      "name": "Frutexa Collum",
+      "genus": "Shrubs",
+      "value": 1639800
+    },
+    "$Codex_Ent_Stratum_01_Name;": {
+      "name": "Stratum Excutitus",
+      "genus": "Stratum",
+      "value": 2448900
+    },
+    "$Codex_Ent_Stratum_02_Name;": {
+      "name": "Stratum Paleas",
+      "genus": "Stratum",
+      "value": 1362000
+    },
+    "$Codex_Ent_Stratum_03_Name;": {
+      "name": "Stratum Laminamus",
+      "genus": "Stratum",
+      "value": 2788300
+    },
+    "$Codex_Ent_Stratum_04_Name;": {
+      "name": "Stratum Araneamus",
+      "genus": "Stratum",
+      "value": 2448900
+    },
+    "$Codex_Ent_Stratum_05_Name;": {
+      "name": "Stratum Limaxus",
+      "genus": "Stratum",
+      "value": 1362000
+    },
+    "$Codex_Ent_Stratum_06_Name;": {
+      "name": "Stratum Cucumisis",
+      "genus": "Stratum",
+      "value": 16202800
+    },
+    "$Codex_Ent_Stratum_07_Name;": {
+      "name": "Stratum Tectonicas",
+      "genus": "Stratum",
+      "value": 19010800
+    },
+    "$Codex_Ent_Stratum_08_Name;": {
+      "name": "Stratum Frigus",
+      "genus": "Stratum",
+      "value": 2637500
+    },
+    "$Codex_Ent_Tubus_01_Name;": {
+      "name": "Tubus Conifer",
+      "genus": "Tubus",
+      "value": 2415500
+    },
+    "$Codex_Ent_Tubus_02_Name;": {
+      "name": "Tubus Sororibus",
+      "genus": "Tubus",
+      "value": 5727600
+    },
+    "$Codex_Ent_Tubus_03_Name;": {
+      "name": "Tubus Cavas",
+      "genus": "Tubus",
+      "value": 11873200
+    },
+    "$Codex_Ent_Tubus_04_Name;": {
+      "name": "Tubus Rosarium",
+      "genus": "Tubus",
+      "value": 2637500
+    },
+    "$Codex_Ent_Tubus_05_Name;": {
+      "name": "Tubus Compagibus",
+      "genus": "Tubus",
+      "value": 7774700
+    },
+    "$Codex_Ent_Tussocks_01_Name;": {
+      "name": "Tussock Pennata",
+      "genus": "Tussocks",
+      "value": 5853800
+    },
+    "$Codex_Ent_Tussocks_02_Name;": {
+      "name": "Tussock Ventusa",
+      "genus": "Tussocks",
+      "value": 3227700
+    },
+    "$Codex_Ent_Tussocks_03_Name;": {
+      "name": "Tussock Ignis",
+      "genus": "Tussocks",
+      "value": 1849000
+    },
+    "$Codex_Ent_Tussocks_04_Name;": {
+      "name": "Tussock Cultro",
+      "genus": "Tussocks",
+      "value": 1766600
+    },
+    "$Codex_Ent_Tussocks_05_Name;": {
+      "name": "Tussock Catena",
+      "genus": "Tussocks",
+      "value": 1766600
+    },
+    "$Codex_Ent_Tussocks_06_Name;": {
+      "name": "Tussock Pennatis",
+      "genus": "Tussocks",
+      "value": 1000000
+    },
+    "$Codex_Ent_Tussocks_07_Name;": {
+      "name": "Tussock Serrati",
+      "genus": "Tussocks",
+      "value": 4447100
+    },
+    "$Codex_Ent_Tussocks_08_Name;": {
+      "name": "Tussock Albata",
+      "genus": "Tussocks",
+      "value": 3252500
+    },
+    "$Codex_Ent_Tussocks_09_Name;": {
+      "name": "Tussock Propagito",
+      "genus": "Tussocks",
+      "value": 1000000
+    },
+    "$Codex_Ent_Tussocks_10_Name;": {
+      "name": "Tussock Divisa",
+      "genus": "Tussocks",
+      "value": 1766600
+    },
+    "$Codex_Ent_Tussocks_11_Name;": {
+      "name": "Tussock Caputus",
+      "genus": "Tussocks",
+      "value": 3472400
+    },
+    "$Codex_Ent_Tussocks_12_Name;": {
+      "name": "Tussock Triticum",
+      "genus": "Tussocks",
+      "value": 7774700
+    },
+    "$Codex_Ent_Tussocks_13_Name;": {
+      "name": "Tussock Stigmasis",
+      "genus": "Tussocks",
+      "value": 19010800
+    },
+    "$Codex_Ent_Tussocks_14_Name;": {
+      "name": "Tussock Virgam",
+      "genus": "Tussocks",
+      "value": 14313700
+    },
+    "$Codex_Ent_Tussocks_15_Name;": {
+      "name": "Tussock Capillum",
+      "genus": "Tussocks",
+      "value": 7025800
+    }
+  }
+}

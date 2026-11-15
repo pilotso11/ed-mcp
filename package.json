@@ -8,6 +8,14 @@
   "bin": {
     "ed-mcp": "dist/index.js"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "./journal": {
+      "types": "./dist/types/lib/journal.d.ts",
+      "import": "./dist/journal.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "README.md",
@@ -32,7 +40,7 @@
     "claude"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsup && tsc -p tsconfig.lib.json",
     "typecheck": "tsc --noEmit",
     "catalog:statics": "node scripts/catalog-statics.mjs",
     "format": "prettier --write .",
@@ -56,5 +64,13 @@
   },
   "overrides": {
     "tmp": "^0.2.6"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
   }
 }

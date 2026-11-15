@@ -81,6 +81,8 @@ describe("exobiology", () => {
             samples: 3,
             stage: "3/3",
             analysed: true,
+            value: null,
+            colony_m: null,
           },
           {
             genus: "Tubus",
@@ -89,6 +91,8 @@ describe("exobiology", () => {
             samples: 2,
             stage: "2/3",
             analysed: false,
+            value: null,
+            colony_m: 800,
           },
         ],
         not_started: ["Stratum"],
@@ -154,6 +158,22 @@ describe("exobiology", () => {
   it("counts biological signals from the FSS before a surface scan, in any language", () => {
     const r = exobiology(events.slice(0, 4), ADDR);
     expect(r.bodies.map((b) => [b.body_id, b.bio_signals, b.genera])).toEqual([[3, 3, []]]);
+  });
+
+  it("gives the value and the colony range of a known species", () => {
+    const r = exobiology(
+      [
+        ev(T(1), "ScanOrganic", {
+          ScanType: "Log",
+          Genus: "$Codex_Ent_Bacterial_Genus_Name;",
+          Species: "$Codex_Ent_Bacterial_04_Name;",
+          SystemAddress: ADDR,
+          Body: 3,
+        }),
+      ],
+      ADDR,
+    );
+    expect(r.bodies[0]!.species[0]).toMatchObject({ value: expect.any(Number), colony_m: 500 });
   });
 
   it("names a body by its id when no event gave its name", () => {
@@ -227,6 +247,8 @@ describe("exploration", () => {
         was_mapped: false,
         mapped_by_you: false,
         signals: [],
+        value_scanned: 3120,
+        value_mapped: null,
       },
       {
         body: `${SYS} 1`,
@@ -241,6 +263,8 @@ describe("exploration", () => {
         was_mapped: false,
         mapped_by_you: true,
         signals: [{ type: "Biological", count: 2 }],
+        value_scanned: null,
+        value_mapped: null,
       },
     ]);
   });

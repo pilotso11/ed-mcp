@@ -8,6 +8,13 @@ Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
 A copy of the licence is in LICENSES/Apache-2.0.txt.
 The data was converted from C# to JSON.
 
+src/journal/data/exobiology.json holds the species values from the Canonn Research codex
+reference (https://canonn.science), built by scripts/exobiology-data.mjs. The values are the
+prices the game pays for analysed species.
+
+src/journal/values.ts uses the exploration value formula published by MattG
+(https://forums.frontier.co.uk/threads/419012/).
+
 test/fixtures/builds/coriolis-exports/ holds builds and statistics from the Coriolis
 test fixtures (https://github.com/EDCD/coriolis, __tests__/fixtures/), Copyright (c)
 2015 Coriolis.io, Colin McLeod, licensed under the MIT License. They were cut down to the

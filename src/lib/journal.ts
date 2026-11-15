@@ -1,0 +1,64 @@
+// The public library entry, `ed-mcp/journal`: the journal, plan and activity code that the
+// MCP tools use, for other programs such as ED Chat. Breaking changes here need a major version.
+import { defaultDirs, loadConfig } from "../config.js";
+import { ActivityStore } from "../activity/store.js";
+import { JournalService } from "../journal/service.js";
+import { PlanStore } from "../plans/store.js";
+import { fileOptions } from "../files.js";
+
+export { JournalService, type JournalStatus } from "../journal/service.js";
+export type { JournalEvent } from "../journal/reader.js";
+export type { JournalState, Mission } from "../journal/state.js";
+export {
+  exobiology,
+  exploration,
+  systemAddress,
+  type BodySignal,
+  type ExobiologyBody,
+  type Exploration,
+  type ExplorationBody,
+  type Species,
+} from "../journal/bodies.js";
+export { massacre, type MassacreGroup, type MassacreMission } from "../journal/massacre.js";
+export {
+  bodyValue,
+  colonyRange,
+  speciesValue,
+  surfaceDistance,
+  type BodyValueOptions,
+} from "../journal/values.js";
+export { ActivityStore } from "../activity/store.js";
+export type { Activity } from "../activity/schema.js";
+export { PlanStore } from "../plans/store.js";
+export type { Plan, PlanRoute, Stop } from "../plans/schema.js";
+
+export interface Stores {
+  journal: JournalService;
+  plans: PlanStore;
+  activity: ActivityStore;
+}
+
+/**
+ * The journal, plans and activity note, opened the way the ed-mcp server opens them, so both
+ * share the files and the locks. Pass the server's environment: ED_JOURNAL_DIR and
+ * ED_MCP_SYNC_DIR are read; passwords and API keys are not needed and not read.
+ */
+export function openStores(env: { ED_JOURNAL_DIR?: string; ED_MCP_SYNC_DIR?: string }): Stores {
+  const config = loadConfig(
+    { ED_JOURNAL_DIR: env.ED_JOURNAL_DIR, ED_MCP_SYNC_DIR: env.ED_MCP_SYNC_DIR },
+    defaultDirs(),
+  );
+  const { guardFor, lockFor } = fileOptions(config);
+  return {
+    journal: new JournalService(config.journalDir),
+    plans: new PlanStore(config.plansFile, undefined, {
+      lockDir: lockFor(config.plansFile),
+      guard: guardFor(config.plansFile),
+      markdownDir: config.plansMarkdownDir,
+    }),
+    activity: new ActivityStore(config.activityFile, undefined, {
+      lockDir: lockFor(config.activityFile),
+      guard: guardFor(config.activityFile),
+    }),
+  };
+}
