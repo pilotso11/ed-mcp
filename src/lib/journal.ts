@@ -2,11 +2,12 @@
 // MCP tools use, for other programs such as ED Chat. Breaking changes here need a major version.
 import { defaultDirs, loadConfig } from "../config.js";
 import { ActivityStore } from "../activity/store.js";
-import { JournalService } from "../journal/service.js";
+import { JournalReader } from "../journal/reader.js";
+import { JournalService, KEPT_EVENTS } from "../journal/service.js";
 import { PlanStore } from "../plans/store.js";
 import { fileOptions } from "../files.js";
 
-export { JournalService, type JournalStatus } from "../journal/service.js";
+export { JournalService, KEPT_EVENTS, type JournalStatus } from "../journal/service.js";
 export type { JournalEvent } from "../journal/reader.js";
 export type { JournalState, Mission } from "../journal/state.js";
 export {
@@ -42,15 +43,23 @@ export interface Stores {
  * The journal, plans and activity note, opened the way the ed-mcp server opens them, so both
  * share the files and the locks. Pass the server's environment: ED_JOURNAL_DIR and
  * ED_MCP_SYNC_DIR are read; passwords and API keys are not needed and not read.
+ * `keep` adds journal events to the ones the service keeps for its own tools.
  */
-export function openStores(env: { ED_JOURNAL_DIR?: string; ED_MCP_SYNC_DIR?: string }): Stores {
+export function openStores(
+  env: { ED_JOURNAL_DIR?: string; ED_MCP_SYNC_DIR?: string },
+  opts: { keep?: Iterable<string> } = {},
+): Stores {
   const config = loadConfig(
     { ED_JOURNAL_DIR: env.ED_JOURNAL_DIR, ED_MCP_SYNC_DIR: env.ED_MCP_SYNC_DIR },
     defaultDirs(),
   );
   const { guardFor, lockFor } = fileOptions(config);
   return {
-    journal: new JournalService(config.journalDir),
+    journal: new JournalService(config.journalDir, {
+      reader: opts.keep
+        ? new JournalReader({ keep: new Set([...KEPT_EVENTS, ...opts.keep]) })
+        : undefined,
+    }),
     plans: new PlanStore(config.plansFile, undefined, {
       lockDir: lockFor(config.plansFile),
       guard: guardFor(config.plansFile),

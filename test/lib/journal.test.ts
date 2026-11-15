@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -45,5 +45,21 @@ describe("ed-mcp/journal", () => {
     expect(s.activity.file).toBe(path.join(dir, "activity.json"));
     expect(s.journal.dir).toBe(dir);
     expect(await s.activity.get()).toBeNull();
+  });
+
+  it("keeps extra journal events when asked", async () => {
+    dir = await mkdtemp(path.join(os.tmpdir(), "ed-mcp-lib-"));
+    const line = (event: string, extra = {}) =>
+      JSON.stringify({ timestamp: "2026-11-15T10:00:00Z", event, ...extra });
+    await writeFile(
+      path.join(dir, "Journal.2026-11-15T100000.01.log"),
+      [line("Fileheader"), line("Touchdown", { Body: "A 1" }), line("Music")].join("\n") + "\n",
+    );
+    const names = async (keep?: string[]) =>
+      (await lib.openStores({ ED_JOURNAL_DIR: dir }, { keep }).journal.state()).events.map(
+        (e) => e.event,
+      );
+    expect(await names()).not.toContain("Touchdown");
+    expect(await names(["Touchdown"])).toContain("Touchdown");
   });
 });
