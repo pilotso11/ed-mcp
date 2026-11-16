@@ -273,6 +273,16 @@ export interface Exploration {
   bodies: ExplorationBody[];
 }
 
+// Scans of one body can disagree: an AutoScan on arrival can say the body was mapped and walked
+// on, and the FSS's Detailed scan a minute later say it was not. Someone did it if any scan says
+// so, so a true flag is kept over a newer false one.
+const VISITED = ["WasDiscovered", "WasMapped", "WasFootfalled"] as const;
+function keepVisited(prev: Obj | undefined, e: Obj): Obj {
+  if (!prev) return e;
+  const kept = VISITED.filter((k) => prev[k] === true && e[k] === false);
+  return kept.length ? { ...e, ...Object.fromEntries(kept.map((k) => [k, true])) } : e;
+}
+
 export function exploration(events: JournalEvent[], address: number): Exploration {
   const discovery: Exploration["discovery"] = {
     body_count: null,
@@ -298,7 +308,7 @@ export function exploration(events: JournalEvent[], address: number): Exploratio
         discovery.body_count = num(e.Count) ?? discovery.body_count;
         break;
       case "Scan":
-        if (id !== null) scans.set(id, e);
+        if (id !== null) scans.set(id, keepVisited(scans.get(id), e));
         break;
       case "SAAScanComplete":
         if (id !== null) {
