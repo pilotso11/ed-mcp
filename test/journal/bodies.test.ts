@@ -96,8 +96,29 @@ describe("exobiology", () => {
           },
         ],
         not_started: ["Stratum"],
+        likely: [],
       },
     ]);
+  });
+
+  it("predicts the likely species of a genus not started from the body's scan", () => {
+    const scan = ev(T(1), "Scan", {
+      ScanType: "Detailed",
+      BodyName: `${SYS} 3`,
+      BodyID: 3,
+      SystemAddress: ADDR,
+      Parents: [{ Star: 0 }],
+      PlanetClass: "High metal content body",
+      AtmosphereType: "SulphurDioxide",
+      SurfaceTemperature: 190,
+      SurfaceGravity: 0.25 * 9.80665,
+      SurfacePressure: 0.005 * 101325,
+      Volcanism: "",
+    });
+    const star = ev(T(1), "Scan", { BodyID: 0, SystemAddress: ADDR, StarType: "F" });
+    const r = exobiology([star, scan, ...events], ADDR);
+    const stratum = r.bodies[0]!.likely.find((l) => l.genus === "Stratum")!;
+    expect(stratum.species[0]).toMatchObject({ name: "Stratum Tectonicas", value: 19010800 });
   });
 
   it("counts a Sample as at least the second sample when the Log is outside the window", () => {

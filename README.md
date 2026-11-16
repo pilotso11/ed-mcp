@@ -306,7 +306,8 @@ ed-mcp checks GitHub once a day for a newer release and tells Claude when one is
 - **EliteDangerousCore** ([EDDiscovery](https://github.com/EDDiscovery/EliteDangerousCore)): the engineer table, under the Apache-2.0 licence (see `NOTICE`).
 - **Spansh, Inara and EDSM**: the services that ed-mcp reads from.
 - **The Elite Dangerous community wikis** (Alioth): the material trader rules.
-- **Canonn Research** ([canonn.science](https://canonn.science)): the exobiology species values, from the Canonn codex reference. `scripts/exobiology-data.mjs` builds `src/journal/data/exobiology.json` from it.
+- **Canonn Research** ([canonn.science](https://canonn.science)): the exobiology species values, from the Canonn codex reference. `scripts/exobiology-data.mjs` builds `src/journal/data/exobiology.json` from it. The species predictions use the Canonn codex statistics, which `scripts/exobiology-conditions.mjs` builds into `src/journal/data/exobiology-conditions.json`.
+- **EliteDangerousRegionMap** ([GitHub](https://github.com/klightspeed/EliteDangerousRegionMap)) by Ben Peddell: the galaxy region map, under the MIT licence (see `NOTICE`).
 - **MattG's exploration value calculator** ([forum thread](https://forums.frontier.co.uk/threads/419012/)): the formula for body values.
 - **Elite Dangerous** is a trademark of Frontier Developments plc. ed-mcp is not affiliated with Frontier Developments.
 

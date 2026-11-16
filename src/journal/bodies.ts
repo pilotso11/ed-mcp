@@ -1,4 +1,5 @@
 import type { JournalEvent } from "./reader.js";
+import { predictSpecies, scanConditions } from "./predict.js";
 import { bodyValue, colonyRange, speciesValue } from "./values.js";
 
 // Events the exobiology and exploration tools read. The service keeps them with the state events.
@@ -97,6 +98,14 @@ export interface ExobiologyBody {
   genera: string[];
   species: Species[];
   not_started: string[];
+  /**
+   * For each genus not started, the species likely on this body from its scan and where Canonn
+   * has seen each species, most likely first. Empty without a detailed scan of the body.
+   */
+  likely: Array<{
+    genus: string;
+    species: Array<{ name: string; value: number; likelihood: number }>;
+  }>;
 }
 
 export function exobiology(
@@ -209,13 +218,25 @@ export function exobiology(
     const sampled = new Set(
       [...b.species.values()].filter((s) => !s.abandoned).map((s) => s.genusKey),
     );
+    const notStarted = [...b.genera].filter(([k]) => !sampled.has(k));
+    const conditions = notStarted.length ? scanConditions(events, address, id) : null;
     out.push({
       body: name,
       body_id: id,
       bio_signals: b.bio,
       genera: [...b.genera.values()],
       species: [...b.species.values()].map(({ genusKey: _, ...s }) => s),
-      not_started: [...b.genera].filter(([k]) => !sampled.has(k)).map(([, v]) => v),
+      not_started: notStarted.map(([, v]) => v),
+      likely: conditions
+        ? notStarted.map(([key, genus]) => ({
+            genus,
+            species: predictSpecies(key, conditions).map((p) => ({
+              name: p.name,
+              value: p.value,
+              likelihood: Math.round(p.likelihood * 100) / 100,
+            })),
+          }))
+        : [],
     });
   }
   out.sort((a, b) => a.body_id - b.body_id);

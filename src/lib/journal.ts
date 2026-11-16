@@ -25,11 +25,24 @@ export {
   bodyValue,
   colonyRange,
   genusName,
+  genusOf,
+  genusSpecies,
   genusValue,
   speciesValue,
   surfaceDistance,
   type BodyValueOptions,
 } from "../journal/values.js";
+export {
+  atmosphereKey,
+  conditionsFromScan,
+  predictSpecies,
+  scanConditions,
+  starCode,
+  volcanismKey,
+  type BioConditions,
+  type SpeciesPrediction,
+} from "../journal/predict.js";
+export { regionAt, systemRegion } from "../journal/regions.js";
 export { ActivityStore } from "../activity/store.js";
 export type { Activity } from "../activity/schema.js";
 export { PlanStore } from "../plans/store.js";

@@ -75,7 +75,7 @@ export function bodyValue(scan: Obj, opts: BodyValueOptions = {}): number | null
   return Math.round(value);
 }
 
-interface SpeciesInfo {
+export interface SpeciesInfo {
   name: string;
   genus: string;
   value: number;
@@ -139,12 +139,25 @@ export function genusName(key: string): string | null {
 
 const NAME_TOKEN = new Map(Object.entries(GENUS_NAMES).map(([t, n]) => [n.toLowerCase(), t]));
 
+/** The genus token of a genus or species journal key, or of an in-game genus name. */
+export function genusOf(keyOrName: string): string | null {
+  return genusToken(keyOrName) ?? NAME_TOKEN.get(keyOrName.toLowerCase()) ?? null;
+}
+
+/** The species of a genus, by journal key, with their names and values. */
+export function genusSpecies(keyOrName: string): Array<{ key: string } & SpeciesInfo> {
+  const token = genusOf(keyOrName);
+  return Object.entries(SPECIES)
+    .filter(([, s]) => s.genus === token)
+    .map(([key, s]) => ({ key, ...s }));
+}
+
 /**
  * The lowest and highest Vista Genomics value among a genus's species, by a genus or species
  * journal key or the in-game genus name: what a genus is worth before the species is known.
  */
 export function genusValue(key: string): { min: number; max: number } | null {
-  const token = genusToken(key) ?? NAME_TOKEN.get(key.toLowerCase()) ?? null;
+  const token = genusOf(key);
   if (!token) return null;
   let min = Infinity;
   let max = -Infinity;
