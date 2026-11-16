@@ -2,7 +2,8 @@
 // (https://canonn.science): where each exobiology species has been found, by atmosphere, planet
 // type, volcanism, parent star, galactic region, temperature, gravity and pressure. The species
 // predictor (src/journal/predict.ts) reads it.
-// Usage: npx tsx scripts/exobiology-conditions.mjs (tsx loads the shared names from TypeScript)
+// Usage: node scripts/exobiology-conditions.mjs (Node 22.18 or later loads the shared names from
+// src/journal/names.ts directly).
 import { readFile, writeFile } from "node:fs/promises";
 import {
   atmosphereKey as atmosphere,
