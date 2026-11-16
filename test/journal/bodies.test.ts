@@ -339,6 +339,12 @@ describe("exploration", () => {
     const body = exploration([scan(1, "AutoScan", true), scan(2, "Detailed", false)], ADDR)
       .bodies[0]!;
     expect(body.was_mapped).toBe(true);
+    // And over any number of later scans that say not.
+    const three = exploration(
+      [scan(1, "AutoScan", true), scan(2, "Detailed", false), scan(3, "Detailed", false)],
+      ADDR,
+    ).bodies[0]!;
+    expect(three.was_mapped).toBe(true);
     expect(body.value_mapped).toBe(
       bodyValue({ PlanetClass: "Rocky body", MassEM: 0.1 }, { mapped: true, efficient: true }),
     );
