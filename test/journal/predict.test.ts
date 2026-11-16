@@ -61,6 +61,47 @@ describe("species prediction", () => {
   });
 });
 
+describe("species prediction by region", () => {
+  const aleoida: BioConditions = {
+    planet: "Rocky body",
+    atmosphere: "Ammonia",
+    temperature: 173.5,
+    gravity: 0.15,
+    pressure: 0.0013,
+    volcanism: "",
+    star: "K",
+    systemAddress: null,
+  };
+  const names = (c: BioConditions) => predictSpecies("Aleoida", c).map((p) => p.name);
+
+  it("drops species not recorded in the system's region", () => {
+    // Canonn has no Aleoida Spica in the Inner Orion Spur, where Sol is.
+    expect(names(aleoida)).toContain("Aleoida Spica");
+    expect(names({ ...aleoida, systemAddress: 10477373803 })).not.toContain("Aleoida Spica");
+    expect(names({ ...aleoida, systemAddress: 10477373803 })).toContain("Aleoida Laminiae");
+  });
+
+  it("ignores the region when it would leave no species", () => {
+    // A sector in the Errant Marches, where Canonn has no record of these Cactoida species.
+    const marches: BioConditions = {
+      planet: "Rocky body",
+      atmosphere: "CarbonDioxide",
+      temperature: 180.9,
+      gravity: 0.185,
+      pressure: 0.052,
+      volcanism: "",
+      star: "F",
+      systemAddress: 491671,
+    };
+    expect(systemRegion(491671)).toBe("Errant Marches");
+    const p = predictSpecies("Cactoida", marches).map((x) => x.name);
+    expect(p).toContain("Cactoida Cortexum");
+    expect(p).toEqual(
+      predictSpecies("Cactoida", { ...marches, systemAddress: null }).map((x) => x.name),
+    );
+  });
+});
+
 describe("regions", () => {
   it("places Sol in the Inner Orion Spur, and a system by its address", () => {
     expect(regionAt(0, 0)).toBe("Inner Orion Spur");

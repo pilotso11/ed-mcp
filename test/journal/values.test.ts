@@ -73,6 +73,9 @@ describe("genus values", () => {
   it("gives the range of a genus's species and its in-game name", () => {
     expect(genusValue("$Codex_Ent_Clypeus_Genus_Name;")).toEqual({ min: 8418000, max: 16202800 });
     expect(genusName("$Codex_Ent_Shrubs_Genus_Name;")).toBe("Frutexa");
+    expect(genusName("$Codex_Ent_Ingensradices_Unicus_Name;")).toBe("Radicoida");
+    expect(genusValue("Radicoida")).toEqual(genusValue("$Codex_Ent_Ingensradices_Genus_Name;"));
+    expect(genusValue("Radicoida")).not.toBeNull();
     expect(genusName("$Codex_Ent_Bacterial_07_Name;")).toBe("Bacterium");
     expect(genusValue("Clypeus")).toEqual(genusValue("$Codex_Ent_Clypeus_Genus_Name;"));
     expect(genusValue("$Codex_Ent_Nothing_Genus_Name;")).toBeNull();

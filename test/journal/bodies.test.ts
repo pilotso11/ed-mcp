@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exobiology, exploration, systemAddress } from "../../src/journal/bodies.js";
 import { ev } from "../helpers/journal.js";
+import { bodyValue } from "../../src/journal/values.js";
 
 const T = (n: number) => `2026-11-01T10:${String(n).padStart(2, "0")}:00Z`;
 const SYS = "Test Sector AB-C d1";
@@ -288,5 +289,36 @@ describe("exploration", () => {
         value_mapped: null,
       },
     ]);
+  });
+  it("values a mapped planet, with the efficiency bonus only within the probe target", () => {
+    const elw = {
+      BodyName: `${SYS} 2`,
+      BodyID: 2,
+      SystemAddress: ADDR,
+      PlanetClass: "Earthlike body",
+      MassEM: 1,
+      TerraformState: "",
+      WasDiscovered: true,
+      WasMapped: true,
+    };
+    const mapped = (probes: number) =>
+      exploration(
+        [
+          ev(T(1), "Scan", elw),
+          ev(T(2), "SAAScanComplete", {
+            BodyName: elw.BodyName,
+            BodyID: 2,
+            SystemAddress: ADDR,
+            ProbesUsed: probes,
+            EfficiencyTarget: 6,
+          }),
+        ],
+        ADDR,
+      ).bodies[0]!;
+    const efficient = mapped(5);
+    expect(efficient.value_scanned).toBe(bodyValue(elw));
+    expect(efficient.value_mapped).toBe(bodyValue(elw, { mapped: true, efficient: true }));
+    expect(mapped(8).value_mapped).toBe(bodyValue(elw, { mapped: true, efficient: false }));
+    expect(efficient.value_mapped!).toBeGreaterThan(mapped(8).value_mapped!);
   });
 });

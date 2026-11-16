@@ -88,7 +88,8 @@ export function speciesValue(speciesKey: string): number | null {
   return SPECIES[speciesKey]?.value ?? null;
 }
 
-// The minimum distance between samples of one species, in metres, by genus.
+// The minimum distance between samples of one species, in metres, by genus. Ingensradices
+// (Radicoida Unica) is left out: no published distance was found, so colonyRange gives null.
 const COLONY_M: Record<string, number> = {
   Aleoids: 150,
   Bacterial: 500,
@@ -123,6 +124,7 @@ const GENUS_NAMES: Record<string, string> = {
   Fonticulus: "Fonticulua",
   Fumerolas: "Fumerola",
   Fungoids: "Fungoida",
+  Ingensradices: "Radicoida",
   Osseus: "Osseus",
   Recepta: "Recepta",
   Shrubs: "Frutexa",
