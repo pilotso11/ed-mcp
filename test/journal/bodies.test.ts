@@ -342,6 +342,19 @@ describe("exploration", () => {
     expect(body.value_mapped).toBe(
       bodyValue({ PlanetClass: "Rocky body", MassEM: 0.1 }, { mapped: true, efficient: true }),
     );
+    // The same holds for discovery: no first-discovery bonus after a scan that says discovered.
+    const found = (n: number, seen: boolean) =>
+      ev(T(n), "Scan", {
+        BodyName: `${SYS} 7 d`,
+        BodyID: 25,
+        SystemAddress: ADDR,
+        PlanetClass: "Rocky body",
+        MassEM: 0.1,
+        WasDiscovered: seen,
+      });
+    const rock = exploration([found(1, true), found(2, false)], ADDR).bodies[0]!;
+    expect(rock.was_discovered).toBe(true);
+    expect(rock.value_scanned).toBe(bodyValue({ PlanetClass: "Rocky body", MassEM: 0.1 }));
     // A false scan alone still counts as first mapped.
     expect(exploration([scan(2, "Detailed", false)], ADDR).bodies[0]!.was_mapped).toBe(false);
   });
