@@ -23,7 +23,7 @@ On older versions, run `/plugin marketplace add pilotso11/ed-mcp` and then `/plu
 
 ## What this plugin runs
 
-The plugin starts one local MCP server on your computer: the ed-mcp package from npm, pinned to the plugin's version. `package-lock.json` in this folder fixes the exact package and its sha512 hash. When you install the plugin, Claude Code installs that one package without running any install scripts, and the server then runs it with `node`. The package has no dependencies; all its code is in one file. Each release is built by GitHub Actions with signed provenance. The source is at <https://github.com/pilotso11/ed-mcp>.
+The plugin starts one local MCP server on your computer: the ed-mcp package from npm, pinned to the plugin's version. `package-lock.json` in this folder fixes the exact package and its sha512 hash. When you install the plugin, Claude Code installs that one package without running any install scripts, and the server then runs it with `node`. The package has no dependencies. The server runs one file, `dist/index.js`. The package also has `dist/journal.js`, a library that other programs, such as ED Chat, can import. The plugin never runs it. Each release is built by GitHub Actions with signed provenance. The source is at <https://github.com/pilotso11/ed-mcp>.
 
 The server works in Claude Code, and in Cowork when the session runs on your computer. It needs Node.js 22 or later, with npm. It does not run in claude.ai chat, because chat cannot start local programs. For Claude Desktop chat, install the `.mcpb` file from the [Releases](https://github.com/pilotso11/ed-mcp/releases) page instead.
 
