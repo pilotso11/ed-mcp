@@ -112,6 +112,50 @@ function genusToken(key: string): string | null {
   return /^\$Codex_Ent_([A-Za-z]+)_/.exec(key)?.[1] ?? null;
 }
 
+// The in-game genus names, by journal token.
+const GENUS_NAMES: Record<string, string> = {
+  Aleoids: "Aleoida",
+  Bacterial: "Bacterium",
+  Cactoid: "Cactoida",
+  Clypeus: "Clypeus",
+  Conchas: "Concha",
+  Electricae: "Electricae",
+  Fonticulus: "Fonticulua",
+  Fumerolas: "Fumerola",
+  Fungoids: "Fungoida",
+  Osseus: "Osseus",
+  Recepta: "Recepta",
+  Shrubs: "Frutexa",
+  Stratum: "Stratum",
+  Tubus: "Tubus",
+  Tussocks: "Tussock",
+};
+
+/** The in-game name of a genus, by its journal key: $Codex_Ent_Shrubs_Genus_Name; gives Frutexa. */
+export function genusName(key: string): string | null {
+  const token = genusToken(key);
+  return token ? (GENUS_NAMES[token] ?? null) : null;
+}
+
+const NAME_TOKEN = new Map(Object.entries(GENUS_NAMES).map(([t, n]) => [n.toLowerCase(), t]));
+
+/**
+ * The lowest and highest Vista Genomics value among a genus's species, by a genus or species
+ * journal key or the in-game genus name: what a genus is worth before the species is known.
+ */
+export function genusValue(key: string): { min: number; max: number } | null {
+  const token = genusToken(key) ?? NAME_TOKEN.get(key.toLowerCase()) ?? null;
+  if (!token) return null;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const s of Object.values(SPECIES)) {
+    if (s.genus !== token) continue;
+    min = Math.min(min, s.value);
+    max = Math.max(max, s.value);
+  }
+  return max >= 0 ? { min, max } : null;
+}
+
 /** The minimum distance between samples, in metres, for a genus or species journal key. */
 export function colonyRange(key: string): number | null {
   const token = genusToken(key);

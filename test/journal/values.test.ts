@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { bodyValue, colonyRange, speciesValue, surfaceDistance } from "../../src/journal/values.js";
+import {
+  bodyValue,
+  colonyRange,
+  genusName,
+  genusValue,
+  speciesValue,
+  surfaceDistance,
+} from "../../src/journal/values.js";
 
 const elw = { PlanetClass: "Earthlike body", MassEM: 1, TerraformState: "" };
 
@@ -59,5 +66,15 @@ describe("surfaceDistance", () => {
     expect(
       surfaceDistance({ latitude: 10, longitude: 20 }, { latitude: 10, longitude: 20 }, r),
     ).toBe(0);
+  });
+});
+
+describe("genus values", () => {
+  it("gives the range of a genus's species and its in-game name", () => {
+    expect(genusValue("$Codex_Ent_Clypeus_Genus_Name;")).toEqual({ min: 8418000, max: 16202800 });
+    expect(genusName("$Codex_Ent_Shrubs_Genus_Name;")).toBe("Frutexa");
+    expect(genusName("$Codex_Ent_Bacterial_07_Name;")).toBe("Bacterium");
+    expect(genusValue("Clypeus")).toEqual(genusValue("$Codex_Ent_Clypeus_Genus_Name;"));
+    expect(genusValue("$Codex_Ent_Nothing_Genus_Name;")).toBeNull();
   });
 });

@@ -24,6 +24,8 @@ export { massacre, type MassacreGroup, type MassacreMission } from "../journal/m
 export {
   bodyValue,
   colonyRange,
+  genusName,
+  genusValue,
   speciesValue,
   surfaceDistance,
   type BodyValueOptions,
