@@ -321,4 +321,47 @@ describe("exploration", () => {
     expect(mapped(8).value_mapped).toBe(bodyValue(elw, { mapped: true, efficient: false }));
     expect(efficient.value_mapped!).toBeGreaterThan(mapped(8).value_mapped!);
   });
+
+  it("keeps a body mapped by others when a newer scan says it was not", () => {
+    // Seen in a journal: an AutoScan on arrival, then the FSS's Detailed scan a minute later.
+    const scan = (n: number, ScanType: string, seen: boolean) =>
+      ev(T(n), "Scan", {
+        ScanType,
+        BodyName: `${SYS} 7 c`,
+        BodyID: 24,
+        SystemAddress: ADDR,
+        PlanetClass: "Rocky body",
+        MassEM: 0.1,
+        WasDiscovered: true,
+        WasMapped: seen,
+        WasFootfalled: seen,
+      });
+    const body = exploration([scan(1, "AutoScan", true), scan(2, "Detailed", false)], ADDR)
+      .bodies[0]!;
+    expect(body.was_mapped).toBe(true);
+    // And over any number of later scans that say not.
+    const three = exploration(
+      [scan(1, "AutoScan", true), scan(2, "Detailed", false), scan(3, "Detailed", false)],
+      ADDR,
+    ).bodies[0]!;
+    expect(three.was_mapped).toBe(true);
+    expect(body.value_mapped).toBe(
+      bodyValue({ PlanetClass: "Rocky body", MassEM: 0.1 }, { mapped: true, efficient: true }),
+    );
+    // The same holds for discovery: no first-discovery bonus after a scan that says discovered.
+    const found = (n: number, seen: boolean) =>
+      ev(T(n), "Scan", {
+        BodyName: `${SYS} 7 d`,
+        BodyID: 25,
+        SystemAddress: ADDR,
+        PlanetClass: "Rocky body",
+        MassEM: 0.1,
+        WasDiscovered: seen,
+      });
+    const rock = exploration([found(1, true), found(2, false)], ADDR).bodies[0]!;
+    expect(rock.was_discovered).toBe(true);
+    expect(rock.value_scanned).toBe(bodyValue({ PlanetClass: "Rocky body", MassEM: 0.1 }));
+    // A false scan alone still counts as first mapped.
+    expect(exploration([scan(2, "Detailed", false)], ADDR).bodies[0]!.was_mapped).toBe(false);
+  });
 });
