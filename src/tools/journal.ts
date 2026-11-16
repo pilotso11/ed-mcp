@@ -196,7 +196,10 @@ export function registerJournalTools(
         "with biological signals: bio_signals (the count from the FSS or surface scan), genera found " +
         "by the surface scan, each species sampled with samples taken (stage 0/3 to 3/3, analysed " +
         "once complete; abandoned when another species was started first, which drops an unfinished " +
-        "sample, or after a death), and not_started genera with no sample yet. unsold_analysed counts species " +
+        "sample, or after a death), and not_started genera with no sample yet. likely lists, for each " +
+        "genus not started, the species likely on the body (from its scan and Canonn's records of " +
+        "where each species grows) with value and likelihood, most likely first: say they are " +
+        "predictions. unsold_analysed counts species " +
         "analysed since the last sale of organic data (or death), in any system. The journal has no " +
         "sample positions. system defaults to the current system; body is a full body name or the " +
         'part after the system name, such as "A 4". ' +
@@ -229,7 +232,9 @@ export function registerJournalTools(
         "FSS discovery scan body count and progress, and all_bodies_found once the FSS is complete. " +
         "bodies lists each scanned body, nearest first: type, distance_ls from the arrival star, " +
         "landable, terraformable, atmosphere, rings, was_discovered and was_mapped (by someone " +
-        "before you), mapped_by_you (surface scan complete) and signals. Values are not estimated. " +
+        "before you), mapped_by_you (surface scan complete), signals, value_scanned (credits from the " +
+        "detailed scan) and value_mapped (credits once mapped efficiently; planets only). The " +
+        "values include the first-discovery and first-mapped bonuses when they apply. " +
         "system defaults to the current system. " +
         FRESHNESS_TEXT,
       inputSchema: {

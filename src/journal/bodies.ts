@@ -1,4 +1,6 @@
 import type { JournalEvent } from "./reader.js";
+import { predictSpecies, scanConditions } from "./predict.js";
+import { bodyValue, colonyRange, speciesValue } from "./values.js";
 
 // Events the exobiology and exploration tools read. The service keeps them with the state events.
 export const BODY_EVENTS: readonly string[] = [
@@ -80,6 +82,10 @@ export interface Species {
   samples: number;
   stage: string;
   analysed: boolean;
+  /** What Vista Genomics pays once analysed, without the first-footfall bonus; null if unknown. */
+  value: number | null;
+  /** The minimum distance between samples, in metres; null if unknown. */
+  colony_m: number | null;
   // Set when the player started another species before finishing this one: the game drops an
   // unfinished sample then, so this species must be started again.
   abandoned?: true;
@@ -92,6 +98,14 @@ export interface ExobiologyBody {
   genera: string[];
   species: Species[];
   not_started: string[];
+  /**
+   * For each genus not started, the species likely on this body from its scan and where Canonn
+   * has seen each species, most likely first. Empty without a detailed scan of the body.
+   */
+  likely: Array<{
+    genus: string;
+    species: Array<{ name: string; value: number; likelihood: number }>;
+  }>;
 }
 
 export function exobiology(
@@ -174,6 +188,8 @@ export function exobiology(
           samples: 0,
           stage: "",
           analysed: false,
+          value: speciesValue(key),
+          colony_m: colonyRange(genusKey || key),
         };
         s.variant = str(e.Variant_Localised) ?? s.variant;
         // The game writes Log for the first sample, Sample for the second and third, then Analyse.
@@ -202,13 +218,25 @@ export function exobiology(
     const sampled = new Set(
       [...b.species.values()].filter((s) => !s.abandoned).map((s) => s.genusKey),
     );
+    const notStarted = [...b.genera].filter(([k]) => !sampled.has(k));
+    const conditions = notStarted.length ? scanConditions(events, address, id) : null;
     out.push({
       body: name,
       body_id: id,
       bio_signals: b.bio,
       genera: [...b.genera.values()],
       species: [...b.species.values()].map(({ genusKey: _, ...s }) => s),
-      not_started: [...b.genera].filter(([k]) => !sampled.has(k)).map(([, v]) => v),
+      not_started: notStarted.map(([, v]) => v),
+      likely: conditions
+        ? notStarted.map(([key, genus]) => ({
+            genus,
+            species: predictSpecies(key, conditions).map((p) => ({
+              name: p.name,
+              value: p.value,
+              likelihood: Math.round(p.likelihood * 100) / 100,
+            })),
+          }))
+        : [],
     });
   }
   out.sort((a, b) => a.body_id - b.body_id);
@@ -228,6 +256,10 @@ export interface ExplorationBody {
   was_mapped: boolean | null;
   mapped_by_you: boolean;
   signals: BodySignal[];
+  /** Credits from the detailed scan alone; null for a belt cluster. */
+  value_scanned: number | null;
+  /** Credits once mapped efficiently; null for a star or a belt cluster. */
+  value_mapped: number | null;
 }
 
 export interface Exploration {
@@ -249,7 +281,8 @@ export function exploration(events: JournalEvent[], address: number): Exploratio
     all_bodies_found: false,
   };
   const scans = new Map<number, Obj>();
-  const mapped = new Set<number>();
+  // The BodyID of each body mapped, and whether the probes used met the efficiency target.
+  const mapped = new Map<number, boolean>();
   const signals = new Map<number, BodySignal[]>();
   for (const e of events) {
     if (num(e.SystemAddress) !== address) continue;
@@ -268,7 +301,11 @@ export function exploration(events: JournalEvent[], address: number): Exploratio
         if (id !== null) scans.set(id, e);
         break;
       case "SAAScanComplete":
-        if (id !== null) mapped.add(id);
+        if (id !== null) {
+          const used = num(e.ProbesUsed);
+          const target = num(e.EfficiencyTarget);
+          mapped.set(id, used !== null && target !== null && used <= target);
+        }
         break;
       case "FSSBodySignals":
       case "SAASignalsFound":
@@ -279,6 +316,9 @@ export function exploration(events: JournalEvent[], address: number): Exploratio
   }
   const bodies = [...scans].map(([id, s]): ExplorationBody => {
     const distance = num(s.DistanceFromArrivalLS);
+    const firstDiscovery = s.WasDiscovered === false;
+    const firstMapped = s.WasMapped === false;
+    const efficient = mapped.get(id) ?? true;
     return {
       body: str(s.BodyName) ?? `Body ${id}`,
       body_id: id,
@@ -296,6 +336,11 @@ export function exploration(events: JournalEvent[], address: number): Exploratio
       was_mapped: typeof s.WasMapped === "boolean" ? s.WasMapped : null,
       mapped_by_you: mapped.has(id),
       signals: signals.get(id) ?? [],
+      value_scanned: bodyValue(s, { firstDiscovery }),
+      value_mapped:
+        typeof s.PlanetClass === "string"
+          ? bodyValue(s, { mapped: true, efficient, firstDiscovery, firstMapped })
+          : null,
     };
   });
   bodies.sort((a, b) => (a.distance_ls ?? Infinity) - (b.distance_ls ?? Infinity));

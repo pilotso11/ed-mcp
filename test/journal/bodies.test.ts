@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exobiology, exploration, systemAddress } from "../../src/journal/bodies.js";
 import { ev } from "../helpers/journal.js";
+import { bodyValue } from "../../src/journal/values.js";
 
 const T = (n: number) => `2026-11-01T10:${String(n).padStart(2, "0")}:00Z`;
 const SYS = "Test Sector AB-C d1";
@@ -81,6 +82,8 @@ describe("exobiology", () => {
             samples: 3,
             stage: "3/3",
             analysed: true,
+            value: null,
+            colony_m: null,
           },
           {
             genus: "Tubus",
@@ -89,11 +92,34 @@ describe("exobiology", () => {
             samples: 2,
             stage: "2/3",
             analysed: false,
+            value: null,
+            colony_m: 800,
           },
         ],
         not_started: ["Stratum"],
+        likely: [],
       },
     ]);
+  });
+
+  it("predicts the likely species of a genus not started from the body's scan", () => {
+    const scan = ev(T(1), "Scan", {
+      ScanType: "Detailed",
+      BodyName: `${SYS} 3`,
+      BodyID: 3,
+      SystemAddress: ADDR,
+      Parents: [{ Star: 0 }],
+      PlanetClass: "High metal content body",
+      AtmosphereType: "SulphurDioxide",
+      SurfaceTemperature: 190,
+      SurfaceGravity: 0.25 * 9.80665,
+      SurfacePressure: 0.005 * 101325,
+      Volcanism: "",
+    });
+    const star = ev(T(1), "Scan", { BodyID: 0, SystemAddress: ADDR, StarType: "F" });
+    const r = exobiology([star, scan, ...events], ADDR);
+    const stratum = r.bodies[0]!.likely.find((l) => l.genus === "Stratum")!;
+    expect(stratum.species[0]).toMatchObject({ name: "Stratum Tectonicas", value: 19010800 });
   });
 
   it("counts a Sample as at least the second sample when the Log is outside the window", () => {
@@ -154,6 +180,22 @@ describe("exobiology", () => {
   it("counts biological signals from the FSS before a surface scan, in any language", () => {
     const r = exobiology(events.slice(0, 4), ADDR);
     expect(r.bodies.map((b) => [b.body_id, b.bio_signals, b.genera])).toEqual([[3, 3, []]]);
+  });
+
+  it("gives the value and the colony range of a known species", () => {
+    const r = exobiology(
+      [
+        ev(T(1), "ScanOrganic", {
+          ScanType: "Log",
+          Genus: "$Codex_Ent_Bacterial_Genus_Name;",
+          Species: "$Codex_Ent_Bacterial_04_Name;",
+          SystemAddress: ADDR,
+          Body: 3,
+        }),
+      ],
+      ADDR,
+    );
+    expect(r.bodies[0]!.species[0]).toMatchObject({ value: expect.any(Number), colony_m: 500 });
   });
 
   it("names a body by its id when no event gave its name", () => {
@@ -227,6 +269,8 @@ describe("exploration", () => {
         was_mapped: false,
         mapped_by_you: false,
         signals: [],
+        value_scanned: 3120,
+        value_mapped: null,
       },
       {
         body: `${SYS} 1`,
@@ -241,7 +285,40 @@ describe("exploration", () => {
         was_mapped: false,
         mapped_by_you: true,
         signals: [{ type: "Biological", count: 2 }],
+        value_scanned: null,
+        value_mapped: null,
       },
     ]);
+  });
+  it("values a mapped planet, with the efficiency bonus only within the probe target", () => {
+    const elw = {
+      BodyName: `${SYS} 2`,
+      BodyID: 2,
+      SystemAddress: ADDR,
+      PlanetClass: "Earthlike body",
+      MassEM: 1,
+      TerraformState: "",
+      WasDiscovered: true,
+      WasMapped: true,
+    };
+    const mapped = (probes: number) =>
+      exploration(
+        [
+          ev(T(1), "Scan", elw),
+          ev(T(2), "SAAScanComplete", {
+            BodyName: elw.BodyName,
+            BodyID: 2,
+            SystemAddress: ADDR,
+            ProbesUsed: probes,
+            EfficiencyTarget: 6,
+          }),
+        ],
+        ADDR,
+      ).bodies[0]!;
+    const efficient = mapped(5);
+    expect(efficient.value_scanned).toBe(bodyValue(elw));
+    expect(efficient.value_mapped).toBe(bodyValue(elw, { mapped: true, efficient: true }));
+    expect(mapped(8).value_mapped).toBe(bodyValue(elw, { mapped: true, efficient: false }));
+    expect(efficient.value_mapped!).toBeGreaterThan(mapped(8).value_mapped!);
   });
 });

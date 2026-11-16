@@ -5,3 +5,5 @@ test/fixtures
 src/catalog/data
 *.md
 package-lock.json
+src/journal/data/exobiology-conditions.json
+src/journal/data/region-map.json

@@ -16,7 +16,7 @@ import { PreferencesStore } from "./prefs/store.js";
 import { ShipDataService } from "./ships/data.js";
 import type { ServerDeps } from "./server.js";
 import { SecretStore } from "./settings/secrets.js";
-import { SyncFolder } from "./settings/sync.js";
+import { fileOptions } from "./files.js";
 import { Settings } from "./settings/settings.js";
 import { SettingsPage } from "./settings/page.js";
 import { VERSION } from "./version.js";
@@ -33,9 +33,7 @@ export function buildDeps(
   const http = new HttpClient({ userAgent: config.userAgent, fetchFn: opts.fetchFn });
   const catalog = new CatalogService(http, config.cacheDir);
   const ships = new ShipDataService({ cacheDir: config.cacheDir, http });
-  const sync = config.syncDir ? new SyncFolder(config.syncDir) : undefined;
-  const guardFor = (file: string) => (sync?.contains(file) ? () => sync.check() : undefined);
-  const lockFor = (file: string) => (sync?.contains(file) ? config.locksDir : undefined);
+  const { sync, guardFor, lockFor } = fileOptions(config);
   const secrets = new SecretStore(config.secretsFile, {
     password: config.syncPassword,
     lockDir: lockFor(config.secretsFile),
