@@ -24,6 +24,13 @@ describe("bodyValue", () => {
     expect(efficient / mapped).toBeCloseTo(1.25, 2);
   });
 
+  it("uses the first-mapped multipliers", () => {
+    // 283628.5 × 8.0956, plus 30%.
+    expect(bodyValue(elw, { mapped: true, firstMapped: true })).toBe(2984986);
+    // 283628.5 × 3.699622554, plus 30%, then × 2.6 for the first discovery.
+    expect(bodyValue(elw, { mapped: true, firstDiscovery: true, firstMapped: true })).toBe(3546696);
+  });
+
   it("multiplies a first discovery by 2.6", () => {
     expect(bodyValue(elw, { firstDiscovery: true })).toBe(737434);
   });

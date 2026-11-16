@@ -57,9 +57,12 @@ async function worker() {
     const j = await get(`${API}/biostats/${e.entryid}`);
     fetched++;
     await new Promise((r) => setTimeout(r, 200));
+    // Colour variants share a species key without the colour; a species with a single colour,
+    // such as $Codex_Ent_Ingensradices_Unicus_Name;, is its own key.
     const m = /^\$Codex_Ent_([A-Za-z]+)_(\d+)_[A-Za-z]+_Name;$/.exec(e.name);
-    if (!m || !j.count) continue;
-    const key = `$Codex_Ent_${m[1]}_${m[2]}_Name;`;
+    const single = /^\$Codex_Ent_[A-Za-z]+_[A-Za-z]+_Name;$/.test(e.name);
+    if ((!m && !single) || !j.count) continue;
+    const key = m ? `$Codex_Ent_${m[1]}_${m[2]}_Name;` : e.name;
     const s = (species[key] ??= {
       n: 0,
       atmosphere: {},

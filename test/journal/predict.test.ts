@@ -7,6 +7,8 @@ import {
   type BioConditions,
 } from "../../src/journal/predict.js";
 import { regionAt, systemRegion } from "../../src/journal/regions.js";
+import conditions from "../../src/journal/data/exobiology-conditions.json" with { type: "json" };
+import values from "../../src/journal/data/exobiology.json" with { type: "json" };
 
 const base: BioConditions = {
   planet: "Rocky body",
@@ -46,6 +48,16 @@ describe("species prediction", () => {
     expect(p.reduce((n, x) => n + x.likelihood, 0)).toBeCloseTo(1);
     expect(predictSpecies("Bacterium", { ...base, atmosphere: "Nothing" })).toEqual([]);
     expect(predictSpecies("Nothing", base)).toEqual([]);
+  });
+
+  it("gives the only species of a one-species genus", () => {
+    expect(predictSpecies("Radicoida", base)).toEqual([
+      expect.objectContaining({ name: "Radicoida Unica", likelihood: 1 }),
+    ]);
+  });
+
+  it("has conditions for every species with a value", () => {
+    expect(Object.keys(conditions.species).sort()).toEqual(Object.keys(values.species).sort());
   });
 
   it("reads Spansh and journal spellings alike", () => {

@@ -108,7 +108,13 @@ const KEEP = 0.03;
  * are incomplete for rare species. Empty when nothing fits.
  */
 export function predictSpecies(genus: string, c: BioConditions): SpeciesPrediction[] {
-  const species = genusSpecies(genus).filter((s) => CONDITIONS[s.key]);
+  const all = genusSpecies(genus);
+  // A genus with one species is that species, whatever the conditions say.
+  if (all.length === 1) {
+    const [s] = all;
+    return [{ species: s!.key, name: s!.name, value: s!.value, likelihood: 1 }];
+  }
+  const species = all.filter((s) => CONDITIONS[s.key]);
   const regionName = c.systemAddress !== null ? systemRegion(c.systemAddress) : null;
   const region = regionName ? regionIndex(regionName) : null;
   let candidates = species.filter((s) => fits(CONDITIONS[s.key]!, c, region));

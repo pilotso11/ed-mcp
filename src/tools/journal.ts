@@ -232,7 +232,9 @@ export function registerJournalTools(
         "FSS discovery scan body count and progress, and all_bodies_found once the FSS is complete. " +
         "bodies lists each scanned body, nearest first: type, distance_ls from the arrival star, " +
         "landable, terraformable, atmosphere, rings, was_discovered and was_mapped (by someone " +
-        "before you), mapped_by_you (surface scan complete) and signals. Values are not estimated. " +
+        "before you), mapped_by_you (surface scan complete), signals, value_scanned (credits from the " +
+        "detailed scan) and value_mapped (credits once mapped efficiently; planets only). The " +
+        "values include the first-discovery and first-mapped bonuses when they apply. " +
         "system defaults to the current system. " +
         FRESHNESS_TEXT,
       inputSchema: {
