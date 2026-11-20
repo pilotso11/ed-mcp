@@ -97,7 +97,7 @@ describe("exobiology", () => {
           },
         ],
         not_started: ["Stratum"],
-        likely: [],
+        likely: [{ genus: "Stratum", colony_m: 500, species: [] }],
       },
     ]);
   });

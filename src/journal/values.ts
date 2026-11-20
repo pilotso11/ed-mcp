@@ -97,6 +97,8 @@ interface GenusInfo {
 
 // Each genus by its journal token, as in $Codex_Ent_Bacterial_Genus_Name;.
 const GENERA = data.genera as Record<string, GenusInfo>;
+const genus = (token: string): GenusInfo | null =>
+  Object.hasOwn(GENERA, token) ? GENERA[token]! : null;
 
 /** The genus token of a journal key: $Codex_Ent_Bacterial_Genus_Name; gives Bacterial. */
 function genusToken(key: string): string | null {
@@ -106,7 +108,7 @@ function genusToken(key: string): string | null {
 /** The in-game name of a genus, by its journal key: $Codex_Ent_Shrubs_Genus_Name; gives Frutexa. */
 export function genusName(key: string): string | null {
   const token = genusToken(key);
-  return token ? (GENERA[token]?.name ?? null) : null;
+  return token ? (genus(token)?.name ?? null) : null;
 }
 
 const NAME_TOKEN = new Map(Object.entries(GENERA).map(([t, g]) => [g.name.toLowerCase(), t]));
@@ -147,7 +149,7 @@ export function genusValue(key: string): { min: number; max: number } | null {
  */
 export function colonyRange(keyOrName: string): number | null {
   const token = genusOf(keyOrName);
-  return token ? (GENERA[token]?.colony_m ?? null) : null;
+  return token ? (genus(token)?.colony_m ?? null) : null;
 }
 
 /** The great-circle distance in metres between two points on a body. */

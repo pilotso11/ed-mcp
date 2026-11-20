@@ -67,12 +67,22 @@ describe("species data", () => {
     expect(colonyRange("$Codex_Ent_Ingensradices_Unicus_Name;")).toBeNull();
     expect(colonyRange("bad")).toBeNull();
     expect(colonyRange("$Codex_Ent_toString_Genus_Name;")).toBeNull();
+    expect(genusName("$Codex_Ent_constructor_Genus_Name;")).toBeNull();
+  });
+
+  it("has a known colony range for every genus but Radicoida", () => {
+    for (const [token, g] of Object.entries(data.genera))
+      if (token !== "Ingensradices") expect(g.colony_m, token).toBeGreaterThan(0);
   });
 
   it("has a name and a colony range for the genus of every species", () => {
     for (const [key] of Object.entries(data.species)) {
       expect(genusName(key), key).not.toBeNull();
-      if (!/Ingensradices/.test(key)) expect(colonyRange(key), key).toBeGreaterThan(0);
+      const g =
+        data.genera[
+          data.species[key as keyof typeof data.species].genus as keyof typeof data.genera
+        ];
+      expect(colonyRange(key), key).toBe(g.colony_m);
     }
   });
 });

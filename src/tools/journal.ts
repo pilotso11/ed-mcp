@@ -198,8 +198,8 @@ export function registerJournalTools(
         "once complete; abandoned when another species was started first, which drops an unfinished " +
         "sample, or after a death), and not_started genera with no sample yet. likely lists, for each " +
         "genus not started, the species likely on the body (from its scan and Canonn's records of " +
-        "where each species grows) with value and likelihood, most likely first: say they are " +
-        "predictions. colony_m, on each species sampled and each genus in likely, is the minimum " +
+        "where each species grows, none without a detailed scan) with value and likelihood, most " +
+        "likely first: say they are predictions. colony_m, on each species sampled and each genus in likely, is the minimum " +
         "distance in metres between samples of one species. unsold_analysed counts species " +
         "analysed since the last sale of organic data (or death), in any system. The journal has no " +
         "sample positions. system defaults to the current system; body is a full body name or the " +

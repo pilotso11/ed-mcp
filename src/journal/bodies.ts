@@ -99,8 +99,9 @@ export interface ExobiologyBody {
   species: Species[];
   not_started: string[];
   /**
-   * For each genus not started, the species likely on this body from its scan and where Canonn
-   * has seen each species, most likely first. Empty without a detailed scan of the body.
+   * For each genus not started, its colony range and the species likely on this body from its
+   * scan and where Canonn has seen each species, most likely first. The species are empty without
+   * a detailed scan of the body.
    */
   likely: Array<{
     genus: string;
@@ -229,17 +230,17 @@ export function exobiology(
       genera: [...b.genera.values()],
       species: [...b.species.values()].map(({ genusKey: _, ...s }) => s),
       not_started: notStarted.map(([, v]) => v),
-      likely: conditions
-        ? notStarted.map(([key, genus]) => ({
-            genus,
-            colony_m: colonyRange(key),
-            species: predictSpecies(key, conditions).map((p) => ({
+      likely: notStarted.map(([key, genus]) => ({
+        genus,
+        colony_m: colonyRange(key),
+        species: conditions
+          ? predictSpecies(key, conditions).map((p) => ({
               name: p.name,
               value: p.value,
               likelihood: Math.round(p.likelihood * 100) / 100,
-            })),
-          }))
-        : [],
+            }))
+          : [],
+      })),
     });
   }
   out.sort((a, b) => a.body_id - b.body_id);
