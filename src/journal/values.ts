@@ -143,12 +143,9 @@ export function genusValue(key: string): { min: number; max: number } | null {
   return max >= 0 ? { min, max } : null;
 }
 
-/**
- * The minimum distance between samples, in metres, for a genus or species journal key or an
- * in-game genus name.
- */
-export function colonyRange(keyOrName: string): number | null {
-  const token = genusOf(keyOrName);
+/** The minimum distance between samples, in metres, for a genus or species journal key. */
+export function colonyRange(key: string): number | null {
+  const token = genusToken(key);
   return token ? (genus(token)?.colony_m ?? null) : null;
 }
 

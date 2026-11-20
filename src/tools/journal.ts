@@ -200,7 +200,7 @@ export function registerJournalTools(
         "genus not started, the species likely on the body (from its scan and Canonn's records of " +
         "where each species grows) with value and likelihood, most likely first, and is empty " +
         "without a detailed scan: say they are predictions. colony_m on each species sampled, and " +
-        "genus_colony_m for each genus found on a body, is the minimum distance in metres between " +
+        "genus_colony_m for each genus in genera, by the same name, is the minimum distance in metres between " +
         "samples of one species, or null when unknown. unsold_analysed counts species " +
         "analysed since the last sale of organic data (or death), in any system. The journal has no " +
         "sample positions. system defaults to the current system; body is a full body name or the " +
