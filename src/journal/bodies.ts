@@ -104,6 +104,8 @@ export interface ExobiologyBody {
    */
   likely: Array<{
     genus: string;
+    /** The minimum distance between samples, in metres; null if unknown. */
+    colony_m: number | null;
     species: Array<{ name: string; value: number; likelihood: number }>;
   }>;
 }
@@ -230,6 +232,7 @@ export function exobiology(
       likely: conditions
         ? notStarted.map(([key, genus]) => ({
             genus,
+            colony_m: colonyRange(key),
             species: predictSpecies(key, conditions).map((p) => ({
               name: p.name,
               value: p.value,

@@ -88,58 +88,28 @@ export function speciesValue(speciesKey: string): number | null {
   return SPECIES[speciesKey]?.value ?? null;
 }
 
-// The minimum distance between samples of one species, in metres, by genus. Ingensradices
-// (Radicoida Unica) is left out: no published distance was found, so colonyRange gives null.
-const COLONY_M: Record<string, number> = {
-  Aleoids: 150,
-  Bacterial: 500,
-  Cactoid: 300,
-  Clypeus: 150,
-  Conchas: 150,
-  Electricae: 1000,
-  Fonticulus: 500,
-  Fumerolas: 100,
-  Fungoids: 300,
-  Osseus: 800,
-  Recepta: 150,
-  Shrubs: 150,
-  Stratum: 500,
-  Tubus: 800,
-  Tussocks: 200,
-};
+interface GenusInfo {
+  /** The in-game genus name. */
+  name: string;
+  /** The minimum distance between samples of one species, in metres; null if unknown. */
+  colony_m: number | null;
+}
+
+// Each genus by its journal token, as in $Codex_Ent_Bacterial_Genus_Name;.
+const GENERA = data.genera as Record<string, GenusInfo>;
 
 /** The genus token of a journal key: $Codex_Ent_Bacterial_Genus_Name; gives Bacterial. */
 function genusToken(key: string): string | null {
   return /^\$Codex_Ent_([A-Za-z]+)_/.exec(key)?.[1] ?? null;
 }
 
-// The in-game genus names, by journal token.
-const GENUS_NAMES: Record<string, string> = {
-  Aleoids: "Aleoida",
-  Bacterial: "Bacterium",
-  Cactoid: "Cactoida",
-  Clypeus: "Clypeus",
-  Conchas: "Concha",
-  Electricae: "Electricae",
-  Fonticulus: "Fonticulua",
-  Fumerolas: "Fumerola",
-  Fungoids: "Fungoida",
-  Ingensradices: "Radicoida",
-  Osseus: "Osseus",
-  Recepta: "Recepta",
-  Shrubs: "Frutexa",
-  Stratum: "Stratum",
-  Tubus: "Tubus",
-  Tussocks: "Tussock",
-};
-
 /** The in-game name of a genus, by its journal key: $Codex_Ent_Shrubs_Genus_Name; gives Frutexa. */
 export function genusName(key: string): string | null {
   const token = genusToken(key);
-  return token ? (GENUS_NAMES[token] ?? null) : null;
+  return token ? (GENERA[token]?.name ?? null) : null;
 }
 
-const NAME_TOKEN = new Map(Object.entries(GENUS_NAMES).map(([t, n]) => [n.toLowerCase(), t]));
+const NAME_TOKEN = new Map(Object.entries(GENERA).map(([t, g]) => [g.name.toLowerCase(), t]));
 
 /** The genus token of a genus or species journal key, or of an in-game genus name. */
 export function genusOf(keyOrName: string): string | null {
@@ -171,10 +141,13 @@ export function genusValue(key: string): { min: number; max: number } | null {
   return max >= 0 ? { min, max } : null;
 }
 
-/** The minimum distance between samples, in metres, for a genus or species journal key. */
-export function colonyRange(key: string): number | null {
-  const token = genusToken(key);
-  return token ? (COLONY_M[token] ?? null) : null;
+/**
+ * The minimum distance between samples, in metres, for a genus or species journal key or an
+ * in-game genus name.
+ */
+export function colonyRange(keyOrName: string): number | null {
+  const token = genusOf(keyOrName);
+  return token ? (GENERA[token]?.colony_m ?? null) : null;
 }
 
 /** The great-circle distance in metres between two points on a body. */

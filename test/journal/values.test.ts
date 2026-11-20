@@ -7,6 +7,7 @@ import {
   speciesValue,
   surfaceDistance,
 } from "../../src/journal/values.js";
+import data from "../../src/journal/data/exobiology.json" with { type: "json" };
 
 const elw = { PlanetClass: "Earthlike body", MassEM: 1, TerraformState: "" };
 
@@ -58,10 +59,21 @@ describe("species data", () => {
     expect(speciesValue("$Codex_Ent_Nothing_01_Name;")).toBeNull();
   });
 
-  it("gives the colony range by genus key", () => {
+  it("gives the colony range by genus key, species key or genus name", () => {
     expect(colonyRange("$Codex_Ent_Bacterial_Genus_Name;")).toBe(500);
     expect(colonyRange("$Codex_Ent_Tubus_Genus_Name;")).toBe(800);
+    expect(colonyRange("$Codex_Ent_Stratum_07_Name;")).toBe(500);
+    expect(colonyRange("Frutexa")).toBe(150);
+    expect(colonyRange("$Codex_Ent_Ingensradices_Unicus_Name;")).toBeNull();
     expect(colonyRange("bad")).toBeNull();
+    expect(colonyRange("$Codex_Ent_toString_Genus_Name;")).toBeNull();
+  });
+
+  it("has a name and a colony range for the genus of every species", () => {
+    for (const [key] of Object.entries(data.species)) {
+      expect(genusName(key), key).not.toBeNull();
+      if (!/Ingensradices/.test(key)) expect(colonyRange(key), key).toBeGreaterThan(0);
+    }
   });
 });
 

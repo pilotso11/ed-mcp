@@ -119,6 +119,7 @@ describe("exobiology", () => {
     const star = ev(T(1), "Scan", { BodyID: 0, SystemAddress: ADDR, StarType: "F" });
     const r = exobiology([star, scan, ...events], ADDR);
     const stratum = r.bodies[0]!.likely.find((l) => l.genus === "Stratum")!;
+    expect(stratum.colony_m).toBe(500);
     expect(stratum.species[0]).toMatchObject({ name: "Stratum Tectonicas", value: 19010800 });
   });
 

@@ -1,5 +1,71 @@
 {
   "source": "https://us-central1-canonn-api-236217.cloudfunctions.net/query/codex/ref",
+  "genera": {
+    "Aleoids": {
+      "name": "Aleoida",
+      "colony_m": 150
+    },
+    "Bacterial": {
+      "name": "Bacterium",
+      "colony_m": 500
+    },
+    "Cactoid": {
+      "name": "Cactoida",
+      "colony_m": 300
+    },
+    "Clypeus": {
+      "name": "Clypeus",
+      "colony_m": 150
+    },
+    "Conchas": {
+      "name": "Concha",
+      "colony_m": 150
+    },
+    "Electricae": {
+      "name": "Electricae",
+      "colony_m": 1000
+    },
+    "Fonticulus": {
+      "name": "Fonticulua",
+      "colony_m": 500
+    },
+    "Fumerolas": {
+      "name": "Fumerola",
+      "colony_m": 100
+    },
+    "Fungoids": {
+      "name": "Fungoida",
+      "colony_m": 300
+    },
+    "Ingensradices": {
+      "name": "Radicoida",
+      "colony_m": null
+    },
+    "Osseus": {
+      "name": "Osseus",
+      "colony_m": 800
+    },
+    "Recepta": {
+      "name": "Recepta",
+      "colony_m": 150
+    },
+    "Shrubs": {
+      "name": "Frutexa",
+      "colony_m": 150
+    },
+    "Stratum": {
+      "name": "Stratum",
+      "colony_m": 500
+    },
+    "Tubus": {
+      "name": "Tubus",
+      "colony_m": 800
+    },
+    "Tussocks": {
+      "name": "Tussock",
+      "colony_m": 200
+    }
+  },
   "species": {
     "$Codex_Ent_Aleoids_01_Name;": {
       "name": "Aleoida Arcus",
