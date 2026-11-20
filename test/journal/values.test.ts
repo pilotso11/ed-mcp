@@ -76,13 +76,10 @@ describe("species data", () => {
   });
 
   it("has a name and a colony range for the genus of every species", () => {
-    for (const [key] of Object.entries(data.species)) {
+    const genera: Record<string, { colony_m: number | null }> = data.genera;
+    for (const [key, s] of Object.entries(data.species)) {
       expect(genusName(key), key).not.toBeNull();
-      const g =
-        data.genera[
-          data.species[key as keyof typeof data.species].genus as keyof typeof data.genera
-        ];
-      expect(colonyRange(key), key).toBe(g.colony_m);
+      expect(colonyRange(key), key).toBe(genera[s.genus]!.colony_m);
     }
   });
 });

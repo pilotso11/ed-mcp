@@ -98,15 +98,14 @@ export interface ExobiologyBody {
   genera: string[];
   species: Species[];
   not_started: string[];
+  /** The minimum distance between samples in metres, by genus name; null if unknown. */
+  colony_m: Record<string, number | null>;
   /**
-   * For each genus not started, its colony range and the species likely on this body from its
-   * scan and where Canonn has seen each species, most likely first. The species are empty without
-   * a detailed scan of the body.
+   * For each genus not started, the species likely on this body from its scan and where Canonn
+   * has seen each species, most likely first. Empty without a detailed scan of the body.
    */
   likely: Array<{
     genus: string;
-    /** The minimum distance between samples, in metres; null if unknown. */
-    colony_m: number | null;
     species: Array<{ name: string; value: number; likelihood: number }>;
   }>;
 }
@@ -230,17 +229,17 @@ export function exobiology(
       genera: [...b.genera.values()],
       species: [...b.species.values()].map(({ genusKey: _, ...s }) => s),
       not_started: notStarted.map(([, v]) => v),
-      likely: notStarted.map(([key, genus]) => ({
-        genus,
-        colony_m: colonyRange(key),
-        species: conditions
-          ? predictSpecies(key, conditions).map((p) => ({
+      colony_m: Object.fromEntries([...b.genera].map(([key, genus]) => [genus, colonyRange(key)])),
+      likely: conditions
+        ? notStarted.map(([key, genus]) => ({
+            genus,
+            species: predictSpecies(key, conditions).map((p) => ({
               name: p.name,
               value: p.value,
               likelihood: Math.round(p.likelihood * 100) / 100,
-            }))
-          : [],
-      })),
+            })),
+          }))
+        : [],
     });
   }
   out.sort((a, b) => a.body_id - b.body_id);

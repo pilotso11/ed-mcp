@@ -45,7 +45,7 @@ for (const e of Object.values(ref)) {
   const name = m ? e.english_name.replace(/ - [^-]+$/, "") : e.english_name;
   const prev = species[key];
   if (prev && prev.value !== e.reward) throw new Error(`${key}: ${prev.value} != ${e.reward}`);
-  if (!GENERA[genus]) throw new Error(`${key}: genus ${genus} is not in GENERA`);
+  if (!Object.hasOwn(GENERA, genus)) throw new Error(`${key}: genus ${genus} is not in GENERA`);
   species[key] = { name, genus, value: e.reward };
 }
 const sorted = Object.fromEntries(Object.entries(species).sort(([a], [b]) => a.localeCompare(b)));
