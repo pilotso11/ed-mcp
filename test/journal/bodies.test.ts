@@ -9,8 +9,10 @@ const ADDR = 1001;
 const BIO = { Type: "$SAA_SignalType_Biological;", Type_Localised: "Biological" };
 // FSSBodySignals uses its own symbol; Type_Localised is in the client's language.
 const FSS_BIO = { Type: "$FSS_SignalType_Biological;", Type_Localised: "Biologisch" };
+// The journal key's token is not always the in-game name: Bacterium is Bacterial.
+const TOKENS: Record<string, string> = { Bacterium: "Bacterial" };
 const genus = (name: string) => ({
-  Genus: `$Codex_Ent_${name}_Genus_Name;`,
+  Genus: `$Codex_Ent_${TOKENS[name] ?? name}_Genus_Name;`,
   Genus_Localised: name,
 });
 const organic = (n: number, type: string, g: string, species: string, body = 3) =>
@@ -83,7 +85,7 @@ describe("exobiology", () => {
             stage: "3/3",
             analysed: true,
             value: null,
-            colony_m: null,
+            colony_m: 500,
           },
           {
             genus: "Tubus",
@@ -97,7 +99,7 @@ describe("exobiology", () => {
           },
         ],
         not_started: ["Stratum"],
-        colony_m: { Bacterium: null, Tubus: 800, Stratum: 500 },
+        genus_colony_m: { Bacterium: 500, Tubus: 800, Stratum: 500 },
         likely: [],
       },
     ]);
@@ -120,7 +122,7 @@ describe("exobiology", () => {
     const star = ev(T(1), "Scan", { BodyID: 0, SystemAddress: ADDR, StarType: "F" });
     const r = exobiology([star, scan, ...events], ADDR);
     const stratum = r.bodies[0]!.likely.find((l) => l.genus === "Stratum")!;
-    expect(r.bodies[0]!.colony_m.Stratum).toBe(500);
+    expect(r.bodies[0]!.genus_colony_m.Stratum).toBe(500);
     expect(stratum.species[0]).toMatchObject({ name: "Stratum Tectonicas", value: 19010800 });
   });
 
