@@ -406,7 +406,7 @@ describe("missions_route", () => {
   });
 });
 
-describe("missions_route save_to_plan", () => {
+describe("missions_plan", () => {
   const stores = async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
     const now = () => new Date(NOW);
@@ -415,13 +415,15 @@ describe("missions_route save_to_plan", () => {
       activity: new ActivityStore(path.join(dir, "activity.json"), now),
     };
   };
+  const save = async (args: Record<string, unknown>, opts: Parameters<typeof setup>[0]) => {
+    const { client } = setup(opts);
+    const r = await callTool(await client, "missions_plan", { ...range, ...args });
+    return { r, j: r.json as Record<string, any> };
+  };
 
   it("saves the order as the activity note's plan, labelled per stop", async () => {
     const s = await stores();
-    const { j } = await route(
-      { save_to_plan: true, return_to: { system: "Sol", station: "Abraham Lincoln" } },
-      s,
-    );
+    const { j } = await save({ return_to: { system: "Sol", station: "Abraham Lincoln" } }, s);
     expect(j.saved).toBe(true);
     expect(j.plan_id).toBe("missions");
     const plan = await s.plans.get("missions");
@@ -430,10 +432,15 @@ describe("missions_route save_to_plan", () => {
       ["Beta Hub", "1 mission", "mission", [4]],
       ["Alpha Port", "Drop 4 passengers · deliver Gold", "mission", [1, 2]],
       ["Alpha Dock", "Drop 2 passengers", "mission", [3]],
-      ["Abraham Lincoln", "Return", "other", undefined],
     ]);
-    expect(plan.route?.stops[0]).toBe("Beta — Beta Hub");
-    expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], [3]]);
+    // The return is in the route, not a stop to do.
+    expect(plan.route?.stops).toEqual([
+      "Beta — Beta Hub",
+      "Alpha — Alpha Port",
+      "Alpha — Alpha Dock",
+      "return to Sol — Abraham Lincoln",
+    ]);
+    expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], []]);
     expect(await s.activity.get()).toMatchObject({
       kind: "missions",
       plan_id: "missions",
@@ -441,45 +448,66 @@ describe("missions_route save_to_plan", () => {
     });
   });
 
-  it("keeps the plan's items and the note's summary on a new save", async () => {
+  it("keeps the rest of the plan, stop marks, and the note's summary for the same plan", async () => {
     const s = await stores();
     await s.plans.upsert({
       id: "run",
       name: "Saturday run",
+      target_build: { ship: "python" },
       items: [{ id: "a", kind: "buy", description: "Buy cabins" }],
-      stops: [{ system: "Old", purpose: "old" }],
+      stops: [
+        { system: "Beta", station: "Beta Hub", purpose: "old", status: "skipped", notes: "busy" },
+      ],
     });
-    await s.activity.set({ kind: "missions", summary: "Passenger runs from Sol" });
-    const { j } = await route({ save_to_plan: true, plan_id: "run" }, s);
+    await s.activity.set({ kind: "missions", summary: "Passenger runs from Sol", plan_id: "run" });
+    const { j } = await save({ plan_id: "run" }, s);
     expect(j.saved).toBe(true);
     const plan = await s.plans.get("run");
     expect(plan.name).toBe("Saturday run");
+    expect(plan.target_build).toEqual({ ship: "python" });
     expect(plan.items.map((i) => i.id)).toEqual(["a"]);
-    expect(plan.stops.map((x) => x.system)).toEqual(["Beta", "Alpha", "Alpha"]);
+    expect(plan.stops.map((x) => [x.system, x.status, x.notes])).toEqual([
+      ["Beta", "skipped", "busy"],
+      ["Alpha", "todo", undefined],
+      ["Alpha", "todo", undefined],
+    ]);
     expect((await s.activity.get())?.summary).toBe("Passenger runs from Sol");
+    // A note about another plan gets a new summary.
+    await s.activity.set({ kind: "missions", summary: "Old run", plan_id: "other" });
+    await save({ plan_id: "run", include: [3] }, s);
+    expect((await s.activity.get())?.summary).toBe("Mission run: 1 mission over 1 stop");
   });
 
-  it("does not save without save_to_plan, and says when it cannot", async () => {
+  it("is not offered without plans, and missions_route never saves", async () => {
+    const { r } = await save({}, {});
+    expect(r.isError).toBe(true);
     const s = await stores();
     const { j } = await route({}, s);
     expect(j.saved).toBeUndefined();
     expect(await s.plans.list()).toEqual([]);
-    const { r } = await route({ save_to_plan: true });
-    expect(r.isError).toBe(true);
-    expect(r.text).toContain("Plans are not available");
   });
 
-  it("returns the route when the save fails", async () => {
+  it("returns the route when the save fails, and says when only the note failed", async () => {
     const s = await stores();
-    const failing = Object.assign(Object.create(PlanStore.prototype), s.plans, {
-      get: async () => null,
-      upsert: async () => {
+    const failing = Object.assign(Object.create(PlanStore.prototype), {
+      saveStops: async () => {
         throw new Error("disk full");
       },
     }) as PlanStore;
-    const { j } = await route({ save_to_plan: true }, { plans: failing });
+    const { j } = await save({}, { plans: failing });
     expect(j.saved).toBe(false);
     expect(j.stops).toHaveLength(3);
     expect(j.notes).toContain('The route was not saved to plan "missions": disk full');
+    const noNote = Object.assign(Object.create(ActivityStore.prototype), {
+      get: async () => null,
+      set: async () => {
+        throw new Error("locked");
+      },
+    }) as ActivityStore;
+    const half = await save({}, { plans: s.plans, activity: noNote });
+    expect(half.j.saved).toBe(true);
+    expect(half.j.notes).toContain(
+      "The plan was saved, but the activity note was not updated: locked",
+    );
   });
 });

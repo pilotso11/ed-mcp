@@ -162,6 +162,39 @@ export class PlanStore {
     });
   }
 
+  /**
+   * Replaces a plan's stops and route in one locked write, creating the plan when it is missing.
+   * Everything else in the plan is kept. A new stop at the same place (system and station) as an
+   * old one keeps the old stop's status and notes, so stops marked done or skipped stay so.
+   */
+  saveStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
+    return this.mutate((data) => {
+      const stamp = this.now().toISOString();
+      const idx = data.plans.findIndex((p) => p.id === planId);
+      const old = idx >= 0 ? data.plans[idx]! : undefined;
+      const place = (s: Stop) => `${s.system.toLowerCase()}|${(s.station ?? "").toLowerCase()}`;
+      const before = new Map((old?.stops ?? []).map((s) => [place(s), s]));
+      const merged = stops.map((s) => {
+        const o = before.get(place(s));
+        return o ? { ...s, status: o.status, ...(o.notes ? { notes: o.notes } : {}) } : s;
+      });
+      const parsed = PlanInputSchema.safeParse({
+        ...(old ?? { id: planId, name }),
+        stops: merged,
+        route,
+      });
+      if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+      const plan: Plan = cleanRoute({
+        ...parsed.data,
+        created_at: old ? old.created_at : stamp,
+        updated_at: stamp,
+      });
+      if (idx >= 0) data.plans[idx] = plan;
+      else data.plans.push(plan);
+      return plan;
+    });
+  }
+
   async delete(id: string): Promise<void> {
     await this.mutate((data) => {
       const idx = data.plans.findIndex((p) => p.id === id);

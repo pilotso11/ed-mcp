@@ -23,7 +23,7 @@ export interface Unroutable {
   reason: string;
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * What to do at a stop, for a plan: "Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1
@@ -40,7 +40,7 @@ export function stopLabel(stop: Stop, byId: Map<number, Mission>): string {
   for (const s of stop.missions) {
     const m = byId.get(s.id);
     if (s.status === "complete") handIn++;
-    else if (s.kind === "passenger") {
+    else if (s.kind === "passenger" && s.passengers) {
       passengers += s.passengers ?? 0;
       if (m?.vips) vips += s.passengers ?? 0;
       if (m?.wanted) wanted += s.passengers ?? 0;
@@ -48,22 +48,26 @@ export function stopLabel(stop: Stop, byId: Map<number, Mission>): string {
       const what = m?.commodity ?? "cargo";
       const into = s.kind === "source" ? sourced : goods;
       into.set(what, (into.get(what) ?? 0) + (m?.count ?? 0));
-    } else other++;
+    } else if (s.kind !== "passenger") other++;
   }
   const flags = [vips ? `${vips} VIP` : null, wanted ? `${wanted} wanted` : null].filter(Boolean);
   const tons = (n: number, what: string) => (n ? `${n} t ${what}` : what);
-  return [
-    passengers
-      ? `Drop ${plural(passengers, "passenger")}${flags.length ? ` (${flags.join(", ")})` : ""}`
-      : null,
-    ...[...goods].map(([what, n]) => `deliver ${tons(n, what)}`),
-    ...[...sourced].map(([what, n]) => `source ${tons(n, what)}`),
-    other ? plural(other, "mission") : null,
-    handIn ? `hand in ${plural(handIn, "mission")}` : null,
-  ]
-    .filter((x): x is string => x !== null)
-    .join(" · ")
-    .replace(/^./, (c) => c.toUpperCase());
+  return (
+    [
+      passengers
+        ? `Drop ${plural(passengers, "passenger")}${flags.length ? ` (${flags.join(", ")})` : ""}`
+        : null,
+      ...[...goods].map(([what, n]) => `deliver ${tons(n, what)}`),
+      ...[...sourced].map(([what, n]) => `source ${tons(n, what)}`),
+      other ? plural(other, "mission") : null,
+      handIn ? `hand in ${plural(handIn, "mission")}` : null,
+    ]
+      .filter((x): x is string => x !== null)
+      .join(" · ")
+      // A passenger mission with no count says nothing above: name the missions instead.
+      .replace(/^$/, plural(stop.missions.length, "mission"))
+      .replace(/^./, (c) => c.toUpperCase())
+  );
 }
 
 const kindOf = (m: Mission): StopMission["kind"] =>
