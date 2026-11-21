@@ -6,7 +6,6 @@ import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
 import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
-import { placeKey } from "./stops.js";
 import {
   PlanFileSchema,
   PlanInputSchema,
@@ -17,7 +16,7 @@ import {
   type PlanRoute,
   type Stop,
 } from "./schema.js";
-import { findStop, nextStop, type NextStop } from "./stops.js";
+import { findStop, nextStop, placeKey, type NextStop } from "./stops.js";
 
 export interface PlanSummary {
   id: string;
@@ -180,18 +179,24 @@ export class PlanStore {
   saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
       const old = data.plans.find((p) => p.id === planId);
-      // A mission stop lists its missions; one edited without the list keeps its kind.
-      const isMission = (s: Stop) =>
-        Array.isArray(s.missions) || s.kind === "mission" || s.kind === "hand_in";
+      // A mission stop lists its missions: an edit must keep the list, or the stop counts as made
+      // by hand.
+      const isMission = (s: Stop) => Array.isArray(s.missions);
       const sameSet = (a: number[], b: number[]) =>
         a.length === b.length && a.every((id) => b.includes(id));
       const marked = (old?.stops ?? []).filter((s) => isMission(s) && s.status !== "todo");
       const fresh = stops.map((s) => {
         const k = placeKey(s.system, s.station);
         const same = marked.find(
-          (o) => placeKey(o.system, o.station) === k && sameSet(o.missions ?? [], s.missions ?? []),
+          (o) =>
+            placeKey(o.system, o.station) === k &&
+            o.kind === s.kind &&
+            sameSet(o.missions ?? [], s.missions ?? []),
         );
-        return same ? { ...s, status: same.status } : s;
+        // The same task at the same place: its mark and notes carry over.
+        return same
+          ? { ...s, status: same.status, ...(same.notes ? { notes: same.notes } : {}) }
+          : s;
       });
       // The route's stop_indexes point at the new stops, which come first.
       const byHand = (old?.stops ?? []).filter((s) => !isMission(s));

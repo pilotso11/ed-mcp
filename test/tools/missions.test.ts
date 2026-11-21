@@ -474,11 +474,19 @@ describe("missions_plan", () => {
           system: "Beta",
           station: "Beta Hub",
           purpose: "old",
+          kind: "mission",
           missions: [4],
           status: "skipped",
           notes: "busy",
         },
-        { system: "Alpha", station: "Alpha Dock", purpose: "old", missions: [3], status: "done" },
+        {
+          system: "Alpha",
+          station: "Alpha Dock",
+          purpose: "old",
+          kind: "mission",
+          missions: [3],
+          status: "done",
+        },
       ],
     });
     await s.activity.set({
@@ -493,9 +501,9 @@ describe("missions_plan", () => {
     expect(plan.target_build).toEqual({ ship: "python" });
     expect(plan.items.map((i) => i.id)).toEqual(["a"]);
     // The same missions as before: both marks stay.
-    // Mission stops carry no notes over.
+    // The same task at the same place keeps its mark and notes.
     expect(plan.stops.map((x) => [x.station, x.status, x.notes])).toEqual([
-      ["Beta Hub", "skipped", undefined],
+      ["Beta Hub", "skipped", "busy"],
       ["Alpha Port", "todo", undefined],
       ["Alpha Dock", "done", undefined],
       ["Void", "todo", undefined],
@@ -603,7 +611,14 @@ describe("missions_plan", () => {
         id: "missions",
         name: "Run",
         stops: [
-          { system: "Beta", station: "Beta Hub", purpose: "x", missions: [4], status: "skipped" },
+          {
+            system: "Beta",
+            station: "Beta Hub",
+            purpose: "x",
+            kind: "mission",
+            missions: [4],
+            status: "skipped",
+          },
           { system: "Old", purpose: "x", missions: [99] },
         ],
       });
@@ -629,15 +644,39 @@ describe("missions_plan", () => {
     expect(await s.activity.get()).toBeNull();
   });
 
-  it("treats a stop that lost its missions list in an edit as a mission stop", async () => {
+  it("carries a mark and notes only for the same task at the same place", async () => {
     const s = await stores();
     await s.plans.upsert({
       id: "missions",
       name: "Run",
-      stops: [{ system: "Gone", purpose: "x", kind: "mission" }],
+      stops: [
+        {
+          system: "Alpha",
+          station: "Alpha Dock",
+          purpose: "x",
+          kind: "mission",
+          missions: [3],
+          status: "done",
+          notes: "pad 12",
+        },
+        // The same mission, but sourcing rather than delivering: another task.
+        {
+          system: "Beta",
+          station: "Beta Hub",
+          purpose: "x",
+          kind: "hand_in",
+          missions: [4],
+          status: "done",
+        },
+      ],
     });
     await save({}, s);
-    expect((await s.plans.get("missions")).stops.some((x) => x.system === "Gone")).toBe(false);
+    const stops = (await s.plans.get("missions")).stops;
+    expect(stops.find((x) => x.station === "Alpha Dock")).toMatchObject({
+      status: "done",
+      notes: "pad 12",
+    });
+    expect(stops.find((x) => x.station === "Beta Hub")?.status).toBe("todo");
   });
 
   it("leaves someone else's note alone when no missions are left", async () => {
