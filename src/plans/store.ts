@@ -181,19 +181,21 @@ export class PlanStore {
       const old = data.plans.find((p) => p.id === planId);
       // A mission stop lists its missions: an edit must keep the list, or the stop counts as made
       // by hand.
-      const isMission = (s: Stop) => Array.isArray(s.missions);
+      const isMission = (s: Stop) => (s.missions?.length ?? 0) > 0;
       const sameSet = (a: number[], b: number[]) =>
         a.length === b.length && a.every((id) => b.includes(id));
-      const marked = (old?.stops ?? []).filter((s) => isMission(s) && s.status !== "todo");
+      const olds = (old?.stops ?? []).filter(isMission);
       const fresh = stops.map((s) => {
         const k = placeKey(s.system, s.station);
-        const same = marked.find(
+        // The same task (kind and what to do, which changes with the missions' status) at the
+        // same place, for exactly the same missions.
+        const same = olds.find(
           (o) =>
             placeKey(o.system, o.station) === k &&
             o.kind === s.kind &&
+            o.purpose === s.purpose &&
             sameSet(o.missions ?? [], s.missions ?? []),
         );
-        // The same task at the same place: its mark and notes carry over.
         return same
           ? { ...s, status: same.status, ...(same.notes ? { notes: same.notes } : {}) }
           : s;

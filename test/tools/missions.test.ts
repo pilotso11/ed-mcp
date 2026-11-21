@@ -473,7 +473,7 @@ describe("missions_plan", () => {
         {
           system: "Beta",
           station: "Beta Hub",
-          purpose: "old",
+          purpose: "1 mission",
           kind: "mission",
           missions: [4],
           status: "skipped",
@@ -482,7 +482,7 @@ describe("missions_plan", () => {
         {
           system: "Alpha",
           station: "Alpha Dock",
-          purpose: "old",
+          purpose: "Drop 2 passengers",
           kind: "mission",
           missions: [3],
           status: "done",
@@ -614,7 +614,7 @@ describe("missions_plan", () => {
           {
             system: "Beta",
             station: "Beta Hub",
-            purpose: "x",
+            purpose: "1 mission",
             kind: "mission",
             missions: [4],
             status: "skipped",
@@ -653,7 +653,7 @@ describe("missions_plan", () => {
         {
           system: "Alpha",
           station: "Alpha Dock",
-          purpose: "x",
+          purpose: "Drop 2 passengers",
           kind: "mission",
           missions: [3],
           status: "done",
@@ -691,5 +691,32 @@ describe("missions_plan", () => {
     await s.activity.set({ kind: "hauling", summary: "Gold run for CG", plan_id: "missions" });
     await save({}, s);
     expect(await s.activity.get()).toMatchObject({ kind: "hauling", summary: "Gold run for CG" });
+  });
+});
+
+describe("missions_plan stop carry-over", () => {
+  it("keeps the notes of a stop still to do, and treats an empty missions list as by hand", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
+    const plans = new PlanStore(path.join(dir, "plans.json"), () => new Date(NOW));
+    await plans.upsert({
+      id: "missions",
+      name: "Run",
+      stops: [
+        {
+          system: "Alpha",
+          station: "Alpha Dock",
+          purpose: "Drop 2 passengers",
+          kind: "mission",
+          missions: [3],
+          notes: "pad 12",
+        },
+        { system: "Fuel", purpose: "refuel", missions: [] },
+      ],
+    });
+    const { client } = setup({ plans });
+    await callTool(await client, "missions_plan", { ...range });
+    const stops = (await plans.get("missions")).stops;
+    expect(stops.find((x) => x.station === "Alpha Dock")?.notes).toBe("pad 12");
+    expect(stops.some((x) => x.system === "Fuel")).toBe(true);
   });
 });
