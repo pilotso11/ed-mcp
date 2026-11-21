@@ -99,6 +99,11 @@ export interface ExobiologyBody {
   species: Species[];
   not_started: string[];
   /**
+   * The minimum distance between samples in metres for each genus in genera, by the same name;
+   * null if unknown.
+   */
+  genus_colony_m?: Record<string, number | null>;
+  /**
    * For each genus not started, the species likely on this body from its scan and where Canonn
    * has seen each species, most likely first. Empty without a detailed scan of the body.
    */
@@ -227,6 +232,9 @@ export function exobiology(
       genera: [...b.genera.values()],
       species: [...b.species.values()].map(({ genusKey: _, ...s }) => s),
       not_started: notStarted.map(([, v]) => v),
+      genus_colony_m: Object.fromEntries(
+        [...b.genera].map(([key, genus]) => [genus, colonyRange(key)]),
+      ),
       likely: conditions
         ? notStarted.map(([key, genus]) => ({
             genus,

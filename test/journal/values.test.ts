@@ -7,6 +7,7 @@ import {
   speciesValue,
   surfaceDistance,
 } from "../../src/journal/values.js";
+import data from "../../src/journal/data/exobiology.json" with { type: "json" };
 
 const elw = { PlanetClass: "Earthlike body", MassEM: 1, TerraformState: "" };
 
@@ -58,10 +59,27 @@ describe("species data", () => {
     expect(speciesValue("$Codex_Ent_Nothing_01_Name;")).toBeNull();
   });
 
-  it("gives the colony range by genus key", () => {
+  it("gives the colony range by genus key or species key", () => {
     expect(colonyRange("$Codex_Ent_Bacterial_Genus_Name;")).toBe(500);
     expect(colonyRange("$Codex_Ent_Tubus_Genus_Name;")).toBe(800);
+    expect(colonyRange("$Codex_Ent_Stratum_07_Name;")).toBe(500);
+    expect(colonyRange("$Codex_Ent_Ingensradices_Unicus_Name;")).toBeNull();
     expect(colonyRange("bad")).toBeNull();
+    expect(colonyRange("$Codex_Ent_toString_Genus_Name;")).toBeNull();
+    expect(genusName("$Codex_Ent_constructor_Genus_Name;")).toBeNull();
+  });
+
+  it("has a known colony range for every genus but Radicoida", () => {
+    for (const [token, g] of Object.entries(data.genera))
+      if (token !== "Ingensradices") expect(g.colony_m, token).toBeGreaterThan(0);
+  });
+
+  it("has a name and a colony range for the genus of every species", () => {
+    const genera: Record<string, { colony_m: number | null }> = data.genera;
+    for (const [key, s] of Object.entries(data.species)) {
+      expect(genusName(key), key).not.toBeNull();
+      expect(colonyRange(key), key).toBe(genera[s.genus]!.colony_m);
+    }
   });
 });
 
