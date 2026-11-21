@@ -1,4 +1,4 @@
-import { plural } from "../routes/stops.js";
+import { plural } from "../text.js";
 import { isTransportError, type SpanshClient } from "../spansh/client.js";
 
 // Spansh station searches carry no permit flag, so each new system costs a rate-limited

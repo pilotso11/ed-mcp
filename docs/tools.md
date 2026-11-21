@@ -117,11 +117,13 @@ next stop and copies its system when you arrive. Each stop is one station, with 
 do there ("Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1 mission") and `missions`, the
 journal mission IDs it serves. A `return_to` stop is in the route, not the stops.
 
-Saving replaces the plan's stops and route and keeps everything else in the plan. A stop at a place
-already in the plan keeps its notes, and its status (done or skipped) unless it now serves
-missions it did not before. If a Spansh lookup fails, nothing is saved and the tool fails, so the plan never
-loses stops; try again later. Missions in a system Spansh does not know are left out, as
-`missions_route` lists them in `unroutable`. Call it again after taking or finishing missions.
+Saving replaces the plan's stops and route and keeps everything else in the plan. It always
+covers every mission, and with none left it clears the stops. A stop at a place already in the plan
+keeps its notes. A stop you skipped stays skipped while it serves no new missions; a stop marked
+done is to do again, since a stop in the new route still has missions there. If a Spansh lookup
+fails, nothing is saved and the tool fails, so the plan never loses stops; try again later.
+Missions in a system Spansh does not know are left out, as `missions_route` lists them in
+`unroutable`. Call it again after taking or finishing missions.
 
 ## Build statistics
 

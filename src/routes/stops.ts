@@ -1,4 +1,7 @@
 import type { Mission } from "../journal/state.js";
+import { plural } from "../text.js";
+
+export { plural };
 
 export interface StopMission {
   id: number;
@@ -22,8 +25,6 @@ export interface Unroutable {
   name: string;
   reason: string;
 }
-
-export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * What to do at a stop, for a plan: "Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1

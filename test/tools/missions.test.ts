@@ -3,6 +3,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { ActivityStore } from "../../src/activity/store.js";
+import { HttpError } from "../../src/http/client.js";
 import { PlanStore } from "../../src/plans/store.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
@@ -56,9 +57,13 @@ interface Opts {
   age?: number;
   types?: Record<string, string>;
   down?: string[];
+  /** Systems whose lookup fails as Spansh's own errors do: a UserError subclass. */
+  timeout?: string[];
   noJournal?: boolean;
   ghost?: boolean;
   extra?: Mission[];
+  /** In place of the default missions. */
+  missions?: Mission[];
   systemCalls?: string[];
   now?: () => number;
   onLookup?: () => void;
@@ -75,6 +80,7 @@ function setup(opts: Opts = {}) {
       opts.onLookup?.();
       const key = name.toLowerCase();
       if (opts.down?.includes(key)) throw new Error("Spansh is down");
+      if (opts.timeout?.includes(key)) throw new HttpError("Spansh timed out");
       const c = coords[key];
       if (!c) throw new UserError(`System "${name}" not found on Spansh.`);
       return {
@@ -88,7 +94,7 @@ function setup(opts: Opts = {}) {
       } as unknown as SystemInfo;
     },
   } as unknown as SpanshClient;
-  const missions = [
+  const missions = opts.missions ?? [
     mission(1, { destination_system: "Alpha", destination_station: "Alpha Port", passengers: 4 }),
     mission(2, {
       destination_system: "Alpha",
@@ -428,17 +434,20 @@ describe("missions_plan", () => {
     expect(j.plan_id).toBe("missions");
     const plan = await s.plans.get("missions");
     expect(plan.name).toBe("Mission run");
-    expect(plan.stops.map((x) => [x.station, x.label, x.kind, x.missions])).toEqual([
-      ["Beta Hub", "1 mission", "mission", [4]],
-      ["Alpha Port", "Drop 4 passengers · deliver Gold", "mission", [1, 2]],
-      ["Alpha Dock", "Drop 2 passengers", "mission", [3]],
+    expect(plan.stops.map((x) => [x.station, x.purpose, x.label, x.kind, x.missions])).toEqual([
+      ["Beta Hub", "1 mission", "1 mission at Beta Hub", "mission", [4]],
+      [
+        "Alpha Port",
+        "Drop 4 passengers · deliver Gold",
+        "Drop 4 passengers · deliver Gold at Alpha Port",
+        "mission",
+        [1, 2],
+      ],
+      ["Alpha Dock", "Drop 2 passengers", "Drop 2 passengers at Alpha Dock", "mission", [3]],
     ]);
-    // The return is in the route, not a stop to do.
-    // Named as route_stops names stops: the label.
+    // Named as route_stops names stops; the return is in the route, not a stop to do.
     expect(plan.route?.stops).toEqual([
-      "1 mission",
-      "Drop 4 passengers · deliver Gold",
-      "Drop 2 passengers",
+      ...plan.stops.map((x) => x.label),
       "return to Sol — Abraham Lincoln",
     ]);
     expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], []]);
@@ -449,7 +458,7 @@ describe("missions_plan", () => {
     });
   });
 
-  it("keeps the rest of the plan, stop marks, and the note's summary for the same plan", async () => {
+  it("keeps the rest of the plan, a skip, and a summary someone wrote", async () => {
     const s = await stores();
     await s.plans.upsert({
       id: "run",
@@ -465,25 +474,55 @@ describe("missions_plan", () => {
           status: "skipped",
           notes: "busy",
         },
+        { system: "Alpha", station: "Alpha Dock", purpose: "old", missions: [3], status: "done" },
       ],
     });
-    await s.activity.set({ kind: "missions", summary: "Passenger runs from Sol", plan_id: "run" });
+    await s.activity.set({
+      kind: "missions",
+      summary: "Mission run: Sol passengers",
+      plan_id: "run",
+    });
     const { j } = await save({ plan_id: "run" }, s);
     expect(j.saved).toBe(true);
     const plan = await s.plans.get("run");
     expect(plan.name).toBe("Saturday run");
     expect(plan.target_build).toEqual({ ship: "python" });
     expect(plan.items.map((i) => i.id)).toEqual(["a"]);
-    expect(plan.stops.map((x) => [x.system, x.status, x.notes])).toEqual([
-      ["Beta", "skipped", "busy"],
-      ["Alpha", "todo", undefined],
-      ["Alpha", "todo", undefined],
+    // Skipped stays; done is to do again, since the stop still has a mission.
+    expect(plan.stops.map((x) => [x.station, x.status, x.notes])).toEqual([
+      ["Beta Hub", "skipped", "busy"],
+      ["Alpha Port", "todo", undefined],
+      ["Alpha Dock", "todo", undefined],
     ]);
-    expect((await s.activity.get())?.summary).toBe("Passenger runs from Sol");
-    // A note about another plan gets a new summary.
-    await s.activity.set({ kind: "missions", summary: "Old run", plan_id: "other" });
-    await save({ plan_id: "run", include: [3] }, s);
-    expect((await s.activity.get())?.summary).toBe("Mission run: 1 mission over 1 stop");
+    expect((await s.activity.get())?.summary).toBe("Mission run: Sol passengers");
+  });
+
+  it("refreshes its own summary, and a skip ends when the stop gets new missions", async () => {
+    const s = await stores();
+    await s.plans.upsert({
+      id: "missions",
+      name: "Run",
+      stops: [
+        { system: "Alpha", station: "Alpha Port", purpose: "x", missions: [1], status: "skipped" },
+      ],
+    });
+    await s.activity.set({
+      kind: "missions",
+      summary: "Mission run: 9 missions over 9 stops",
+      plan_id: "missions",
+    });
+    await save({}, s);
+    const plan = await s.plans.get("missions");
+    expect(plan.stops.find((x) => x.station === "Alpha Port")?.status).toBe("todo");
+    expect((await s.activity.get())?.summary).toBe("Mission run: 4 missions over 3 stops");
+  });
+
+  it("clears the stops when no missions are left", async () => {
+    const s = await stores();
+    await s.plans.upsert({ id: "missions", name: "Run", stops: [{ system: "Old", purpose: "x" }] });
+    const { j } = await save({}, { ...s, missions: [] });
+    expect(j.saved).toBe(true);
+    expect((await s.plans.get("missions")).stops).toEqual([]);
   });
 
   it("is not offered without plans, and missions_route never saves", async () => {
@@ -518,28 +557,18 @@ describe("missions_plan", () => {
     );
   });
 
-  it("saves nothing when a Spansh lookup fails", async () => {
-    const s = await stores();
-    await s.plans.upsert({ id: "missions", name: "Run", stops: [{ system: "Old", purpose: "x" }] });
-    const { r } = await save({}, { ...s, down: ["beta"] });
-    expect(r.isError).toBe(true);
-    expect(r.text).toContain("the Spansh lookup failed for 1 stop");
-    expect((await s.plans.get("missions")).stops.map((x) => x.system)).toEqual(["Old"]);
-  });
-
-  it("visits a done stop again for new missions, and refreshes its own summary", async () => {
-    const s = await stores();
-    await save({ include: [1] }, s);
-    expect((await s.activity.get())?.summary).toBe("Mission run: 1 mission over 1 stop");
-    await s.plans.updateStop("missions", { index: 0 }, { status: "done", notes: "dropped" });
-    // Mission 2 is at the same station: the stop is to do again, and keeps its notes.
-    await save({ include: [1, 2] }, s);
-    const stop = (await s.plans.get("missions")).stops[0]!;
-    expect([stop.station, stop.status, stop.notes]).toEqual(["Alpha Port", "todo", "dropped"]);
-    expect((await s.activity.get())?.summary).toBe("Mission run: 2 missions over 1 stop");
-    // The same missions again: still done.
-    await s.plans.updateStop("missions", { index: 0 }, { status: "done" });
-    await save({ include: [1, 2] }, s);
-    expect((await s.plans.get("missions")).stops[0]!.status).toBe("done");
+  it("saves nothing when a Spansh lookup fails, including Spansh's own errors", async () => {
+    for (const opts of [{ down: ["beta"] }, { timeout: ["beta"] }]) {
+      const s = await stores();
+      await s.plans.upsert({
+        id: "missions",
+        name: "Run",
+        stops: [{ system: "Old", purpose: "x" }],
+      });
+      const { r } = await save({}, { ...s, ...opts });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("the Spansh lookup failed for 1 stop");
+      expect((await s.plans.get("missions")).stops.map((x) => x.system)).toEqual(["Old"]);
+    }
   });
 });

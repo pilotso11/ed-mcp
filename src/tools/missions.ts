@@ -22,6 +22,7 @@ import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
+import { isTransportError } from "../spansh/client.js";
 import { reason, wrap } from "./result.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
@@ -115,13 +116,20 @@ export function registerMissionTools(
         places.push(await place(stop.system, stop.station));
         stops.push(stop);
       } catch (e) {
-        if (!(e instanceof UserError)) lookupFailed++;
+        if (isTransportError(e)) lookupFailed++;
         const reason =
           e instanceof UserError
             ? e.message
             : `Spansh lookup failed: ${e instanceof Error ? e.message : String(e)}`;
         for (const m of stop.missions) unroutable.push({ id: m.id, name: m.name, reason });
       }
+    }
+    // Saving a route that lost stops to failed lookups would drop them from the plan, so stop
+    // before the route is worked out.
+    if (planId && lookupFailed > 0) {
+      throw new UserError(
+        `Not saved to plan "${planId}": the Spansh lookup failed for ${plural(lookupFailed, "stop")}; try again later.`,
+      );
     }
     const returnPlace = a.return_to
       ? await endpoint("return_to", a.return_to.system, a.return_to.station ?? null)
@@ -194,16 +202,8 @@ export function registerMissionTools(
       });
     }
 
-    let saved: boolean | undefined;
     if (planId && deps.plans) {
-      // Saving a route that lost stops to failed lookups would drop them from the plan.
-      if (lookupFailed > 0) {
-        throw new UserError(
-          `Not saved to plan "${planId}": the Spansh lookup failed for ${plural(lookupFailed, "stop")}; try again later.`,
-        );
-      }
-      if (!stops.length)
-        throw new UserError(`Not saved to plan "${planId}": no missions to route.`);
+      // With no missions left the plan's stops are cleared, so the panel stops showing them.
       try {
         await deps.plans.saveStops(
           planId,
@@ -217,7 +217,6 @@ export function registerMissionTools(
             computedAt: new Date(now()).toISOString(),
           }),
         );
-        saved = true;
       } catch (err) {
         throw new UserError(`Not saved to plan "${planId}": ${reason(err)}`);
       }
@@ -238,7 +237,7 @@ export function registerMissionTools(
       start: { system: startPlace.system, station: startPlace.station, source },
       stops: out,
       total_min: min(solution.total),
-      ...(saved !== undefined && { saved, plan_id: planId }),
+      ...(planId && { saved: true, plan_id: planId }),
       late: solution.late.map((l) => stops[l.stop]!.missions[l.mission]!.id),
       unroutable,
       notes: [...notes],
@@ -282,16 +281,21 @@ export function registerMissionTools(
         "stop per station, labelled with what to do there and the missions it serves, and make it " +
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
-        "already in the plan keeps its notes, and its status unless it serves new missions. It " +
-        "saves nothing, and fails, when a Spansh lookup fails. The return_to stop is " +
-        "in the route, not the stops. Call it again after taking or finishing missions. " +
+        "already in the plan keeps its notes, and a skipped mark while it serves no new missions. " +
+        "It covers every mission; with none left it clears the stops. It saves nothing, and " +
+        "fails, when a Spansh lookup fails. The return_to stop is in the route, not the stops. " +
+        "Call it again after taking or finishing missions. " +
         describeRoute,
+      // Every mission: a plan for some of them would drop the others' stops.
       inputSchema: {
-        ...inputSchema,
+        from: inputSchema.from,
+        return_to: inputSchema.return_to,
+        preferences: inputSchema.preferences,
+        use_preferences: inputSchema.use_preferences,
         plan_id: PlanId.default("missions").describe("The plan to save to"),
       },
     },
-    wrap((a: Args & { plan_id: string }) => run(a, a.plan_id)),
+    wrap((a: Omit<Args, "include"> & { plan_id: string }) => run(a, a.plan_id)),
   );
 }
 
@@ -305,11 +309,13 @@ function planOf(r: {
   computedAt: string;
 }): [PlanStop[], PlanRoute] {
   const stops: PlanStop[] = r.ordered.map((s) => {
-    const label = stopLabel(s, r.byId);
+    const what = stopLabel(s, r.byId);
+    // The place makes the label unique, so plan_update_stop can find the stop by it.
+    const label = `${what} at ${s.station ?? s.system}`;
     return {
       system: s.system,
       ...(s.station ? { station: s.station } : {}),
-      purpose: label,
+      purpose: what,
       label,
       kind: s.missions.every((m) => m.status === "complete") ? "hand_in" : "mission",
       missions: s.missions.map((m) => m.id),
@@ -340,6 +346,8 @@ function planOf(r: {
 }
 
 const AUTO_SUMMARY = "Mission run:";
+/** A summary this tool wrote, which it refreshes; one the player or Claude wrote is kept. */
+const AUTO = /^Mission run: \d+ missions? over \d+ stops?$/;
 
 /**
  * Points the activity note at the plan. A summary the player or Claude wrote for this plan is
@@ -351,7 +359,7 @@ async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[
   await activity.set({
     kind: "missions",
     summary:
-      note?.kind === "missions" && note.plan_id === planId && !note.summary.startsWith(AUTO_SUMMARY)
+      note?.kind === "missions" && note.plan_id === planId && !AUTO.test(note.summary)
         ? note.summary
         : `${AUTO_SUMMARY} ${plural(missions, "mission")} over ${plural(ordered.length, "stop")}`,
     plan_id: planId,

@@ -165,7 +165,7 @@ export class PlanStore {
   /**
    * Replaces a plan's stops and route in one locked write, creating the plan when it is missing.
    * Everything else in the plan is kept. A new stop at the same place (system and station) as an
-   * old one keeps the old stop's notes, and its status when it serves no new missions.
+   * old one keeps the old stop's notes, and a skipped mark while it serves no new missions.
    */
   saveStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
@@ -181,9 +181,12 @@ export class PlanStore {
         if (!o) return s;
         const had = new Set(o.missions ?? []);
         const same = !s.missions || s.missions.every((id) => had.has(id));
+        // A stop in a new route still has work to do, so done does not carry over. Skipped does,
+        // while the stop serves no new missions: the player chose to leave those.
+        const keep = o.status === "skipped" && same;
         return {
           ...s,
-          ...(same ? { status: o.status } : {}),
+          ...(keep ? { status: o.status } : {}),
           ...(o.notes ? { notes: o.notes } : {}),
         };
       });
