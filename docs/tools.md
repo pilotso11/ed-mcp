@@ -119,12 +119,14 @@ journal mission IDs it serves. A `return_to` stop is in the route, not the stops
 
 Saving replaces the plan's mission stops (those listing their missions) and its route, and keeps
 everything else: stops you made by hand stay as they are, after the mission stops, outside the
-route. It covers every mission, and with none left it clears the mission stops. A new stop keeps
-the notes of the old mission stops at the same place, and the done or skipped mark of one that
-served exactly the same missions. A mission still open that this route cannot place (Spansh
-failed, or the journal no longer says where it goes) keeps its old stop. The stop labels change as
-the missions do, so address these stops by index. A note you or Claude wrote for this plan keeps
-its summary and kind. Call it again after taking or finishing missions.
+route. It covers every mission; with none left it clears the mission stops and leaves the activity
+note as it is. A new stop keeps the done or skipped mark of an old stop at the same place that
+served exactly the same missions. A stop Spansh cannot place (a failed lookup) is still saved at its
+place, after the route's stops. Missions the journal no longer says where to take are left out, as
+`missions_route` lists them in `unroutable`. The stop labels change as the missions do, so address
+these stops by index. A note you or Claude wrote for this plan keeps its summary and kind; calling
+`missions_plan` otherwise points the note at the mission run. Call it again after taking or
+finishing missions.
 
 ## Build statistics
 

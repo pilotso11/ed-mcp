@@ -444,6 +444,8 @@ describe("missions_plan", () => {
         [1, 2],
       ],
       ["Alpha Dock", "Drop 2 passengers", "Drop 2 passengers at Alpha Dock", "mission", [3]],
+      // Spansh does not know Nowhere: the stop is saved at its place, after the route's stops.
+      ["Void", "1 mission", "1 mission at Void", "mission", [5]],
     ]);
     // Named by station; the return is in the route, not a stop to do.
     expect(plan.route?.stops).toEqual([
@@ -456,7 +458,7 @@ describe("missions_plan", () => {
     expect(await s.activity.get()).toMatchObject({
       kind: "missions",
       plan_id: "missions",
-      summary: "Mission run: 4 missions over 3 stops",
+      summary: "Mission run: 5 missions over 4 stops",
     });
   });
 
@@ -491,10 +493,12 @@ describe("missions_plan", () => {
     expect(plan.target_build).toEqual({ ship: "python" });
     expect(plan.items.map((i) => i.id)).toEqual(["a"]);
     // The same missions as before: both marks stay.
+    // Mission stops carry no notes over.
     expect(plan.stops.map((x) => [x.station, x.status, x.notes])).toEqual([
-      ["Beta Hub", "skipped", "busy"],
+      ["Beta Hub", "skipped", undefined],
       ["Alpha Port", "todo", undefined],
       ["Alpha Dock", "done", undefined],
+      ["Void", "todo", undefined],
     ]);
     expect((await s.activity.get())?.summary).toBe("Mission run: Sol passengers");
   });
@@ -516,30 +520,28 @@ describe("missions_plan", () => {
     await save({}, s);
     const plan = await s.plans.get("missions");
     expect(plan.stops.find((x) => x.station === "Alpha Port")?.status).toBe("todo");
-    expect((await s.activity.get())?.summary).toBe("Mission run: 4 missions over 3 stops");
+    expect((await s.activity.get())?.summary).toBe("Mission run: 5 missions over 4 stops");
   });
 
-  it("keeps stops made by hand, and the notes of every old mission stop at the place", async () => {
+  it("keeps stops made by hand as they are, after the mission stops", async () => {
     const s = await stores();
     await s.plans.upsert({
       id: "missions",
       name: "Run",
       stops: [
-        { system: "Beta", station: "Beta Hub", purpose: "refuel", status: "skipped" },
+        { system: "Beta", station: "Beta Hub", purpose: "refuel", status: "skipped", notes: "n" },
         { system: "Alpha", station: "Alpha Port", purpose: "x", missions: [1], notes: "a" },
-        { system: "Alpha", station: "Alpha Port", purpose: "y", missions: [2], notes: "b" },
       ],
     });
     await save({}, s);
     const stops = (await s.plans.get("missions")).stops;
-    // The hand-made stop is untouched, after the mission stops; its skip is not passed on.
-    expect(stops.map((x) => [x.station, x.purpose, x.status])).toEqual([
-      ["Beta Hub", "1 mission", "todo"],
-      ["Alpha Port", "Drop 4 passengers · deliver Gold", "todo"],
-      ["Alpha Dock", "Drop 2 passengers", "todo"],
-      ["Beta Hub", "refuel", "skipped"],
+    expect(stops.map((x) => [x.station, x.purpose, x.status, x.notes])).toEqual([
+      ["Beta Hub", "1 mission", "todo", undefined],
+      ["Alpha Port", "Drop 4 passengers · deliver Gold", "todo", undefined],
+      ["Alpha Dock", "Drop 2 passengers", "todo", undefined],
+      ["Void", "1 mission", "todo", undefined],
+      ["Beta Hub", "refuel", "skipped", "n"],
     ]);
-    expect(stops[1]!.notes).toBe("a; b");
   });
 
   it("clears the mission stops when no missions are left", async () => {
@@ -594,34 +596,36 @@ describe("missions_plan", () => {
     );
   });
 
-  it("keeps the old stop of a mission a failed lookup leaves out", async () => {
+  it("saves a stop Spansh cannot place at its place, after the route's stops", async () => {
     for (const opts of [{ down: ["beta"] }, { timeout: ["beta"] }]) {
       const s = await stores();
       await s.plans.upsert({
         id: "missions",
         name: "Run",
         stops: [
-          {
-            system: "Beta",
-            station: "Beta Hub",
-            purpose: "x",
-            missions: [4],
-            status: "skipped",
-            notes: "n",
-          },
+          { system: "Beta", station: "Beta Hub", purpose: "x", missions: [4], status: "skipped" },
           { system: "Old", purpose: "x", missions: [99] },
         ],
       });
       const { j } = await save({}, { ...s, ...opts });
       expect(j.saved).toBe(true);
-      const stops = (await s.plans.get("missions")).stops;
-      // Beta's mission is still open: its stop stays as it was. Mission 99 is gone.
-      expect(stops.map((x) => [x.system, x.status])).toEqual([
+      const plan = await s.plans.get("missions");
+      // Beta keeps its skip (same missions); mission 99 is gone.
+      expect(plan.stops.map((x) => [x.system, x.status])).toEqual([
         ["Alpha", "todo"],
         ["Alpha", "todo"],
         ["Beta", "skipped"],
+        ["Nowhere", "todo"],
       ]);
+      expect(plan.route?.stop_indexes).toEqual([[0], [1]]);
     }
+  });
+
+  it("leaves the note alone when no missions are left", async () => {
+    const s = await stores();
+    await s.activity.set({ kind: "mining", summary: "Platinum in HIP 1" });
+    await save({}, { ...s, missions: [] });
+    expect(await s.activity.get()).toMatchObject({ kind: "mining", summary: "Platinum in HIP 1" });
   });
 
   it("keeps the kind of a note someone wrote for the plan", async () => {

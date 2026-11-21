@@ -81,8 +81,11 @@ export class PlanStore {
 
   upsert(input: PlanInput, opts: { overwrite?: boolean } = {}): Promise<Plan> {
     return this.mutate((data) => {
-      const idx = data.plans.findIndex((p) => p.id === input.id);
-      if (idx >= 0 && opts.overwrite === false) throw new PlanExistsError(input.id);
+      // Validated first, so an invalid plan says why rather than that the plan exists.
+      const parsed = PlanInputSchema.safeParse(input);
+      if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+      const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
+      if (idx >= 0 && opts.overwrite === false) throw new PlanExistsError(parsed.data.id);
       return this.put(data, input);
     });
   }
@@ -170,48 +173,28 @@ export class PlanStore {
   /**
    * Replaces a plan's mission stops and its route in one locked write, creating the plan when it
    * is missing. Mission stops are those with a missions list; stops made by hand are kept as they
-   * are, after the new ones, and so is everything else in the plan. A new stop keeps the notes of
-   * the old mission stops at the same place, and the done or skipped mark of one that served
-   * exactly the same missions. An old mission stop serving a mission in `unplaced` (still open,
-   * but not in this route) is kept as it is, so a failed lookup does not lose it.
+   * are, after the new ones, and so is everything else in the plan. A new stop keeps the done or
+   * skipped mark of an old one at the same place that served exactly the same missions.
    */
-  saveMissionStops(
-    planId: string,
-    name: string,
-    unplaced: Set<number>,
-    stops: Stop[],
-    route: PlanRoute,
-  ): Promise<Plan> {
+  saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
       const old = data.plans.find((p) => p.id === planId);
       const isMission = (s: Stop) => Array.isArray(s.missions);
-      const before = new Map<string, Stop[]>();
-      for (const s of (old?.stops ?? []).filter(isMission)) {
-        const k = placeKey(s.system, s.station);
-        before.set(k, [...(before.get(k) ?? []), s]);
-      }
       const sameSet = (a: number[], b: number[]) =>
         a.length === b.length && a.every((id) => b.includes(id));
+      const marked = (old?.stops ?? []).filter((s) => isMission(s) && s.status !== "todo");
       const fresh = stops.map((s) => {
-        const olds = before.get(placeKey(s.system, s.station)) ?? [];
-        const notes = [...new Set(olds.flatMap((o) => (o.notes ? [o.notes] : [])))].join("; ");
-        const same = olds.find(
-          (o) => o.status !== "todo" && sameSet(o.missions!, s.missions ?? []),
+        const k = placeKey(s.system, s.station);
+        const same = marked.find(
+          (o) => placeKey(o.system, o.station) === k && sameSet(o.missions!, s.missions ?? []),
         );
-        return {
-          ...s,
-          ...(same ? { status: same.status } : {}),
-          ...(notes ? { notes } : {}),
-        };
+        return same ? { ...s, status: same.status } : s;
       });
       // The route's stop_indexes point at the new stops, which come first.
       const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
-      const waiting = (old?.stops ?? []).filter(
-        (s) => isMission(s) && s.missions!.some((id) => unplaced.has(id)),
-      );
       return this.put(data, {
         ...(old ?? { id: planId, name }),
-        stops: [...fresh, ...waiting, ...byHand],
+        stops: [...fresh, ...byHand],
         route,
       });
     });

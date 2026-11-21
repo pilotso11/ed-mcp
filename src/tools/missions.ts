@@ -107,11 +107,14 @@ export function registerMissionTools(
     const unroutable: Unroutable[] = [...grouped.unroutable];
     const stops: Stop[] = [];
     const places: Place[] = [];
+    // Stops Spansh could not place: their system and station are known, only not where they are.
+    const unplaced: Stop[] = [];
     for (const stop of grouped.stops) {
       try {
         places.push(await place(stop.system, stop.station));
         stops.push(stop);
       } catch (e) {
+        unplaced.push(stop);
         const reason =
           e instanceof UserError
             ? e.message
@@ -193,19 +196,16 @@ export function registerMissionTools(
     let saved = false;
     if (planId && deps.plans) {
       const ordered = solution.order.map((i) => stops[i]!);
-      // With no missions left the plan's stops are cleared, so the panel stops showing them.
+      // With no missions left the plan's mission stops are cleared, so the panel stops showing
+      // them.
       try {
-        // Missions still open that this route could not place (Spansh failed, or the journal no
-        // longer says where they go) keep their old stops, so the plan does not lose them.
-        const gone = new Set(["expired", "not in the journal"]);
-        const unplaced = new Set(unroutable.filter((u) => !gone.has(u.reason)).map((u) => u.id));
         await deps.plans.saveMissionStops(
           planId,
           PLAN_NAME,
-          unplaced,
           ...planOf({
             byId: new Map(state.missions.map((m) => [m.id, m])),
             ordered,
+            unplaced,
             returnTo: returnPlace,
             from: startPlace.system,
             totalMin: min(solution.total),
@@ -220,9 +220,10 @@ export function registerMissionTools(
         }
         throw err;
       }
-      if (deps.activity) {
+      // With nothing to do, the note is left as it is.
+      if (deps.activity && ordered.length + unplaced.length > 0) {
         try {
-          await pointNote(deps.activity, planId, ordered);
+          await pointNote(deps.activity, planId, [...ordered, ...unplaced]);
         } catch (err) {
           notes.add(`The plan was saved, but the activity note was not updated: ${reason(err)}`);
         }
@@ -279,10 +280,11 @@ export function registerMissionTools(
         "stop per station, labelled with what to do there and the missions it serves, and make it " +
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
-        "already in the plan keeps its notes, and its done or skipped mark when it serves the same " +
-        "missions. Stops made by hand stay as they are. " +
-        "It covers every mission; with none left it clears the mission stops. A mission it cannot " +
-        "place keeps its old stop. The return_to stop is in the route, not the stops. " +
+        "already in the plan keeps its done or skipped mark when it serves the same missions. Stops " +
+        "made by hand stay as they are. " +
+        "It covers every mission; with none left it clears the mission stops and leaves the note. " +
+        "A stop Spansh cannot place is saved after the route's stops. The return_to stop is in " +
+        "the route, not the stops. " +
         "Call it again after taking or finishing missions. " +
         describeRoute,
       // Every mission: a plan for some of them would drop the others' stops.
@@ -302,12 +304,14 @@ export function registerMissionTools(
 function planOf(r: {
   byId: Map<number, Mission>;
   ordered: Stop[];
+  /** Stops Spansh could not place: in the plan after the route's stops, not in the route. */
+  unplaced: Stop[];
   returnTo: Place | undefined;
   from: string;
   totalMin: number;
   computedAt: string;
 }): [PlanStop[], PlanRoute] {
-  const stops: PlanStop[] = r.ordered.map((s) => {
+  const stops: PlanStop[] = [...r.ordered, ...r.unplaced].map((s) => {
     const what = stopLabel(s, r.byId);
     // The place tells stops with the same task apart. The label changes as missions do, so tools
     // address these stops by index.
@@ -325,7 +329,8 @@ function planOf(r: {
   const back = r.returnTo ? [returnName(r.returnTo.system, r.returnTo.station)] : [];
   // Named by station (else system), which stays the same as missions change and which the plan
   // matches a stop by when the route has no stop_indexes.
-  const names = stops.map((s) => s.station ?? s.system);
+  const routed = stops.slice(0, r.ordered.length);
+  const names = routed.map((s) => s.station ?? s.system);
   return [
     stops,
     {
@@ -334,7 +339,7 @@ function planOf(r: {
       stops: [...names, ...back],
       total_min: r.totalMin,
       plotted: false,
-      stop_indexes: [...stops.map((_, i) => [i]), ...back.map(() => [])],
+      stop_indexes: [...routed.map((_, i) => [i]), ...back.map(() => [])],
     },
   ];
 }
