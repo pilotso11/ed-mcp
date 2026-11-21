@@ -1,10 +1,20 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { UserError } from "../errors.js";
+import type { ActivityStore } from "../activity/store.js";
 import type { JournalService } from "../journal/service.js";
+import type { Mission } from "../journal/state.js";
+import type { PlanStore } from "../plans/store.js";
+import { PlanId, type Stop as PlanStop } from "../plans/schema.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { optimiseRoute } from "../routes/optimise.js";
-import { missionsToStops, type Stop, type StopMission, type Unroutable } from "../routes/stops.js";
+import {
+  missionsToStops,
+  stopLabel,
+  type Stop,
+  type StopMission,
+  type Unroutable,
+} from "../routes/stops.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient } from "../spansh/client.js";
@@ -20,6 +30,8 @@ export function registerMissionTools(
     journal: JournalService;
     spansh: SpanshClient;
     prefs?: PreferencesStore;
+    plans?: PlanStore;
+    activity?: ActivityStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
     now?: () => number;
@@ -31,8 +43,9 @@ export function registerMissionTools(
     {
       annotations: {
         title: "Plan Mission Route",
-        readOnlyHint: true,
-        destructiveHint: false,
+        readOnlyHint: false,
+        // save_to_plan replaces the plan's stops and the activity note.
+        destructiveHint: true,
         idempotentHint: true,
         openWorldHint: true,
       },
@@ -42,6 +55,9 @@ export function registerMissionTools(
         "time while meeting deadlines; lists late and unroutable missions. The order is exact up to 12 " +
         "stops and 24 missions with an expiry; above that it is a nearest-first heuristic and " +
         "deadline handling is best-effort. " +
+        "save_to_plan saves the order as a plan (plan_id, default missions), one stop per station " +
+        "labelled with what to do there, and makes it the activity note's plan, so the ED Chat " +
+        "panel shows the next stop. Saving replaces that plan's stops and keeps its items and notes. " +
         "Planetary stations are inferred from the Spansh station type. `from` and `return_to` must be " +
         "systems Spansh knows. The first call for systems not seen in the last day can take tens of " +
         "seconds, because Spansh lookups are rate limited.",
@@ -54,6 +70,11 @@ export function registerMissionTools(
           .describe("Add a final stop here"),
         preferences: PrefsPatchSchema.optional(),
         use_preferences: z.boolean().default(true),
+        save_to_plan: z
+          .boolean()
+          .default(false)
+          .describe("Save the order as a plan and make it the activity note's plan"),
+        plan_id: PlanId.default("missions").describe("The plan to save to"),
       },
     },
     wrap(
@@ -63,7 +84,10 @@ export function registerMissionTools(
         return_to?: { system: string; station?: string };
         preferences?: PrefsPatch;
         use_preferences: boolean;
+        save_to_plan: boolean;
+        plan_id: string;
       }) => {
+        if (a.save_to_plan && !deps.plans) throw new UserError("Plans are not available.");
         const nowMs = now();
         const state = await deps.journal.state();
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
@@ -185,10 +209,32 @@ export function registerMissionTools(
           });
         }
 
+        let saved = false;
+        if (a.save_to_plan && deps.plans) {
+          // The route is already computed, so a failed save must not discard it.
+          try {
+            await saveRoute(deps.plans, deps.activity, {
+              planId: a.plan_id,
+              byId: new Map(state.missions.map((m) => [m.id, m])),
+              ordered: solution.order.map((i) => stops[i]!),
+              returnTo: returnPlace,
+              from: startPlace.system,
+              totalMin: min(solution.total),
+              computedAt: new Date(now()).toISOString(),
+            });
+            saved = true;
+          } catch (err) {
+            notes.add(
+              `The route was not saved to plan "${a.plan_id}": ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+
         return {
           start: { system: startPlace.system, station: startPlace.station, source },
           stops: out,
           total_min: min(solution.total),
+          ...(a.save_to_plan && { saved, plan_id: a.plan_id }),
           late: solution.late.map((l) => stops[l.stop]!.missions[l.mission]!.id),
           unroutable,
           notes: [...notes],
@@ -200,4 +246,76 @@ export function registerMissionTools(
       },
     ),
   );
+}
+
+const placeName = (system: string, station: string | null) =>
+  station ? `${system} — ${station}` : system;
+
+/**
+ * Saves the ordered stops as the plan's stops and route, keeping the plan's name, items and notes,
+ * and points the activity note at it. The note keeps its summary when it is already about
+ * missions.
+ */
+async function saveRoute(
+  plans: PlanStore,
+  activity: ActivityStore | undefined,
+  r: {
+    planId: string;
+    byId: Map<number, Mission>;
+    ordered: Stop[];
+    returnTo: Place | undefined;
+    from: string;
+    totalMin: number;
+    computedAt: string;
+  },
+): Promise<void> {
+  const old = await plans.get(r.planId).catch(() => null);
+  const stops: PlanStop[] = r.ordered.map((s) => {
+    const label = stopLabel(s, r.byId);
+    return {
+      system: s.system,
+      ...(s.station ? { station: s.station } : {}),
+      purpose: label,
+      label,
+      kind: s.missions.every((m) => m.status === "complete") ? "hand_in" : "mission",
+      missions: s.missions.map((m) => m.id),
+      status: "todo",
+    };
+  });
+  if (r.returnTo) {
+    stops.push({
+      system: r.returnTo.system,
+      ...(r.returnTo.station ? { station: r.returnTo.station } : {}),
+      purpose: "Return",
+      label: "Return",
+      kind: "other",
+      status: "todo",
+    });
+  }
+  await plans.upsert({
+    id: r.planId,
+    name: old?.name ?? "Mission run",
+    items: old?.items ?? [],
+    ...(old?.notes ? { notes: old.notes } : {}),
+    stops,
+    route: {
+      computed_at: r.computedAt,
+      from: r.from,
+      stops: stops.map((s) => placeName(s.system, s.station ?? null)),
+      total_min: r.totalMin,
+      plotted: false,
+      stop_indexes: stops.map((_, i) => [i]),
+    },
+  });
+  if (!activity) return;
+  const note = await activity.get().catch(() => null);
+  const missions = r.ordered.reduce((n, s) => n + s.missions.length, 0);
+  await activity.set({
+    kind: "missions",
+    summary:
+      note?.kind === "missions"
+        ? note.summary
+        : `Mission run: ${missions} missions over ${r.ordered.length} stops`,
+    plan_id: r.planId,
+  });
 }

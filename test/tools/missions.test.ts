@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { ActivityStore } from "../../src/activity/store.js";
+import { PlanStore } from "../../src/plans/store.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
 import type { JournalService } from "../../src/journal/service.js";
@@ -58,6 +63,8 @@ interface Opts {
   now?: () => number;
   onLookup?: () => void;
   location?: { system: string | null; station: string | null; docked: boolean };
+  plans?: PlanStore;
+  activity?: ActivityStore;
 }
 
 function setup(opts: Opts = {}) {
@@ -113,7 +120,13 @@ function setup(opts: Opts = {}) {
     },
   } as unknown as JournalService;
   const server = new McpServer({ name: "t", version: "0" });
-  registerMissionTools(server, { journal, spansh, now: opts.now ?? (() => NOW) });
+  registerMissionTools(server, {
+    journal,
+    spansh,
+    now: opts.now ?? (() => NOW),
+    plans: opts.plans,
+    activity: opts.activity,
+  });
   return { client: connectTestClient(server), lookups };
 }
 
@@ -390,5 +403,83 @@ describe("missions_route", () => {
       note: "source the commodity first",
     });
     expect(j.unroutable).toEqual([{ id: 99, name: "unknown", reason: "not in the journal" }]);
+  });
+});
+
+describe("missions_route save_to_plan", () => {
+  const stores = async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
+    const now = () => new Date(NOW);
+    return {
+      plans: new PlanStore(path.join(dir, "plans.json"), now),
+      activity: new ActivityStore(path.join(dir, "activity.json"), now),
+    };
+  };
+
+  it("saves the order as the activity note's plan, labelled per stop", async () => {
+    const s = await stores();
+    const { j } = await route(
+      { save_to_plan: true, return_to: { system: "Sol", station: "Abraham Lincoln" } },
+      s,
+    );
+    expect(j.saved).toBe(true);
+    expect(j.plan_id).toBe("missions");
+    const plan = await s.plans.get("missions");
+    expect(plan.name).toBe("Mission run");
+    expect(plan.stops.map((x) => [x.station, x.label, x.kind, x.missions])).toEqual([
+      ["Beta Hub", "1 mission", "mission", [4]],
+      ["Alpha Port", "Drop 4 passengers · deliver Gold", "mission", [1, 2]],
+      ["Alpha Dock", "Drop 2 passengers", "mission", [3]],
+      ["Abraham Lincoln", "Return", "other", undefined],
+    ]);
+    expect(plan.route?.stops[0]).toBe("Beta — Beta Hub");
+    expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], [3]]);
+    expect(await s.activity.get()).toMatchObject({
+      kind: "missions",
+      plan_id: "missions",
+      summary: "Mission run: 4 missions over 3 stops",
+    });
+  });
+
+  it("keeps the plan's items and the note's summary on a new save", async () => {
+    const s = await stores();
+    await s.plans.upsert({
+      id: "run",
+      name: "Saturday run",
+      items: [{ id: "a", kind: "buy", description: "Buy cabins" }],
+      stops: [{ system: "Old", purpose: "old" }],
+    });
+    await s.activity.set({ kind: "missions", summary: "Passenger runs from Sol" });
+    const { j } = await route({ save_to_plan: true, plan_id: "run" }, s);
+    expect(j.saved).toBe(true);
+    const plan = await s.plans.get("run");
+    expect(plan.name).toBe("Saturday run");
+    expect(plan.items.map((i) => i.id)).toEqual(["a"]);
+    expect(plan.stops.map((x) => x.system)).toEqual(["Beta", "Alpha", "Alpha"]);
+    expect((await s.activity.get())?.summary).toBe("Passenger runs from Sol");
+  });
+
+  it("does not save without save_to_plan, and says when it cannot", async () => {
+    const s = await stores();
+    const { j } = await route({}, s);
+    expect(j.saved).toBeUndefined();
+    expect(await s.plans.list()).toEqual([]);
+    const { r } = await route({ save_to_plan: true });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Plans are not available");
+  });
+
+  it("returns the route when the save fails", async () => {
+    const s = await stores();
+    const failing = Object.assign(Object.create(PlanStore.prototype), s.plans, {
+      get: async () => null,
+      upsert: async () => {
+        throw new Error("disk full");
+      },
+    }) as PlanStore;
+    const { j } = await route({ save_to_plan: true }, { plans: failing });
+    expect(j.saved).toBe(false);
+    expect(j.stops).toHaveLength(3);
+    expect(j.notes).toContain('The route was not saved to plan "missions": disk full');
   });
 });

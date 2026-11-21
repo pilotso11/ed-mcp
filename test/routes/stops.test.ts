@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Mission } from "../../src/journal/state.js";
-import { missionsToStops } from "../../src/routes/stops.js";
+import { missionsToStops, stopLabel } from "../../src/routes/stops.js";
 
 const NOW = Date.parse("2026-10-13T08:00:00Z");
 
@@ -246,5 +246,33 @@ describe("missionsToStops", () => {
     );
     expect(unroutable).toEqual([{ id: 8, name: "Mission_Courier", reason: "expired" }]);
     expect(stops.flatMap((s) => s.missions.map((m) => m.id))).toEqual([9]);
+  });
+});
+
+describe("stopLabel", () => {
+  it("says what to do at the stop", () => {
+    const ms = [
+      mission({ id: 1, passengers: 4, vips: true }),
+      mission({ id: 2, passengers: 2, wanted: true }),
+      mission({ id: 3, commodity: "Gold", count: 32 }),
+      mission({ id: 4, commodity: "Gold", count: 8 }),
+      mission({ id: 5, status: "complete" }),
+      mission({ id: 6 }),
+    ];
+    const { stops } = missionsToStops(ms, undefined, NOW);
+    const byId = new Map(ms.map((m) => [m.id, m]));
+    expect(stops.map((s) => stopLabel(s, byId))).toEqual([
+      "Drop 6 passengers (4 VIP, 2 wanted) · deliver 40 t Gold · 1 mission",
+      "Hand in 1 mission",
+    ]);
+  });
+
+  it("names a commodity to source, and copes with missing details", () => {
+    const ms = [mission({ id: 1, destination_system: null, commodity: "Tea", count: 5 })];
+    const { stops } = missionsToStops(ms, undefined, NOW);
+    expect(stopLabel(stops[0]!, new Map(ms.map((m) => [m.id, m])))).toBe("Source 5 t Tea");
+    expect(stopLabel(stops[0]!, new Map())).toBe("Source cargo");
+    const one = missionsToStops([mission({ id: 2, passengers: 1 })], undefined, NOW).stops[0]!;
+    expect(stopLabel(one, new Map())).toBe("Drop 1 passenger");
   });
 });
