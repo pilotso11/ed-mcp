@@ -10,6 +10,11 @@ export function stopName(s: Stop): string {
   return s.label ?? s.station ?? s.body ?? s.system;
 }
 
+/** The route entry for a return_to stop, which is not one of the plan's stops. */
+export function returnName(system: string, station: string | null | undefined): string {
+  return `return to ${system}${station ? ` — ${station}` : ""}`;
+}
+
 /** Every name a stop can go by in a route: label, station, body and system. */
 function namesOf(s: Stop): string[] {
   return [s.label, s.station, s.body, s.system].flatMap((n) => (n ? [lc(n)] : []));

@@ -165,7 +165,7 @@ export class PlanStore {
   /**
    * Replaces a plan's stops and route in one locked write, creating the plan when it is missing.
    * Everything else in the plan is kept. A new stop at the same place (system and station) as an
-   * old one keeps the old stop's status and notes, so stops marked done or skipped stay so.
+   * old one keeps the old stop's notes, and its status when it serves no new missions.
    */
   saveStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
@@ -174,9 +174,18 @@ export class PlanStore {
       const old = idx >= 0 ? data.plans[idx]! : undefined;
       const place = (s: Stop) => `${s.system.toLowerCase()}|${(s.station ?? "").toLowerCase()}`;
       const before = new Map((old?.stops ?? []).map((s) => [place(s), s]));
+      // A stop keeps its notes, and its status unless it now serves missions it did not before:
+      // new missions at a station marked done must still be visited.
       const merged = stops.map((s) => {
         const o = before.get(place(s));
-        return o ? { ...s, status: o.status, ...(o.notes ? { notes: o.notes } : {}) } : s;
+        if (!o) return s;
+        const had = new Set(o.missions ?? []);
+        const same = !s.missions || s.missions.every((id) => had.has(id));
+        return {
+          ...s,
+          ...(same ? { status: o.status } : {}),
+          ...(o.notes ? { notes: o.notes } : {}),
+        };
       });
       const parsed = PlanInputSchema.safeParse({
         ...(old ?? { id: planId, name }),

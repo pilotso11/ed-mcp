@@ -41,33 +41,30 @@ export function stopLabel(stop: Stop, byId: Map<number, Mission>): string {
     const m = byId.get(s.id);
     if (s.status === "complete") handIn++;
     else if (s.kind === "passenger" && s.passengers) {
-      passengers += s.passengers ?? 0;
-      if (m?.vips) vips += s.passengers ?? 0;
-      if (m?.wanted) wanted += s.passengers ?? 0;
+      passengers += s.passengers;
+      if (m?.vips) vips += s.passengers;
+      if (m?.wanted) wanted += s.passengers;
     } else if (s.kind === "delivery" || s.kind === "source") {
       const what = m?.commodity ?? "cargo";
       const into = s.kind === "source" ? sourced : goods;
       into.set(what, (into.get(what) ?? 0) + (m?.count ?? 0));
-    } else if (s.kind !== "passenger") other++;
+      // Any other mission, and a passenger mission with no count, is named as a mission.
+    } else other++;
   }
   const flags = [vips ? `${vips} VIP` : null, wanted ? `${wanted} wanted` : null].filter(Boolean);
   const tons = (n: number, what: string) => (n ? `${n} t ${what}` : what);
-  return (
-    [
-      passengers
-        ? `Drop ${plural(passengers, "passenger")}${flags.length ? ` (${flags.join(", ")})` : ""}`
-        : null,
-      ...[...goods].map(([what, n]) => `deliver ${tons(n, what)}`),
-      ...[...sourced].map(([what, n]) => `source ${tons(n, what)}`),
-      other ? plural(other, "mission") : null,
-      handIn ? `hand in ${plural(handIn, "mission")}` : null,
-    ]
-      .filter((x): x is string => x !== null)
-      .join(" · ")
-      // A passenger mission with no count says nothing above: name the missions instead.
-      .replace(/^$/, plural(stop.missions.length, "mission"))
-      .replace(/^./, (c) => c.toUpperCase())
-  );
+  return [
+    passengers
+      ? `Drop ${plural(passengers, "passenger")}${flags.length ? ` (${flags.join(", ")})` : ""}`
+      : null,
+    ...[...goods].map(([what, n]) => `deliver ${tons(n, what)}`),
+    ...[...sourced].map(([what, n]) => `source ${tons(n, what)}`),
+    other ? plural(other, "mission") : null,
+    handIn ? `hand in ${plural(handIn, "mission")}` : null,
+  ]
+    .filter((x): x is string => x !== null)
+    .join(" · ")
+    .replace(/^./, (c) => c.toUpperCase());
 }
 
 const kindOf = (m: Mission): StopMission["kind"] =>

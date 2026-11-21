@@ -1,3 +1,4 @@
+import { plural } from "../routes/stops.js";
 import { isTransportError, type SpanshClient } from "../spansh/client.js";
 
 // Spansh station searches carry no permit flag, so each new system costs a rate-limited
@@ -73,8 +74,6 @@ async function within<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMED_OU
     clearTimeout(timer);
   }
 }
-
-const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
 function listSystems(names: string[]): string {
   const shown = names.slice(0, LISTED_SYSTEMS).join(", ");

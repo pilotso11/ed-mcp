@@ -6,6 +6,7 @@ import type { JournalService } from "../journal/service.js";
 import type { Mission } from "../journal/state.js";
 import type { PlanStore } from "../plans/store.js";
 import { PlanId, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
+import { returnName, stopName } from "../plans/stops.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { optimiseRoute } from "../routes/optimise.js";
 import {
@@ -106,11 +107,15 @@ export function registerMissionTools(
     const unroutable: Unroutable[] = [...grouped.unroutable];
     const stops: Stop[] = [];
     const places: Place[] = [];
+    // Stops whose Spansh lookup failed, not ones in a system Spansh does not know: a retry may
+    // place them, so a saved plan must not lose them.
+    let lookupFailed = 0;
     for (const stop of grouped.stops) {
       try {
         places.push(await place(stop.system, stop.station));
         stops.push(stop);
       } catch (e) {
+        if (!(e instanceof UserError)) lookupFailed++;
         const reason =
           e instanceof UserError
             ? e.message
@@ -191,8 +196,14 @@ export function registerMissionTools(
 
     let saved: boolean | undefined;
     if (planId && deps.plans) {
-      // The route is already computed, so a failed save must not discard it.
-      saved = false;
+      // Saving a route that lost stops to failed lookups would drop them from the plan.
+      if (lookupFailed > 0) {
+        throw new UserError(
+          `Not saved to plan "${planId}": the Spansh lookup failed for ${plural(lookupFailed, "stop")}; try again later.`,
+        );
+      }
+      if (!stops.length)
+        throw new UserError(`Not saved to plan "${planId}": no missions to route.`);
       try {
         await deps.plans.saveStops(
           planId,
@@ -208,9 +219,9 @@ export function registerMissionTools(
         );
         saved = true;
       } catch (err) {
-        notes.add(`The route was not saved to plan "${planId}": ${reason(err)}`);
+        throw new UserError(`Not saved to plan "${planId}": ${reason(err)}`);
       }
-      if (saved && deps.activity) {
+      if (deps.activity) {
         try {
           await pointNote(
             deps.activity,
@@ -262,7 +273,8 @@ export function registerMissionTools(
         readOnlyHint: false,
         // It replaces the plan's stops and the activity note.
         destructiveHint: true,
-        idempotentHint: true,
+        // Each call reads the live journal and the plan's stop marks.
+        idempotentHint: false,
         openWorldHint: true,
       },
       description:
@@ -270,8 +282,9 @@ export function registerMissionTools(
         "stop per station, labelled with what to do there and the missions it serves, and make it " +
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
-        "already in the plan keeps its status and notes. The return_to stop is in the route, not " +
-        "the stops. Call it again after taking or finishing missions. " +
+        "already in the plan keeps its notes, and its status unless it serves new missions. It " +
+        "saves nothing, and fails, when a Spansh lookup fails. The return_to stop is " +
+        "in the route, not the stops. Call it again after taking or finishing missions. " +
         describeRoute,
       inputSchema: {
         ...inputSchema,
@@ -281,9 +294,6 @@ export function registerMissionTools(
     wrap((a: Args & { plan_id: string }) => run(a, a.plan_id)),
   );
 }
-
-const placeName = (system: string, station: string | null) =>
-  station ? `${system} — ${station}` : system;
 
 /** The plan's stops and route for the ordered mission stops; return_to is in the route only. */
 function planOf(r: {
@@ -306,13 +316,22 @@ function planOf(r: {
       status: "todo",
     };
   });
-  const back = r.returnTo ? [`return to ${placeName(r.returnTo.system, r.returnTo.station)}`] : [];
+  const back = r.returnTo ? [returnName(r.returnTo.system, r.returnTo.station)] : [];
+  // Named as route_stops names stops, so the plan can read the route by name too; a repeated
+  // name gets -2, -3.
+  const seen = new Map<string, number>();
+  const names = stops.map((s) => {
+    const n = stopName(s);
+    const k = (seen.get(n) ?? 0) + 1;
+    seen.set(n, k);
+    return k > 1 ? `${n}-${k}` : n;
+  });
   return [
     stops,
     {
       computed_at: r.computedAt,
       from: r.from,
-      stops: [...stops.map((s) => placeName(s.system, s.station ?? null)), ...back],
+      stops: [...names, ...back],
       total_min: r.totalMin,
       plotted: false,
       stop_indexes: [...stops.map((_, i) => [i]), ...back.map(() => [])],
@@ -320,9 +339,11 @@ function planOf(r: {
   ];
 }
 
+const AUTO_SUMMARY = "Mission run:";
+
 /**
- * Points the activity note at the plan. A note already about this plan keeps its summary;
- * otherwise the summary says what the run is.
+ * Points the activity note at the plan. A summary the player or Claude wrote for this plan is
+ * kept; otherwise, including one this tool wrote, it says what the run is now.
  */
 async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[]): Promise<void> {
   const note = await activity.get();
@@ -330,9 +351,9 @@ async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[
   await activity.set({
     kind: "missions",
     summary:
-      note?.kind === "missions" && note.plan_id === planId
+      note?.kind === "missions" && note.plan_id === planId && !note.summary.startsWith(AUTO_SUMMARY)
         ? note.summary
-        : `Mission run: ${plural(missions, "mission")} over ${plural(ordered.length, "stop")}`,
+        : `${AUTO_SUMMARY} ${plural(missions, "mission")} over ${plural(ordered.length, "stop")}`,
     plan_id: planId,
   });
 }

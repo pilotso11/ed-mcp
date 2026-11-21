@@ -38,6 +38,7 @@ For installation and setup, see the [README](../README.md).
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `missions_route`           | Best stop order for accepted missions, with deadlines        |
+| `missions_plan`            | Save the mission route as the active plan                    |
 | `route_stops`              | Best order for a plan's stops: shops, engineers, bodies      |
 | `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
 | `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
@@ -106,6 +107,21 @@ With up to 12 stops and up to 24 missions with an expiry, the search is exact. I
 The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
 Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+
+
+### missions_plan
+
+`missions_plan` works out the `missions_route` order and saves it as a plan, `missions` unless you
+give `plan_id`. It also makes it the activity note's plan, so the ED Chat activity panel shows the
+next stop and copies its system when you arrive. Each stop is one station, with a label for what to
+do there ("Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1 mission") and `missions`, the
+journal mission IDs it serves. A `return_to` stop is in the route, not the stops.
+
+Saving replaces the plan's stops and route and keeps everything else in the plan. A stop at a place
+already in the plan keeps its notes, and its status (done or skipped) unless it now serves
+missions it did not before. If a Spansh lookup fails, nothing is saved and the tool fails, so the plan never
+loses stops; try again later. Missions in a system Spansh does not know are left out, as
+`missions_route` lists them in `unroutable`. Call it again after taking or finishing missions.
 
 ## Build statistics
 

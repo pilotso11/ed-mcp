@@ -434,10 +434,11 @@ describe("missions_plan", () => {
       ["Alpha Dock", "Drop 2 passengers", "mission", [3]],
     ]);
     // The return is in the route, not a stop to do.
+    // Named as route_stops names stops: the label.
     expect(plan.route?.stops).toEqual([
-      "Beta — Beta Hub",
-      "Alpha — Alpha Port",
-      "Alpha — Alpha Dock",
+      "1 mission",
+      "Drop 4 passengers · deliver Gold",
+      "Drop 2 passengers",
       "return to Sol — Abraham Lincoln",
     ]);
     expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], []]);
@@ -456,7 +457,14 @@ describe("missions_plan", () => {
       target_build: { ship: "python" },
       items: [{ id: "a", kind: "buy", description: "Buy cabins" }],
       stops: [
-        { system: "Beta", station: "Beta Hub", purpose: "old", status: "skipped", notes: "busy" },
+        {
+          system: "Beta",
+          station: "Beta Hub",
+          purpose: "old",
+          missions: [4],
+          status: "skipped",
+          notes: "busy",
+        },
       ],
     });
     await s.activity.set({ kind: "missions", summary: "Passenger runs from Sol", plan_id: "run" });
@@ -487,17 +495,16 @@ describe("missions_plan", () => {
     expect(await s.plans.list()).toEqual([]);
   });
 
-  it("returns the route when the save fails, and says when only the note failed", async () => {
+  it("fails when the save fails, and says when only the note failed", async () => {
     const s = await stores();
     const failing = Object.assign(Object.create(PlanStore.prototype), {
       saveStops: async () => {
         throw new Error("disk full");
       },
     }) as PlanStore;
-    const { j } = await save({}, { plans: failing });
-    expect(j.saved).toBe(false);
-    expect(j.stops).toHaveLength(3);
-    expect(j.notes).toContain('The route was not saved to plan "missions": disk full');
+    const { r } = await save({}, { plans: failing });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('Not saved to plan "missions": disk full');
     const noNote = Object.assign(Object.create(ActivityStore.prototype), {
       get: async () => null,
       set: async () => {
@@ -509,5 +516,30 @@ describe("missions_plan", () => {
     expect(half.j.notes).toContain(
       "The plan was saved, but the activity note was not updated: locked",
     );
+  });
+
+  it("saves nothing when a Spansh lookup fails", async () => {
+    const s = await stores();
+    await s.plans.upsert({ id: "missions", name: "Run", stops: [{ system: "Old", purpose: "x" }] });
+    const { r } = await save({}, { ...s, down: ["beta"] });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("the Spansh lookup failed for 1 stop");
+    expect((await s.plans.get("missions")).stops.map((x) => x.system)).toEqual(["Old"]);
+  });
+
+  it("visits a done stop again for new missions, and refreshes its own summary", async () => {
+    const s = await stores();
+    await save({ include: [1] }, s);
+    expect((await s.activity.get())?.summary).toBe("Mission run: 1 mission over 1 stop");
+    await s.plans.updateStop("missions", { index: 0 }, { status: "done", notes: "dropped" });
+    // Mission 2 is at the same station: the stop is to do again, and keeps its notes.
+    await save({ include: [1, 2] }, s);
+    const stop = (await s.plans.get("missions")).stops[0]!;
+    expect([stop.station, stop.status, stop.notes]).toEqual(["Alpha Port", "todo", "dropped"]);
+    expect((await s.activity.get())?.summary).toBe("Mission run: 2 missions over 1 stop");
+    // The same missions again: still done.
+    await s.plans.updateStop("missions", { index: 0 }, { status: "done" });
+    await save({ include: [1, 2] }, s);
+    expect((await s.plans.get("missions")).stops[0]!.status).toBe("done");
   });
 });

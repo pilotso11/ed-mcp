@@ -1,3 +1,4 @@
+import { returnName } from "../plans/stops.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CatalogService } from "../catalog/service.js";
@@ -465,11 +466,7 @@ export function registerRouteTools(
                 from: startPlace.system,
                 stops: [
                   ...solved.order.map(optionLabel),
-                  ...(returnPlace
-                    ? [
-                        `return to ${returnPlace.system}${returnPlace.station ? ` — ${returnPlace.station}` : ""}`,
-                      ]
-                    : []),
+                  ...(returnPlace ? [returnName(returnPlace.system, returnPlace.station)] : []),
                 ],
                 total_min: total,
                 plotted: a.plot && allPlotted,

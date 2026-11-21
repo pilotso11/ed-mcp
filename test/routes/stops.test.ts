@@ -274,8 +274,16 @@ describe("stopLabel", () => {
     expect(stopLabel(stops[0]!, new Map())).toBe("Source cargo");
     const one = missionsToStops([mission({ id: 2, passengers: 1 })], undefined, NOW).stops[0]!;
     expect(stopLabel(one, new Map())).toBe("Drop 1 passenger");
-    // A passenger mission with no count is still named.
+    // A passenger mission with no count is still named, with the others.
     const none = missionsToStops([mission({ id: 3, passengers: 0 })], undefined, NOW).stops[0]!;
     expect(stopLabel(none, new Map())).toBe("1 mission");
+    const mixed = [
+      mission({ id: 4, passengers: 0 }),
+      mission({ id: 5, commodity: "Gold", count: 2 }),
+    ];
+    const stop = missionsToStops(mixed, undefined, NOW).stops[0]!;
+    expect(stopLabel(stop, new Map(mixed.map((m) => [m.id, m])))).toBe(
+      "Deliver 2 t Gold · 1 mission",
+    );
   });
 });
