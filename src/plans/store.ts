@@ -172,9 +172,16 @@ export class PlanStore {
    * is missing. Mission stops are those with a missions list; stops made by hand are kept as they
    * are, after the new ones, and so is everything else in the plan. A new stop keeps the notes of
    * the old mission stops at the same place, and the done or skipped mark of one that served
-   * exactly the same missions.
+   * exactly the same missions. An old mission stop serving a mission in `unplaced` (still open,
+   * but not in this route) is kept as it is, so a failed lookup does not lose it.
    */
-  saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
+  saveMissionStops(
+    planId: string,
+    name: string,
+    unplaced: Set<number>,
+    stops: Stop[],
+    route: PlanRoute,
+  ): Promise<Plan> {
     return this.mutate((data) => {
       const old = data.plans.find((p) => p.id === planId);
       const isMission = (s: Stop) => Array.isArray(s.missions);
@@ -199,9 +206,12 @@ export class PlanStore {
       });
       // The route's stop_indexes point at the new stops, which come first.
       const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
+      const waiting = (old?.stops ?? []).filter(
+        (s) => isMission(s) && s.missions!.some((id) => unplaced.has(id)),
+      );
       return this.put(data, {
         ...(old ?? { id: planId, name }),
-        stops: [...fresh, ...byHand],
+        stops: [...fresh, ...waiting, ...byHand],
         route,
       });
     });

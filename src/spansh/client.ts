@@ -345,11 +345,6 @@ const NON_CARRIER_TYPES = [
   "Surface Settlement",
 ];
 
-/** Spansh does not know the system: asking again will not help, unlike a failed request. */
-export class SystemNotFoundError extends UserError {
-  override name = "SystemNotFoundError";
-}
-
 /** Spansh has the route job but no result yet; calling again with the same query resumes it. */
 export class RoutePendingError extends UserError {
   override name = "RoutePendingError";
@@ -495,7 +490,7 @@ export class SpanshClient {
             .map((r) => r.name)
             .join(", ")}`
         : "";
-      throw new SystemNotFoundError(`System "${name}" not found on Spansh.${hint}`);
+      throw new UserError(`System "${name}" not found on Spansh.${hint}`);
     }
     const detail = (await this.systemCache.getOrLoad(`system:${match.id64}`, () =>
       this.get(`/system/${match.id64}`),
@@ -1167,11 +1162,6 @@ export class SpanshClient {
 export function isTransportError(err: unknown): boolean {
   if (err instanceof SpanshError) return err.status >= 500;
   return err instanceof HttpError || !(err instanceof UserError);
-}
-
-/** A failure that asking again later may not repeat: a transport error, or rate limiting. */
-export function isRetryable(err: unknown): boolean {
-  return isTransportError(err) || (err instanceof SpanshError && err.status === 429);
 }
 
 class SpanshError extends UserError {

@@ -4,7 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { ActivityStore } from "../../src/activity/store.js";
 import { HttpError } from "../../src/http/client.js";
-import { SystemNotFoundError } from "../../src/spansh/client.js";
 import { PlanStore } from "../../src/plans/store.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
@@ -83,7 +82,7 @@ function setup(opts: Opts = {}) {
       if (opts.down?.includes(key)) throw new Error("Spansh is down");
       if (opts.timeout?.includes(key)) throw new HttpError("Spansh timed out");
       const c = coords[key];
-      if (!c) throw new SystemNotFoundError(`System "${name}" not found on Spansh.`);
+      if (!c) throw new UserError(`System "${name}" not found on Spansh.`);
       return {
         name: name[0]!.toUpperCase() + name.slice(1).toLowerCase(),
         coords: { x: c[0], y: c[1], z: c[2] },
@@ -446,9 +445,11 @@ describe("missions_plan", () => {
       ],
       ["Alpha Dock", "Drop 2 passengers", "Drop 2 passengers at Alpha Dock", "mission", [3]],
     ]);
-    // Named as route_stops names stops; the return is in the route, not a stop to do.
+    // Named by station; the return is in the route, not a stop to do.
     expect(plan.route?.stops).toEqual([
-      ...plan.stops.map((x) => x.label),
+      "Beta Hub",
+      "Alpha Port",
+      "Alpha Dock",
       "return to Sol — Abraham Lincoln",
     ]);
     expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], []]);
@@ -593,18 +594,40 @@ describe("missions_plan", () => {
     );
   });
 
-  it("saves nothing when a Spansh lookup fails, including Spansh's own errors", async () => {
+  it("keeps the old stop of a mission a failed lookup leaves out", async () => {
     for (const opts of [{ down: ["beta"] }, { timeout: ["beta"] }]) {
       const s = await stores();
       await s.plans.upsert({
         id: "missions",
         name: "Run",
-        stops: [{ system: "Old", purpose: "x" }],
+        stops: [
+          {
+            system: "Beta",
+            station: "Beta Hub",
+            purpose: "x",
+            missions: [4],
+            status: "skipped",
+            notes: "n",
+          },
+          { system: "Old", purpose: "x", missions: [99] },
+        ],
       });
-      const { r } = await save({}, { ...s, ...opts });
-      expect(r.isError).toBe(true);
-      expect(r.text).toContain("the Spansh lookup failed for 1 stop");
-      expect((await s.plans.get("missions")).stops.map((x) => x.system)).toEqual(["Old"]);
+      const { j } = await save({}, { ...s, ...opts });
+      expect(j.saved).toBe(true);
+      const stops = (await s.plans.get("missions")).stops;
+      // Beta's mission is still open: its stop stays as it was. Mission 99 is gone.
+      expect(stops.map((x) => [x.system, x.status])).toEqual([
+        ["Alpha", "todo"],
+        ["Alpha", "todo"],
+        ["Beta", "skipped"],
+      ]);
     }
+  });
+
+  it("keeps the kind of a note someone wrote for the plan", async () => {
+    const s = await stores();
+    await s.activity.set({ kind: "hauling", summary: "Gold run for CG", plan_id: "missions" });
+    await save({}, s);
+    expect(await s.activity.get()).toMatchObject({ kind: "hauling", summary: "Gold run for CG" });
   });
 });

@@ -6,7 +6,7 @@ import type { JournalService } from "../journal/service.js";
 import type { Mission } from "../journal/state.js";
 import type { PlanStore } from "../plans/store.js";
 import { PlanId, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
-import { returnName, stopName } from "../plans/stops.js";
+import { returnName } from "../plans/stops.js";
 import { plural } from "../text.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { optimiseRoute } from "../routes/optimise.js";
@@ -22,7 +22,6 @@ import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { isRetryable } from "../spansh/client.js";
 import { reason, wrap } from "./result.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
@@ -108,28 +107,17 @@ export function registerMissionTools(
     const unroutable: Unroutable[] = [...grouped.unroutable];
     const stops: Stop[] = [];
     const places: Place[] = [];
-    // Stops whose Spansh lookup failed, not ones in a system Spansh does not know: a retry may
-    // place them, so a saved plan must not lose them.
-    let lookupFailed = 0;
     for (const stop of grouped.stops) {
       try {
         places.push(await place(stop.system, stop.station));
         stops.push(stop);
       } catch (e) {
-        if (isRetryable(e)) lookupFailed++;
         const reason =
           e instanceof UserError
             ? e.message
             : `Spansh lookup failed: ${e instanceof Error ? e.message : String(e)}`;
         for (const m of stop.missions) unroutable.push({ id: m.id, name: m.name, reason });
       }
-    }
-    // Saving a route that lost stops to failed lookups would drop them from the plan, so stop
-    // before the route is worked out.
-    if (planId && lookupFailed > 0) {
-      throw new UserError(
-        `Not saved to plan "${planId}": the Spansh lookup failed for ${plural(lookupFailed, "stop")}; try again later.`,
-      );
     }
     const returnPlace = a.return_to
       ? await endpoint("return_to", a.return_to.system, a.return_to.station ?? null)
@@ -207,9 +195,14 @@ export function registerMissionTools(
       const ordered = solution.order.map((i) => stops[i]!);
       // With no missions left the plan's stops are cleared, so the panel stops showing them.
       try {
+        // Missions still open that this route could not place (Spansh failed, or the journal no
+        // longer says where they go) keep their old stops, so the plan does not lose them.
+        const gone = new Set(["expired", "not in the journal"]);
+        const unplaced = new Set(unroutable.filter((u) => !gone.has(u.reason)).map((u) => u.id));
         await deps.plans.saveMissionStops(
           planId,
-          "Mission run",
+          PLAN_NAME,
+          unplaced,
           ...planOf({
             byId: new Map(state.missions.map((m) => [m.id, m])),
             ordered,
@@ -288,8 +281,8 @@ export function registerMissionTools(
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
         "already in the plan keeps its notes, and its done or skipped mark when it serves the same " +
         "missions. Stops made by hand stay as they are. " +
-        "It covers every mission; with none left it clears the stops. It saves nothing, and " +
-        "fails, when a Spansh lookup fails. The return_to stop is in the route, not the stops. " +
+        "It covers every mission; with none left it clears the mission stops. A mission it cannot " +
+        "place keeps its old stop. The return_to stop is in the route, not the stops. " +
         "Call it again after taking or finishing missions. " +
         describeRoute,
       // Every mission: a plan for some of them would drop the others' stops.
@@ -330,15 +323,9 @@ function planOf(r: {
     };
   });
   const back = r.returnTo ? [returnName(r.returnTo.system, r.returnTo.station)] : [];
-  // Named as route_stops names stops, so the plan can read the route by name too; a repeated
-  // name gets -2, -3.
-  const seen = new Map<string, number>();
-  const names = stops.map((s) => {
-    const n = stopName(s);
-    const k = (seen.get(n) ?? 0) + 1;
-    seen.set(n, k);
-    return k > 1 ? `${n}-${k}` : n;
-  });
+  // Named by station (else system), which stays the same as missions change and which the plan
+  // matches a stop by when the route has no stop_indexes.
+  const names = stops.map((s) => s.station ?? s.system);
   return [
     stops,
     {
@@ -352,9 +339,14 @@ function planOf(r: {
   ];
 }
 
-const AUTO_SUMMARY = "Mission run:";
+const PLAN_NAME = "Mission run";
+const autoSummary = (missions: number, stops: number) =>
+  `${PLAN_NAME}: ${plural(missions, "mission")} over ${plural(stops, "stop")}`;
 /** A summary this tool wrote, which it refreshes; one the player or Claude wrote is kept. */
-const AUTO = /^Mission run: \d+ missions? over \d+ stops?$/;
+const isAutoSummary = (s: string) => {
+  const m = /: (\d+) missions? over (\d+) stops?$/.exec(s);
+  return !!m && s === autoSummary(Number(m[1]), Number(m[2]));
+};
 
 /**
  * Points the activity note at the plan. A summary the player or Claude wrote for this plan is
@@ -363,12 +355,11 @@ const AUTO = /^Mission run: \d+ missions? over \d+ stops?$/;
 async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[]): Promise<void> {
   const note = await activity.get();
   const missions = ordered.reduce((n, s) => n + s.missions.length, 0);
+  // A note someone wrote for this plan keeps its words and kind; only the plan is pointed at.
+  const own = note && note.plan_id === planId && !isAutoSummary(note.summary) ? note : null;
   await activity.set({
-    kind: "missions",
-    summary:
-      note && note.plan_id === planId && !AUTO.test(note.summary)
-        ? note.summary
-        : `${AUTO_SUMMARY} ${plural(missions, "mission")} over ${plural(ordered.length, "stop")}`,
+    kind: own?.kind ?? "missions",
+    summary: own?.summary ?? autoSummary(missions, ordered.length),
     plan_id: planId,
   });
 }

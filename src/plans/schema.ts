@@ -53,7 +53,7 @@ export const StopSchema = z.object({
   label: z.string().min(1).optional(),
   kind: StopKind.optional(),
   after: z.array(z.string().min(1)).optional(),
-  // The journal mission IDs the stop serves, for a route saved by missions_route.
+  // The journal mission IDs the stop serves, for a route saved by missions_plan.
   missions: z.array(z.number().int()).optional(),
   status: StopStatus.default("todo"),
   notes: z.string().optional(),
