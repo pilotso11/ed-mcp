@@ -621,7 +621,26 @@ describe("missions_plan", () => {
     }
   });
 
-  it("leaves the note alone when no missions are left", async () => {
+  it("clears its own note when no missions are left", async () => {
+    const s = await stores();
+    await save({}, s);
+    expect(await s.activity.get()).not.toBeNull();
+    await save({}, { ...s, missions: [] });
+    expect(await s.activity.get()).toBeNull();
+  });
+
+  it("treats a stop that lost its missions list in an edit as a mission stop", async () => {
+    const s = await stores();
+    await s.plans.upsert({
+      id: "missions",
+      name: "Run",
+      stops: [{ system: "Gone", purpose: "x", kind: "mission" }],
+    });
+    await save({}, s);
+    expect((await s.plans.get("missions")).stops.some((x) => x.system === "Gone")).toBe(false);
+  });
+
+  it("leaves someone else's note alone when no missions are left", async () => {
     const s = await stores();
     await s.activity.set({ kind: "mining", summary: "Platinum in HIP 1" });
     await save({}, { ...s, missions: [] });

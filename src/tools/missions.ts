@@ -220,8 +220,7 @@ export function registerMissionTools(
         }
         throw err;
       }
-      // With nothing to do, the note is left as it is.
-      if (deps.activity && ordered.length + unplaced.length > 0) {
+      if (deps.activity) {
         try {
           await pointNote(deps.activity, planId, [...ordered, ...unplaced]);
         } catch (err) {
@@ -282,7 +281,8 @@ export function registerMissionTools(
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
         "already in the plan keeps its done or skipped mark when it serves the same missions. Stops " +
         "made by hand stay as they are. " +
-        "It covers every mission; with none left it clears the mission stops and leaves the note. " +
+        "It covers every mission it can place; with none left it clears the mission stops, and a " +
+        "note this tool wrote. " +
         "A stop Spansh cannot place is saved after the route's stops. The return_to stop is in " +
         "the route, not the stops. " +
         "Call it again after taking or finishing missions. " +
@@ -361,6 +361,11 @@ async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[
   const note = await activity.get();
   const missions = ordered.reduce((n, s) => n + s.missions.length, 0);
   // A note someone wrote for this plan keeps its words and kind; only the plan is pointed at.
+  // With nothing to do, a note this tool wrote for the plan is cleared; any other is left alone.
+  if (!ordered.length) {
+    if (note && note.plan_id === planId && isAutoSummary(note.summary)) await activity.clear();
+    return;
+  }
   const own = note && note.plan_id === planId && !isAutoSummary(note.summary) ? note : null;
   await activity.set({
     kind: own?.kind ?? "missions",

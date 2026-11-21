@@ -91,7 +91,7 @@ export class PlanStore {
   }
 
   /** Validates and stores a plan in data, stamped, in place of one with the same ID. */
-  private put(data: PlanFile, input: PlanInput): Plan {
+  private put(data: PlanFile, input: PlanInput, opts: { newRoute?: boolean } = {}): Plan {
     const parsed = PlanInputSchema.safeParse(input);
     if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
     const stamp = this.now().toISOString();
@@ -107,6 +107,7 @@ export class PlanStore {
     // for example from plan_import, carries indexes for its own stops and keeps them.
     const route = plan.route;
     if (
+      !opts.newRoute &&
       route?.stop_indexes &&
       old?.route?.computed_at === route.computed_at &&
       !sameStops(old.stops, plan.stops)
@@ -179,24 +180,27 @@ export class PlanStore {
   saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
       const old = data.plans.find((p) => p.id === planId);
-      const isMission = (s: Stop) => Array.isArray(s.missions);
+      // A mission stop lists its missions; one edited without the list keeps its kind.
+      const isMission = (s: Stop) =>
+        Array.isArray(s.missions) || s.kind === "mission" || s.kind === "hand_in";
       const sameSet = (a: number[], b: number[]) =>
         a.length === b.length && a.every((id) => b.includes(id));
       const marked = (old?.stops ?? []).filter((s) => isMission(s) && s.status !== "todo");
       const fresh = stops.map((s) => {
         const k = placeKey(s.system, s.station);
         const same = marked.find(
-          (o) => placeKey(o.system, o.station) === k && sameSet(o.missions!, s.missions ?? []),
+          (o) => placeKey(o.system, o.station) === k && sameSet(o.missions ?? [], s.missions ?? []),
         );
         return same ? { ...s, status: same.status } : s;
       });
       // The route's stop_indexes point at the new stops, which come first.
       const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
-      return this.put(data, {
-        ...(old ?? { id: planId, name }),
-        stops: [...fresh, ...byHand],
-        route,
-      });
+      // A newly worked-out route: its stop_indexes are for these stops, whatever its time.
+      return this.put(
+        data,
+        { ...(old ?? { id: planId, name }), stops: [...fresh, ...byHand], route },
+        { newRoute: true },
+      );
     });
   }
 
