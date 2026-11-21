@@ -346,6 +346,11 @@ const NON_CARRIER_TYPES = [
 ];
 
 /** Spansh has the route job but no result yet; calling again with the same query resumes it. */
+/** Spansh does not know the system: asking again will not help, unlike a failed request. */
+export class SystemNotFoundError extends UserError {
+  override name = "SystemNotFoundError";
+}
+
 export class RoutePendingError extends UserError {
   override name = "RoutePendingError";
 }
@@ -490,7 +495,7 @@ export class SpanshClient {
             .map((r) => r.name)
             .join(", ")}`
         : "";
-      throw new UserError(`System "${name}" not found on Spansh.${hint}`);
+      throw new SystemNotFoundError(`System "${name}" not found on Spansh.${hint}`);
     }
     const detail = (await this.systemCache.getOrLoad(`system:${match.id64}`, () =>
       this.get(`/system/${match.id64}`),

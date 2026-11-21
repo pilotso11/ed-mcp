@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { ActivityStore } from "../../src/activity/store.js";
 import { HttpError } from "../../src/http/client.js";
+import { SystemNotFoundError } from "../../src/spansh/client.js";
 import { PlanStore } from "../../src/plans/store.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
@@ -82,7 +83,7 @@ function setup(opts: Opts = {}) {
       if (opts.down?.includes(key)) throw new Error("Spansh is down");
       if (opts.timeout?.includes(key)) throw new HttpError("Spansh timed out");
       const c = coords[key];
-      if (!c) throw new UserError(`System "${name}" not found on Spansh.`);
+      if (!c) throw new SystemNotFoundError(`System "${name}" not found on Spansh.`);
       return {
         name: name[0]!.toUpperCase() + name.slice(1).toLowerCase(),
         coords: { x: c[0], y: c[1], z: c[2] },
@@ -488,11 +489,11 @@ describe("missions_plan", () => {
     expect(plan.name).toBe("Saturday run");
     expect(plan.target_build).toEqual({ ship: "python" });
     expect(plan.items.map((i) => i.id)).toEqual(["a"]);
-    // Skipped stays; done is to do again, since the stop still has a mission.
+    // The same missions as before: both marks stay.
     expect(plan.stops.map((x) => [x.station, x.status, x.notes])).toEqual([
       ["Beta Hub", "skipped", "busy"],
       ["Alpha Port", "todo", undefined],
-      ["Alpha Dock", "todo", undefined],
+      ["Alpha Dock", "done", undefined],
     ]);
     expect((await s.activity.get())?.summary).toBe("Mission run: Sol passengers");
   });
@@ -517,6 +518,29 @@ describe("missions_plan", () => {
     expect((await s.activity.get())?.summary).toBe("Mission run: 4 missions over 3 stops");
   });
 
+  it("passes on only a skip from a stop made by hand, and every old stop's notes", async () => {
+    const s = await stores();
+    await s.plans.upsert({
+      id: "missions",
+      name: "Run",
+      stops: [
+        { system: "Beta", station: "Beta Hub", purpose: "x", status: "skipped", notes: "closed" },
+        { system: "Alpha", station: "Alpha Port", purpose: "x", status: "done", notes: "a" },
+        { system: "Alpha", station: "Alpha Port", purpose: "y", notes: "b" },
+      ],
+    });
+    await save({}, s);
+    const stops = (await s.plans.get("missions")).stops;
+    expect(stops.find((x) => x.station === "Beta Hub")).toMatchObject({
+      status: "skipped",
+      notes: "closed",
+    });
+    expect(stops.find((x) => x.station === "Alpha Port")).toMatchObject({
+      status: "todo",
+      notes: "a; b",
+    });
+  });
+
   it("clears the stops when no missions are left", async () => {
     const s = await stores();
     await s.plans.upsert({ id: "missions", name: "Run", stops: [{ system: "Old", purpose: "x" }] });
@@ -536,14 +560,19 @@ describe("missions_plan", () => {
 
   it("fails when the save fails, and says when only the note failed", async () => {
     const s = await stores();
-    const failing = Object.assign(Object.create(PlanStore.prototype), {
-      saveStops: async () => {
-        throw new Error("disk full");
-      },
-    }) as PlanStore;
-    const { r } = await save({}, { plans: failing });
-    expect(r.isError).toBe(true);
-    expect(r.text).toContain('Not saved to plan "missions": disk full');
+    const failing = (err: Error) =>
+      Object.assign(Object.create(PlanStore.prototype), {
+        saveStops: async () => {
+          throw err;
+        },
+      }) as PlanStore;
+    const locked = await save({}, { plans: failing(new UserError("Plan file is locked")) });
+    expect(locked.r.isError).toBe(true);
+    expect(locked.r.text).toContain('Not saved to plan "missions": Plan file is locked');
+    // Anything else is a bug, reported as one.
+    const bug = await save({}, { plans: failing(new Error("disk full")) });
+    expect(bug.r.isError).toBe(true);
+    expect(bug.r.text).toContain("Internal error");
     const noNote = Object.assign(Object.create(ActivityStore.prototype), {
       get: async () => null,
       set: async () => {

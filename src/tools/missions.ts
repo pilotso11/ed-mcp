@@ -7,11 +7,11 @@ import type { Mission } from "../journal/state.js";
 import type { PlanStore } from "../plans/store.js";
 import { PlanId, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
 import { returnName, stopName } from "../plans/stops.js";
+import { plural } from "../text.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
 import { optimiseRoute } from "../routes/optimise.js";
 import {
   missionsToStops,
-  plural,
   stopLabel,
   type Stop,
   type StopMission,
@@ -22,7 +22,7 @@ import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { isTransportError } from "../spansh/client.js";
+import { SystemNotFoundError } from "../spansh/client.js";
 import { reason, wrap } from "./result.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
@@ -116,7 +116,7 @@ export function registerMissionTools(
         places.push(await place(stop.system, stop.station));
         stops.push(stop);
       } catch (e) {
-        if (isTransportError(e)) lookupFailed++;
+        if (!(e instanceof SystemNotFoundError)) lookupFailed++;
         const reason =
           e instanceof UserError
             ? e.message
@@ -202,7 +202,9 @@ export function registerMissionTools(
       });
     }
 
+    let saved = false;
     if (planId && deps.plans) {
+      const ordered = solution.order.map((i) => stops[i]!);
       // With no missions left the plan's stops are cleared, so the panel stops showing them.
       try {
         await deps.plans.saveStops(
@@ -210,23 +212,24 @@ export function registerMissionTools(
           "Mission run",
           ...planOf({
             byId: new Map(state.missions.map((m) => [m.id, m])),
-            ordered: solution.order.map((i) => stops[i]!),
+            ordered,
             returnTo: returnPlace,
             from: startPlace.system,
             totalMin: min(solution.total),
             computedAt: new Date(now()).toISOString(),
           }),
         );
+        saved = true;
       } catch (err) {
-        throw new UserError(`Not saved to plan "${planId}": ${reason(err)}`);
+        // A plan the store refuses is the user's to see; anything else is a bug, for wrap().
+        if (err instanceof UserError) {
+          throw new UserError(`Not saved to plan "${planId}": ${err.message}`);
+        }
+        throw err;
       }
       if (deps.activity) {
         try {
-          await pointNote(
-            deps.activity,
-            planId,
-            solution.order.map((i) => stops[i]!),
-          );
+          await pointNote(deps.activity, planId, ordered);
         } catch (err) {
           notes.add(`The plan was saved, but the activity note was not updated: ${reason(err)}`);
         }
@@ -237,7 +240,7 @@ export function registerMissionTools(
       start: { system: startPlace.system, station: startPlace.station, source },
       stops: out,
       total_min: min(solution.total),
-      ...(planId && { saved: true, plan_id: planId }),
+      ...(saved && { saved, plan_id: planId }),
       late: solution.late.map((l) => stops[l.stop]!.missions[l.mission]!.id),
       unroutable,
       notes: [...notes],
@@ -258,7 +261,9 @@ export function registerMissionTools(
         idempotentHint: true,
         openWorldHint: true,
       },
-      description: describeRoute + " To follow the route in game, save it with missions_plan.",
+      description:
+        describeRoute +
+        (deps.plans ? " To follow the route in game, save it with missions_plan." : ""),
       inputSchema,
     },
     wrap((a: Args) => run(a, null)),
@@ -281,7 +286,8 @@ export function registerMissionTools(
         "stop per station, labelled with what to do there and the missions it serves, and make it " +
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
-        "already in the plan keeps its notes, and a skipped mark while it serves no new missions. " +
+        "already in the plan keeps its notes, and its done or skipped mark when it serves the same " +
+        "missions. " +
         "It covers every mission; with none left it clears the stops. It saves nothing, and " +
         "fails, when a Spansh lookup fails. The return_to stop is in the route, not the stops. " +
         "Call it again after taking or finishing missions. " +
@@ -310,7 +316,8 @@ function planOf(r: {
 }): [PlanStop[], PlanRoute] {
   const stops: PlanStop[] = r.ordered.map((s) => {
     const what = stopLabel(s, r.byId);
-    // The place makes the label unique, so plan_update_stop can find the stop by it.
+    // The place tells stops with the same task apart. The label changes as missions do, so tools
+    // address these stops by index.
     const label = `${what} at ${s.station ?? s.system}`;
     return {
       system: s.system,

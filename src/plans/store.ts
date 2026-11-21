@@ -164,8 +164,10 @@ export class PlanStore {
 
   /**
    * Replaces a plan's stops and route in one locked write, creating the plan when it is missing.
-   * Everything else in the plan is kept. A new stop at the same place (system and station) as an
-   * old one keeps the old stop's notes, and a skipped mark while it serves no new missions.
+   * Everything else in the plan is kept. A new stop keeps the notes of every old stop at the same
+   * place (system and station). It keeps their done or skipped mark when it serves exactly the
+   * missions they did; with other missions it is to do. A stop made by hand (no missions) passes
+   * on only a skip, the player's choice.
    */
   saveStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
@@ -173,22 +175,21 @@ export class PlanStore {
       const idx = data.plans.findIndex((p) => p.id === planId);
       const old = idx >= 0 ? data.plans[idx]! : undefined;
       const place = (s: Stop) => `${s.system.toLowerCase()}|${(s.station ?? "").toLowerCase()}`;
-      const before = new Map((old?.stops ?? []).map((s) => [place(s), s]));
-      // A stop keeps its notes, and its status unless it now serves missions it did not before:
-      // new missions at a station marked done must still be visited.
+      const before = new Map<string, Stop[]>();
+      for (const s of old?.stops ?? []) before.set(place(s), [...(before.get(place(s)) ?? []), s]);
+      const sameSet = (a: number[], b: number[]) =>
+        a.length === b.length && a.every((id) => b.includes(id));
       const merged = stops.map((s) => {
-        const o = before.get(place(s));
-        if (!o) return s;
-        const had = new Set(o.missions ?? []);
-        const same = !s.missions || s.missions.every((id) => had.has(id));
-        // A stop in a new route still has work to do, so done does not carry over. Skipped does,
-        // while the stop serves no new missions: the player chose to leave those.
-        const keep = o.status === "skipped" && same;
-        return {
-          ...s,
-          ...(keep ? { status: o.status } : {}),
-          ...(o.notes ? { notes: o.notes } : {}),
-        };
+        const olds = before.get(place(s));
+        if (!olds) return s;
+        const notes = [...new Set(olds.flatMap((o) => (o.notes ? [o.notes] : [])))].join("; ");
+        const marked = olds.find((o) => o.status !== "todo");
+        let status: Stop["status"] | undefined;
+        if (marked && !marked.missions)
+          status = marked.status === "skipped" ? "skipped" : undefined;
+        else if (marked && s.missions && sameSet(marked.missions!, s.missions))
+          status = marked.status;
+        return { ...s, ...(status ? { status } : {}), ...(notes ? { notes } : {}) };
       });
       const parsed = PlanInputSchema.safeParse({
         ...(old ?? { id: planId, name }),

@@ -1,8 +1,6 @@
 import type { Mission } from "../journal/state.js";
 import { plural } from "../text.js";
 
-export { plural };
-
 export interface StopMission {
   id: number;
   name: string;
