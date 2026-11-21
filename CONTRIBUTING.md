@@ -69,7 +69,7 @@ At run time, the server uses `http://localhost:<random port>/auth` as the redire
    cd plugin
    npm install --package-lock-only --ignore-scripts --save-exact ed-mcp@X.Y.Z
    ```
-   Then set `version` in `plugin/.claude-plugin/plugin.json` to X.Y.Z, and merge the change.
+   Use npm 10 or later, as shipped with Node 22: npm 8 leaves the `license` line out of the lock entry, and the plugin test fails. Then set `version` in `plugin/.claude-plugin/plugin.json` to X.Y.Z, and merge the change.
 
 The release workflow makes sure that the tag matches the package version. Then it runs the checks and builds the `.mcpb` file. It creates a GitHub Release with the file attached. Then it stages the package on npm, unless that version is already on npm. The version goes live on npm only when a maintainer approves it with 2FA.
 

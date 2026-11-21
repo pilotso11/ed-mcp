@@ -23,7 +23,10 @@ describe("Claude plugin", () => {
     expect(pkg.dependencies).toEqual({ "ed-mcp": v });
     const lock = (await read("plugin/package-lock.json")) as {
       lockfileVersion: number;
-      packages: Record<string, { version?: string; resolved?: string; integrity?: string }>;
+      packages: Record<
+        string,
+        { version?: string; resolved?: string; integrity?: string; license?: string }
+      >;
     };
     expect(lock.lockfileVersion).toBeGreaterThanOrEqual(2);
     // ed-mcp has no dependencies, so the lockfile pins exactly one tarball by hash.
@@ -32,6 +35,8 @@ describe("Claude plugin", () => {
     expect(entry.version).toBe(v);
     expect(entry.resolved).toBe(`https://registry.npmjs.org/ed-mcp/-/ed-mcp-${v}.tgz`);
     expect(entry.integrity).toMatch(/^sha512-/);
+    // npm 8 leaves the license out of the lock entry; regenerate with npm 10 or later.
+    expect(entry.license).toBe("MIT");
   });
 
   it("is listed in this repository's marketplace", async () => {
