@@ -6,6 +6,7 @@ import { UserError } from "../errors.js";
 import { lockedWrite } from "../fs/lock.js";
 import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
+import { placeKey } from "./stops.js";
 import {
   PlanFileSchema,
   PlanInputSchema,
@@ -80,34 +81,38 @@ export class PlanStore {
 
   upsert(input: PlanInput, opts: { overwrite?: boolean } = {}): Promise<Plan> {
     return this.mutate((data) => {
-      const parsed = PlanInputSchema.safeParse(input);
-      if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
-      const stamp = this.now().toISOString();
-      const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
-      if (idx >= 0 && opts.overwrite === false) {
-        throw new PlanExistsError(parsed.data.id);
-      }
-      const old = idx >= 0 ? data.plans[idx]! : undefined;
-      const plan: Plan = cleanRoute({
-        ...parsed.data,
-        created_at: old ? old.created_at : stamp,
-        updated_at: stamp,
-      });
-      // The same saved route with other stops (a stop inserted, removed or moved) has indexes
-      // that point at the wrong stops; without them, the route is matched by name. A new route,
-      // for example from plan_import, carries indexes for its own stops and keeps them.
-      const route = plan.route;
-      if (
-        route?.stop_indexes &&
-        old?.route?.computed_at === route.computed_at &&
-        !sameStops(old.stops, plan.stops)
-      ) {
-        delete route.stop_indexes;
-      }
-      if (idx >= 0) data.plans[idx] = plan;
-      else data.plans.push(plan);
-      return plan;
+      const idx = data.plans.findIndex((p) => p.id === input.id);
+      if (idx >= 0 && opts.overwrite === false) throw new PlanExistsError(input.id);
+      return this.put(data, input);
     });
+  }
+
+  /** Validates and stores a plan in data, stamped, in place of one with the same ID. */
+  private put(data: PlanFile, input: PlanInput): Plan {
+    const parsed = PlanInputSchema.safeParse(input);
+    if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+    const stamp = this.now().toISOString();
+    const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
+    const old = idx >= 0 ? data.plans[idx]! : undefined;
+    const plan: Plan = cleanRoute({
+      ...parsed.data,
+      created_at: old ? old.created_at : stamp,
+      updated_at: stamp,
+    });
+    // The same saved route with other stops (a stop inserted, removed or moved) has indexes
+    // that point at the wrong stops; without them, the route is matched by name. A new route,
+    // for example from plan_import, carries indexes for its own stops and keeps them.
+    const route = plan.route;
+    if (
+      route?.stop_indexes &&
+      old?.route?.computed_at === route.computed_at &&
+      !sameStops(old.stops, plan.stops)
+    ) {
+      delete route.stop_indexes;
+    }
+    if (idx >= 0) data.plans[idx] = plan;
+    else data.plans.push(plan);
+    return plan;
   }
 
   updateItem(
@@ -163,48 +168,42 @@ export class PlanStore {
   }
 
   /**
-   * Replaces a plan's stops and route in one locked write, creating the plan when it is missing.
-   * Everything else in the plan is kept. A new stop keeps the notes of every old stop at the same
-   * place (system and station). It keeps their done or skipped mark when it serves exactly the
-   * missions they did; with other missions it is to do. A stop made by hand (no missions) passes
-   * on only a skip, the player's choice.
+   * Replaces a plan's mission stops and its route in one locked write, creating the plan when it
+   * is missing. Mission stops are those with a missions list; stops made by hand are kept as they
+   * are, after the new ones, and so is everything else in the plan. A new stop keeps the notes of
+   * the old mission stops at the same place, and the done or skipped mark of one that served
+   * exactly the same missions.
    */
-  saveStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
+  saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
-      const stamp = this.now().toISOString();
-      const idx = data.plans.findIndex((p) => p.id === planId);
-      const old = idx >= 0 ? data.plans[idx]! : undefined;
-      const place = (s: Stop) => `${s.system.toLowerCase()}|${(s.station ?? "").toLowerCase()}`;
+      const old = data.plans.find((p) => p.id === planId);
+      const isMission = (s: Stop) => Array.isArray(s.missions);
       const before = new Map<string, Stop[]>();
-      for (const s of old?.stops ?? []) before.set(place(s), [...(before.get(place(s)) ?? []), s]);
+      for (const s of (old?.stops ?? []).filter(isMission)) {
+        const k = placeKey(s.system, s.station);
+        before.set(k, [...(before.get(k) ?? []), s]);
+      }
       const sameSet = (a: number[], b: number[]) =>
         a.length === b.length && a.every((id) => b.includes(id));
-      const merged = stops.map((s) => {
-        const olds = before.get(place(s));
-        if (!olds) return s;
+      const fresh = stops.map((s) => {
+        const olds = before.get(placeKey(s.system, s.station)) ?? [];
         const notes = [...new Set(olds.flatMap((o) => (o.notes ? [o.notes] : [])))].join("; ");
-        const marked = olds.find((o) => o.status !== "todo");
-        let status: Stop["status"] | undefined;
-        if (marked && !marked.missions)
-          status = marked.status === "skipped" ? "skipped" : undefined;
-        else if (marked && s.missions && sameSet(marked.missions!, s.missions))
-          status = marked.status;
-        return { ...s, ...(status ? { status } : {}), ...(notes ? { notes } : {}) };
+        const same = olds.find(
+          (o) => o.status !== "todo" && sameSet(o.missions!, s.missions ?? []),
+        );
+        return {
+          ...s,
+          ...(same ? { status: same.status } : {}),
+          ...(notes ? { notes } : {}),
+        };
       });
-      const parsed = PlanInputSchema.safeParse({
+      // The route's stop_indexes point at the new stops, which come first.
+      const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
+      return this.put(data, {
         ...(old ?? { id: planId, name }),
-        stops: merged,
+        stops: [...fresh, ...byHand],
         route,
       });
-      if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
-      const plan: Plan = cleanRoute({
-        ...parsed.data,
-        created_at: old ? old.created_at : stamp,
-        updated_at: stamp,
-      });
-      if (idx >= 0) data.plans[idx] = plan;
-      else data.plans.push(plan);
-      return plan;
     });
   }
 

@@ -10,6 +10,11 @@ export function stopName(s: Stop): string {
   return s.label ?? s.station ?? s.body ?? s.system;
 }
 
+/** A system and station as one key, for grouping missions and matching stops by place. */
+export function placeKey(system: string, station: string | null | undefined): string {
+  return `${system.toLowerCase()}|${(station ?? "").toLowerCase()}`;
+}
+
 /** The route entry for a return_to stop, which is not one of the plan's stops. */
 export function returnName(system: string, station: string | null | undefined): string {
   return `return to ${system}${station ? ` — ${station}` : ""}`;

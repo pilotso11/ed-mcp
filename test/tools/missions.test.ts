@@ -518,35 +518,42 @@ describe("missions_plan", () => {
     expect((await s.activity.get())?.summary).toBe("Mission run: 4 missions over 3 stops");
   });
 
-  it("passes on only a skip from a stop made by hand, and every old stop's notes", async () => {
+  it("keeps stops made by hand, and the notes of every old mission stop at the place", async () => {
     const s = await stores();
     await s.plans.upsert({
       id: "missions",
       name: "Run",
       stops: [
-        { system: "Beta", station: "Beta Hub", purpose: "x", status: "skipped", notes: "closed" },
-        { system: "Alpha", station: "Alpha Port", purpose: "x", status: "done", notes: "a" },
-        { system: "Alpha", station: "Alpha Port", purpose: "y", notes: "b" },
+        { system: "Beta", station: "Beta Hub", purpose: "refuel", status: "skipped" },
+        { system: "Alpha", station: "Alpha Port", purpose: "x", missions: [1], notes: "a" },
+        { system: "Alpha", station: "Alpha Port", purpose: "y", missions: [2], notes: "b" },
       ],
     });
     await save({}, s);
     const stops = (await s.plans.get("missions")).stops;
-    expect(stops.find((x) => x.station === "Beta Hub")).toMatchObject({
-      status: "skipped",
-      notes: "closed",
-    });
-    expect(stops.find((x) => x.station === "Alpha Port")).toMatchObject({
-      status: "todo",
-      notes: "a; b",
-    });
+    // The hand-made stop is untouched, after the mission stops; its skip is not passed on.
+    expect(stops.map((x) => [x.station, x.purpose, x.status])).toEqual([
+      ["Beta Hub", "1 mission", "todo"],
+      ["Alpha Port", "Drop 4 passengers · deliver Gold", "todo"],
+      ["Alpha Dock", "Drop 2 passengers", "todo"],
+      ["Beta Hub", "refuel", "skipped"],
+    ]);
+    expect(stops[1]!.notes).toBe("a; b");
   });
 
-  it("clears the stops when no missions are left", async () => {
+  it("clears the mission stops when no missions are left", async () => {
     const s = await stores();
-    await s.plans.upsert({ id: "missions", name: "Run", stops: [{ system: "Old", purpose: "x" }] });
+    await s.plans.upsert({
+      id: "missions",
+      name: "Run",
+      stops: [
+        { system: "Old", purpose: "x", missions: [9] },
+        { system: "Fuel", purpose: "refuel" },
+      ],
+    });
     const { j } = await save({}, { ...s, missions: [] });
     expect(j.saved).toBe(true);
-    expect((await s.plans.get("missions")).stops).toEqual([]);
+    expect((await s.plans.get("missions")).stops.map((x) => x.system)).toEqual(["Fuel"]);
   });
 
   it("is not offered without plans, and missions_route never saves", async () => {
@@ -562,7 +569,7 @@ describe("missions_plan", () => {
     const s = await stores();
     const failing = (err: Error) =>
       Object.assign(Object.create(PlanStore.prototype), {
-        saveStops: async () => {
+        saveMissionStops: async () => {
           throw err;
         },
       }) as PlanStore;

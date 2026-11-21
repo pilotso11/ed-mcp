@@ -345,12 +345,12 @@ const NON_CARRIER_TYPES = [
   "Surface Settlement",
 ];
 
-/** Spansh has the route job but no result yet; calling again with the same query resumes it. */
 /** Spansh does not know the system: asking again will not help, unlike a failed request. */
 export class SystemNotFoundError extends UserError {
   override name = "SystemNotFoundError";
 }
 
+/** Spansh has the route job but no result yet; calling again with the same query resumes it. */
 export class RoutePendingError extends UserError {
   override name = "RoutePendingError";
 }
@@ -1167,6 +1167,11 @@ export class SpanshClient {
 export function isTransportError(err: unknown): boolean {
   if (err instanceof SpanshError) return err.status >= 500;
   return err instanceof HttpError || !(err instanceof UserError);
+}
+
+/** A failure that asking again later may not repeat: a transport error, or rate limiting. */
+export function isRetryable(err: unknown): boolean {
+  return isTransportError(err) || (err instanceof SpanshError && err.status === 429);
 }
 
 class SpanshError extends UserError {

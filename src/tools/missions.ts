@@ -22,7 +22,7 @@ import type { PreferencesStore } from "../prefs/store.js";
 import type { SpanshClient } from "../spansh/client.js";
 import { describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { SystemNotFoundError } from "../spansh/client.js";
+import { isRetryable } from "../spansh/client.js";
 import { reason, wrap } from "./result.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
@@ -116,7 +116,7 @@ export function registerMissionTools(
         places.push(await place(stop.system, stop.station));
         stops.push(stop);
       } catch (e) {
-        if (!(e instanceof SystemNotFoundError)) lookupFailed++;
+        if (isRetryable(e)) lookupFailed++;
         const reason =
           e instanceof UserError
             ? e.message
@@ -207,7 +207,7 @@ export function registerMissionTools(
       const ordered = solution.order.map((i) => stops[i]!);
       // With no missions left the plan's stops are cleared, so the panel stops showing them.
       try {
-        await deps.plans.saveStops(
+        await deps.plans.saveMissionStops(
           planId,
           "Mission run",
           ...planOf({
@@ -287,7 +287,7 @@ export function registerMissionTools(
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
         "already in the plan keeps its notes, and its done or skipped mark when it serves the same " +
-        "missions. " +
+        "missions. Stops made by hand stay as they are. " +
         "It covers every mission; with none left it clears the stops. It saves nothing, and " +
         "fails, when a Spansh lookup fails. The return_to stop is in the route, not the stops. " +
         "Call it again after taking or finishing missions. " +
@@ -366,7 +366,7 @@ async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[
   await activity.set({
     kind: "missions",
     summary:
-      note?.kind === "missions" && note.plan_id === planId && !AUTO.test(note.summary)
+      note && note.plan_id === planId && !AUTO.test(note.summary)
         ? note.summary
         : `${AUTO_SUMMARY} ${plural(missions, "mission")} over ${plural(ordered.length, "stop")}`,
     plan_id: planId,

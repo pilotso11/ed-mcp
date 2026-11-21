@@ -1,4 +1,5 @@
 import type { Mission } from "../journal/state.js";
+import { placeKey } from "../plans/stops.js";
 import { plural } from "../text.js";
 
 export interface StopMission {
@@ -112,7 +113,7 @@ export function missionsToStops(
       });
       continue;
     }
-    const key = `${system.toLowerCase()}|${station?.toLowerCase() ?? ""}`;
+    const key = placeKey(system, station);
     let stop = byKey.get(key);
     if (!stop) {
       stop = { system, station, missions: [] };
