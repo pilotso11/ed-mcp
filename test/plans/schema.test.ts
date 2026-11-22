@@ -84,6 +84,7 @@ describe("PlanInputSchema trade fields", () => {
       repeat: true,
       lap: 3,
       prices_at: "2026-11-21T06:00:00.000Z",
+      profit_per_hour: 60_000_000,
       stops: [
         {
           system: "Wolf 397",
@@ -96,7 +97,12 @@ describe("PlanInputSchema trade fields", () => {
         },
       ],
     });
-    expect(p).toMatchObject({ repeat: true, lap: 3, prices_at: "2026-11-21T06:00:00.000Z" });
+    expect(p).toMatchObject({
+      repeat: true,
+      lap: 3,
+      prices_at: "2026-11-21T06:00:00.000Z",
+      profit_per_hour: 60_000_000,
+    });
     expect(p.stops[0]!.cargo).toEqual([
       { commodity: "Gold", action: "sell", amount: 720, price: 9380 },
       { commodity: "Silver", action: "buy", amount: 720, mission_id: 42 },
@@ -116,6 +122,14 @@ describe("PlanInputSchema trade fields", () => {
       ).toBe(false);
     }
     expect(PlanInputSchema.safeParse({ ...base, lap: 0 }).success).toBe(false);
+    expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: -1 }).success).toBe(false);
+    for (const rate of ["1", 1.5, Infinity, NaN]) {
+      expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: rate }).success).toBe(false);
+    }
+    // int() takes safe integers only: tradePlan.ts relies on this to leave a larger rate out.
+    const max = Number.MAX_SAFE_INTEGER;
+    expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: max }).success).toBe(true);
+    expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: max + 2 }).success).toBe(false);
   });
 
   it("loads a plan without them", () => {
@@ -123,6 +137,7 @@ describe("PlanInputSchema trade fields", () => {
     expect(p.repeat).toBeUndefined();
     expect(p.lap).toBeUndefined();
     expect(p.prices_at).toBeUndefined();
+    expect(p.profit_per_hour).toBeUndefined();
     expect(p.stops[0]!.cargo).toBeUndefined();
   });
 });

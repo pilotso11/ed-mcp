@@ -289,6 +289,7 @@ export class PlanStore {
         repeat: _repeat,
         lap: _lap,
         prices_at: _pricesAt,
+        profit_per_hour: _profitPerHour,
         ...kept
       } = old ?? {
         id: planId,

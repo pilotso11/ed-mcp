@@ -21,6 +21,17 @@ const fsCode = (err: unknown): string | null => {
 };
 
 /**
+ * The plan's profit_per_hour: the rate in whole credits, with -0 as 0. A loss, NaN, Infinity or a
+ * rate above Number.MAX_SAFE_INTEGER saves no rate rather than no plan.
+ */
+const rateField = (rate: number | null): { profit_per_hour?: number } => {
+  if (rate === null || !Number.isFinite(rate)) return {};
+  const whole = Math.round(rate) + 0; // + 0 turns -0 into 0
+  // Above MAX_SAFE_INTEGER the number is no longer exact, and the schema's int() refuses it.
+  return whole >= 0 && whole <= Number.MAX_SAFE_INTEGER ? { profit_per_hour: whole } : {};
+};
+
+/**
  * Saves a trade run as the plan planId, replacing a plan with that ID, and makes it the activity
  * note's plan. The run is already worked out, so a save the store refuses, or a file system error
  * (EPERM, ENOSPC, ...), is reported in notes rather than thrown; anything else is a bug, for
@@ -36,6 +47,8 @@ export async function saveTradePlan(
     notes: string;
     /** The ISO time of the oldest market data behind the prices, when known. */
     pricesAt: string | null;
+    /** The planned profit in credits an hour, when known. Saved rounded, if finite and not below 0. */
+    profitPerHour: number | null;
   },
   notes: string[],
 ): Promise<boolean> {
@@ -49,6 +62,7 @@ export async function saveTradePlan(
       stops: tradeStops(run.visits),
       ...(run.repeat ? { repeat: true, lap: 1 } : {}),
       ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
+      ...rateField(run.profitPerHour),
       notes: run.notes,
     });
     oldName = previous?.name ?? null;
