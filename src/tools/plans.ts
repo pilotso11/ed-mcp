@@ -170,7 +170,9 @@ export function registerPlanTools(
         title: "Update Plan Stop",
         readOnlyHint: false,
         destructiveHint: false,
-        idempotentHint: true,
+        // In a repeating plan, the call that finishes the last stop resets them all; again, it
+        // would mark one stop of the new lap.
+        idempotentHint: false,
         openWorldHint: false,
       },
       description:

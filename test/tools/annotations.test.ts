@@ -78,4 +78,9 @@ describe("tool annotations", () => {
       "trade_route",
     ]);
   });
+
+  it("does not mark plan_update_stop idempotent, since a repeating plan's last stop resets the lap", async () => {
+    const tool = (await listTools()).find((t) => t.name === "plan_update_stop");
+    expect(tool?.annotations?.idempotentHint).toBe(false);
+  });
 });
