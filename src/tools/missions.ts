@@ -316,7 +316,9 @@ export function registerMissionTools(
           "missions_plan covers every mission, so it takes no include; use missions_route to look at some of them.",
         );
       }
-      return run(a, a.plan_id);
+      // Never passed on: to run(), an empty include matches no mission and would empty the plan.
+      const { include: _ignored, ...all } = a;
+      return run(all, a.plan_id);
     }),
   );
 }

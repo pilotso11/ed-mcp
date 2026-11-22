@@ -732,7 +732,10 @@ describe("missions_plan, more", () => {
     const { r } = await save({ include: [1] }, await stores());
     expect(r.isError).toBe(true);
     expect(r.text).toContain("takes no include");
-    expect((await save({ include: [] }, await stores())).j.saved).toBe(true);
+    // An empty include plans every mission, not none.
+    const s = await stores();
+    expect((await save({ include: [] }, s)).j.saved).toBe(true);
+    expect((await s.plans.get("missions")).stops.length).toBeGreaterThan(0);
   });
 
   it("marks missions it kept in the plan without a route, and only those", async () => {

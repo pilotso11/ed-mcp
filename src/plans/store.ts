@@ -113,6 +113,7 @@ export class PlanStore {
       !opts.newRoute &&
       route?.stop_indexes &&
       old?.route?.computed_at === route.computed_at &&
+      // cleanRoute has already trimmed indexes past the end, so dropped stops leave none behind.
       !routeStillFits(plan.stops, old.stops) &&
       !routeStillFits(old.stops, plan.stops)
     ) {
@@ -164,7 +165,9 @@ export class PlanStore {
         plan = { ...input.data, created_at: stamp, updated_at: stamp };
         data.plans.push(plan);
       }
-      plan.stops.push(parsed.data);
+      // A stop added by hand: a missions list would make missions_plan treat it as its own.
+      const { missions: _missions, ...stopByHand } = parsed.data;
+      plan.stops.push(stopByHand);
       plan.updated_at = stamp;
       return plan;
     });
