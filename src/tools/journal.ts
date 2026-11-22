@@ -265,7 +265,8 @@ export function registerJournalTools(
         "faction and then by giving faction. Each mission has kills_required, kills_counted (from " +
         "bounties and combat bonds against the target since it was accepted) and kills_left. A " +
         "kill counts toward the oldest open mission of each giving faction, as the game stacks " +
-        "them; a mission redirected back to its giver is done. A target's kills_left is the most any one giver still " +
+        "them; a mission redirected back to its giver is done. A mission past its expiry is " +
+        "expired: it takes no kills and needs none, as the game fails it. A target's kills_left is the most any one giver still " +
         "needs. The counts are an estimate. uncounted lists massacre missions accepted before the " +
         "14-day journal window. " +
         FRESHNESS_TEXT,

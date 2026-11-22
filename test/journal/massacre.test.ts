@@ -4,7 +4,14 @@ import { buildState } from "../../src/journal/state.js";
 import { ev } from "../helpers/journal.js";
 
 const T = (n: number) => `2026-11-01T10:${String(n).padStart(2, "0")}:00Z`;
-const accept = (n: number, id: number, faction: string, kills: number, target = "Pirates") =>
+const accept = (
+  n: number,
+  id: number,
+  faction: string,
+  kills: number,
+  target = "Pirates",
+  expiry = "2026-11-03T10:00:00Z",
+) =>
   ev(T(n), "MissionAccepted", {
     MissionID: id,
     Name: "Mission_Massacre",
@@ -12,18 +19,22 @@ const accept = (n: number, id: number, faction: string, kills: number, target = 
     Faction: faction,
     TargetFaction: target,
     KillCount: kills,
-    Expiry: "2026-11-03T10:00:00Z",
+    Expiry: expiry,
     Reward: 1000,
   });
 const bounty = (n: number, victim = "Pirates") =>
   ev(T(n), "Bounty", { Rewards: [{ Faction: "Police", Reward: 10 }], VictimFaction: victim });
 
-const run = (events: ReturnType<typeof ev>[]) => massacre(buildState(events).missions, events);
+const run = (events: ReturnType<typeof ev>[], now = T(59)) =>
+  massacre(buildState(events).missions, events, now);
 const counts = (r: ReturnType<typeof massacre>) =>
   Object.fromEntries(
     r.groups.flatMap((g) =>
       g.factions.flatMap((f) =>
-        f.missions.map((m) => [m.id, `${m.kills_counted}/${m.kills_required}${m.done ? "D" : ""}`]),
+        f.missions.map((m) => [
+          m.id,
+          `${m.kills_counted}/${m.kills_required}${m.done ? "D" : ""}${m.expired ? "X" : ""}`,
+        ]),
       ),
     ),
   );
@@ -100,6 +111,31 @@ describe("massacre", () => {
       ev(T(3), "Missions", { Active: [], Complete: [{ MissionID: 1 }] }),
     ]);
     expect(counts(r)).toEqual({ 1: "1/5D" });
+  });
+
+  it("gives a kill after a mission's expiry to the giver's next mission", () => {
+    const r = run([
+      accept(1, 1, "Alpha", 5, "Pirates", T(4)),
+      accept(2, 2, "Alpha", 5),
+      bounty(3),
+      bounty(4),
+      bounty(5),
+    ]);
+    expect(counts(r)).toEqual({ 1: "1/5X", 2: "2/5" });
+    expect(r.groups[0]).toMatchObject({ kills_left: 3, factions: [{ kills_left: 3 }] });
+  });
+
+  it("marks a mission expired only once its expiry has passed, compared as times", () => {
+    // A Missions list gives expiries as seconds left, which become ISO times with milliseconds.
+    const events = [accept(1, 1, "Alpha", 5, "Pirates", "2026-11-01T10:30:00.000Z"), bounty(2)];
+    expect(counts(run(events, "2026-11-01T10:29:59Z"))).toEqual({ 1: "1/5" });
+    expect(counts(run(events, "2026-11-01T10:30:00Z"))).toEqual({ 1: "1/5X" });
+    expect(run(events, "2026-11-01T10:30:00Z").groups[0]!.kills_left).toBe(0);
+  });
+
+  it("keeps a complete mission done, not expired, after its expiry", () => {
+    const r = run([accept(1, 1, "Alpha", 1, "Pirates", T(5)), bounty(2)]);
+    expect(counts(r)).toEqual({ 1: "1/1D" });
   });
 
   it("groups by target and lists massacre missions accepted before the window as uncounted", () => {

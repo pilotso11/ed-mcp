@@ -18,6 +18,8 @@ export interface MassacreMission {
   kills_counted: number;
   kills_left: number;
   done: boolean;
+  // Past its expiry: the game fails it, so it takes no kills and needs none.
+  expired: boolean;
 }
 
 export interface MassacreGroup {
@@ -29,9 +31,17 @@ export interface MassacreGroup {
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
+// Whether a mission that expires at `expires` has expired by `at`. Both are ISO times, and a
+// journal timestamp and a computed expiry differ in form, so they are compared as times.
+const expiredBy = (expires: string | null, at: string) => {
+  const end = expires === null ? NaN : Date.parse(expires);
+  return !Number.isNaN(end) && Date.parse(at) >= end;
+};
+
 export function massacre(
   missions: Mission[],
   events: JournalEvent[],
+  now: string = new Date().toISOString(),
 ): { groups: MassacreGroup[]; uncounted: Mission[] } {
   const tracked = missions
     .filter((m) => (m.kill_count ?? 0) > 0 && m.target_faction && m.accepted)
@@ -47,6 +57,7 @@ export function massacre(
         kills_counted: 0,
         kills_left: m.kill_count!,
         done: false,
+        expired: false,
       } as MassacreMission,
     }))
     .sort((a, b) => a.out.accepted.localeCompare(b.out.accepted) || a.out.id - b.out.id);
@@ -65,11 +76,13 @@ export function massacre(
     if (e.event !== "Bounty" && e.event !== "FactionKillBond") continue;
     const victim = typeof e.VictimFaction === "string" ? e.VictimFaction : null;
     if (!victim) continue;
-    // One kill advances the oldest open mission of each giving faction against the victim.
+    // One kill advances the oldest open mission of each giving faction against the victim. A
+    // mission that expired before the kill is failed in the game, so the kill goes to the next.
     const credited = new Set<string>();
     for (const { mission, out } of tracked) {
       const giver = mission.faction ?? "";
       if (credited.has(giver) || out.done || out.accepted > e.timestamp) continue;
+      if (expiredBy(out.expires, e.timestamp)) continue;
       if (!same(mission.target_faction!, victim)) continue;
       out.kills_counted++;
       credited.add(giver);
@@ -80,7 +93,9 @@ export function massacre(
   const groups = new Map<string, Map<string, MassacreMission[]>>();
   for (const { mission, out } of tracked) {
     if (mission.status === "complete") out.done = true;
-    out.kills_left = out.done ? 0 : out.kills_required - out.kills_counted;
+    // The journal has no MissionFailed for it yet, but the game fails it on its next update.
+    out.expired = !out.done && expiredBy(out.expires, now);
+    out.kills_left = out.done || out.expired ? 0 : out.kills_required - out.kills_counted;
     const target = mission.target_faction!;
     const giver = mission.faction ?? "unknown";
     const byGiver = groups.get(target) ?? new Map<string, MassacreMission[]>();
