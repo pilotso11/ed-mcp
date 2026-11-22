@@ -547,13 +547,6 @@ export function registerLoopTools(
             best.legs.map((l) => (l.cargo ? [l.cargo] : [])),
             true,
           );
-          const first = visits[0]!;
-          if (first.sell.length) {
-            notes.push(
-              `On the first lap there is nothing to sell at ${first.station}; ` +
-                (first.buy.length ? "buy there and go on." : "go on to the next stop."),
-            );
-          }
           const oldest = oldestMarketTime(
             best.stations.map((i) => {
               const st = candidates[i]!;
@@ -581,6 +574,14 @@ export function registerLoopTools(
             },
             notes,
           );
+          // About the saved plan's first stop, so only when there is one.
+          const first = visits[0]!;
+          if (saved && first.sell.length) {
+            notes.push(
+              `On the first lap there is nothing to sell at ${first.station}; ` +
+                (first.buy.length ? "buy there and go on." : "go on to the next stop."),
+            );
+          }
         }
 
         const searched = found.stations.length + found.droppedOld;
