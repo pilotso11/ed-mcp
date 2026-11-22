@@ -632,5 +632,6 @@ describe("PlanStore stop positions", () => {
       }),
     );
     expect((await store.get("b")).stops[0]!.position).toEqual({ latitude: 1, longitude: 2 });
+    await rm(d, { recursive: true, force: true });
   });
 });

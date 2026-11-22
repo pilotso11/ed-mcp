@@ -4,7 +4,13 @@ import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { planToMarkdown } from "../plans/markdown.js";
-import { ItemStatus, PlanInputSchema, StopStatus, type PlanInput } from "../plans/schema.js";
+import {
+  ItemStatus,
+  PlanInputSchema,
+  StopStatus,
+  type PlanInput,
+  planInputProblem,
+} from "../plans/schema.js";
 import { nextStop } from "../plans/stops.js";
 import { PlanExistsError, type PlanStore } from "../plans/store.js";
 import { UserError } from "../errors.js";
@@ -27,6 +33,9 @@ export function registerPlanTools(
   ) => {
     const parsed = PlanInputSchema.safeParse(input);
     if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+    // Checked here too, so a plan that cannot be saved is not handed back as a failed write.
+    const problem = planInputProblem(parsed.data);
+    if (problem) throw new UserError(`Invalid plan: ${problem}`);
     try {
       return await plans.upsert(parsed.data, opts);
     } catch (err) {

@@ -42,10 +42,9 @@ export function planToMarkdown(plan: Plan): string {
     out.push("## Stops", "");
     const next = nextStop(plan)?.index;
     plan.stops.forEach((s, n) => {
-      const body =
-        s.body && s.position
-          ? `${s.body} (${deg(s.position.latitude)}, ${deg(s.position.longitude)})`
-          : s.body;
+      const at = s.position ? `(${deg(s.position.latitude)}, ${deg(s.position.longitude)})` : null;
+      // With the body it is on; a stop loaded without one still shows its coordinates.
+      const body = [s.body, at].filter(Boolean).join(" ") || undefined;
       const place = [s.system, body, s.station].filter(Boolean).join(" — ");
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";

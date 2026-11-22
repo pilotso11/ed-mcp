@@ -64,6 +64,15 @@ export const StopSchema = z.object({
   notes: z.string().optional(),
 });
 
+/**
+ * Rules a plan must meet to be saved, beyond its schema; null when it meets them. Not part of the
+ * schema, so a plans file that breaks one still loads.
+ */
+export function planInputProblem(plan: { stops: Stop[] }): string | null {
+  const i = plan.stops.findIndex((s) => s.position && !s.body);
+  return i >= 0 ? `stop ${i} has a position but no body` : null;
+}
+
 export const PlanRouteSchema = z.object({
   computed_at: z.string(),
   from: z.string(),

@@ -36,6 +36,20 @@ describe("plan tools", () => {
     ]);
   });
 
+  it("refuses a position with no body as invalid, not as a failed write", async () => {
+    const { client } = await setup();
+    const r = await callTool(client, "plan_upsert", {
+      plan: {
+        id: "b",
+        name: "B",
+        stops: [{ system: "Sol", purpose: "x", position: { latitude: 1, longitude: 2 } }],
+      },
+    });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Invalid plan: stop 0 has a position but no body");
+    expect(r.text).not.toContain("not saved");
+  });
+
   it("round-trips a plan", async () => {
     const { client } = await setup();
     const up = await callTool(client, "plan_upsert", { plan });

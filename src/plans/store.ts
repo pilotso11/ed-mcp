@@ -15,6 +15,7 @@ import {
   type PlanItem,
   type PlanRoute,
   type Stop,
+  planInputProblem,
 } from "./schema.js";
 import { findStop, nextStop, type NextStop } from "./stops.js";
 
@@ -83,8 +84,8 @@ export class PlanStore {
       const parsed = PlanInputSchema.safeParse(input);
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
       // Checked on saving only, so a stored stop never stops the plans file from loading.
-      const lost = parsed.data.stops.findIndex((s) => s.position && !s.body);
-      if (lost >= 0) throw new UserError(`Invalid plan: stop ${lost} has a position but no body`);
+      const problem = planInputProblem(parsed.data);
+      if (problem) throw new UserError(`Invalid plan: ${problem}`);
       const stamp = this.now().toISOString();
       const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
       if (idx >= 0 && opts.overwrite === false) {
@@ -315,7 +316,8 @@ function cleanRoute(plan: Plan): Plan {
   return plan;
 }
 
-// Not the position: routes visit bodies, so moving a bookmark does not change the route.
+// Not the position: routes visit bodies, so a saved route is not dropped for a moved bookmark
+// (the route's coordinates may then be older than the stop's).
 const stopKey = (s: Stop) => JSON.stringify([s.system, s.station, s.body, s.label, s.purpose]);
 function sameStops(a: Stop[], b: Stop[]): boolean {
   return a.length === b.length && a.every((s, i) => stopKey(s) === stopKey(b[i]!));
