@@ -4,6 +4,6 @@
   "description": "Pins the ed-mcp release that this Claude plugin runs. Claude Code installs it from package-lock.json.",
   "license": "MIT",
   "dependencies": {
-    "ed-mcp": "0.8.0"
+    "ed-mcp": "0.9.0"
   }
 }
