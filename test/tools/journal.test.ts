@@ -147,6 +147,8 @@ describe("journal tools", () => {
         Faction: "Alpha",
         TargetFaction: "Pirates",
         KillCount: 3,
+        // Past on the real clock, not on the service's: journal_massacre uses the service's.
+        Expiry: "2026-10-13T00:00:00Z",
       }),
       ev("2026-10-12T10:01:00Z", "Scan", {
         BodyName: `${sys} 2`,
@@ -196,6 +198,7 @@ describe("journal tools", () => {
 
     const m = (await callTool(c, "journal_massacre")).json as any;
     expect(m.targets[0]).toMatchObject({ target_faction: "Pirates", kills_left: 2 });
+    expect(m.targets[0].factions[0].missions[0].expired).toBe(false);
     expect(m.note).toMatch(/estimate/);
 
     const other = (await callTool(c, "journal_exploration", { system: "Nowhere" })).json as any;

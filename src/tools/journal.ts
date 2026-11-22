@@ -266,14 +266,15 @@ export function registerJournalTools(
         "bounties and combat bonds against the target since it was accepted) and kills_left. A " +
         "kill counts toward the oldest open mission of each giving faction, as the game stacks " +
         "them; a mission redirected back to its giver is done. A mission past its expiry is " +
-        "expired: it takes no kills and needs none, as the game fails it. A target's kills_left is the most any one giver still " +
+        "expired: it takes no kills and needs none, and if done it can no longer be handed in, as " +
+        "the game fails it. A target's kills_left is the most any one giver still " +
         "needs. The counts are an estimate. uncounted lists massacre missions accepted before the " +
         "14-day journal window. " +
         FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
-      const r = massacre(s.missions, s.events);
+      const r = massacre(s.missions, s.events, deps.journal.now());
       return {
         targets: r.groups,
         uncounted: r.uncounted.map((m) => ({ id: m.id, name: m.name, expires: m.expires })),

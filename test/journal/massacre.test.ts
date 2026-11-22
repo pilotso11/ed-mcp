@@ -26,7 +26,7 @@ const bounty = (n: number, victim = "Pirates") =>
   ev(T(n), "Bounty", { Rewards: [{ Faction: "Police", Reward: 10 }], VictimFaction: victim });
 
 const run = (events: ReturnType<typeof ev>[], now = T(59)) =>
-  massacre(buildState(events).missions, events, now);
+  massacre(buildState(events).missions, events, Date.parse(now));
 const counts = (r: ReturnType<typeof massacre>) =>
   Object.fromEntries(
     r.groups.flatMap((g) =>
@@ -115,7 +115,7 @@ describe("massacre", () => {
 
   it("gives a kill after a mission's expiry to the giver's next mission", () => {
     const r = run([
-      accept(1, 1, "Alpha", 5, "Pirates", T(4)),
+      accept(1, 1, "Alpha", 5, "Pirates", T(3)),
       accept(2, 2, "Alpha", 5),
       bounty(3),
       bounty(4),
@@ -125,17 +125,20 @@ describe("massacre", () => {
     expect(r.groups[0]).toMatchObject({ kills_left: 3, factions: [{ kills_left: 3 }] });
   });
 
-  it("marks a mission expired only once its expiry has passed, compared as times", () => {
+  it("marks a mission expired only after its expiry, compared as times", () => {
     // A Missions list gives expiries as seconds left, which become ISO times with milliseconds.
     const events = [accept(1, 1, "Alpha", 5, "Pirates", "2026-11-01T10:30:00.000Z"), bounty(2)];
-    expect(counts(run(events, "2026-11-01T10:29:59Z"))).toEqual({ 1: "1/5" });
-    expect(counts(run(events, "2026-11-01T10:30:00Z"))).toEqual({ 1: "1/5X" });
-    expect(run(events, "2026-11-01T10:30:00Z").groups[0]!.kills_left).toBe(0);
+    expect(counts(run(events, "2026-11-01T10:30:00Z"))).toEqual({ 1: "1/5" });
+    expect(counts(run(events, "2026-11-01T10:30:01Z"))).toEqual({ 1: "1/5X" });
+    expect(run(events, "2026-11-01T10:30:01Z").groups[0]!.kills_left).toBe(0);
   });
 
-  it("keeps a complete mission done, not expired, after its expiry", () => {
+  it("marks a complete mission past its expiry done and expired, as it can't be handed in", () => {
     const r = run([accept(1, 1, "Alpha", 1, "Pirates", T(5)), bounty(2)]);
-    expect(counts(r)).toEqual({ 1: "1/1D" });
+    expect(counts(r)).toEqual({ 1: "1/1DX" });
+    expect(counts(run([accept(1, 1, "Alpha", 1, "Pirates", T(5)), bounty(2)], T(5)))).toEqual({
+      1: "1/1D",
+    });
   });
 
   it("groups by target and lists massacre missions accepted before the window as uncounted", () => {
