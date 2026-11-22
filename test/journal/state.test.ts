@@ -687,6 +687,47 @@ describe("buildState", () => {
       expect(s.ship).toMatchObject({ type: "python_nx", id: 27 });
     });
 
+    it("takes the right one of two alike modules out", () => {
+      const booster = (slot: number, quality: number) => ({
+        Name: "$hpt_shieldbooster_size0_class5_name;",
+        Name_Localised: "Shield Booster",
+        StorageSlot: slot,
+        StarSystem: "Shinrarta Dezhra",
+        MarketID: MARKET,
+        TransferCost: 0,
+        TransferTime: 0,
+        BuyPrice: 281000,
+        Hot: false,
+        EngineerModifications: "ShieldBooster_HeavyDuty",
+        Level: 5,
+        Quality: quality,
+      });
+      const two = ev(T(1), "StoredModules", {
+        MarketID: MARKET,
+        Items: [booster(10, 0.2), booster(11, 0.93)],
+      });
+      const retrieve = (fields: object) =>
+        ev(T(3), "ModuleRetrieve", {
+          MarketID: MARKET,
+          Slot: "TinyHardpoint1",
+          RetrievedItem: "$hpt_shieldbooster_size0_class5_name;",
+          RetrievedItem_Localised: "Shield Booster",
+          Ship: "python_nx",
+          ShipID: 27,
+          Hot: false,
+          EngineerModifications: "ShieldBooster_HeavyDuty",
+          Level: 5,
+          ...fields,
+        });
+      const left = (fields: object) =>
+        buildState([docked, two, retrieve(fields)]).stored_modules!.map((m) => m.storage_slot);
+      // As the game writes it: no StorageSlot, so the quality tells them apart.
+      expect(left({ Quality: 0.93 })).toEqual([10]);
+      expect(left({ Quality: 0.2 })).toEqual([11]);
+      // A StorageSlot, when given, decides.
+      expect(left({ Quality: 0.2, StorageSlot: 11 })).toEqual([10]);
+    });
+
     it("takes a module sold from storage out, and marks a fetched one in transit", () => {
       const s = stored(
         ev(T(3), "ModuleSellRemote", {

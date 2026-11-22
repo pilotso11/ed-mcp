@@ -303,11 +303,19 @@ export function buildState(events: JournalEvent[]): JournalState {
     const level = num(e.Level);
     const same = (m: StoredModule) =>
       m.symbol === symbol && m.blueprint === blueprint && m.level === level;
+    const quality = num(e.Quality);
     const atHere = (m: StoredModule) => !m.in_transit && m.market_id === here;
-    // The module stored here with that engineering, else one with it elsewhere (one fetched
-    // here is in transit until the next StoredModules), else one stored here, else any of them.
+    // The game's ModuleRetrieve gives no StorageSlot (none of 251 real ones did); one that does
+    // names the module exactly.
+    const slot = num(e.StorageSlot);
+    // The module in that slot; else the one stored here with that engineering, the same quality
+    // first, so of two alike the right one goes; else one with it elsewhere (one fetched here is
+    // in transit until the next StoredModules); else one stored here; else any of them.
     for (const pick of [
+      (m: StoredModule) => slot !== null && m.storage_slot === slot && m.symbol === symbol,
+      (m: StoredModule) => same(m) && m.quality === quality && atHere(m),
       (m: StoredModule) => same(m) && atHere(m),
+      (m: StoredModule) => same(m) && m.quality === quality,
       same,
       (m: StoredModule) => m.symbol === symbol && atHere(m),
       (m: StoredModule) => m.symbol === symbol,
