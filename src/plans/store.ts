@@ -7,10 +7,13 @@ import { lockedWrite } from "../fs/lock.js";
 import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
 import {
+  ActionStatus,
+  DoneBySchema,
   PlanFileSchema,
   PlanId,
   PlanInputSchema,
   StopSchema,
+  type Action,
   type Plan,
   type PlanFile,
   type PlanInput,
@@ -108,6 +111,10 @@ export class PlanStore {
   private put(data: PlanFile, input: PlanInput, opts: { newRoute?: boolean } = {}): Plan {
     const parsed = PlanInputSchema.safeParse(input);
     if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+    for (const [i, s] of parsed.data.stops.entries()) {
+      const dup = repeatedActionId(s);
+      if (dup) throw new UserError(`Invalid plan: stop ${i} has two actions with the id "${dup}"`);
+    }
     const stamp = this.now().toISOString();
     const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
     const old = idx >= 0 ? data.plans[idx]! : undefined;
@@ -162,6 +169,10 @@ export class PlanStore {
     const parsed = StopSchema.safeParse(stop);
     if (!parsed.success) {
       return Promise.reject(new UserError(`Invalid stop: ${z.prettifyError(parsed.error)}`));
+    }
+    const dup = repeatedActionId(parsed.data);
+    if (dup) {
+      return Promise.reject(new UserError(`Invalid stop: two actions have the id "${dup}"`));
     }
     const id = PlanId.safeParse(planId);
     if (!id.success) {
@@ -228,6 +239,79 @@ export class PlanStore {
       }
       plan.updated_at = this.now().toISOString();
       return { plan, lapCompleted };
+    });
+  }
+
+  /**
+   * Sets one action of a stop, named by the stop's label or index and the action's id, in one
+   * locked write. Setting status todo drops the action's done_by unless the patch gives one, so
+   * a reopened action claims no events. suit_id and weapon_id are for a suit or weapon bought
+   * after the plan was written (see the action's gear).
+   */
+  updateAction(
+    planId: string,
+    ref: { stop: { label?: string; index?: number }; action: string },
+    patch: ActionPatch,
+  ): Promise<Plan> {
+    const parsed = ActionPatchSchema.safeParse(patch);
+    if (!parsed.success) {
+      return Promise.reject(
+        new UserError(`Invalid action update: ${z.prettifyError(parsed.error)}`),
+      );
+    }
+    const p = parsed.data;
+    if (Object.values(p).every((v) => v === undefined)) {
+      return Promise.reject(
+        new UserError("Give status, done_by, suit_id, weapon_id or notes to update"),
+      );
+    }
+    return this.mutate((data) => {
+      const plan = data.plans.find((x) => x.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      const index = findStop(plan, ref.stop);
+      const stop = plan.stops[index]!;
+      const action = stop.actions?.find((a) => a.id === ref.action);
+      if (!action) {
+        const known = stop.actions?.map((a) => a.id).join(", ");
+        throw new UserError(
+          `No action "${ref.action}" at stop ${index} of plan "${planId}"` +
+            (known ? `. Actions: ${known}` : "; the stop has no actions"),
+        );
+      }
+      if (p.status !== undefined) {
+        action.status = p.status;
+        if (p.status === "todo" && p.done_by === undefined) delete action.done_by;
+      }
+      if (p.done_by !== undefined) action.done_by = p.done_by;
+      if (p.suit_id !== undefined) action.suit_id = p.suit_id;
+      if (p.weapon_id !== undefined) action.weapon_id = p.weapon_id;
+      if (p.notes !== undefined) action.notes = p.notes;
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  /**
+   * Sets a build plan's build.ship_id in one locked write, as after the hull of a buy_ship is
+   * delivered. A plan that has another ship_id already is left alone unless overwrite is true.
+   */
+  setBuildShip(planId: string, shipId: number, opts: { overwrite?: boolean } = {}): Promise<Plan> {
+    if (!Number.isInteger(shipId)) {
+      return Promise.reject(new UserError(`Invalid ship ID ${shipId}: give the journal ShipID`));
+    }
+    return this.mutate((data) => {
+      const plan = data.plans.find((x) => x.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      if (!plan.build) throw new UserError(`Plan "${planId}" is not a build plan: it has no build`);
+      const old = plan.build.ship_id;
+      if (old !== undefined && old !== shipId && !opts.overwrite) {
+        throw new UserError(
+          `Plan "${planId}" is for ship ${old} already; pass overwrite: true to change it to ${shipId}`,
+        );
+      }
+      plan.build.ship_id = shipId;
+      plan.updated_at = this.now().toISOString();
+      return plan;
     });
   }
 
@@ -433,6 +517,25 @@ export class PlanStore {
       console.error(`Could not write Markdown plan copies to ${dir}: ${(err as Error).message}`);
     }
   }
+}
+
+export const ActionPatchSchema = z.object({
+  status: ActionStatus.optional(),
+  done_by: z.array(DoneBySchema).optional(),
+  suit_id: z.number().int().optional(),
+  weapon_id: z.number().int().optional(),
+  notes: z.string().optional(),
+});
+export type ActionPatch = z.input<typeof ActionPatchSchema>;
+
+/** An action id used twice in a stop, or null: an action is named by its id within its stop. */
+function repeatedActionId(stop: { actions?: Action[] }): string | null {
+  const seen = new Set<string>();
+  for (const a of stop.actions ?? []) {
+    if (seen.has(a.id)) return a.id;
+    seen.add(a.id);
+  }
+  return null;
 }
 
 // Progress (status, notes) may change during a long route_stops call; the places may not.

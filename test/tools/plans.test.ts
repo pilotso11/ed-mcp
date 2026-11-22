@@ -113,6 +113,63 @@ describe("plan tools", () => {
     expect(md.markdown).toContain("3. [ ] **hand_in** Sol — Daedalus: sell ← next");
   });
 
+  it("sets one action's status with plan_update_stop, leaving the stop", async () => {
+    const { client } = await setup();
+    const build = {
+      id: "python",
+      name: "Python build",
+      build: { target: "ship", scope: "upgrade", ship: "python_nx", ship_id: 27 },
+      stops: [
+        {
+          system: "Deciat",
+          station: "Farseer Inc",
+          purpose: "engineer",
+          kind: "engineer",
+          actions: [
+            {
+              id: "fsd",
+              kind: "engineer",
+              label: "Roll FSD Increased Range to G5",
+              slot: "FrameShiftDrive",
+              blueprint: "FSD_LongRange",
+              grade: 5,
+            },
+          ],
+        },
+      ],
+    };
+    expect((await callTool(client, "plan_upsert", { plan: build })).isError).toBe(false);
+    const done = await callTool(client, "plan_update_stop", {
+      plan_id: "python",
+      label: "Farseer Inc",
+      action: "fsd",
+      status: "done",
+      notes: "rolled at the remote workshop",
+    });
+    expect(done.json).toMatchObject({
+      build: { ship_id: 27 },
+      stops: [
+        {
+          status: "todo",
+          actions: [{ status: "done", notes: "rolled at the remote workshop" }],
+        },
+      ],
+      next_stop: { index: 0 },
+    });
+    const missing = await callTool(client, "plan_update_stop", {
+      plan_id: "python",
+      index: 0,
+      action: "pd",
+      status: "done",
+    });
+    expect(missing).toMatchObject({
+      isError: true,
+      text: 'Action "pd" at stop 0 in plan "python" was not updated (status: done). No action "pd" at stop 0 of plan "python". Actions: fsd',
+    });
+    const tool = (await client.listTools()).tools.find((t) => t.name === "plan_update_stop")!;
+    expect(tool.description).toContain("With action (an action id at that stop)");
+  });
+
   it("says what plan_update_stop did not change", async () => {
     const { client } = await setup();
     await callTool(client, "plan_upsert", { plan });

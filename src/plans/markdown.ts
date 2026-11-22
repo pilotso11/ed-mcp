@@ -1,4 +1,4 @@
-import type { Plan, PlanItem, Stop } from "./schema.js";
+import type { Needs, Plan, PlanItem, Stop } from "./schema.js";
 import { nextStop } from "./stops.js";
 
 const box: Record<PlanItem["status"], string> = {
@@ -12,14 +12,46 @@ const stopBox: Record<Stop["status"], string> = { todo: "[ ]", done: "[x]", skip
 /** Degrees to four decimals, about 10 m on an Earth-sized body, with no "-0.0000". */
 const deg = (v: number) => (Math.abs(v) < 0.00005 ? 0 : v).toFixed(4);
 
+const credits = (n: number) => `${n.toLocaleString("en-US")} cr`;
+
+/** "12× Arsenic, 5,100,000 cr", or null for no needs. */
+function needsText(needs: Needs | undefined): string | null {
+  const parts = (needs?.materials ?? []).map((m) => `${m.count}× ${m.name}`);
+  if (needs?.credits) parts.push(credits(needs.credits));
+  return parts.length ? parts.join(", ") : null;
+}
+
 export function planToMarkdown(plan: Plan): string {
   const done = plan.items.filter((i) => i.status === "done" || i.status === "skipped").length;
+  const actions = plan.stops.flatMap((s) => s.actions ?? []);
+  const actionsDone = actions.filter((a) => a.status === "done" || a.status === "skipped").length;
   const out = [
     `# ${plan.name}`,
     "",
-    `Plan \`${plan.id}\` · updated ${plan.updated_at} · ${done}/${plan.items.length} done`,
+    [
+      `Plan \`${plan.id}\``,
+      `updated ${plan.updated_at}`,
+      // A build plan written by build_plan has actions and no items.
+      plan.items.length || !actions.length ? `${done}/${plan.items.length} done` : undefined,
+      actions.length ? `${actionsDone}/${actions.length} actions done` : undefined,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     "",
   ];
+  const b = plan.build;
+  if (b) {
+    const what = `${b.target === "ship" ? "ship" : "suit loadout"} ${b.scope === "upgrade" ? "upgrade" : "build"}`;
+    const parts = [
+      `Build: ${what}`,
+      b.ship,
+      b.ship_id !== undefined ? `ShipID ${b.ship_id}` : undefined,
+      b.loadout_id !== undefined ? `LoadoutID ${b.loadout_id}` : undefined,
+      b.started_at ? `from ${b.started_at}` : undefined,
+    ];
+    out.push(parts.filter(Boolean).join(" · "), "");
+    if (b.summary) out.push(`Target: ${b.summary}`, "");
+  }
   if (plan.repeat) out.push(`Repeating loop · lap ${plan.lap ?? 1}`, "");
   if (plan.profit_per_hour !== undefined) {
     const sustained = plan.repeat ? " (sustained)" : "";
@@ -61,6 +93,12 @@ export function planToMarkdown(plan: Plan): string {
         out.push(
           `   - ${c.action === "buy" ? "Buy" : "Sell"} ${c.amount} t ${c.commodity}${price}${mission}`,
         );
+      }
+      for (const a of s.actions ?? []) {
+        out.push(`   - ${stopBox[a.status]} ${a.label}`);
+        const needs = needsText(a.needs);
+        if (needs && a.status === "todo") out.push(`     - Needs: ${needs}`);
+        if (a.notes) out.push(`     - Notes: ${a.notes}`);
       }
       if (s.notes) out.push(`   - Notes: ${s.notes}`);
     });

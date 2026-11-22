@@ -36,9 +36,136 @@ export const StopKind = z.enum([
   "trade",
   "mining",
   "fuel",
+  "gather",
+  "pioneer",
+  "bartender",
   "other",
 ]);
 export const StopStatus = z.enum(["todo", "done", "skipped"]);
+
+// What a build stop's actions are judged by (ED Chat's build panel reads them from the journal).
+export const ActionKind = z.enum([
+  // At an outfitting station
+  "buy_module",
+  "retrieve_module",
+  "fetch_module",
+  "store_module",
+  "sell_module",
+  "move_module",
+  "buy_ship",
+  "transfer_ship",
+  "swap_ship",
+  "unlock_tech",
+  // At an engineer
+  "unlock_engineer",
+  "engineer",
+  "experimental",
+  // At a material trader, or anywhere
+  "trade_material",
+  "collect_material",
+  "synthesis",
+  // On foot
+  "buy_suit",
+  "buy_weapon",
+  "upgrade_suit",
+  "upgrade_weapon",
+  "modify_suit",
+  "modify_weapon",
+  "trade_resource",
+  "buy_resource",
+  "collect_resource",
+]);
+export const ActionStatus = z.enum(["todo", "done", "skipped"]);
+
+const count = z.number().int().positive();
+
+export const NeedsSchema = z.object({
+  materials: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        symbol: z.string().optional(),
+        kind: z
+          .string()
+          .optional()
+          .describe("Raw, Manufactured or Encoded; on foot Item, Component or Data"),
+        grade: z.number().int().optional(),
+        trade_group: z.string().optional(),
+        count,
+      }),
+    )
+    .optional(),
+  credits: z.number().min(0).optional(),
+});
+
+// An event the panel counted for an action: its timestamp, name and n, its place (from 0) among
+// the events with that name and timestamp in the journal; role and amount say what it was used for.
+export const DoneBySchema = z.object({
+  at: z.string().min(1).describe("The event's timestamp"),
+  event: z.string().min(1),
+  n: z.number().int().min(0),
+  role: z.string().min(1),
+  amount: z.number().int().positive().optional(),
+});
+
+const grade = z.number().int().min(1).max(5);
+const id = z.number().int();
+const materialCount = z.object({ material: z.string().min(1), count });
+
+export const ActionSchema = z.object({
+  id: z.string().min(1),
+  kind: ActionKind,
+  label: z.string().min(1).describe('What to do, e.g. "Roll FSD Increased Range to G5"'),
+  status: ActionStatus.default("todo"),
+  done_by: z.array(DoneBySchema).optional(),
+  // On foot: a plan-local key shared by a buy and the later actions for that suit or weapon.
+  gear: z.string().min(1).optional(),
+  needs: NeedsSchema.optional(),
+  // One roll's materials for each grade, "1" to "5", for an engineer action.
+  needs_by_grade: z.record(z.string().regex(/^[1-5]$/, "a grade, 1 to 5"), NeedsSchema).optional(),
+  // What the action is judged by; each kind uses some.
+  module: z.string().min(1).optional(),
+  slot: z.string().min(1).optional(),
+  storage_slot: z.number().int().min(0).optional(),
+  blueprint: z.string().min(1).optional(),
+  grade: grade.optional(),
+  experimental: z.string().min(1).optional(),
+  engineer: z.string().min(1).optional(),
+  ship: z.string().min(1).optional(),
+  ship_id: id.optional(),
+  broker: z.string().min(1).optional(),
+  item: z.string().min(1).optional(),
+  recipe: z.string().min(1).optional(),
+  paid: materialCount.optional(),
+  received: materialCount.optional(),
+  material: z.string().min(1).optional(),
+  count: count.optional(),
+  suit: z.string().min(1).optional(),
+  suit_id: id.optional(),
+  weapon: z.string().min(1).optional(),
+  weapon_id: id.optional(),
+  modification: z.string().min(1).optional(),
+  resource: z.string().min(1).optional(),
+  notes: z.string().optional(),
+});
+
+export const BuildSchema = z.object({
+  target: z.enum(["ship", "suit_loadout"]),
+  scope: z.enum(["full", "upgrade"]),
+  ship: z.string().min(1).optional().describe("Journal ship type, e.g. python_nx"),
+  ship_id: id.optional().describe("Journal ShipID; set after a hull purchase"),
+  loadout_id: id.optional().describe("On foot: the suit loadout's LoadoutID"),
+  started_at: z
+    .string()
+    .optional()
+    .describe("ISO time; actions count journal events after it (created_at when missing)"),
+  summary: z.string().optional().describe("One line of the target"),
+  rolls_per_grade: z
+    .array(z.number().int().min(0))
+    .length(5)
+    .optional()
+    .describe("Rolls for grades 1 to 5; [1, 2, 3, 4, 5] when missing"),
+});
 
 export const CargoSchema = z.object({
   commodity: z.string().min(1).describe("English commodity name, e.g. Gold"),
@@ -76,6 +203,8 @@ export const StopSchema = z.object({
   // can check the hold against the plan. A stop that sells one load and buys the next lists the
   // sale first.
   cargo: z.array(CargoSchema).optional(),
+  // What to do at a build stop, in the order it must be done.
+  actions: z.array(ActionSchema).optional(),
   status: StopStatus.default("todo"),
   notes: z.string().optional(),
 });
@@ -101,6 +230,8 @@ export const PlanInputSchema = z.object({
   id: PlanId,
   name: z.string().min(1),
   target_build: z.unknown().optional(),
+  // For a build plan: what it builds and for which ship or suit loadout.
+  build: BuildSchema.optional(),
   items: z.array(PlanItemSchema).default([]),
   stops: z.array(StopSchema).default([]),
   route: PlanRouteSchema.optional(),
@@ -133,6 +264,11 @@ export const PlanFileSchema = z.object({
 });
 
 export type Cargo = z.infer<typeof CargoSchema>;
+export type Action = z.infer<typeof ActionSchema>;
+export type ActionInput = z.input<typeof ActionSchema>;
+export type DoneBy = z.infer<typeof DoneBySchema>;
+export type Needs = z.infer<typeof NeedsSchema>;
+export type Build = z.infer<typeof BuildSchema>;
 export type PlanItem = z.infer<typeof PlanItemSchema>;
 export type PlanRoute = z.infer<typeof PlanRouteSchema>;
 export type Stop = z.infer<typeof StopSchema>;
