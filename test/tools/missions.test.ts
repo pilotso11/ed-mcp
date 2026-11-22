@@ -5,6 +5,7 @@ import path from "node:path";
 import { ActivityStore } from "../../src/activity/store.js";
 import { HttpError } from "../../src/http/client.js";
 import { PlanStore } from "../../src/plans/store.js";
+import { nextStop } from "../../src/plans/stops.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
 import type { JournalService } from "../../src/journal/service.js";
@@ -458,6 +459,8 @@ describe("missions_plan", () => {
       "return to Sol — Abraham Lincoln",
     ]);
     expect(plan.route?.stop_indexes).toEqual([[0], [1], [2], []]);
+    // The panel's next stop is the route's first.
+    expect(nextStop(plan)).toMatchObject({ index: 0, station: "Beta Hub" });
     expect(await s.activity.get()).toMatchObject({
       kind: "missions",
       plan_id: "missions",
@@ -772,5 +775,16 @@ describe("missions_plan, more", () => {
     const stop = (await s.plans.get("missions")).stops[0]!;
     expect(stop.purpose).toBe("Deliver 4 t Gold · deliver 2 t Tea");
     expect(stop.status).toBe("done");
+  });
+
+  it("points a note about another plan at the mission run", async () => {
+    const s = await stores();
+    await s.activity.set({ kind: "engineering", summary: "Grinding G5 FSD", plan_id: "fsd" });
+    await save({}, s);
+    expect(await s.activity.get()).toMatchObject({
+      kind: "missions",
+      plan_id: "missions",
+      summary: "Mission run: 5 missions over 4 stops",
+    });
   });
 });
