@@ -32,6 +32,19 @@ describe("PlanInputSchema stops", () => {
       stops: [{ ...stop, position: { latitude: 91, longitude: 0 } }],
     });
     expect(bad.success).toBe(false);
+    const badLongitude = PlanInputSchema.safeParse({
+      ...base,
+      stops: [{ ...stop, position: { latitude: 0, longitude: 181 } }],
+    });
+    expect(badLongitude.success).toBe(false);
+  });
+
+  it("accepts a position without a body, as the docs promise", () => {
+    const p = PlanInputSchema.parse({
+      ...base,
+      stops: [{ system: "Sol", purpose: "x", position: { latitude: 1, longitude: 2 } }],
+    });
+    expect(p.stops[0]!.position).toEqual({ latitude: 1, longitude: 2 });
   });
 
   it("rejects an unknown kind", () => {

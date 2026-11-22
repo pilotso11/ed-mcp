@@ -279,6 +279,37 @@ describe("PlanStore", () => {
       expect((await s.list())[0]!.next_stop).toMatchObject({ index: 1 });
     });
 
+    it("keeps them when plan_upsert adds a stop at the end, or drops the last ones", async () => {
+      const s = new PlanStore(file, now);
+      await s.upsert(input({ stops, route }));
+      const p = await s.get("python-mk2");
+      const added = await s.upsert({
+        ...p,
+        stops: [...p.stops, { system: "Beta", purpose: "fuel", status: "todo" }],
+      });
+      expect(added.route!.stop_indexes).toEqual([[1], [0]]);
+      const back = await s.upsert({ ...added, stops: added.stops.slice(0, 2) });
+      expect(back.route!.stop_indexes).toEqual([[1], [0]]);
+    });
+
+    it("keeps them when plan_upsert only moves a stop's position", async () => {
+      const s = new PlanStore(file, now);
+      const onBody = stops.map((x) => ({
+        ...x,
+        body: "B 1",
+        position: { latitude: 1, longitude: 1 },
+      }));
+      await s.upsert(input({ stops: onBody, route }));
+      const p = await s.get("python-mk2");
+      const moved = await s.upsert({
+        ...p,
+        stops: p.stops.map((x, i) =>
+          i === 0 ? { ...x, position: { latitude: 2, longitude: 2 } } : x,
+        ),
+      });
+      expect(moved.route!.stop_indexes).toEqual([[1], [0]]);
+    });
+
     it("drops them when plan_upsert inserts a stop under the same route", async () => {
       const s = new PlanStore(file, now);
       await s.upsert(input({ stops, route }));
