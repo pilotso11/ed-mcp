@@ -15,7 +15,6 @@ import {
   type PlanItem,
   type PlanRoute,
   type Stop,
-  planInputProblem,
 } from "./schema.js";
 import { findStop, nextStop, type NextStop } from "./stops.js";
 
@@ -83,9 +82,6 @@ export class PlanStore {
     return this.mutate((data) => {
       const parsed = PlanInputSchema.safeParse(input);
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
-      // Checked on saving only, so a stored stop never stops the plans file from loading.
-      const problem = planInputProblem(parsed.data);
-      if (problem) throw new UserError(`Invalid plan: ${problem}`);
       const stamp = this.now().toISOString();
       const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
       if (idx >= 0 && opts.overwrite === false) {

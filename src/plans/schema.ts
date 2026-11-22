@@ -50,6 +50,7 @@ export const StopSchema = z.object({
     .optional(),
   body: z.string().min(1).optional(),
   // A place on the body's surface, in degrees, such as a bookmark ED Chat saved from Status.json.
+  // It goes with `body`; a stop without one still loads, and shows the coordinates alone.
   position: z
     .object({
       latitude: z.number().min(-90).max(90),
@@ -63,15 +64,6 @@ export const StopSchema = z.object({
   status: StopStatus.default("todo"),
   notes: z.string().optional(),
 });
-
-/**
- * Rules a plan must meet to be saved, beyond its schema; null when it meets them. Not part of the
- * schema, so a plans file that breaks one still loads.
- */
-export function planInputProblem(plan: { stops: Stop[] }): string | null {
-  const i = plan.stops.findIndex((s) => s.position && !s.body);
-  return i >= 0 ? `stop ${i} has a position but no body` : null;
-}
 
 export const PlanRouteSchema = z.object({
   computed_at: z.string(),

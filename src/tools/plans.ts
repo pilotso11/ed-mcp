@@ -4,13 +4,7 @@ import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { planToMarkdown } from "../plans/markdown.js";
-import {
-  ItemStatus,
-  PlanInputSchema,
-  StopStatus,
-  type PlanInput,
-  planInputProblem,
-} from "../plans/schema.js";
+import { ItemStatus, PlanInputSchema, StopStatus, type PlanInput } from "../plans/schema.js";
 import { nextStop } from "../plans/stops.js";
 import { PlanExistsError, type PlanStore } from "../plans/store.js";
 import { UserError } from "../errors.js";
@@ -33,9 +27,6 @@ export function registerPlanTools(
   ) => {
     const parsed = PlanInputSchema.safeParse(input);
     if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
-    // Checked here too, so a plan that cannot be saved is not handed back as a failed write.
-    const problem = planInputProblem(parsed.data);
-    if (problem) throw new UserError(`Invalid plan: ${problem}`);
     try {
       return await plans.upsert(parsed.data, opts);
     } catch (err) {
@@ -114,7 +105,6 @@ export function registerPlanTools(
         "Create or replace a plan. A plan is a ship build, a route, or both: for example system X, planet Y for bios, then planet Z, then station A to hand in. " +
         "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
         "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes and after rules. " +
-        "The plan `bookmarks`, when there is one, holds surface bookmarks (a body and a position); when the user asks to go back to them, it can be made the activity note's plan. " +
         "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },
