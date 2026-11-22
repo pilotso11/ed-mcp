@@ -83,7 +83,7 @@ export function registerJournalTools(
       },
       description:
         "The commander's current state from the local game journal: name, credits, location " +
-        "(system, station, docked), ship (type, name, jump range, cargo and fuel capacity) and cargo. " +
+        "(system, station, docked), ship (type, journal ShipID, name, jump range, cargo and fuel capacity) and cargo. " +
         FRESHNESS_TEXT,
     },
     wrap(async () => {

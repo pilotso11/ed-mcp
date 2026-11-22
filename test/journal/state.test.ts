@@ -61,6 +61,7 @@ describe("buildState", () => {
     expect(s.credits).toBe(1234);
     expect(s.ship).toEqual({
       type: "Corsair",
+      id: null,
       name: "PICORSER",
       ident: "PC-01",
       max_jump_range: 24.5,
@@ -89,6 +90,7 @@ describe("buildState", () => {
     ]).ship;
     expect(s).toEqual({
       type: "Anaconda",
+      id: null,
       name: "Big",
       ident: null,
       max_jump_range: null,
@@ -117,6 +119,346 @@ describe("buildState", () => {
       const s = buildState([...before, ev(T(2), "LoadGame", { Ship: symbol })]).ship;
       expect(s).toMatchObject({ type: "Corsair", name: "PICORSER", max_jump_range: 24.5 });
     }
+  });
+
+  describe("ship id", () => {
+    it("comes from LoadGame, Loadout, ShipyardSwap and ShipyardNew", () => {
+      const id = (...events: ReturnType<typeof ev>[]) => buildState(events).ship.id;
+      const load = ev(T(0), "LoadGame", { Ship: "python_nx", ShipID: 27, ShipName: "Ark" });
+      expect(id(load)).toBe(27);
+      expect(id(load, ev(T(1), "LoadGame", { Ship: "UtilitySuit_Class1" }))).toBe(27);
+      expect(id(load, ev(T(1), "Loadout", { Ship: "krait_mkii", ShipID: 12 }))).toBe(12);
+      // A Loadout without a ShipID keeps the one known.
+      expect(id(load, ev(T(1), "Loadout", { Ship: "python_nx" }))).toBe(27);
+      const swap = ev(T(1), "ShipyardSwap", {
+        ShipType: "diamondbackxl",
+        ShipID: 66,
+        StoreOldShip: "python_nx",
+        StoreShipID: 27,
+        MarketID: 3700000001,
+      });
+      expect(buildState([load, swap]).ship).toMatchObject({ type: "diamondbackxl", id: 66 });
+      // A purchase changes nothing until the hull is delivered.
+      const buy = ev(T(2), "ShipyardBuy", {
+        ShipType: "cobramkiii",
+        ShipPrice: 340976,
+        StoreOldShip: "DiamondBackXL",
+        StoreShipID: 66,
+        MarketID: 3700000001,
+      });
+      expect(id(load, swap, buy)).toBe(66);
+      const ship = buildState([
+        load,
+        swap,
+        buy,
+        ev(T(3), "ShipyardNew", { ShipType: "cobramkiii", NewShipID: 71 }),
+      ]).ship;
+      expect(ship).toEqual({
+        type: "cobramkiii",
+        id: 71,
+        name: null,
+        ident: null,
+        max_jump_range: null,
+        cargo_capacity: null,
+        fuel_capacity: null,
+      });
+    });
+  });
+
+  describe("stored modules", () => {
+    const MARKET = 3700000001;
+    const OTHER = 3700000002;
+    const docked = ev(T(0), "Docked", {
+      StarSystem: "Shinrarta Dezhra",
+      StationName: "Jameson Memorial",
+      MarketID: MARKET,
+    });
+    const items = [
+      {
+        Name: "$hpt_shieldbooster_size0_class5_name;",
+        Name_Localised: "Shield Booster",
+        StorageSlot: 3,
+        StarSystem: "Belach",
+        MarketID: OTHER,
+        TransferCost: 100,
+        TransferTime: 1532,
+        BuyPrice: 281000,
+        Hot: false,
+        EngineerModifications: "ShieldBooster_HeavyDuty",
+        Level: 5,
+        Quality: 0.93,
+      },
+      {
+        Name: "$hpt_shieldbooster_size0_class5_name;",
+        Name_Localised: "Shield Booster",
+        StorageSlot: 4,
+        StarSystem: "Shinrarta Dezhra",
+        MarketID: MARKET,
+        TransferCost: 0,
+        TransferTime: 0,
+        BuyPrice: 281000,
+        Hot: false,
+      },
+      {
+        Name: "$int_passengercabin_size6_class2_name;",
+        Name_Localised: "BC Passenger Cabin",
+        StorageSlot: 5,
+        InTransit: true,
+        BuyPrice: 184232,
+        Hot: false,
+      },
+      {
+        Name: "$int_powerplant_size6_class5_name;",
+        Name_Localised: "Power Plant",
+        StorageSlot: 6,
+        StarSystem: "Belach",
+        MarketID: OTHER,
+        TransferCost: 2900,
+        TransferTime: 1532,
+        BuyPrice: 10749798,
+        Hot: false,
+      },
+    ];
+    const snapshot = ev(T(1), "StoredModules", {
+      MarketID: MARKET,
+      StationName: "Jameson Memorial",
+      StarSystem: "Shinrarta Dezhra",
+      Items: items,
+    });
+    const loadout = ev(T(2), "Loadout", {
+      Ship: "python_nx",
+      ShipID: 27,
+      Modules: [
+        {
+          Slot: "Slot03_Size6",
+          Item: "int_shieldgenerator_size6_class5",
+          Engineering: { BlueprintName: "ShieldGenerator_Reinforced", Level: 3, Quality: 0.5 },
+        },
+        { Slot: "TinyHardpoint1", Item: "hpt_heatsinklauncher_turret_tiny" },
+      ],
+    });
+    const stored = (...events: ReturnType<typeof ev>[]) =>
+      buildState([docked, snapshot, loadout, ...events]).stored_modules!;
+
+    it("is null before the first StoredModules, and ignores changes before it", () => {
+      expect(buildState([docked]).stored_modules).toBeNull();
+      const store = ev(T(1), "ModuleStore", {
+        MarketID: MARKET,
+        StoredItem: "$int_cargorack_size6_class1_name;",
+      });
+      expect(buildState([docked, store]).stored_modules).toBeNull();
+    });
+
+    it("lists every module the newest StoredModules lists, wherever each is", () => {
+      const s = stored();
+      expect(s).toHaveLength(4);
+      expect(s[0]).toEqual({
+        symbol: "hpt_shieldbooster_size0_class5",
+        name: "Shield Booster",
+        storage_slot: 3,
+        system: "Belach",
+        market_id: OTHER,
+        in_transit: false,
+        transfer_cost: 100,
+        transfer_time: 1532,
+        buy_price: 281000,
+        hot: false,
+        blueprint: "ShieldBooster_HeavyDuty",
+        level: 5,
+        quality: 0.93,
+      });
+      expect(s[2]).toMatchObject({
+        symbol: "int_passengercabin_size6_class2",
+        in_transit: true,
+        system: null,
+        market_id: null,
+        transfer_time: null,
+      });
+      const replaced = stored(ev(T(9), "StoredModules", { MarketID: MARKET, Items: [items[1]] }));
+      expect(replaced.map((m) => m.storage_slot)).toEqual([4]);
+    });
+
+    it("adds a stored module, with its engineering, at the station it was stored", () => {
+      const s = stored(
+        ev(T(3), "ModuleStore", {
+          MarketID: MARKET,
+          Slot: "Slot09_Size1",
+          StoredItem: "$int_detailedsurfacescanner_tiny_name;",
+          StoredItem_Localised: "Surface Scanner",
+          Ship: "python_nx",
+          ShipID: 27,
+          Hot: false,
+          EngineerModifications: "Sensor_Expanded",
+          Level: 5,
+          Quality: 1,
+        }),
+      );
+      expect(s.at(-1)).toEqual({
+        symbol: "int_detailedsurfacescanner_tiny",
+        name: "Surface Scanner",
+        storage_slot: null,
+        system: "Shinrarta Dezhra",
+        market_id: MARKET,
+        in_transit: false,
+        transfer_cost: null,
+        transfer_time: null,
+        buy_price: null,
+        hot: false,
+        blueprint: "Sensor_Expanded",
+        level: 5,
+        quality: 1,
+      });
+    });
+
+    it("adds each module of a MassModuleStore and a module bought into storage", () => {
+      const s = stored(
+        ev(T(3), "MassModuleStore", {
+          MarketID: MARKET,
+          Ship: "python_nx",
+          ShipID: 27,
+          Items: [
+            { Slot: "Slot04_Size5", Name: "$int_cargorack_size5_class1_name;", Hot: false },
+            {
+              Slot: "Slot05_Size5",
+              Name: "$int_shieldcellbank_size5_class2_name;",
+              Hot: false,
+              EngineerModifications: "ShieldCellBank_Specialised",
+              Level: 2,
+              Quality: 0.4,
+            },
+          ],
+        }),
+        ev(T(4), "ModuleBuyAndStore", {
+          BuyItem: "$int_fuelscoop_size6_class5_name;",
+          BuyItem_Localised: "Fuel Scoop",
+          BuyPrice: 28763610,
+          MarketID: MARKET,
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+      );
+      expect(s.slice(4).map((m) => [m.symbol, m.blueprint, m.buy_price])).toEqual([
+        ["int_cargorack_size5_class1", null, null],
+        ["int_shieldcellbank_size5_class2", "ShieldCellBank_Specialised", null],
+        ["int_fuelscoop_size6_class5", null, 28763610],
+      ]);
+    });
+
+    it("stores the old module of a ModuleBuy, with its engineering from the Loadout", () => {
+      const s = stored(
+        ev(T(3), "ModuleBuy", {
+          Slot: "Slot03_Size6",
+          StoredItem: "$int_shieldgenerator_size6_class5_name;",
+          StoredItem_Localised: "Shield Generator",
+          BuyItem: "$int_shieldgenerator_size6_class5_fast_name;",
+          MarketID: MARKET,
+          BuyPrice: 18900000,
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+        // A sold old module is not stored.
+        ev(T(4), "ModuleBuy", {
+          Slot: "TinyHardpoint1",
+          SellItem: "$hpt_heatsinklauncher_turret_tiny_name;",
+          SellPrice: 3000,
+          BuyItem: "$hpt_shieldbooster_size0_class5_name;",
+          MarketID: MARKET,
+          BuyPrice: 281000,
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+      );
+      expect(s).toHaveLength(5);
+      expect(s.at(-1)).toMatchObject({
+        symbol: "int_shieldgenerator_size6_class5",
+        market_id: MARKET,
+        buy_price: null,
+        blueprint: "ShieldGenerator_Reinforced",
+        level: 3,
+        quality: 0.5,
+      });
+      // The Loadout of another ship says nothing of this one's modules.
+      const other = stored(
+        ev(T(3), "ModuleBuy", {
+          Slot: "Slot03_Size6",
+          StoredItem: "$int_shieldgenerator_size6_class5_name;",
+          BuyItem: "$int_shieldgenerator_size6_class5_fast_name;",
+          MarketID: MARKET,
+          Ship: "krait_mkii",
+          ShipID: 12,
+        }),
+      );
+      expect(other.at(-1)).toMatchObject({ blueprint: null, level: null });
+    });
+
+    it("takes a retrieved module out, the one stored here with that engineering first", () => {
+      const retrieve = (fields: object) =>
+        ev(T(3), "ModuleRetrieve", {
+          MarketID: MARKET,
+          Slot: "TinyHardpoint1",
+          RetrievedItem: "$hpt_shieldbooster_size0_class5_name;",
+          RetrievedItem_Localised: "Shield Booster",
+          Ship: "python_nx",
+          ShipID: 27,
+          Hot: false,
+          ...fields,
+        });
+      // Plain, here: slot 4 goes, and the engineered one at Belach stays.
+      expect(stored(retrieve({})).map((m) => m.storage_slot)).toEqual([3, 5, 6]);
+      // Engineered: only slot 3 has it. It is listed at another station, as one fetched here is
+      // until the next StoredModules.
+      const engineered = retrieve({
+        EngineerModifications: "ShieldBooster_HeavyDuty",
+        Level: 5,
+        Quality: 0.93,
+      });
+      expect(stored(engineered).map((m) => m.storage_slot)).toEqual([4, 5, 6]);
+      // The module it replaced is stored, with the Loadout's engineering (none here).
+      const swapped = stored(
+        retrieve({
+          SwapOutItem: "$hpt_heatsinklauncher_turret_tiny_name;",
+          SwapOutItem_Localised: "Heat Sink Launcher",
+        }),
+      );
+      expect(swapped).toHaveLength(4);
+      expect(swapped.at(-1)).toMatchObject({
+        symbol: "hpt_heatsinklauncher_turret_tiny",
+        name: "Heat Sink Launcher",
+        market_id: MARKET,
+        blueprint: null,
+      });
+    });
+
+    it("takes a module sold from storage out, and marks a fetched one in transit", () => {
+      const s = stored(
+        ev(T(3), "ModuleSellRemote", {
+          StorageSlot: 4,
+          SellItem: "$hpt_shieldbooster_size0_class5_name;",
+          ServerId: 128668537,
+          SellPrice: 230000,
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+        ev(T(4), "FetchRemoteModule", {
+          StorageSlot: 6,
+          StoredItem: "$int_powerplant_size6_class5_name;",
+          StoredItem_Localised: "Power Plant",
+          ServerId: 128064057,
+          TransferCost: 2950,
+          TransferTime: 1500,
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+      );
+      expect(s.map((m) => m.storage_slot)).toEqual([3, 5, 6]);
+      expect(s[2]).toMatchObject({
+        in_transit: true,
+        system: null,
+        market_id: null,
+        transfer_cost: 2950,
+        transfer_time: 1500,
+      });
+    });
   });
 
   describe("materials", () => {

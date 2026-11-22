@@ -402,7 +402,7 @@ The server reads the journal files from the last 14 days, plus `Cargo.json` for 
 Tools:
 
 - `journal_status`: whether the folder exists, the newest journal file, the time of its last event, its age in minutes, the commander and the game version. `warnings` explains problems, and also tells you when a newer ed-mcp release is available. Run it first when journal data looks wrong.
-- `journal_commander`: commander name, credits, location, ship and cargo.
+- `journal_commander`: commander name, credits, location, ship and cargo. The ship's `id` is its journal `ShipID`, from the newest `LoadGame`, `Loadout`, `ShipyardSwap` or `ShipyardNew`; give it as a build plan's `build.ship_id`.
 - `journal_materials`: raw, manufactured and encoded materials with counts. Pass `kinds` to limit the result.
 - `journal_missions`: accepted missions (active and complete) with destination, expiry, reward and passenger or cargo details. `expired: true` marks active missions past their expiry; a complete mission has no deadline. A mission accepted more than 14 days ago has only its name and expiry, and `details_missing: true`.
 - `journal_engineers`: engineers with progress, rank and rank progress.
@@ -412,6 +412,10 @@ Tools:
 - `journal_events`: raw events as the game wrote them, newest first. Filter by `events` (names), `since` (an ISO time) and `system`. `limit` is 50 by default and 200 at most. Arrays longer than 20 entries are cut, and the last entry says how many are left out. Use it for anything the other tools do not cover.
 
 `journal_commander`, `journal_materials`, `journal_missions`, `journal_engineers`, `journal_exobiology`, `journal_exploration`, `journal_massacre` and `journal_events` include `as_of` (the time of the newest journal event), `age_minutes` (its age) and `warnings`.
+
+For programs that use the library (`ed-mcp/journal`), the journal state (`JournalService.state()`) also has `stored_modules`: the modules in storage, from the newest `StoredModules` event in the window (the game writes one at login, when the outfitting screen opens and after most storage changes), with the later `ModuleStore`, `MassModuleStore`, `ModuleBuyAndStore`, `ModuleBuy` (the old module stored), `ModuleRetrieve`, `ModuleSellRemote` and `FetchRemoteModule` events applied. It is null until the window has a `StoredModules`. Each module has its `symbol` (normalised, as below), `name`, `storage_slot` (null for one stored since that event), where it is (`system` and `market_id`, both null while `in_transit`), `transfer_cost`, `transfer_time` (seconds), `buy_price`, `hot`, and its `blueprint`, `level` and `quality` when engineered. A module stored by `ModuleBuy` or swapped out by `ModuleRetrieve` takes its engineering from the newest `Loadout` of that ship. The service also keeps `ShipyardBuy`, `ShipyardRedeem` and `ShipyardTransfer` for build plans.
+
+The library also exports `normaliseModule()`, which gives one form for the module symbols of `Loadout`, the module events and SLEF (lower case, with the `$`, `_name;` and `_free` taken off), and `planTrades()` and `tradeRate()`, the material trader planning that `materials_plan` uses.
 
 Freshness rules:
 
