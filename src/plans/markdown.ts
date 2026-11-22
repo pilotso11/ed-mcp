@@ -9,6 +9,9 @@ const box: Record<PlanItem["status"], string> = {
 };
 const stopBox: Record<Stop["status"], string> = { todo: "[ ]", done: "[x]", skipped: "[-]" };
 
+/** Degrees to four decimals, about 10 m on an Earth-sized body, with no "-0.0000". */
+const deg = (v: number) => (Math.abs(v) < 0.00005 ? 0 : v).toFixed(4);
+
 export function planToMarkdown(plan: Plan): string {
   const done = plan.items.filter((i) => i.status === "done" || i.status === "skipped").length;
   const out = [
@@ -39,7 +42,10 @@ export function planToMarkdown(plan: Plan): string {
     out.push("## Stops", "");
     const next = nextStop(plan)?.index;
     plan.stops.forEach((s, n) => {
-      const place = [s.system, s.body, s.station].filter(Boolean).join(" — ");
+      const at = s.position ? `(${deg(s.position.latitude)}, ${deg(s.position.longitude)})` : null;
+      // With the body it is on; a stop loaded without one still shows its coordinates.
+      const body = [s.body, at].filter(Boolean).join(" ") || undefined;
+      const place = [s.system, body, s.station].filter(Boolean).join(" — ");
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";
       out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);

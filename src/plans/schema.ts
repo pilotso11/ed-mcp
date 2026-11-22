@@ -49,6 +49,15 @@ export const StopSchema = z.object({
     .transform((v) => (v === "" ? undefined : v))
     .optional(),
   body: z.string().min(1).optional(),
+  // A place on the body's surface, in degrees, such as a bookmark ED Chat saved from Status.json.
+  // It goes with `body`; a stop without one still loads, and shows the coordinates alone.
+  position: z
+    .object({
+      latitude: z.number().min(-90).max(90).describe("Degrees"),
+      longitude: z.number().min(-180).max(180).describe("Degrees"),
+    })
+    .describe("A place on the body\'s surface; give the body too")
+    .optional(),
   purpose: z.string().min(1),
   label: z.string().min(1).optional(),
   kind: StopKind.optional(),
@@ -99,6 +108,7 @@ export const PlanFileSchema = z.object({
 export type PlanItem = z.infer<typeof PlanItemSchema>;
 export type PlanRoute = z.infer<typeof PlanRouteSchema>;
 export type Stop = z.infer<typeof StopSchema>;
+export type PlanStopInput = z.input<typeof StopSchema>;
 export type PlanInput = z.input<typeof PlanInputSchema>;
 export type Plan = z.infer<typeof PlanSchema>;
 export type PlanFile = z.infer<typeof PlanFileSchema>;

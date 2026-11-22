@@ -279,6 +279,37 @@ describe("PlanStore", () => {
       expect((await s.list())[0]!.next_stop).toMatchObject({ index: 1 });
     });
 
+    it("keeps them when plan_upsert adds a stop at the end, or drops the last ones", async () => {
+      const s = new PlanStore(file, now);
+      await s.upsert(input({ stops, route }));
+      const p = await s.get("python-mk2");
+      const added = await s.upsert({
+        ...p,
+        stops: [...p.stops, { system: "Beta", purpose: "fuel", status: "todo" }],
+      });
+      expect(added.route!.stop_indexes).toEqual([[1], [0]]);
+      const back = await s.upsert({ ...added, stops: added.stops.slice(0, 2) });
+      expect(back.route!.stop_indexes).toEqual([[1], [0]]);
+    });
+
+    it("keeps them when plan_upsert only moves a stop's position", async () => {
+      const s = new PlanStore(file, now);
+      const onBody = stops.map((x) => ({
+        ...x,
+        body: "B 1",
+        position: { latitude: 1, longitude: 1 },
+      }));
+      await s.upsert(input({ stops: onBody, route }));
+      const p = await s.get("python-mk2");
+      const moved = await s.upsert({
+        ...p,
+        stops: p.stops.map((x, i) =>
+          i === 0 ? { ...x, position: { latitude: 2, longitude: 2 } } : x,
+        ),
+      });
+      expect(moved.route!.stop_indexes).toEqual([[1], [0]]);
+    });
+
     it("drops them when plan_upsert inserts a stop under the same route", async () => {
       const s = new PlanStore(file, now);
       await s.upsert(input({ stops, route }));
@@ -604,4 +635,132 @@ describe("PlanStore in a sync folder", () => {
       }
     },
   );
+});
+
+describe("PlanStore stop positions", () => {
+  it("saves and loads a stop's position", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-pos-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      const stop = {
+        system: "Col 285",
+        body: "Col 285 6 k",
+        purpose: "Concha",
+        position: { latitude: 54.14, longitude: -51.74 },
+      };
+      await store.upsert({ id: "b", name: "B", stops: [stop] });
+      expect((await store.get("b")).stops[0]!.position).toEqual(stop.position);
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("PlanStore.addStop", () => {
+  it("adds a stop, making the plan when it is missing, and keeps edits made in between", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-add-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      const stop = (n: number) => ({
+        system: "Col 285",
+        body: "Col 285 6 k",
+        purpose: `Spot ${n}`,
+        position: { latitude: n, longitude: n },
+      });
+      await store.addStop("bookmarks", "Bookmarks", stop(1));
+      await store.updateStop("bookmarks", { index: 0 }, { notes: "kept" });
+      const plan = await store.addStop("bookmarks", "Bookmarks", stop(2));
+      expect(plan.name).toBe("Bookmarks");
+      expect(plan.stops.map((s) => [s.purpose, s.notes, s.status])).toEqual([
+        ["Spot 1", "kept", "todo"],
+        ["Spot 2", undefined, "todo"],
+      ]);
+      await expect(store.addStop("bookmarks", "B", { system: "", purpose: "x" })).rejects.toThrow(
+        "Invalid stop",
+      );
+      // An existing plan keeps its name and created_at.
+      await store.upsert({ id: "trip", name: "My trip", stops: [] });
+      const before = (await store.get("trip")).created_at;
+      const trip = await store.addStop("trip", "Other name", stop(3));
+      expect([trip.name, trip.created_at]).toEqual(["My trip", before]);
+      await expect(store.addStop("Bad Id!", "B", stop(4))).rejects.toThrow("Invalid plan");
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("PlanStore.setRoute with appended stops", () => {
+  it("saves a route when stops were only added at the end meanwhile", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-route-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      const a = { system: "A", purpose: "a" };
+      const plan = await store.upsert({ id: "p", name: "P", stops: [a] });
+      await store.addStop("p", "P", { system: "B", purpose: "b" });
+      const route = { computed_at: "t", from: "A", stops: ["A"], total_min: 1, plotted: false };
+      await expect(store.setRoute("p", route, { stops: plan.stops })).resolves.toBeTruthy();
+      await store.upsert({ id: "p", name: "P", stops: [{ system: "C", purpose: "c" }] });
+      await expect(store.setRoute("p", route, { stops: plan.stops })).rejects.toThrow("changed");
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("PlanStore stop writes at the same time", () => {
+  it("keeps every stop added at once, and an update made alongside", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-many-"));
+    try {
+      const f = path.join(d, "plans.json");
+      const now = () => new Date("2026-11-22T00:00:00Z");
+      const a = new PlanStore(f, now);
+      const b = new PlanStore(f, now);
+      await a.addStop("bookmarks", "Bookmarks", { system: "S", purpose: "first" });
+      const stop = (n: number) => ({ system: "S", purpose: `spot ${n}` });
+      await Promise.all([
+        a.addStop("bookmarks", "Bookmarks", stop(1)),
+        b.addStop("bookmarks", "Bookmarks", stop(2)),
+        a.addStop("bookmarks", "Bookmarks", stop(3)),
+        b.updateStop("bookmarks", { index: 0 }, { notes: "kept" }),
+      ]);
+      const plan = await a.get("bookmarks");
+      expect(plan.stops.map((s) => s.purpose).sort()).toEqual([
+        "first",
+        "spot 1",
+        "spot 2",
+        "spot 3",
+      ]);
+      expect(plan.stops[0]!.notes).toBe("kept");
+      // An existing plan takes a stop whatever name is given.
+      await expect(a.addStop("bookmarks", "", stop(4))).resolves.toBeTruthy();
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a route worked out over no stops once the plan has some", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-empty-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      await store.upsert({ id: "p", name: "P", stops: [] });
+      await store.upsert({ id: "p", name: "P", stops: [{ system: "X", purpose: "x" }] });
+      const route = { computed_at: "t", from: "A", stops: [], total_min: 0, plotted: false };
+      await expect(store.setRoute("p", route, { stops: [] })).rejects.toThrow("changed");
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
 });
