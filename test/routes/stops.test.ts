@@ -287,3 +287,14 @@ describe("stopLabel", () => {
     );
   });
 });
+
+describe("stopLabel tonnage", () => {
+  it("names no tonnage when a count is unknown", () => {
+    const ms = [
+      mission({ id: 1, commodity: "Gold", count: 20 }),
+      mission({ id: 2, commodity: "Gold", count: null }),
+    ];
+    const stop = missionsToStops(ms, undefined, NOW).stops[0]!;
+    expect(stopLabel(stop, new Map(ms.map((m) => [m.id, m])))).toBe("Deliver Gold");
+  });
+});

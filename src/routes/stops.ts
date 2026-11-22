@@ -47,12 +47,13 @@ export function stopLabel(stop: Stop, byId: Map<number, Mission>): string {
     } else if (s.kind === "delivery" || s.kind === "source") {
       const what = m?.commodity ?? "cargo";
       const into = s.kind === "source" ? sourced : goods;
-      into.set(what, (into.get(what) ?? 0) + (m?.count ?? 0));
+      // NaN marks a total with an unknown count, so the label names no tonnage.
+      into.set(what, (into.get(what) ?? 0) + (m?.count ?? NaN));
       // Any other mission, and a passenger mission with no count, is named as a mission.
     } else other++;
   }
   const flags = [vips ? `${vips} VIP` : null, wanted ? `${wanted} wanted` : null].filter(Boolean);
-  const tons = (n: number, what: string) => (n ? `${n} t ${what}` : what);
+  const tons = (n: number, what: string) => (n > 0 ? `${n} t ${what}` : what);
   return [
     passengers
       ? `Drop ${plural(passengers, "passenger")}${flags.length ? ` (${flags.join(", ")})` : ""}`

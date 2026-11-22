@@ -115,11 +115,11 @@ export function registerMissionTools(
         stops.push(stop);
       } catch (e) {
         unplaced.push(stop);
-        const reason =
+        const why =
           e instanceof UserError
             ? e.message
             : `Spansh lookup failed: ${e instanceof Error ? e.message : String(e)}`;
-        for (const m of stop.missions) unroutable.push({ id: m.id, name: m.name, reason });
+        for (const m of stop.missions) unroutable.push({ id: m.id, name: m.name, reason: why });
       }
     }
     const returnPlace = a.return_to

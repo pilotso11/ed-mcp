@@ -1,4 +1,3 @@
-import { returnName } from "../plans/stops.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { CatalogService } from "../catalog/service.js";
@@ -18,6 +17,7 @@ import { describeRules } from "../stations/filter.js";
 import { permitLookup, unknownPermitNote } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { reason, wrap } from "./result.js";
+import { returnName } from "../plans/stops.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
 const lc = (s: string) => s.toLowerCase();
