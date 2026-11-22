@@ -630,12 +630,17 @@ export function buildState(events: JournalEvent[]): JournalState {
           // What the event leaves out (an experimental applied may name no blueprint) stays as
           // it was.
           const was = fitted.slots.get(slot);
+          const blueprint = str(e.BlueprintName);
+          // A new blueprint removes the experimental; the event then names none.
+          const sameBlueprint = blueprint === null || blueprint === was?.blueprint;
           fit(slot, was?.item ?? e.Module, {
-            EngineerModifications: str(e.BlueprintName) ?? was?.blueprint,
+            EngineerModifications: blueprint ?? was?.blueprint,
             Level: num(e.Level) ?? was?.level,
             Quality: num(e.Quality) ?? was?.quality,
             ExperimentalEffect:
-              str(e.ApplyExperimentalEffect) ?? str(e.ExperimentalEffect) ?? was?.experimental,
+              str(e.ApplyExperimentalEffect) ??
+              str(e.ExperimentalEffect) ??
+              (sameBlueprint ? was?.experimental : null),
           });
         }
         for (const m of objs(e.Ingredients)) {
