@@ -48,6 +48,8 @@ describe("tool annotations", () => {
       "plan_export",
       "plan_import",
       "plan_upsert",
+      "trade_loops",
+      "trade_route",
     ]);
   });
 
@@ -72,6 +74,13 @@ describe("tool annotations", () => {
       "route_stops",
       "settings_open",
       "settings_status",
+      "trade_loops",
+      "trade_route",
     ]);
+  });
+
+  it("does not mark plan_update_stop idempotent, since a repeating plan's last stop resets the lap", async () => {
+    const tool = (await listTools()).find((t) => t.name === "plan_update_stop");
+    expect(tool?.annotations?.idempotentHint).toBe(false);
   });
 });

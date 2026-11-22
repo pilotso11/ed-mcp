@@ -284,6 +284,7 @@ describe("SpanshClient.marketStations", () => {
       planetary: false,
       market_age_hours: 6.4, // 05:35:18Z to 12:00:00Z
     });
+    expect(r.stations[0]!.market_updated_at).toMatch(/T05:35:18\.000Z$/);
   });
 
   it("stops paging at maxStations", async () => {

@@ -40,6 +40,14 @@ export const StopKind = z.enum([
 ]);
 export const StopStatus = z.enum(["todo", "done", "skipped"]);
 
+export const CargoSchema = z.object({
+  commodity: z.string().min(1).describe("English commodity name, e.g. Gold"),
+  action: z.enum(["buy", "sell"]),
+  amount: z.number().int().positive().describe("Tonnes"),
+  price: z.number().optional().describe("Planned unit price"),
+  mission_id: z.number().int().optional(),
+});
+
 // Every field added after the first release is optional or has a default, so old files load.
 export const StopSchema = z.object({
   system: z.string().min(1),
@@ -64,6 +72,10 @@ export const StopSchema = z.object({
   after: z.array(z.string().min(1)).optional(),
   // The journal mission IDs the stop serves, for a route saved by missions_plan.
   missions: z.array(z.number().int()).optional(),
+  // What to buy or sell at the stop, for a route saved by trade_route or trade_loops, so a panel
+  // can check the hold against the plan. A stop that sells one load and buys the next lists the
+  // sale first.
+  cargo: z.array(CargoSchema).optional(),
   status: StopStatus.default("todo"),
   notes: z.string().optional(),
 });
@@ -92,6 +104,12 @@ export const PlanInputSchema = z.object({
   items: z.array(PlanItemSchema).default([]),
   stops: z.array(StopSchema).default([]),
   route: PlanRouteSchema.optional(),
+  // A loop, such as one saved by trade_loops: when every stop is done or skipped, each goes back
+  // to todo and lap goes up by one.
+  repeat: z.boolean().optional(),
+  lap: z.number().int().min(1).optional().describe("The lap under way; missing means 1"),
+  // For a saved trade plan: the ISO time of the oldest market data its planned prices come from.
+  prices_at: z.string().optional().describe("ISO time of the oldest market data behind the prices"),
   notes: z.string().optional(),
 });
 
@@ -105,6 +123,7 @@ export const PlanFileSchema = z.object({
   plans: z.array(PlanSchema),
 });
 
+export type Cargo = z.infer<typeof CargoSchema>;
 export type PlanItem = z.infer<typeof PlanItemSchema>;
 export type PlanRoute = z.infer<typeof PlanRouteSchema>;
 export type Stop = z.infer<typeof StopSchema>;

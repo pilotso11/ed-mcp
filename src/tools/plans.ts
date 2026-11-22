@@ -104,7 +104,8 @@ export function registerPlanTools(
       description:
         "Create or replace a plan. A plan is a ship build, a route, or both: for example system X, planet Y for bios, then planet Z, then station A to hand in. " +
         "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
-        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes and after rules. " +
+        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes, after rules and cargo (what to buy or sell there: commodity, action buy or sell, amount in tonnes, planned unit price). " +
+        "A plan with repeat: true is a loop: when every stop is done or skipped, all go back to todo and lap counts up. " +
         "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },
@@ -169,13 +170,17 @@ export function registerPlanTools(
         title: "Update Plan Stop",
         readOnlyHint: false,
         destructiveHint: false,
-        idempotentHint: true,
+        // In a repeating plan, the call that finishes the last stop resets them all; again, it
+        // would mark one stop of the new lap.
+        idempotentHint: false,
         openWorldHint: false,
       },
       description:
         "Set the status (todo, done, skipped) and/or notes of one stop in a plan. Name the stop by " +
         "label (its label, else its station, body or system) or by index in the plan's stops, from 0; give exactly one. " +
-        "Mark a stop done when the player has finished there; returns the plan with the new next_stop.",
+        "Mark a stop done when the player has finished there; returns the plan with the new next_stop. " +
+        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all back to todo and adds 1 to lap; " +
+        "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),
         label: z.string().min(1).optional(),
@@ -200,12 +205,19 @@ export function registerPlanTools(
         }
         const which = a.label !== undefined ? `"${a.label}"` : String(a.index);
         try {
-          const plan = await plans.updateStop(
+          const { plan, lapCompleted } = await plans.updateStopLap(
             a.plan_id,
             { label: a.label, index: a.index },
             { status: a.status, notes: a.notes },
           );
-          return { ...plan, next_stop: nextStop(plan) };
+          return {
+            ...plan,
+            next_stop: nextStop(plan),
+            ...(lapCompleted !== null && {
+              lap_completed: lapCompleted,
+              message: `Lap ${lapCompleted} done: every stop is back to todo for lap ${lapCompleted + 1}.`,
+            }),
+          };
         } catch (err) {
           const changes = [
             ...(a.status !== undefined ? [`status: ${a.status}`] : []),

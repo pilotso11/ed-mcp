@@ -233,6 +233,8 @@ export interface MarketStation {
   type: string | null;
   planetary: boolean;
   market_age_hours: number | null;
+  /** When the market data is from, as an ISO time; unlike the age, it does not go stale in a cache. */
+  market_updated_at?: string | null;
   /** Spansh rows have supply or demand. Rows swapped in from the journal can list a commodity with neither. */
   market: MarketRow[];
 }
@@ -1067,6 +1069,7 @@ export class SpanshClient {
       market_age_hours: Number.isNaN(updated)
         ? null
         : Math.round(((now - updated) / 3_600_000) * 10) / 10,
+      market_updated_at: Number.isNaN(updated) ? null : new Date(updated).toISOString(),
       market: (s.market ?? [])
         .filter((m) => (m.supply ?? 0) > 0 || (m.demand ?? 0) > 0)
         .map((m) => ({

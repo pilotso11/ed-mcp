@@ -2,6 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
+import type { ActivityStore } from "../activity/store.js";
+import { PlanId } from "../plans/schema.js";
+import type { PlanStore } from "../plans/store.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
@@ -9,8 +12,10 @@ import { brokenRules, describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { PERMIT_TIME_MS, screenPermits } from "../stations/permits.js";
 import { rankCommodityStations, recommendCommodityStation } from "../trade/prices.js";
-import { mapTradeRoute } from "../trade/route.js";
+import { oldestMarketTime, tradeVisits } from "../trade/plan.js";
+import { ageHours, mapTradeRoute, type TradeHop } from "../trade/route.js";
 import { wrap } from "./result.js";
+import { saveTradePlan } from "./tradePlan.js";
 
 const DEFAULT_CARGO = 7;
 const DEFAULT_CAPITAL = 1000;
@@ -29,6 +34,8 @@ export function registerTradeTools(
     spansh: SpanshClient;
     journal?: JournalService;
     prefs?: PreferencesStore;
+    plans?: PlanStore;
+    activity?: ActivityStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
     now?: () => number;
@@ -87,7 +94,11 @@ export function registerTradeTools(
 
   const pending = new Map<
     string,
-    { at: number; start: { system: string; station: string; cargo: number; capital: number } }
+    {
+      at: number;
+      start: { system: string; station: string; cargo: number; capital: number };
+      save: { save_to_plan: boolean; plan_id: string };
+    }
   >();
 
   server.registerTool(
@@ -95,8 +106,9 @@ export function registerTradeTools(
     {
       annotations: {
         title: "Find Trade Route",
-        readOnlyHint: true,
-        destructiveHint: false,
+        // save_to_plan replaces a plan and the activity note.
+        readOnlyHint: false,
+        destructiveHint: true,
         idempotentHint: true,
         openWorldHint: true,
       },
@@ -107,7 +119,14 @@ export function registerTradeTools(
         "fleet carriers and a hard arrival-distance limit come from the commander's travel preferences. Returns hops with " +
         "commodities to buy and sell, profit, travel_min, total_profit, total_travel_min and profit_per_hour " +
         "(from the travel-time model), plus the resolved inputs. Spansh takes one to several minutes: if the " +
-        "result is status pending, call again with the inputs it shows to resume. Finished routes are cached 5 min.",
+        "result is status pending, call again with the inputs it shows to resume. Finished routes are cached 5 min." +
+        (deps.plans
+          ? " With save_to_plan: true, the route is saved as plan plan_id (default trade), replacing it: one " +
+            "stop per station in visit order, kind trade, with a cargo list (sell, then buy, with tonnes and the " +
+            'planned unit price) and a purpose such as "Sell 720 t Gold, then buy 720 t Silver"; it also becomes ' +
+            "the activity note's plan (kind trading), so the ED Chat panel follows it. The result then has saved " +
+            "and plan_id; a failed save is reported in notes. A pending result saves nothing."
+          : ""),
       inputSchema: {
         from_system: z.string().optional(),
         from_station: z.string().optional(),
@@ -124,10 +143,17 @@ export function registerTradeTools(
         unique: z.boolean().default(false).describe("Never visit the same station twice"),
         preferences: PrefsPatchSchema.optional(),
         use_preferences: z.boolean().default(true),
+        save_to_plan: z
+          .boolean()
+          .default(false)
+          .describe("Save the route as a plan and make it the activity note's plan"),
+        plan_id: PlanId.default("trade").describe("The plan to save to"),
       },
     },
     wrap(
       async (a: {
+        save_to_plan: boolean;
+        plan_id: string;
         from_system?: string;
         from_station?: string;
         max_hops: number;
@@ -141,6 +167,8 @@ export function registerTradeTools(
         use_preferences: boolean;
       }) => {
         if (a.cargo === 0) throw new UserError("cargo must be at least 1 t");
+        // Checked before the Spansh job, which can take minutes.
+        if (a.save_to_plan && !deps.plans) throw new UserError("Plans are not available.");
         const rules = await resolveSearchRules(deps, a.preferences, a.use_preferences);
         const notes: string[] = [];
         const state = await journalState(notes);
@@ -168,7 +196,13 @@ export function registerTradeTools(
         // form and submit a second Spansh job, so it reuses the pending job's start inputs.
         const bare = !a.from_system && a.cargo === undefined && a.capital === undefined;
         for (const [k, p] of pending) if (now() - p.at > PENDING_TTL_MS) pending.delete(k);
-        const resume = bare ? pending.get(optionsKey)?.start : undefined;
+        const resumed = bare ? pending.get(optionsKey) : undefined;
+        const resume = resumed?.start;
+        // A resume call with no save_to_plan saves as the first call asked.
+        const save =
+          resumed && !a.save_to_plan
+            ? resumed.save
+            : { save_to_plan: a.save_to_plan, plan_id: a.plan_id };
         let system: string | undefined;
         let station: string | undefined;
         let cargo: number;
@@ -237,6 +271,8 @@ export function registerTradeTools(
           max_price_age_days: a.max_price_age_days,
           allow_prohibited: a.allow_prohibited,
           unique: a.unique,
+          // So a call again with these inputs, after a pending result, saves as asked.
+          ...save,
         };
         const applied_preferences = describeRules(rules);
 
@@ -244,7 +280,7 @@ export function registerTradeTools(
         if (job.status === "pending") {
           // Delete first so the refreshed entry moves to the end and the oldest is evicted.
           pending.delete(optionsKey);
-          pending.set(optionsKey, { at: now(), start: { system, station, cargo, capital } });
+          pending.set(optionsKey, { at: now(), start: { system, station, cargo, capital }, save });
           if (pending.size > MAX_PENDING) pending.delete(pending.keys().next().value!);
           return {
             status: "pending",
@@ -262,10 +298,45 @@ export function registerTradeTools(
           "Travel time covers each hop only, not the way to the start station.",
           "Hop time uses the destination's arrival distance; Spansh gives no station type, so planetary landing time is not counted.",
         );
+        let saved = false;
+        if (save.save_to_plan) {
+          if (!mapped.hops.length) {
+            notes.push(`No route to save; plan "${save.plan_id}" was not changed.`);
+          } else {
+            // Spansh's trade results carry Unix seconds.
+            const oldest = oldestMarketTime(
+              job.hops.flatMap((h) => [
+                { updatedAtMs: h.source.market_updated_at * 1000 },
+                { updatedAtMs: h.destination.market_updated_at * 1000 },
+              ]),
+              now(),
+            );
+            saved = await saveTradePlan(
+              deps,
+              save.plan_id,
+              {
+                name: routeName(mapped.hops),
+                visits: tradeVisits(
+                  [mapped.hops[0]!.from, ...mapped.hops.map((h) => h.to)],
+                  mapped.hops.map((h) => h.commodities.map((c) => ({ ...c, commodity: c.name }))),
+                  false,
+                ),
+                repeat: false,
+                pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
+                notes:
+                  `Saved by trade_route at ${new Date(now()).toISOString()}: ${mapped.total_profit} cr ` +
+                  `over ${mapped.total_travel_min} min.` +
+                  (oldest === null ? "" : ` Oldest price ${ageHours(oldest / 1000, now())} h.`),
+              },
+              notes,
+            );
+          }
+        }
         return {
           status: "ok",
           ...(mapped.hops.length ? {} : { message: "No profitable route found" }),
           ...mapped,
+          ...(saved && { saved, plan_id: save.plan_id }),
           inputs,
           applied_preferences,
           notes,
@@ -413,3 +484,6 @@ export function registerTradeTools(
     ),
   );
 }
+
+const routeName = (hops: TradeHop[]) =>
+  `Trade route: ${hops[0]!.from.system} → ${hops.at(-1)!.to.system}, ${hops.length + 1} stops`;

@@ -20,6 +20,8 @@ export function planToMarkdown(plan: Plan): string {
     `Plan \`${plan.id}\` · updated ${plan.updated_at} · ${done}/${plan.items.length} done`,
     "",
   ];
+  if (plan.repeat) out.push(`Repeating loop · lap ${plan.lap ?? 1}`, "");
+  if (plan.prices_at) out.push(`Prices from market data as old as ${plan.prices_at}`, "");
   if (plan.notes) out.push(plan.notes, "");
   if (plan.items.length) {
     out.push("## Items", "");
@@ -49,6 +51,13 @@ export function planToMarkdown(plan: Plan): string {
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";
       out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);
+      for (const c of s.cargo ?? []) {
+        const price = c.price !== undefined ? ` at ${c.price.toLocaleString("en-US")} cr` : "";
+        const mission = c.mission_id !== undefined ? ` (mission ${c.mission_id})` : "";
+        out.push(
+          `   - ${c.action === "buy" ? "Buy" : "Sell"} ${c.amount} t ${c.commodity}${price}${mission}`,
+        );
+      }
       if (s.notes) out.push(`   - Notes: ${s.notes}`);
     });
     out.push("");

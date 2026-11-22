@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { UserError } from "../errors.js";
+import { pointNoteAtPlan } from "../activity/point.js";
 import type { ActivityStore } from "../activity/store.js";
 import type { JournalService } from "../journal/service.js";
 import type { Mission } from "../journal/state.js";
@@ -381,18 +382,12 @@ const isAutoSummary = (s: string) => {
  * kept; otherwise, including one this tool wrote, it says what the run is now.
  */
 async function pointNote(activity: ActivityStore, planId: string, ordered: Stop[]): Promise<void> {
-  const note = await activity.get();
   const missions = ordered.reduce((n, s) => n + s.missions.length, 0);
-  // A note someone wrote for this plan keeps its words and kind; only the plan is pointed at.
   // With nothing to do, a note this tool wrote for the plan is cleared; any other is left alone.
-  if (!ordered.length) {
-    if (note && note.plan_id === planId && isAutoSummary(note.summary)) await activity.clear();
-    return;
-  }
-  const own = note && note.plan_id === planId && !isAutoSummary(note.summary) ? note : null;
-  await activity.set({
-    kind: own?.kind ?? "missions",
-    summary: own?.summary ?? autoSummary(missions, ordered.length),
-    plan_id: planId,
+  await pointNoteAtPlan(activity, {
+    planId,
+    kind: "missions",
+    summary: ordered.length ? autoSummary(missions, ordered.length) : null,
+    isAuto: isAutoSummary,
   });
 }

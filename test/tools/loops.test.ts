@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import manifest from "../../manifest.json" with { type: "json" };
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { ActivityStore } from "../../src/activity/store.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
+import { PlanStore } from "../../src/plans/store.js";
 import type { JournalService } from "../../src/journal/service.js";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
 import { legBetween } from "../../src/routes/legs.js";
@@ -164,7 +169,12 @@ interface Journal {
   local?: { market_id: number; updated_at: string; rows: MarketRow[] } | "broken";
 }
 
-async function loops(args: Record<string, unknown>, world: World, j: Journal = {}) {
+async function loops(
+  args: Record<string, unknown>,
+  world: World,
+  j: Journal = {},
+  stores: { plans?: PlanStore; activity?: ActivityStore } = {},
+) {
   const clock = world.clock;
   const fake = fakeSpansh(world);
   const journal = {
@@ -186,6 +196,7 @@ async function loops(args: Record<string, unknown>, world: World, j: Journal = {
   registerLoopTools(server, {
     spansh: fake.spansh,
     journal: j.none ? undefined : journal,
+    ...stores,
     ...(clock ? { now: () => clock.t } : {}),
   });
   const r = await callTool(await connectTestClient(server), "trade_loops", args);
@@ -701,6 +712,40 @@ describe("trade_loops with the local market", () => {
     expect(j.notes.some((n: string) => n.startsWith("Start station prices come from"))).toBe(true);
   });
 
+  it("saves a plan with the local start prices and Market.json's time as prices_at", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "loops-local-"));
+    const at = () => new Date("2026-10-13T07:00:00Z");
+    const plans = new PlanStore(path.join(dir, "plans.json"), at);
+    const activity = new ActivityStore(path.join(dir, "activity.json"), at);
+    // The Spansh start record is older, so the file's prices and time replace it. Alpha Hub's
+    // market, at 06:30, is newer than the file's 06:00, so the file's time is the oldest.
+    const s = { ...start(), market_age_hours: 30, market_updated_at: "2026-10-12T01:00:00.000Z" };
+    const hub = {
+      ...alpha(),
+      market_age_hours: 0.5,
+      market_updated_at: "2026-10-13T06:30:00.000Z",
+    };
+    const { j } = await loops(
+      { stops: [2], save_to_plan: true },
+      { found: [s, hub], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: localRows } },
+      { plans, activity },
+    );
+    expect(j).toMatchObject({ saved: true, plan_id: "trade" });
+    expect(j.notes).toContain(NOTE);
+    const plan = await plans.get("trade");
+    expect(plan.prices_at).toBe("2026-10-13T06:00:00.000Z");
+    expect(plan.notes).toContain("Oldest price 1 h.");
+    expect(plan.stops[0]).toMatchObject({
+      system: "Home",
+      station: "Start Port",
+      cargo: [
+        { commodity: "Tea", action: "sell", amount: 100, price: 500 },
+        { commodity: "Gold", action: "buy", amount: 100, price: 50 },
+      ],
+    });
+  });
+
   it("uses Spansh when the local file is older than the start record", async () => {
     const s = start();
     const { j } = await loops(
@@ -795,5 +840,210 @@ describe("trade_loops with the local market", () => {
     );
     expect(r.isError).toBe(false);
     expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+  });
+});
+
+describe("trade_loops save_to_plan", () => {
+  const stores = async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "loops-"));
+    const now = () => new Date("2026-11-22T12:00:00Z");
+    return {
+      plans: new PlanStore(path.join(dir, "plans.json"), now),
+      activity: new ActivityStore(path.join(dir, "activity.json"), now),
+    };
+  };
+
+  it("saves the best loop as a repeating plan at lap 1, with each stop's cargo", async () => {
+    const s = await stores();
+    const { r, j } = await loops(
+      { save_to_plan: true },
+      { found: [start(), alpha(), beta(), far()] },
+      {},
+      s,
+    );
+    expect(r.isError).toBe(false);
+    expect(j).toMatchObject({ saved: true, plan_id: "trade" });
+    expect(j.loops.length).toBeGreaterThan(1);
+    const plan = await s.plans.get("trade");
+    expect(plan).toMatchObject({ name: "Trade loop: Home ⇄ Alpha", repeat: true, lap: 1 });
+    expect(plan.notes).toContain("50000 cr per lap");
+    // Without market times, from the ages: the markets are 1 h old.
+    expect(Math.abs(Date.parse(plan.prices_at!) - (Date.now() - 3_600_000))).toBeLessThan(60_000);
+    expect(plan.stops).toEqual([
+      {
+        system: "Home",
+        station: "Start Port",
+        purpose: "Sell 100 t Tea, then buy 100 t Gold",
+        label: "Sell 100 t Tea, then buy 100 t Gold at Start Port",
+        kind: "trade",
+        cargo: [
+          { commodity: "Tea", action: "sell", amount: 100, price: 500 },
+          { commodity: "Gold", action: "buy", amount: 100, price: 100 },
+        ],
+        status: "todo",
+      },
+      {
+        system: "Alpha",
+        station: "Alpha Hub",
+        purpose: "Sell 100 t Gold, then buy 100 t Tea",
+        label: "Sell 100 t Gold, then buy 100 t Tea at Alpha Hub",
+        kind: "trade",
+        cargo: [
+          { commodity: "Gold", action: "sell", amount: 100, price: 300 },
+          { commodity: "Tea", action: "buy", amount: 100, price: 200 },
+        ],
+        status: "todo",
+      },
+    ]);
+    expect(j.notes).toContain(
+      "On the first lap there is nothing to sell at Start Port; buy there and go on.",
+    );
+    expect(await s.activity.get()).toMatchObject({
+      kind: "trading",
+      summary: "Trade loop: Home ⇄ Alpha",
+      plan_id: "trade",
+    });
+  });
+
+  it("saves a loop with an empty leg as a buy stop and a sell stop", async () => {
+    const s = await stores();
+    const { j } = await loops(
+      { save_to_plan: true, plan_id: "gold" },
+      { found: [start(), beta()] },
+      {},
+      s,
+    );
+    expect(j).toMatchObject({ saved: true, plan_id: "gold" });
+    const plan = await s.plans.get("gold");
+    expect(plan.stops.map((x) => [x.purpose, x.cargo])).toEqual([
+      ["Buy 100 t Gold", [{ commodity: "Gold", action: "buy", amount: 100, price: 100 }]],
+      ["Sell 100 t Gold", [{ commodity: "Gold", action: "sell", amount: 100, price: 150 }]],
+    ]);
+    expect(j.notes.some((n: string) => n.startsWith("On the first lap"))).toBe(false);
+    // Finishing the loop starts lap 2.
+    await s.plans.updateStop("gold", { index: 0 }, { status: "done" });
+    const next = await s.plans.updateStop("gold", { index: 1 }, { status: "done" });
+    expect(next.lap).toBe(2);
+    expect(next.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
+  });
+
+  it("saves nothing without a loop, and keeps the loops when the save fails", async () => {
+    const s = await stores();
+    const none = await loops({ save_to_plan: true }, { found: [start(), far()] }, {}, s);
+    expect(none.j.loops).toEqual([]);
+    expect(none.j.saved).toBeUndefined();
+    expect(none.j.notes).toContain('No loop to save; plan "trade" was not changed.');
+    expect(await s.plans.list()).toEqual([]);
+
+    const failing = Object.assign(Object.create(PlanStore.prototype), {
+      replace: async () => {
+        throw new UserError("Plan file is locked");
+      },
+    }) as PlanStore;
+    const locked = await loops(
+      { save_to_plan: true },
+      { found: [start(), alpha()] },
+      {},
+      { plans: failing, activity: s.activity },
+    );
+    expect(locked.r.isError).toBe(false);
+    expect(locked.j.loops.length).toBeGreaterThan(0);
+    expect(locked.j.saved).toBeUndefined();
+    expect(locked.j.notes).toContain(
+      'The result was not saved to plan "trade": Plan file is locked',
+    );
+    // Nothing was saved, so there is no first lap to talk about.
+    expect(locked.j.notes.some((n: string) => n.startsWith("On the first lap"))).toBe(false);
+    expect(await s.activity.get()).toBeNull();
+  });
+
+  it("starts a plan already at plan_id afresh, keeping only its created_at", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "loops-"));
+    let t = Date.parse("2026-11-01T00:00:00Z");
+    const plans = new PlanStore(path.join(dir, "plans.json"), () => new Date(t));
+    await plans.upsert({
+      id: "trade",
+      name: "Trade loop: Old ⇄ Older",
+      repeat: true,
+      lap: 7,
+      prices_at: "2026-10-30T00:00:00.000Z",
+      notes: "old notes",
+      items: [{ id: "fsd", kind: "buy", description: "5A FSD" }],
+      stops: [
+        { system: "Old", station: "Old Port", purpose: "Buy 1 t Tea", status: "done" },
+        { system: "Older", station: "Older Port", purpose: "Sell 1 t Tea", status: "skipped" },
+        { system: "Oldest", purpose: "Extra", status: "done", notes: "busy" },
+      ],
+      route: {
+        computed_at: "2026-11-01T00:00:00.000Z",
+        from: "Old",
+        stops: ["Old Port", "Older Port"],
+        total_min: 10,
+        plotted: false,
+      },
+    });
+    t = Date.parse("2026-11-22T12:00:00Z");
+    const { j } = await loops({ save_to_plan: true }, { found: [start(), alpha()] }, {}, { plans });
+    expect(j).toMatchObject({ saved: true, plan_id: "trade" });
+    const plan = await plans.get("trade");
+    expect(plan.created_at).toBe("2026-11-01T00:00:00.000Z");
+    expect(plan.updated_at).toBe("2026-11-22T12:00:00.000Z");
+    expect(plan.name).toBe("Trade loop: Home ⇄ Alpha");
+    expect(plan.lap).toBe(1);
+    expect(plan.repeat).toBe(true);
+    // The new markets carry no update time, so prices_at comes from their 1 h age, not the old plan.
+    expect(Math.abs(Date.parse(plan.prices_at!) - (Date.now() - 3_600_000))).toBeLessThan(60_000);
+    expect(plan.notes).toMatch(/^Saved by trade_loops at /);
+    expect(plan.items).toEqual([]);
+    expect(plan.route).toBeUndefined();
+    expect(plan.stops.map((x) => [x.station, x.status, x.notes])).toEqual([
+      ["Start Port", "todo", undefined],
+      ["Alpha Hub", "todo", undefined],
+    ]);
+  });
+
+  it("does not save by default, and refuses save_to_plan without plans before searching", async () => {
+    const s = await stores();
+    expect((await loops({}, { found: [start(), alpha()] }, {}, s)).j.saved).toBeUndefined();
+    expect(await s.plans.list()).toEqual([]);
+    const { r, marketStations } = await loops(
+      { save_to_plan: true },
+      { found: [start(), alpha()] },
+    );
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Plans are not available.");
+    expect(marketStations).not.toHaveBeenCalled();
+  });
+
+  it("takes prices_at from the stations' market times, not their cached ages", async () => {
+    const s = await stores();
+    // A cached record: its age was worked out when it was fetched, so it reads younger.
+    const home = {
+      ...start(),
+      market_age_hours: 0.5,
+      market_updated_at: "2026-11-20T08:00:00.000Z",
+    };
+    const away = {
+      ...alpha(),
+      market_age_hours: 0.2,
+      market_updated_at: "2026-11-21T09:30:00.000Z",
+    };
+    await loops({ save_to_plan: true }, { found: [home, away] }, {}, s);
+    const plan = await s.plans.get("trade");
+    expect(plan.prices_at).toBe("2026-11-20T08:00:00.000Z");
+    // The note's oldest price is worked out from the same time.
+    const hours = Math.round((Date.now() - Date.parse("2026-11-20T08:00:00.000Z")) / 360_000) / 10;
+    expect(plan.notes).toMatch(new RegExp(`Oldest price (${hours}|${hours + 0.1}) h\\.`));
+  });
+
+  it("says only to go on when the first stop of a loop buys nothing", async () => {
+    const s = await stores();
+    // Start Port has no Gold to sell, so the loop runs out empty and back with Tea.
+    const { j } = await loops({ save_to_plan: true }, { found: [start(0), alpha()] }, {}, s);
+    expect(j.saved).toBe(true);
+    expect((await s.plans.get("trade")).stops[0]!.purpose).toBe("Sell 100 t Tea");
+    expect(j.notes).toContain(
+      "On the first lap there is nothing to sell at Start Port; go on to the next stop.",
+    );
   });
 });
