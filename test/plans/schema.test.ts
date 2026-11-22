@@ -126,6 +126,10 @@ describe("PlanInputSchema trade fields", () => {
     for (const rate of ["1", 1.5, Infinity, NaN]) {
       expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: rate }).success).toBe(false);
     }
+    // int() takes safe integers only: tradePlan.ts relies on this to leave a larger rate out.
+    const max = Number.MAX_SAFE_INTEGER;
+    expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: max }).success).toBe(true);
+    expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: max + 2 }).success).toBe(false);
   });
 
   it("loads a plan without them", () => {
