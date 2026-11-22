@@ -207,16 +207,20 @@ export class PlanStore {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
       const stop = plan.stops[findStop(plan, ref)]!;
+      const finished = (s: Stop) => s.status === "done" || s.status === "skipped";
+      // Only an update that finishes this stop now can finish the lap: one repeated on a stop
+      // already done or skipped does not.
+      const finishing = patch.status !== undefined && patch.status !== "todo" && !finished(stop);
       if (patch.status !== undefined) stop.status = patch.status;
       if (patch.notes !== undefined) stop.notes = patch.notes;
       let lapCompleted: number | null = null;
       // A loop starts its next lap when its last open stop is finished, in this same write, so
-      // a concurrent edit cannot see the plan all done.
+      // a concurrent edit cannot see the plan all done. A lap with every stop skipped was not run.
       if (
         plan.repeat &&
-        patch.status !== undefined &&
-        patch.status !== "todo" &&
-        plan.stops.every((s) => s.status === "done" || s.status === "skipped")
+        finishing &&
+        plan.stops.every(finished) &&
+        plan.stops.some((s) => s.status === "done")
       ) {
         for (const s of plan.stops) s.status = "todo";
         lapCompleted = plan.lap ?? 1;

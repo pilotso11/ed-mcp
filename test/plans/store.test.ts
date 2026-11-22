@@ -918,4 +918,36 @@ describe("PlanStore loop fields", () => {
     const done = await s.updateStop("missions", { index: 1 }, { status: "done" });
     expect(done.stops.map((x) => x.status)).toEqual(["done", "done"]);
   });
+
+  it("finishes a lap only when a stop is done, and only on an update that finishes a stop", async () => {
+    const s = new PlanStore(file, now);
+    const stops = [
+      { system: "A", purpose: "buy" },
+      { system: "B", purpose: "sell" },
+    ];
+    await s.upsert(input({ repeat: true, stops }));
+    await s.updateStop("python-mk2", { index: 0 }, { status: "skipped" });
+    let r = await s.updateStopLap("python-mk2", { index: 1 }, { status: "skipped" });
+    // Every stop skipped: no lap was run.
+    expect(r.lapCompleted).toBeNull();
+    expect(r.plan.stops.map((x) => x.status)).toEqual(["skipped", "skipped"]);
+
+    // A plan saved already finished does not roll over on a repeated mark.
+    await s.upsert(
+      input({ repeat: true, stops: stops.map((x) => ({ ...x, status: "done" as const })) }),
+    );
+    r = await s.updateStopLap("python-mk2", { index: 1 }, { status: "done" });
+    expect(r.lapCompleted).toBeNull();
+    expect(r.plan.lap).toBeUndefined();
+    // Changing a finished stop from skipped to done does not finish a lap either.
+    await s.updateStop("python-mk2", { index: 0 }, { status: "skipped" });
+    r = await s.updateStopLap("python-mk2", { index: 0 }, { status: "done" });
+    expect(r.lapCompleted).toBeNull();
+
+    // Reopening a stop and finishing it again does.
+    await s.updateStop("python-mk2", { index: 1 }, { status: "todo" });
+    r = await s.updateStopLap("python-mk2", { index: 1 }, { status: "done" });
+    expect(r.lapCompleted).toBe(1);
+    expect(r.plan.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
+  });
 });

@@ -1094,4 +1094,47 @@ describe("trade_route save_to_plan", () => {
     expect((again.json as any).inputs).toMatchObject({ save_to_plan: true, plan_id: "run" });
     expect((await s.plans.get("run")).stops).toHaveLength(4);
   });
+
+  it("reports a file system error in notes and keeps the route", async () => {
+    const s = await stores();
+    const eperm = Object.assign(new Error("EPERM: operation not permitted, rename 'plans.json'"), {
+      code: "EPERM",
+    });
+    const denied = Object.assign(Object.create(PlanStore.prototype), {
+      replace: async () => {
+        throw eperm;
+      },
+    }) as PlanStore;
+    const { r, j } = await trade({ save_to_plan: true }, { plans: denied, activity: s.activity });
+    expect(r.isError).toBe(false);
+    expect(j.hops).toHaveLength(3);
+    expect(j.saved).toBeUndefined();
+    expect(j.notes).toContain(
+      'The result may not have been saved to plan "trade": EPERM: operation not permitted, ' +
+        "rename 'plans.json'. Check it with plan_get.",
+    );
+    expect(await s.activity.get()).toBeNull();
+  });
+
+  it("leaves out prices_at and the oldest price when a hop end has no market time", async () => {
+    const s = await stores();
+    const noTime = structuredClone(hops);
+    noTime[1]!.destination.market_updated_at = 0;
+    await trade({ save_to_plan: true }, { ...s, job: { status: "ok", hops: noTime } });
+    const plan = await s.plans.get("trade");
+    expect(plan.prices_at).toBeUndefined();
+    expect(plan.notes).not.toContain("Oldest price");
+  });
+
+  it("matches a long name's note summary to what the note stores", async () => {
+    const s = await stores();
+    const long = structuredClone(hops);
+    long.at(-1)!.destination.system = `${"x".repeat(600)} `;
+    await trade({ save_to_plan: true }, { ...s, job: { status: "ok", hops: long } });
+    const first = await s.activity.get();
+    expect(first?.summary).toHaveLength(500);
+    // A second save sees the stored summary as its own and refreshes it.
+    await trade({ save_to_plan: true }, s);
+    expect((await s.activity.get())?.summary).toBe((await s.plans.get("trade")).name);
+  });
 });

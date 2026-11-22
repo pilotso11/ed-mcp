@@ -87,19 +87,30 @@ describe("tradeVisits", () => {
 });
 
 describe("oldestMarketTime", () => {
-  it("takes update times first, else ages, and skips markets with neither", () => {
+  it("takes update times first, else ages", () => {
     const now = Date.parse("2026-11-22T12:00:00Z");
     expect(
       oldestMarketTime(
         [
           { updatedAtMs: Date.parse("2026-11-22T10:00:00Z"), ageHours: 0.1 },
           { updatedAtMs: null, ageHours: 3 },
-          { updatedAtMs: NaN, ageHours: null },
-          { updatedAtMs: 0 },
+          { updatedAtMs: 0, ageHours: 2 },
         ],
         now,
       ),
     ).toBe(Date.parse("2026-11-22T09:00:00Z"));
-    expect(oldestMarketTime([{ updatedAtMs: null }], now)).toBeNull();
+  });
+
+  it("knows no time when a market has neither, rather than give a newer one", () => {
+    const now = Date.parse("2026-11-22T12:00:00Z");
+    const known = { updatedAtMs: Date.parse("2026-11-22T10:00:00Z") };
+    for (const unknown of [
+      { updatedAtMs: null },
+      { updatedAtMs: NaN, ageHours: null },
+      { updatedAtMs: 0 },
+    ]) {
+      expect(oldestMarketTime([known, unknown], now)).toBeNull();
+    }
+    expect(oldestMarketTime([], now)).toBeNull();
   });
 });

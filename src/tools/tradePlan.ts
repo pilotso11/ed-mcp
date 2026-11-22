@@ -11,13 +11,20 @@ export interface TradePlanDeps {
   activity?: ActivityStore;
 }
 
-/** The note summary these tools write for a plan: its name, cut to fit. */
-const summaryOf = (name: string) => name.slice(0, MAX_SUMMARY);
+/** The note summary these tools write for a plan: its name, trimmed and cut as the note stores it. */
+const summaryOf = (name: string) => name.trim().slice(0, MAX_SUMMARY).trim();
+
+/** A Node file system error, such as EPERM or ENOSPC, which says nothing is wrong with the code. */
+const fsCode = (err: unknown): string | null => {
+  const code = (err as NodeJS.ErrnoException | null)?.code;
+  return err instanceof Error && typeof code === "string" && /^E[A-Z]+$/.test(code) ? code : null;
+};
 
 /**
  * Saves a trade run as the plan planId, replacing a plan with that ID, and makes it the activity
- * note's plan. The run is already worked out, so a save the store refuses is reported in notes
- * rather than thrown; anything else is a bug, for wrap(). Returns whether the plan was saved.
+ * note's plan. The run is already worked out, so a save the store refuses, or a file system error
+ * (EPERM, ENOSPC, ...), is reported in notes rather than thrown; anything else is a bug, for
+ * wrap(). Returns whether the plan is known to be saved.
  */
 export async function saveTradePlan(
   deps: TradePlanDeps,
@@ -46,9 +53,20 @@ export async function saveTradePlan(
     });
     oldName = previous?.name ?? null;
   } catch (err) {
-    if (!(err instanceof UserError)) throw err;
-    notes.push(`The result was not saved to plan "${planId}": ${err.message}`);
-    return false;
+    if (err instanceof UserError) {
+      notes.push(`The result was not saved to plan "${planId}": ${err.message}`);
+      return false;
+    }
+    // The route is worked out, so a disk that refused the write must not lose it. The write may
+    // have got as far as plans.json, so the plan may be saved.
+    if (fsCode(err)) {
+      notes.push(
+        `The result may not have been saved to plan "${planId}": ${(err as Error).message}. ` +
+          "Check it with plan_get.",
+      );
+      return false;
+    }
+    throw err;
   }
   if (deps.activity) {
     const written = new Set([summaryOf(run.name), ...(oldName ? [summaryOf(oldName)] : [])]);

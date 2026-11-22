@@ -179,7 +179,7 @@ export function registerPlanTools(
         "Set the status (todo, done, skipped) and/or notes of one stop in a plan. Name the stop by " +
         "label (its label, else its station, body or system) or by index in the plan's stops, from 0; give exactly one. " +
         "Mark a stop done when the player has finished there; returns the plan with the new next_stop. " +
-        "In a plan with repeat: true, the update that leaves every stop done or skipped sets them all back to todo and adds 1 to lap; " +
+        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all back to todo and adds 1 to lap; " +
         "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),

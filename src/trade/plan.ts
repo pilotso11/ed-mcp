@@ -39,19 +39,21 @@ export function tradeVisits(
 
 /**
  * The time, in ms, of the oldest market data: each market's update time, or for one without it,
- * now less its age in hours. Null when no market has either.
+ * now less its age in hours. Null when a market has neither, since its prices could be older
+ * than any time given.
  */
 export function oldestMarketTime(
   markets: Array<{ updatedAtMs: number | null; ageHours?: number | null }>,
   now: number,
 ): number | null {
-  const times = markets.flatMap((m) => {
-    if (m.updatedAtMs !== null && Number.isFinite(m.updatedAtMs) && m.updatedAtMs > 0) {
-      return [m.updatedAtMs];
-    }
-    return m.ageHours == null ? [] : [now - m.ageHours * 3_600_000];
-  });
-  return times.length ? Math.min(...times) : null;
+  let oldest = Infinity;
+  for (const m of markets) {
+    const known = m.updatedAtMs !== null && Number.isFinite(m.updatedAtMs) && m.updatedAtMs > 0;
+    if (known) oldest = Math.min(oldest, m.updatedAtMs!);
+    else if (m.ageHours != null) oldest = Math.min(oldest, now - m.ageHours * 3_600_000);
+    else return null;
+  }
+  return Number.isFinite(oldest) ? oldest : null;
 }
 
 const list = (parts: string[]) =>

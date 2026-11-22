@@ -948,7 +948,11 @@ describe("trade_loops save_to_plan", () => {
       market_updated_at: "2026-11-21T09:30:00.000Z",
     };
     await loops({ save_to_plan: true }, { found: [home, away] }, {}, s);
-    expect((await s.plans.get("trade")).prices_at).toBe("2026-11-20T08:00:00.000Z");
+    const plan = await s.plans.get("trade");
+    expect(plan.prices_at).toBe("2026-11-20T08:00:00.000Z");
+    // The note's oldest price is worked out from the same time.
+    const hours = Math.round((Date.now() - Date.parse("2026-11-20T08:00:00.000Z")) / 360_000) / 10;
+    expect(plan.notes).toMatch(new RegExp(`Oldest price (${hours}|${hours + 0.1}) h\\.`));
   });
 
   it("says only to go on when the first stop of a loop buys nothing", async () => {

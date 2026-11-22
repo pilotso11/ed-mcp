@@ -20,6 +20,7 @@ import { screenPermits } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { bestCargo, findLoops, spreadStations, type ScoredLeg } from "../trade/loops.js";
 import { oldestMarketTime, tradeVisits, type TradeVisit } from "../trade/plan.js";
+import { ageHours } from "../trade/route.js";
 import { wrap } from "./result.js";
 import { saveTradePlan } from "./tradePlan.js";
 
@@ -576,9 +577,7 @@ export function registerLoopTools(
                 `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
                 `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +
                 `before the market runs low.` +
-                (out.oldest_price_hours !== null
-                  ? ` Oldest price ${out.oldest_price_hours} h.`
-                  : ""),
+                (oldest === null ? "" : ` Oldest price ${ageHours(oldest / 1000, now())} h.`),
             },
             notes,
           );
