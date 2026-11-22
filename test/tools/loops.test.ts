@@ -735,6 +735,10 @@ describe("trade_loops with the local market", () => {
     expect(j.notes).toContain(NOTE);
     const plan = await plans.get("trade");
     expect(plan.prices_at).toBe("2026-10-13T06:00:00.000Z");
+    // The saved loop is the best, the first listed.
+    expect(plan.profit_per_hour).toBe(j.loops[0].profit_per_hour);
+    expect(plan.profit_per_hour).toBeGreaterThan(0);
+    expect(plan.notes).toContain(`(${j.loops[0].profit_per_hour} cr/h)`);
     expect(plan.notes).toContain("Oldest price 1 h.");
     expect(plan.stops[0]).toMatchObject({
       system: "Home",

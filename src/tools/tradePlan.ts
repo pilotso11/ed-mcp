@@ -36,6 +36,8 @@ export async function saveTradePlan(
     notes: string;
     /** The ISO time of the oldest market data behind the prices, when known. */
     pricesAt: string | null;
+    /** The planned profit in credits an hour, when known. */
+    profitPerHour: number | null;
   },
   notes: string[],
 ): Promise<boolean> {
@@ -49,6 +51,10 @@ export async function saveTradePlan(
       stops: tradeStops(run.visits),
       ...(run.repeat ? { repeat: true, lap: 1 } : {}),
       ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
+      // The plan holds only a rate that can be planned; a loss saves no rate rather than no plan.
+      ...(run.profitPerHour !== null && run.profitPerHour >= 0
+        ? { profit_per_hour: run.profitPerHour }
+        : {}),
       notes: run.notes,
     });
     oldName = previous?.name ?? null;

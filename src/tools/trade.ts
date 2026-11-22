@@ -323,6 +323,7 @@ export function registerTradeTools(
                 ),
                 repeat: false,
                 pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
+                profitPerHour: mapped.profit_per_hour,
                 notes:
                   `Saved by trade_route at ${new Date(now()).toISOString()}: ${mapped.total_profit} cr ` +
                   `over ${mapped.total_travel_min} min.` +

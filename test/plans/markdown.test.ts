@@ -177,6 +177,7 @@ describe("planToMarkdown positions", () => {
       repeat: true,
       lap: 3,
       prices_at: "2026-11-21T06:00:00.000Z",
+      profit_per_hour: 60_000_000,
       stops: [
         {
           system: "Wolf 397",
@@ -195,6 +196,7 @@ describe("planToMarkdown positions", () => {
     });
     expect(md).toContain("Repeating loop · lap 3\n");
     expect(md).toContain("Prices from market data as old as 2026-11-21T06:00:00.000Z\n");
+    expect(md).toContain("Planned 60,000,000 cr/h\n");
     expect(md).toContain(
       [
         "1. [ ] **trade** Wolf 397 — Brooks Estate: Sell 720 t Gold, buy 64 t Silver ← next",
@@ -208,5 +210,7 @@ describe("planToMarkdown positions", () => {
     const p = { id: "t", name: "T", items: [], stops: [], created_at: "x", updated_at: "x" };
     expect(planToMarkdown({ ...p, repeat: true })).toContain("Repeating loop · lap 1");
     expect(planToMarkdown({ ...p, repeat: false, lap: 2 })).not.toContain("lap");
+    expect(planToMarkdown(p)).not.toContain("cr/h");
+    expect(planToMarkdown({ ...p, profit_per_hour: 0 })).toContain("Planned 0 cr/h");
   });
 });

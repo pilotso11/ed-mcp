@@ -21,6 +21,9 @@ export function planToMarkdown(plan: Plan): string {
     "",
   ];
   if (plan.repeat) out.push(`Repeating loop · lap ${plan.lap ?? 1}`, "");
+  if (plan.profit_per_hour !== undefined) {
+    out.push(`Planned ${plan.profit_per_hour.toLocaleString("en-US")} cr/h`, "");
+  }
   if (plan.prices_at) out.push(`Prices from market data as old as ${plan.prices_at}`, "");
   if (plan.notes) out.push(plan.notes, "");
   if (plan.items.length) {

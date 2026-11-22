@@ -883,7 +883,7 @@ describe("PlanStore loop fields", () => {
     expect((await s.get("python-mk2")).name).toBe("Second");
   });
 
-  it("drops a trade loop's repeat, lap and prices_at when mission stops replace it", async () => {
+  it("drops a trade loop's repeat, lap, prices_at and profit_per_hour when mission stops replace it", async () => {
     const s = new PlanStore(file, now);
     await s.upsert({
       id: "missions",
@@ -891,6 +891,7 @@ describe("PlanStore loop fields", () => {
       repeat: true,
       lap: 3,
       prices_at: "2026-11-21T06:00:00.000Z",
+      profit_per_hour: 60_000_000,
       notes: "kept",
       stops: [{ system: "A", purpose: "Buy 1 t Gold" }],
     });
@@ -910,6 +911,7 @@ describe("PlanStore loop fields", () => {
     expect(plan.repeat).toBeUndefined();
     expect(plan.lap).toBeUndefined();
     expect(plan.prices_at).toBeUndefined();
+    expect(plan.profit_per_hour).toBeUndefined();
     expect(plan.notes).toBe("kept");
     const saved = await s.get("missions");
     expect(saved.repeat).toBeUndefined();

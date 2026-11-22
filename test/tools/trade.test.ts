@@ -931,6 +931,8 @@ describe("trade_route save_to_plan", () => {
     expect(plan.lap).toBeUndefined();
     // The oldest market time in the hops, from Spansh's Unix seconds.
     expect(plan.prices_at).toBe(new Date(1791858068 * 1000).toISOString());
+    expect(plan.profit_per_hour).toBe(j.profit_per_hour);
+    expect(plan.profit_per_hour).toBeGreaterThan(0);
     expect(plan.stops.map((x) => [x.system, x.station, x.kind, x.purpose])).toEqual([
       ["Lave", "Lave Station", "trade", "Buy 100 t Tea"],
       ["LP 547-159", "Martin Gateway", "trade", "Sell 100 t Tea, then buy 100 t Bauxite"],

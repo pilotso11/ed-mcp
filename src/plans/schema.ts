@@ -110,6 +110,9 @@ export const PlanInputSchema = z.object({
   lap: z.number().int().min(1).optional().describe("The lap under way; missing means 1"),
   // For a saved trade plan: the ISO time of the oldest market data its planned prices come from.
   prices_at: z.string().optional().describe("ISO time of the oldest market data behind the prices"),
+  // For a saved trade plan: the profit an hour that trade_route or trade_loops worked out, so a
+  // panel can compare the rate made with the rate planned.
+  profit_per_hour: z.number().min(0).optional().describe("Planned profit, in credits an hour"),
   notes: z.string().optional(),
 });
 
