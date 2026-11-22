@@ -53,9 +53,10 @@ export const StopSchema = z.object({
   // It goes with `body`; a stop without one still loads, and shows the coordinates alone.
   position: z
     .object({
-      latitude: z.number().min(-90).max(90),
-      longitude: z.number().min(-180).max(180),
+      latitude: z.number().min(-90).max(90).describe("Degrees"),
+      longitude: z.number().min(-180).max(180).describe("Degrees"),
     })
+    .describe("A place on the body\'s surface; give the body too")
     .optional(),
   purpose: z.string().min(1),
   label: z.string().min(1).optional(),

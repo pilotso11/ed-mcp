@@ -149,4 +149,23 @@ describe("planToMarkdown positions", () => {
     });
     expect(md).toContain("Col 285 — Col 285 6 k (54.1429, -51.7435): Concha");
   });
+
+  it("shows the position without a body, with no -0.0000", () => {
+    const md = planToMarkdown({
+      id: "b",
+      name: "B",
+      items: [],
+      stops: [
+        {
+          system: "Sol",
+          purpose: "Spot",
+          status: "todo",
+          position: { latitude: -0.00004, longitude: 12.5 },
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain("Sol — (0.0000, 12.5000): Spot");
+  });
 });
