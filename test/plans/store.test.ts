@@ -799,3 +799,53 @@ describe("route indexes when the last stops are dropped", () => {
     }
   });
 });
+
+describe("PlanStore repeating plans", () => {
+  const loop = (over: Partial<PlanInput> = {}) =>
+    input({
+      repeat: true,
+      stops: [
+        { system: "Kremainn", station: "Wohler Terminal", purpose: "Buy 720 t Gold" },
+        { system: "Wolf 397", station: "Brooks Estate", purpose: "Sell 720 t Gold" },
+        { system: "Lave", station: "Lave Station", purpose: "Refuel" },
+      ],
+      ...over,
+    });
+
+  it("starts the next lap when the last open stop is done or skipped", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(loop());
+    await s.updateStop("python-mk2", { index: 0 }, { status: "done" });
+    let p = await s.updateStop("python-mk2", { index: 2 }, { status: "skipped" });
+    expect(p.stops.map((x) => x.status)).toEqual(["done", "todo", "skipped"]);
+    expect(p.lap).toBeUndefined();
+    p = await s.updateStop("python-mk2", { label: "Brooks Estate" }, { status: "done" });
+    expect(p.stops.map((x) => x.status)).toEqual(["todo", "todo", "todo"]);
+    expect(p.lap).toBe(2);
+    // Saved in the same write.
+    expect((await s.get("python-mk2")).lap).toBe(2);
+    for (const i of [0, 1, 2])
+      p = await s.updateStop("python-mk2", { index: i }, { status: "done" });
+    expect(p.lap).toBe(3);
+    expect(p.stops.every((x) => x.status === "todo")).toBe(true);
+  });
+
+  it("does not repeat a plan without repeat, or on a notes change", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(loop({ repeat: false }));
+    for (const i of [0, 1, 2]) await s.updateStop("python-mk2", { index: i }, { status: "done" });
+    const p = await s.get("python-mk2");
+    expect(p.stops.every((x) => x.status === "done")).toBe(true);
+    expect(p.lap).toBeUndefined();
+
+    await s.upsert(
+      loop({
+        stops: [{ system: "Lave", purpose: "trade", status: "done" }],
+        lap: 4,
+      }),
+    );
+    const q = await s.updateStop("python-mk2", { index: 0 }, { notes: "busy" });
+    expect(q.stops[0]!.status).toBe("done");
+    expect(q.lap).toBe(4);
+  });
+});

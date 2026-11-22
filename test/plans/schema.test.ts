@@ -76,3 +76,51 @@ describe("PlanInputSchema stops", () => {
     expect(PlanInputSchema.parse({ ...base, route }).route).toEqual(route);
   });
 });
+
+describe("PlanInputSchema trade fields", () => {
+  it("parses a stop's cargo and a plan's repeat and lap", () => {
+    const p = PlanInputSchema.parse({
+      ...base,
+      repeat: true,
+      lap: 3,
+      stops: [
+        {
+          system: "Wolf 397",
+          station: "Brooks Estate",
+          purpose: "Sell 720 t Gold, buy 720 t Silver",
+          cargo: [
+            { commodity: "Gold", action: "sell", amount: 720, price: 9380 },
+            { commodity: "Silver", action: "buy", amount: 720, mission_id: 42 },
+          ],
+        },
+      ],
+    });
+    expect(p).toMatchObject({ repeat: true, lap: 3 });
+    expect(p.stops[0]!.cargo).toEqual([
+      { commodity: "Gold", action: "sell", amount: 720, price: 9380 },
+      { commodity: "Silver", action: "buy", amount: 720, mission_id: 42 },
+    ]);
+  });
+
+  it("rejects bad cargo and a lap below 1", () => {
+    const stop = { system: "Lave", purpose: "trade" };
+    for (const cargo of [
+      { commodity: "", action: "buy", amount: 1 },
+      { commodity: "Gold", action: "hold", amount: 1 },
+      { commodity: "Gold", action: "buy", amount: 0 },
+      { commodity: "Gold", action: "buy", amount: 1.5 },
+    ]) {
+      expect(
+        PlanInputSchema.safeParse({ ...base, stops: [{ ...stop, cargo: [cargo] }] }).success,
+      ).toBe(false);
+    }
+    expect(PlanInputSchema.safeParse({ ...base, lap: 0 }).success).toBe(false);
+  });
+
+  it("loads a plan without them", () => {
+    const p = PlanInputSchema.parse({ ...base, stops: [{ system: "Lave", purpose: "trade" }] });
+    expect(p.repeat).toBeUndefined();
+    expect(p.lap).toBeUndefined();
+    expect(p.stops[0]!.cargo).toBeUndefined();
+  });
+});

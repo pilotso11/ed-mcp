@@ -173,6 +173,10 @@ export class PlanStore {
     });
   }
 
+  /**
+   * Sets a stop's status or notes. In a plan with repeat, the update that leaves every stop done
+   * or skipped sets them all back to todo and counts up lap.
+   */
   updateStop(
     planId: string,
     ref: { label?: string; index?: number },
@@ -184,6 +188,17 @@ export class PlanStore {
       const stop = plan.stops[findStop(plan, ref)]!;
       if (patch.status !== undefined) stop.status = patch.status;
       if (patch.notes !== undefined) stop.notes = patch.notes;
+      // A loop starts its next lap when its last open stop is finished, in this same write, so
+      // a concurrent edit cannot see the plan all done.
+      if (
+        plan.repeat &&
+        patch.status !== undefined &&
+        patch.status !== "todo" &&
+        plan.stops.every((s) => s.status === "done" || s.status === "skipped")
+      ) {
+        for (const s of plan.stops) s.status = "todo";
+        plan.lap = (plan.lap ?? 1) + 1;
+      }
       plan.updated_at = this.now().toISOString();
       return plan;
     });

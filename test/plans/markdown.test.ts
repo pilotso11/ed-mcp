@@ -168,4 +168,43 @@ describe("planToMarkdown positions", () => {
     });
     expect(md).toContain("Sol — (0.0000, 12.5000): Spot");
   });
+
+  it("shows a loop's lap and each stop's cargo", () => {
+    const md = planToMarkdown({
+      id: "trade",
+      name: "Trade loop",
+      items: [],
+      repeat: true,
+      lap: 3,
+      stops: [
+        {
+          system: "Wolf 397",
+          station: "Brooks Estate",
+          purpose: "Sell 720 t Gold, buy 64 t Silver",
+          kind: "trade",
+          status: "todo",
+          cargo: [
+            { commodity: "Gold", action: "sell", amount: 720, price: 9380 },
+            { commodity: "Silver", action: "buy", amount: 64, mission_id: 7 },
+          ],
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain("Repeating loop · lap 3\n");
+    expect(md).toContain(
+      [
+        "1. [ ] **trade** Wolf 397 — Brooks Estate: Sell 720 t Gold, buy 64 t Silver ← next",
+        "   - Sell 720 t Gold at 9,380 cr",
+        "   - Buy 64 t Silver (mission 7)",
+      ].join("\n"),
+    );
+  });
+
+  it("shows lap 1 for a loop without a lap, and nothing for a plan that does not repeat", () => {
+    const p = { id: "t", name: "T", items: [], stops: [], created_at: "x", updated_at: "x" };
+    expect(planToMarkdown({ ...p, repeat: true })).toContain("Repeating loop · lap 1");
+    expect(planToMarkdown({ ...p, repeat: false, lap: 2 })).not.toContain("lap");
+  });
 });
