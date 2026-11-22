@@ -867,7 +867,11 @@ describe("trade_loops save_to_plan", () => {
     );
     const best = j.loops[0];
     expect(best.sustained_per_hour).toBeLessThan(best.profit_per_hour);
-    expect((await s.plans.get("trade")).profit_per_hour).toBe(best.sustained_per_hour);
+    const plan = await s.plans.get("trade");
+    expect(plan.profit_per_hour).toBe(best.sustained_per_hour);
+    expect(plan.notes).toContain(
+      `(${best.profit_per_hour} cr/h a lap, ${best.sustained_per_hour} cr/h sustained)`,
+    );
   });
 
   it("saves the best loop as a repeating plan at lap 1, with each stop's cargo", async () => {

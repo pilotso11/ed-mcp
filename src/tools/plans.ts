@@ -106,7 +106,7 @@ export function registerPlanTools(
         "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
         "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes, after rules and cargo (what to buy or sell there: commodity, action buy or sell, amount in tonnes, planned unit price). " +
         "A plan with repeat: true is a loop: when every stop is done or skipped, all go back to todo and lap counts up. " +
-        "A plan saved by trade_route or trade_loops also has prices_at (ISO time of the oldest market data behind the prices) and profit_per_hour (planned credits an hour); when you replace such a plan, keep repeat, lap, prices_at and profit_per_hour unless the change is meant to drop them. " +
+        "A plan saved by trade_route or trade_loops also has prices_at (ISO time of the oldest market data behind the prices) and profit_per_hour (planned credits an hour); when you replace such a plan, keep repeat and lap; keep prices_at and profit_per_hour for a rename or a notes edit, but drop them when you change the stops or cargo they were worked out from. " +
         "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },

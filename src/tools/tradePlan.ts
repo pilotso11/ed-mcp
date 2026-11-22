@@ -21,13 +21,14 @@ const fsCode = (err: unknown): string | null => {
 };
 
 /**
- * The plan's profit_per_hour: the rate in whole credits, with -0 as 0. A loss, NaN or Infinity
- * saves no rate rather than no plan.
+ * The plan's profit_per_hour: the rate in whole credits, with -0 as 0. A loss, NaN, Infinity or a
+ * rate above Number.MAX_SAFE_INTEGER saves no rate rather than no plan.
  */
 const rateField = (rate: number | null): { profit_per_hour?: number } => {
   if (rate === null || !Number.isFinite(rate)) return {};
   const whole = Math.round(rate) + 0; // + 0 turns -0 into 0
-  return whole >= 0 ? { profit_per_hour: whole } : {};
+  // Above MAX_SAFE_INTEGER the number is no longer exact, and the schema's int() refuses it.
+  return whole >= 0 && whole <= Number.MAX_SAFE_INTEGER ? { profit_per_hour: whole } : {};
 };
 
 /**

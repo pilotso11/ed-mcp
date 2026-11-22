@@ -31,7 +31,10 @@ describe("plan tools", () => {
     for (const field of ["repeat", "lap", "prices_at", "profit_per_hour"]) {
       expect(tool.description).toContain(field);
     }
-    expect(tool.description).toContain("keep repeat, lap, prices_at and profit_per_hour");
+    expect(tool.description).toContain("keep repeat and lap");
+    expect(tool.description).toContain(
+      "keep prices_at and profit_per_hour for a rename or a notes edit, but drop them when you change the stops or cargo",
+    );
   });
 
   afterEach(() => vi.restoreAllMocks());

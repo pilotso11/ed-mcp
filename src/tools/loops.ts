@@ -570,7 +570,8 @@ export function registerLoopTools(
               profitPerHour: out.sustained_per_hour,
               notes:
                 `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
-                `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +
+                `of ${out.lap_min} min (${out.profit_per_hour} cr/h a lap, ${out.sustained_per_hour} cr/h ` +
+                `sustained), about ${out.laps_supported} laps ` +
                 `before the market runs low.` +
                 (oldest === null ? "" : ` Oldest price ${ageHours(oldest / 1000, now())} h.`),
             },
