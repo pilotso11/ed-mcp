@@ -47,7 +47,7 @@ export { ActivityStore } from "../activity/store.js";
 export type { Activity } from "../activity/schema.js";
 export { PlanStore } from "../plans/store.js";
 export { nextStop, visitOrder, type NextStop } from "../plans/stops.js";
-export type { Plan, PlanRoute, Stop, StopInput } from "../plans/schema.js";
+export type { Plan, PlanRoute, Stop, PlanStopInput } from "../plans/schema.js";
 
 export interface Stores {
   journal: JournalService;

@@ -16,7 +16,7 @@ import {
   type PlanItem,
   type PlanRoute,
   type Stop,
-  type StopInput,
+  type PlanStopInput,
 } from "./schema.js";
 import { findStop, nextStop, type NextStop } from "./stops.js";
 
@@ -133,15 +133,20 @@ export class PlanStore {
    * Adds one stop to the end of a plan in one locked write, making the plan (with `name`) when it
    * is missing; for callers such as ED Chat's bookmark key, so a concurrent edit is not lost.
    */
-  addStop(planId: string, name: string, stop: StopInput): Promise<Plan> {
+  addStop(planId: string, name: string, stop: PlanStopInput): Promise<Plan> {
+    // Checked before taking the lock, so a bad input says so rather than waiting on the file.
+    const parsed = StopSchema.safeParse(stop);
+    if (!parsed.success) {
+      return Promise.reject(new UserError(`Invalid stop: ${z.prettifyError(parsed.error)}`));
+    }
+    const input = PlanInputSchema.safeParse({ id: planId, name });
+    if (!input.success) {
+      return Promise.reject(new UserError(`Invalid plan: ${z.prettifyError(input.error)}`));
+    }
     return this.mutate((data) => {
-      const parsed = StopSchema.safeParse(stop);
-      if (!parsed.success) throw new UserError(`Invalid stop: ${z.prettifyError(parsed.error)}`);
       const stamp = this.now().toISOString();
       let plan = data.plans.find((p) => p.id === planId);
       if (!plan) {
-        const input = PlanInputSchema.safeParse({ id: planId, name });
-        if (!input.success) throw new UserError(`Invalid plan: ${z.prettifyError(input.error)}`);
         plan = { ...input.data, created_at: stamp, updated_at: stamp };
         data.plans.push(plan);
       }
@@ -175,7 +180,8 @@ export class PlanStore {
     return this.mutate((data) => {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
-      if (opts.stops && !sameStops(opts.stops, plan.stops)) {
+      // Stops added at the end meanwhile (a bookmark, say) leave the route's indexes valid.
+      if (opts.stops && !sameStops(opts.stops, plan.stops.slice(0, opts.stops.length))) {
         throw new UserError(
           `The stops of plan "${planId}" changed while the route was computed; run route_stops again to save it`,
         );

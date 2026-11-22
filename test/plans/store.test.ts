@@ -653,6 +653,33 @@ describe("PlanStore.addStop", () => {
       await expect(store.addStop("bookmarks", "B", { system: "", purpose: "x" })).rejects.toThrow(
         "Invalid stop",
       );
+      // An existing plan keeps its name and created_at.
+      await store.upsert({ id: "trip", name: "My trip", stops: [] });
+      const before = (await store.get("trip")).created_at;
+      const trip = await store.addStop("trip", "Other name", stop(3));
+      expect([trip.name, trip.created_at]).toEqual(["My trip", before]);
+      await expect(store.addStop("Bad Id!", "B", stop(4))).rejects.toThrow("Invalid plan");
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("PlanStore.setRoute with appended stops", () => {
+  it("saves a route when stops were only added at the end meanwhile", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-route-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      const a = { system: "A", purpose: "a" };
+      const plan = await store.upsert({ id: "p", name: "P", stops: [a] });
+      await store.addStop("p", "P", { system: "B", purpose: "b" });
+      const route = { computed_at: "t", from: "A", stops: ["A"], total_min: 1, plotted: false };
+      await expect(store.setRoute("p", route, { stops: plan.stops })).resolves.toBeTruthy();
+      await store.upsert({ id: "p", name: "P", stops: [{ system: "C", purpose: "c" }] });
+      await expect(store.setRoute("p", route, { stops: plan.stops })).rejects.toThrow("changed");
     } finally {
       await rm(d, { recursive: true, force: true });
     }
