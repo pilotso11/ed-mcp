@@ -8,13 +8,16 @@ import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
+  PlanId,
   PlanInputSchema,
+  StopSchema,
   type Plan,
   type PlanFile,
   type PlanInput,
   type PlanItem,
   type PlanRoute,
   type Stop,
+  type PlanStopInput,
 } from "./schema.js";
 import { findStop, nextStop, type NextStop } from "./stops.js";
 
@@ -100,7 +103,10 @@ export class PlanStore {
       if (
         route?.stop_indexes &&
         old?.route?.computed_at === route.computed_at &&
-        !sameStops(old.stops, plan.stops)
+        // A route's indexes point at the stops before any added at the end, so they still fit
+        // the shorter list.
+        !routeStillFits(plan.stops, old.stops) &&
+        !routeStillFits(old.stops, plan.stops)
       ) {
         delete route.stop_indexes;
       }
@@ -123,6 +129,36 @@ export class PlanStore {
       if (patch.status !== undefined) item.status = patch.status;
       if (patch.notes !== undefined) item.notes = patch.notes;
       plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  /**
+   * Adds one stop to the end of a plan in one locked write, making the plan (with `name`) when it
+   * is missing; for callers such as ED Chat's bookmark key, so a concurrent edit is not lost.
+   */
+  addStop(planId: string, name: string, stop: PlanStopInput): Promise<Plan> {
+    // Checked before taking the lock, so a bad input says so rather than waiting on the file.
+    const parsed = StopSchema.safeParse(stop);
+    if (!parsed.success) {
+      return Promise.reject(new UserError(`Invalid stop: ${z.prettifyError(parsed.error)}`));
+    }
+    const id = PlanId.safeParse(planId);
+    if (!id.success) {
+      return Promise.reject(new UserError(`Invalid plan: ${z.prettifyError(id.error)}`));
+    }
+    return this.mutate((data) => {
+      const stamp = this.now().toISOString();
+      let plan = data.plans.find((p) => p.id === planId);
+      if (!plan) {
+        // The name is used, and so checked, only when the plan is made.
+        const input = PlanInputSchema.safeParse({ id: planId, name });
+        if (!input.success) throw new UserError(`Invalid plan: ${z.prettifyError(input.error)}`);
+        plan = { ...input.data, created_at: stamp, updated_at: stamp };
+        data.plans.push(plan);
+      }
+      plan.stops.push(parsed.data);
+      plan.updated_at = stamp;
       return plan;
     });
   }
@@ -151,7 +187,8 @@ export class PlanStore {
     return this.mutate((data) => {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
-      if (opts.stops && !sameStops(opts.stops, plan.stops)) {
+      // Stops added at the end meanwhile (a bookmark, say) leave the route's indexes valid.
+      if (opts.stops && !routeStillFits(opts.stops, plan.stops)) {
         throw new UserError(
           `The stops of plan "${planId}" changed while the route was computed; run route_stops again to save it`,
         );
@@ -312,9 +349,21 @@ function cleanRoute(plan: Plan): Plan {
   return plan;
 }
 
+// Not the position: routes visit bodies, so a saved route is not dropped for a moved bookmark
+// (the route's coordinates may then be older than the stop's).
 const stopKey = (s: Stop) => JSON.stringify([s.system, s.station, s.body, s.label, s.purpose]);
 function sameStops(a: Stop[], b: Stop[]): boolean {
   return a.length === b.length && a.every((s, i) => stopKey(s) === stopKey(b[i]!));
+}
+
+/**
+ * Whether a route worked out over `before` still fits `after`: the same stops, or the same stops
+ * with more added at the end, which a route's indexes do not point at. An empty `before` fits
+ * only an empty `after`.
+ */
+function routeStillFits(before: Stop[], after: Stop[]): boolean {
+  if (!before.length) return !after.length;
+  return before.length <= after.length && sameStops(before, after.slice(0, before.length));
 }
 
 const PRUNABLE = /^[a-z0-9][a-z0-9-]{0,63}\.md$/;
