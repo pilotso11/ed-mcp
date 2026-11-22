@@ -46,6 +46,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "check": "npm run typecheck && npm run format:check && npm test",
     "pack:mcpb": "node scripts/pack-mcpb.mjs",
     "prepublishOnly": "npm run check && npm run build"
@@ -54,6 +55,7 @@
     "@anthropic-ai/mcpb": "^2.1.2",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.1.1",
     "env-paths": "^4.0.0",
     "fastest-levenshtein": "^1.0.16",
     "prettier": "^3.9.10",
