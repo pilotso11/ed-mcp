@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { NotConfiguredError } from "../../src/errors.js";
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { ActivityStore } from "../../src/activity/store.js";
+import { NotConfiguredError, UserError } from "../../src/errors.js";
+import { PlanStore } from "../../src/plans/store.js";
 import { TtlCache } from "../../src/http/cache.js";
 import { HttpClient } from "../../src/http/client.js";
 import type { JournalService } from "../../src/journal/service.js";
@@ -30,6 +35,8 @@ interface Opts {
   noState?: boolean;
   cargo?: number | null;
   credits?: number | null;
+  plans?: PlanStore;
+  activity?: ActivityStore;
 }
 
 function setup(opts: Opts = {}) {
@@ -58,6 +65,8 @@ function setup(opts: Opts = {}) {
   registerTradeTools(server, {
     spansh,
     journal: opts.noJournal ? undefined : journal,
+    plans: opts.plans,
+    activity: opts.activity,
     now: () => NOW,
   });
   return { client: connectTestClient(server), forms };
@@ -898,5 +907,122 @@ describe("commodity_prices with the local market", () => {
       local: { market_id: FERRARO, updated_at: "2026-10-13T06:00:00Z", rows: [bauxite(20000)] },
     });
     expect(byName(j, "Ferraro Control")).toMatchObject({ price: 20000, price_source: "journal" });
+  });
+});
+
+describe("trade_route save_to_plan", () => {
+  const stores = async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "trade-"));
+    return {
+      plans: new PlanStore(path.join(dir, "plans.json"), () => new Date(NOW)),
+      activity: new ActivityStore(path.join(dir, "activity.json"), () => new Date(NOW)),
+    };
+  };
+
+  it("saves one stop per station with the cargo and makes it the activity note's plan", async () => {
+    const s = await stores();
+    const { r, j } = await trade({ save_to_plan: true }, s);
+    expect(r.isError).toBe(false);
+    expect(j).toMatchObject({ status: "ok", saved: true, plan_id: "trade" });
+    expect(j.hops).toHaveLength(3);
+    const plan = await s.plans.get("trade");
+    expect(plan.name).toBe("Trade route: Lave → Crucis Sector DB-X b1-6, 4 stops");
+    expect(plan.repeat).toBeUndefined();
+    expect(plan.lap).toBeUndefined();
+    expect(plan.stops.map((x) => [x.system, x.station, x.kind, x.purpose])).toEqual([
+      ["Lave", "Lave Station", "trade", "Buy 100 t Tea"],
+      ["LP 547-159", "Martin Gateway", "trade", "Sell 100 t Tea, then buy 100 t Bauxite"],
+      [
+        "Solati",
+        "ELWireCraft",
+        "trade",
+        "Sell 100 t Bauxite, then buy 100 t Military Grade Fabrics",
+      ],
+      [
+        "Crucis Sector DB-X b1-6",
+        "Beacon Light Of The Avali",
+        "trade",
+        "Sell 100 t Military Grade Fabrics",
+      ],
+    ]);
+    expect(plan.stops[0]!.cargo).toEqual([
+      { commodity: "Tea", action: "buy", amount: 100, price: 1188 },
+    ]);
+    expect(plan.stops[1]!.cargo).toEqual([
+      { commodity: "Tea", action: "sell", amount: 100, price: 2177 },
+      { commodity: "Bauxite", action: "buy", amount: 100, price: 2842 },
+    ]);
+    expect(plan.stops[1]!.label).toBe("Sell 100 t Tea, then buy 100 t Bauxite at Martin Gateway");
+    expect(plan.stops.every((x) => x.status === "todo")).toBe(true);
+    expect(await s.activity.get()).toMatchObject({
+      kind: "trading",
+      summary: plan.name,
+      plan_id: "trade",
+    });
+  });
+
+  it("replaces the plan, saves to plan_id and keeps a note someone wrote for it", async () => {
+    const s = await stores();
+    await s.plans.upsert({ id: "run", name: "Old", stops: [{ system: "Sol", purpose: "x" }] });
+    await s.activity.set({ kind: "hauling", summary: "Credits for the Cutter", plan_id: "run" });
+    const { j } = await trade({ save_to_plan: true, plan_id: "run" }, s);
+    expect(j).toMatchObject({ saved: true, plan_id: "run" });
+    expect((await s.plans.get("run")).stops).toHaveLength(4);
+    expect(await s.activity.get()).toMatchObject({
+      kind: "hauling",
+      summary: "Credits for the Cutter",
+      plan_id: "run",
+    });
+  });
+
+  it("saves nothing by default, while pending, or without a route", async () => {
+    const s = await stores();
+    expect((await trade({}, s)).j.saved).toBeUndefined();
+    const pending = await trade(
+      { save_to_plan: true },
+      { ...s, job: { status: "pending", job: "J" } },
+    );
+    expect(pending.j.saved).toBeUndefined();
+    const none = await trade({ save_to_plan: true }, { ...s, job: { status: "ok", hops: [] } });
+    expect(none.j.saved).toBeUndefined();
+    expect(none.j.notes).toContain('No route to save; plan "trade" was not changed.');
+    expect(await s.plans.list()).toEqual([]);
+    expect(await s.activity.get()).toBeNull();
+  });
+
+  it("keeps the route when the save fails, and says when only the note failed", async () => {
+    const s = await stores();
+    const failing = Object.assign(Object.create(PlanStore.prototype), {
+      upsert: async () => {
+        throw new UserError("Plan file is locked");
+      },
+    }) as PlanStore;
+    const locked = await trade({ save_to_plan: true }, { plans: failing, activity: s.activity });
+    expect(locked.r.isError).toBe(false);
+    expect(locked.j.hops).toHaveLength(3);
+    expect(locked.j.saved).toBeUndefined();
+    expect(locked.j.notes).toContain(
+      'The result was not saved to plan "trade": Plan file is locked',
+    );
+    expect(await s.activity.get()).toBeNull();
+
+    const noNote = Object.assign(Object.create(ActivityStore.prototype), {
+      get: async () => null,
+      set: async () => {
+        throw new UserError("locked");
+      },
+    }) as ActivityStore;
+    const half = await trade({ save_to_plan: true }, { plans: s.plans, activity: noNote });
+    expect(half.j.saved).toBe(true);
+    expect(half.j.notes).toContain(
+      "The plan was saved, but the activity note was not updated: locked",
+    );
+  });
+
+  it("refuses save_to_plan without plans, before asking Spansh", async () => {
+    const { r, forms } = await trade({ save_to_plan: true });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Plans are not available.");
+    expect(forms).toHaveLength(0);
   });
 });

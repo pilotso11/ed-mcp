@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import manifest from "../../manifest.json" with { type: "json" };
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { ActivityStore } from "../../src/activity/store.js";
 import { NotConfiguredError, UserError } from "../../src/errors.js";
+import { PlanStore } from "../../src/plans/store.js";
 import type { JournalService } from "../../src/journal/service.js";
 import { DEFAULT_PREFS } from "../../src/prefs/schema.js";
 import { legBetween } from "../../src/routes/legs.js";
@@ -164,7 +169,12 @@ interface Journal {
   local?: { market_id: number; updated_at: string; rows: MarketRow[] } | "broken";
 }
 
-async function loops(args: Record<string, unknown>, world: World, j: Journal = {}) {
+async function loops(
+  args: Record<string, unknown>,
+  world: World,
+  j: Journal = {},
+  stores: { plans?: PlanStore; activity?: ActivityStore } = {},
+) {
   const clock = world.clock;
   const fake = fakeSpansh(world);
   const journal = {
@@ -186,6 +196,7 @@ async function loops(args: Record<string, unknown>, world: World, j: Journal = {
   registerLoopTools(server, {
     spansh: fake.spansh,
     journal: j.none ? undefined : journal,
+    ...stores,
     ...(clock ? { now: () => clock.t } : {}),
   });
   const r = await callTool(await connectTestClient(server), "trade_loops", args);
@@ -795,5 +806,129 @@ describe("trade_loops with the local market", () => {
     );
     expect(r.isError).toBe(false);
     expect(stationMarket).toHaveBeenCalledWith(s.market_id);
+  });
+});
+
+describe("trade_loops save_to_plan", () => {
+  const stores = async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "loops-"));
+    const now = () => new Date("2026-11-22T12:00:00Z");
+    return {
+      plans: new PlanStore(path.join(dir, "plans.json"), now),
+      activity: new ActivityStore(path.join(dir, "activity.json"), now),
+    };
+  };
+
+  it("saves the best loop as a repeating plan at lap 1, with each stop's cargo", async () => {
+    const s = await stores();
+    const { r, j } = await loops(
+      { save_to_plan: true },
+      { found: [start(), alpha(), beta(), far()] },
+      {},
+      s,
+    );
+    expect(r.isError).toBe(false);
+    expect(j).toMatchObject({ saved: true, plan_id: "trade" });
+    expect(j.loops.length).toBeGreaterThan(1);
+    const plan = await s.plans.get("trade");
+    expect(plan).toMatchObject({ name: "Trade loop: Home ⇄ Alpha", repeat: true, lap: 1 });
+    expect(plan.notes).toContain("50000 cr per lap");
+    expect(plan.stops).toEqual([
+      {
+        system: "Home",
+        station: "Start Port",
+        purpose: "Sell 100 t Tea, then buy 100 t Gold",
+        label: "Sell 100 t Tea, then buy 100 t Gold at Start Port",
+        kind: "trade",
+        cargo: [
+          { commodity: "Tea", action: "sell", amount: 100, price: 500 },
+          { commodity: "Gold", action: "buy", amount: 100, price: 100 },
+        ],
+        status: "todo",
+      },
+      {
+        system: "Alpha",
+        station: "Alpha Hub",
+        purpose: "Sell 100 t Gold, then buy 100 t Tea",
+        label: "Sell 100 t Gold, then buy 100 t Tea at Alpha Hub",
+        kind: "trade",
+        cargo: [
+          { commodity: "Gold", action: "sell", amount: 100, price: 300 },
+          { commodity: "Tea", action: "buy", amount: 100, price: 200 },
+        ],
+        status: "todo",
+      },
+    ]);
+    expect(j.notes).toContain(
+      "On the first lap there is nothing to sell at Start Port; buy there and go on.",
+    );
+    expect(await s.activity.get()).toMatchObject({
+      kind: "trading",
+      summary: "Trade loop: Home ⇄ Alpha",
+      plan_id: "trade",
+    });
+  });
+
+  it("saves a loop with an empty leg as a buy stop and a sell stop", async () => {
+    const s = await stores();
+    const { j } = await loops(
+      { save_to_plan: true, plan_id: "gold" },
+      { found: [start(), beta()] },
+      {},
+      s,
+    );
+    expect(j).toMatchObject({ saved: true, plan_id: "gold" });
+    const plan = await s.plans.get("gold");
+    expect(plan.stops.map((x) => [x.purpose, x.cargo])).toEqual([
+      ["Buy 100 t Gold", [{ commodity: "Gold", action: "buy", amount: 100, price: 100 }]],
+      ["Sell 100 t Gold", [{ commodity: "Gold", action: "sell", amount: 100, price: 150 }]],
+    ]);
+    expect(j.notes.some((n: string) => n.startsWith("On the first lap"))).toBe(false);
+    // Finishing the loop starts lap 2.
+    await s.plans.updateStop("gold", { index: 0 }, { status: "done" });
+    const next = await s.plans.updateStop("gold", { index: 1 }, { status: "done" });
+    expect(next.lap).toBe(2);
+    expect(next.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
+  });
+
+  it("saves nothing without a loop, and keeps the loops when the save fails", async () => {
+    const s = await stores();
+    const none = await loops({ save_to_plan: true }, { found: [start(), far()] }, {}, s);
+    expect(none.j.loops).toEqual([]);
+    expect(none.j.saved).toBeUndefined();
+    expect(none.j.notes).toContain('No loop to save; plan "trade" was not changed.');
+    expect(await s.plans.list()).toEqual([]);
+
+    const failing = Object.assign(Object.create(PlanStore.prototype), {
+      upsert: async () => {
+        throw new UserError("Plan file is locked");
+      },
+    }) as PlanStore;
+    const locked = await loops(
+      { save_to_plan: true },
+      { found: [start(), alpha()] },
+      {},
+      { plans: failing, activity: s.activity },
+    );
+    expect(locked.r.isError).toBe(false);
+    expect(locked.j.loops.length).toBeGreaterThan(0);
+    expect(locked.j.saved).toBeUndefined();
+    expect(locked.j.notes).toContain(
+      'The result was not saved to plan "trade": Plan file is locked',
+    );
+    expect(await s.activity.get()).toBeNull();
+  });
+
+  it("does not save by default, and refuses save_to_plan without plans before searching", async () => {
+    const s = await stores();
+    expect((await loops({}, { found: [start(), alpha()] }, {}, s)).j.saved).toBeUndefined();
+    expect(await s.plans.list()).toEqual([]);
+    const { r, marketStations } = await loops(
+      { save_to_plan: true },
+      { found: [start(), alpha()] },
+    );
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Plans are not available.");
+    expect(marketStations).not.toHaveBeenCalled();
   });
 });

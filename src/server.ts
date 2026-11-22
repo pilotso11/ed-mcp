@@ -109,6 +109,8 @@ export function createServer(deps: ServerDeps): McpServer {
       spansh: deps.spansh,
       journal: deps.journal,
       prefs: deps.prefs,
+      plans: deps.plans,
+      activity: deps.activity,
       currentShip: deps.currentShip,
       jumpRange: deps.jumpRange,
     });
@@ -116,6 +118,8 @@ export function createServer(deps: ServerDeps): McpServer {
       spansh: deps.spansh,
       journal: deps.journal,
       prefs: deps.prefs,
+      plans: deps.plans,
+      activity: deps.activity,
       currentShip: deps.currentShip,
       jumpRange: deps.jumpRange,
     });

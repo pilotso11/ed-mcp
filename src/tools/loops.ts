@@ -2,6 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { UserError } from "../errors.js";
 import type { JournalService } from "../journal/service.js";
+import type { ActivityStore } from "../activity/store.js";
+import { PlanId } from "../plans/schema.js";
+import type { PlanStore } from "../plans/store.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
 import { createPlacer, legBetween, PLANETARY, STATION_LIMIT, type Place } from "../routes/legs.js";
@@ -15,8 +18,10 @@ import type {
 import { applyRules, describeRules, type Rules } from "../stations/filter.js";
 import { screenPermits } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { bestCargo, findLoops, spreadStations, type ScoredLeg } from "../trade/loops.js";
+import { bestCargo, findLoops, spreadStations, type Loop, type ScoredLeg } from "../trade/loops.js";
+import type { TradeVisit } from "../trade/plan.js";
 import { wrap } from "./result.js";
+import { saveTradePlan } from "./tradePlan.js";
 
 const DEFAULT_CARGO = 7;
 const DEFAULT_CAPITAL = 1000;
@@ -100,6 +105,8 @@ export function registerLoopTools(
     spansh: SpanshClient;
     journal?: JournalService;
     prefs?: PreferencesStore;
+    plans?: PlanStore;
+    activity?: ActivityStore;
     currentShip?: () => Promise<string | { type: string; source: string } | null>;
     jumpRange?: () => Promise<number | null>;
     now?: () => number;
@@ -122,8 +129,9 @@ export function registerLoopTools(
     {
       annotations: {
         title: "Find Trade Loops",
-        readOnlyHint: true,
-        destructiveHint: false,
+        // save_to_plan replaces a plan and the activity note.
+        readOnlyHint: false,
+        destructiveHint: true,
         idempotentHint: true,
         openWorldHint: true,
       },
@@ -133,7 +141,16 @@ export function registerLoopTools(
         "near (default: where you are). Ranked by sustained profit per hour: thin markets that cannot refill a " +
         "full hold every lap rank low. Uses Spansh market data (check each price's age). Cargo and capital " +
         "default to the journal. Loops through permit-locked systems are left out unless permit_systems is allow. " +
-        "Legality is not checked.",
+        "Legality is not checked." +
+        (deps.plans
+          ? " With save_to_plan: true, the best loop (the first listed) is saved as plan plan_id (default " +
+            "trade), replacing it, with repeat: true and lap 1: one stop per station in loop order, kind trade, " +
+            "with a cargo list (sell what the last leg brought, then buy for the next leg, with tonnes and the " +
+            'planned unit price) and a purpose such as "Sell 720 t Gold, then buy 720 t Silver". Marking the ' +
+            "last open stop done starts the next lap. It also becomes the activity note's plan (kind trading), " +
+            "so the ED Chat panel follows it. The result then has saved and plan_id; a failed save is reported " +
+            "in notes."
+          : ""),
       inputSchema: {
         start: z.enum(["here", "any"]).default("here"),
         near: z
@@ -161,10 +178,17 @@ export function registerLoopTools(
         limit: z.number().int().min(1).max(30).default(10),
         preferences: PrefsPatchSchema.optional(),
         use_preferences: z.boolean().default(true),
+        save_to_plan: z
+          .boolean()
+          .default(false)
+          .describe("Save the best loop as a repeating plan and make it the activity note's plan"),
+        plan_id: PlanId.default("trade").describe("The plan to save to"),
       },
     },
     wrap(
       async (a: {
+        save_to_plan: boolean;
+        plan_id: string;
         start: "here" | "any";
         near?: NearInput;
         radius_ly?: number;
@@ -180,6 +204,8 @@ export function registerLoopTools(
         preferences?: PrefsPatch;
         use_preferences: boolean;
       }) => {
+        // Checked before the search, which can take most of a minute.
+        if (a.save_to_plan && !deps.plans) throw new UserError("Plans are not available.");
         const deadline = now() + TIME_LIMIT_MS;
         let stopped = false;
         const notes: string[] = [];
@@ -502,6 +528,37 @@ export function registerLoopTools(
         else if (!result.loops.length) notes.push(NO_LOOPS);
         notes.push(LEGALITY);
 
+        let saved = false;
+        const best = screen.kept[0];
+        if (a.save_to_plan && !best) {
+          notes.push(`No loop to save; plan "${a.plan_id}" was not changed.`);
+        } else if (a.save_to_plan && best) {
+          const visits = loopVisits(best, candidates);
+          if (visits[0]!.sell.length) {
+            notes.push(
+              `On the first lap there is nothing to sell at ${visits[0]!.station}; buy there and go on.`,
+            );
+          }
+          const out = loops[0]!;
+          saved = await saveTradePlan(
+            deps,
+            a.plan_id,
+            {
+              name: loopName(visits),
+              visits,
+              repeat: true,
+              notes:
+                `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
+                `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +
+                `before the market runs low.` +
+                (out.oldest_price_hours !== null
+                  ? ` Oldest price ${out.oldest_price_hours} h.`
+                  : ""),
+            },
+            notes,
+          );
+        }
+
         const searched = found.stations.length + found.droppedOld;
         const total = `${found.capped ? "at least " : ""}${found.total}`;
         const scope = here
@@ -510,6 +567,7 @@ export function registerLoopTools(
         return {
           centre,
           loops,
+          ...(saved && { saved, plan_id: a.plan_id }),
           coverage: {
             candidates: candidates.length,
             within_radius_total: found.total,
@@ -553,3 +611,23 @@ export function registerLoopTools(
     });
   }
 }
+
+/** One visit per station of the loop, in order: sell what the last leg brought, buy for the next. */
+function loopVisits(loop: Loop, stations: MarketStation[]): TradeVisit[] {
+  const n = loop.stations.length;
+  return loop.stations.map((i, k) => {
+    const into = loop.legs[(k - 1 + n) % n]!.cargo;
+    const out = loop.legs[k]!.cargo;
+    return {
+      system: stations[i]!.system,
+      station: stations[i]!.name,
+      sell: into
+        ? [{ commodity: into.commodity, amount: into.amount, price: into.sell_price }]
+        : [],
+      buy: out ? [{ commodity: out.commodity, amount: out.amount, price: out.buy_price }] : [],
+    };
+  });
+}
+
+const loopName = (visits: TradeVisit[]) =>
+  `Trade loop: ${visits.map((v) => v.system).join(visits.length === 2 ? " ⇄ " : " → ")}`;

@@ -48,6 +48,8 @@ describe("tool annotations", () => {
       "plan_export",
       "plan_import",
       "plan_upsert",
+      "trade_loops",
+      "trade_route",
     ]);
   });
 
@@ -72,6 +74,8 @@ describe("tool annotations", () => {
       "route_stops",
       "settings_open",
       "settings_status",
+      "trade_loops",
+      "trade_route",
     ]);
   });
 });
