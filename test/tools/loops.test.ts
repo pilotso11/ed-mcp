@@ -735,10 +735,9 @@ describe("trade_loops with the local market", () => {
     expect(j.notes).toContain(NOTE);
     const plan = await plans.get("trade");
     expect(plan.prices_at).toBe("2026-10-13T06:00:00.000Z");
-    // The saved loop is the best, the first listed.
-    expect(plan.profit_per_hour).toBe(j.loops[0].profit_per_hour);
+    // The saved loop is the best, the first listed; its rate is the one the loops are ranked by.
+    expect(plan.profit_per_hour).toBe(j.loops[0].sustained_per_hour);
     expect(plan.profit_per_hour).toBeGreaterThan(0);
-    expect(plan.notes).toContain(`(${j.loops[0].profit_per_hour} cr/h)`);
     expect(plan.notes).toContain("Oldest price 1 h.");
     expect(plan.stops[0]).toMatchObject({
       system: "Home",
@@ -856,6 +855,20 @@ describe("trade_loops save_to_plan", () => {
       activity: new ActivityStore(path.join(dir, "activity.json"), now),
     };
   };
+
+  it("saves the loop's sustained rate, not its one-lap rate, as profit_per_hour", async () => {
+    const s = await stores();
+    // A session long enough to run out the market's 100 laps, so the sustained rate is lower.
+    const { j } = await loops(
+      { save_to_plan: true, session_min: 100_000 },
+      { found: [start(), alpha()] },
+      {},
+      s,
+    );
+    const best = j.loops[0];
+    expect(best.sustained_per_hour).toBeLessThan(best.profit_per_hour);
+    expect((await s.plans.get("trade")).profit_per_hour).toBe(best.sustained_per_hour);
+  });
 
   it("saves the best loop as a repeating plan at lap 1, with each stop's cargo", async () => {
     const s = await stores();

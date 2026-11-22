@@ -566,7 +566,8 @@ export function registerLoopTools(
               visits,
               repeat: true,
               pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
-              profitPerHour: out.profit_per_hour,
+              // The loops are ranked by it, and it counts only the laps the market supports.
+              profitPerHour: out.sustained_per_hour,
               notes:
                 `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
                 `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +

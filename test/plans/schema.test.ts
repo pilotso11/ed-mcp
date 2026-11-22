@@ -123,7 +123,9 @@ describe("PlanInputSchema trade fields", () => {
     }
     expect(PlanInputSchema.safeParse({ ...base, lap: 0 }).success).toBe(false);
     expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: -1 }).success).toBe(false);
-    expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: "1" }).success).toBe(false);
+    for (const rate of ["1", 1.5, Infinity, NaN]) {
+      expect(PlanInputSchema.safeParse({ ...base, profit_per_hour: rate }).success).toBe(false);
+    }
   });
 
   it("loads a plan without them", () => {

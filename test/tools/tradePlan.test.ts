@@ -32,12 +32,18 @@ describe("saveTradePlan profit_per_hour", () => {
     expect(plan.profit_per_hour).toBe(60_000_000);
   });
 
-  it("saves a rate of 0", async () => {
+  it("saves a rate of 0, and -0 as 0", async () => {
     expect((await save(0)).plan.profit_per_hour).toBe(0);
+    expect(Object.is((await save(-0)).plan.profit_per_hour, 0)).toBe(true);
+    expect(Object.is((await save(-0.4)).plan.profit_per_hour, 0)).toBe(true);
+  });
+
+  it("saves the rate in whole credits", async () => {
+    expect((await save(1234.6)).plan.profit_per_hour).toBe(1235);
   });
 
   it("saves the plan without a rate when there is none, or it is a loss", async () => {
-    for (const rate of [null, -5]) {
+    for (const rate of [null, -5, Infinity, -Infinity, NaN]) {
       const { saved, notes, plan } = await save(rate);
       expect(saved).toBe(true);
       expect(notes).toEqual([]);

@@ -25,6 +25,15 @@ const plan = {
 };
 
 describe("plan tools", () => {
+  it("tells plan_upsert to keep a trade plan's loop, price time and planned rate", async () => {
+    const { client } = await setup();
+    const tool = (await client.listTools()).tools.find((t) => t.name === "plan_upsert")!;
+    for (const field of ["repeat", "lap", "prices_at", "profit_per_hour"]) {
+      expect(tool.description).toContain(field);
+    }
+    expect(tool.description).toContain("keep repeat, lap, prices_at and profit_per_hour");
+  });
+
   afterEach(() => vi.restoreAllMocks());
 
   it("adds sync warnings as a second text item", async () => {
