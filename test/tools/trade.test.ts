@@ -1027,4 +1027,60 @@ describe("trade_route save_to_plan", () => {
     expect(r.text).toContain("Plans are not available.");
     expect(forms).toHaveLength(0);
   });
+
+  it("puts save_to_plan and plan_id in a pending result's inputs, so the retry saves", async () => {
+    const s = await stores();
+    const pending = await trade(
+      { save_to_plan: true, plan_id: "run" },
+      { ...s, job: { status: "pending", job: "J" } },
+    );
+    expect(pending.j.inputs).toMatchObject({ save_to_plan: true, plan_id: "run" });
+    const again = await trade(pending.j.inputs, s);
+    expect(again.j).toMatchObject({ status: "ok", saved: true, plan_id: "run" });
+    expect((await s.plans.get("run")).stops).toHaveLength(4);
+  });
+
+  it("gives the oldest price in the notes from the same times as prices_at", async () => {
+    const s = await stores();
+    await trade({ save_to_plan: true }, s);
+    const plan = await s.plans.get("trade");
+    // 1791858068 s is the oldest market time; NOW is 1791882486 s: 24,418 s is 6.8 h.
+    expect(plan.notes).toContain("Oldest price 6.8 h.");
+  });
+
+  it("fails on a store error that is not the user's, as for any bug", async () => {
+    const s = await stores();
+    const broken = Object.assign(Object.create(PlanStore.prototype), {
+      get: async () => {
+        throw new UserError('Plan "trade" not found');
+      },
+      upsert: async () => {
+        throw new Error("disk full");
+      },
+    }) as PlanStore;
+    const { r } = await trade({ save_to_plan: true }, { plans: broken, activity: s.activity });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("Internal error");
+  });
+
+  it("replaces a note it wrote for the plan, but keeps one someone wrote", async () => {
+    const s = await stores();
+    await s.plans.upsert({ id: "trade", name: "Trade route: Sol → Lave, 2 stops" });
+    await s.activity.set({
+      kind: "trading",
+      summary: "Trade route: Sol → Lave, 2 stops",
+      plan_id: "trade",
+    });
+    await trade({ save_to_plan: true }, s);
+    const name = (await s.plans.get("trade")).name;
+    expect(await s.activity.get()).toMatchObject({ summary: name, plan_id: "trade" });
+
+    await s.activity.set({
+      kind: "trading",
+      summary: "Trade loop: farming gold",
+      plan_id: "trade",
+    });
+    await trade({ save_to_plan: true }, s);
+    expect((await s.activity.get())?.summary).toBe("Trade loop: farming gold");
+  });
 });

@@ -179,7 +179,8 @@ export function registerPlanTools(
         "Set the status (todo, done, skipped) and/or notes of one stop in a plan. Name the stop by " +
         "label (its label, else its station, body or system) or by index in the plan's stops, from 0; give exactly one. " +
         "Mark a stop done when the player has finished there; returns the plan with the new next_stop. " +
-        "In a plan with repeat: true, the update that leaves every stop done or skipped sets them all back to todo and adds 1 to lap.",
+        "In a plan with repeat: true, the update that leaves every stop done or skipped sets them all back to todo and adds 1 to lap; " +
+        "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),
         label: z.string().min(1).optional(),
@@ -209,7 +210,20 @@ export function registerPlanTools(
             { label: a.label, index: a.index },
             { status: a.status, notes: a.notes },
           );
-          return { ...plan, next_stop: nextStop(plan) };
+          // A stop just marked done or skipped reads todo only when the loop started a new lap.
+          const rolled =
+            plan.repeat === true &&
+            (a.status === "done" || a.status === "skipped") &&
+            plan.stops.every((s) => s.status === "todo");
+          const lap = plan.lap ?? 1;
+          return {
+            ...plan,
+            next_stop: nextStop(plan),
+            ...(rolled && {
+              lap_completed: lap - 1,
+              message: `Lap ${lap - 1} done: every stop is back to todo for lap ${lap}.`,
+            }),
+          };
         } catch (err) {
           const changes = [
             ...(a.status !== undefined ? [`status: ${a.status}`] : []),

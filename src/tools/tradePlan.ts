@@ -1,5 +1,7 @@
-import type { ActivityStore } from "../activity/store.js";
+import { pointNoteAtPlan } from "../activity/point.js";
 import { MAX_SUMMARY } from "../activity/schema.js";
+import type { ActivityStore } from "../activity/store.js";
+import { UserError } from "../errors.js";
 import type { PlanStore } from "../plans/store.js";
 import { tradeStops, type TradeVisit } from "../trade/plan.js";
 import { reason } from "./result.js";
@@ -9,13 +11,13 @@ export interface TradePlanDeps {
   activity?: ActivityStore;
 }
 
-/** A summary trade_route or trade_loops wrote, which they refresh; one someone wrote is kept. */
-const isAutoSummary = (s: string) => /^Trade (route|loop): /.test(s);
+/** The note summary these tools write for a plan: its name, cut to fit. */
+const summaryOf = (name: string) => name.slice(0, MAX_SUMMARY);
 
 /**
  * Saves a trade run as the plan planId, replacing a plan with that ID, and makes it the activity
- * note's plan. The run is already worked out, so a failed save is reported in notes rather than
- * thrown. Returns whether the plan was saved.
+ * note's plan. The run is already worked out, so a save the store refuses is reported in notes
+ * rather than thrown; anything else is a bug, for wrap(). Returns whether the plan was saved.
  */
 export async function saveTradePlan(
   deps: TradePlanDeps,
@@ -30,8 +32,18 @@ export async function saveTradePlan(
   },
   notes: string[],
 ): Promise<boolean> {
+  const plans = deps.plans!;
+  let oldName: string | null = null;
   try {
-    await deps.plans!.upsert(
+    // The name it had, so a note these tools wrote for it is told from one someone wrote.
+    oldName = await plans.get(planId).then(
+      (p) => p.name,
+      (err: unknown) => {
+        if (err instanceof UserError) return null;
+        throw err;
+      },
+    );
+    await plans.upsert(
       {
         id: planId,
         name: run.name,
@@ -43,29 +55,22 @@ export async function saveTradePlan(
       { overwrite: true },
     );
   } catch (err) {
-    notes.push(`The result was not saved to plan "${planId}": ${reason(err)}`);
+    if (!(err instanceof UserError)) throw err;
+    notes.push(`The result was not saved to plan "${planId}": ${err.message}`);
     return false;
   }
   if (deps.activity) {
+    const written = new Set([summaryOf(run.name), ...(oldName ? [summaryOf(oldName)] : [])]);
     try {
-      await pointNote(deps.activity, planId, run.name);
+      await pointNoteAtPlan(deps.activity, {
+        planId,
+        kind: "trading",
+        summary: summaryOf(run.name),
+        isAuto: (s) => written.has(s),
+      });
     } catch (err) {
       notes.push(`The plan was saved, but the activity note was not updated: ${reason(err)}`);
     }
   }
   return true;
-}
-
-/**
- * Points the activity note at the plan. A note someone wrote for this plan keeps its words and
- * kind; otherwise, including one these tools wrote, it says what the run is now.
- */
-async function pointNote(activity: ActivityStore, planId: string, name: string): Promise<void> {
-  const note = await activity.get();
-  const own = note && note.plan_id === planId && !isAutoSummary(note.summary) ? note : null;
-  await activity.set({
-    kind: own?.kind ?? "trading",
-    summary: own?.summary ?? name.slice(0, MAX_SUMMARY),
-    plan_id: planId,
-  });
 }

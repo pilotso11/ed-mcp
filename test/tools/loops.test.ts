@@ -833,7 +833,7 @@ describe("trade_loops save_to_plan", () => {
     const plan = await s.plans.get("trade");
     expect(plan).toMatchObject({ name: "Trade loop: Home ⇄ Alpha", repeat: true, lap: 1 });
     expect(plan.notes).toContain("50000 cr per lap");
-    // The markets are 1 h old.
+    // Without market times, from the ages: the markets are 1 h old.
     expect(Math.abs(Date.parse(plan.prices_at!) - (Date.now() - 3_600_000))).toBeLessThan(60_000);
     expect(plan.stops).toEqual([
       {
@@ -932,5 +932,22 @@ describe("trade_loops save_to_plan", () => {
     expect(r.isError).toBe(true);
     expect(r.text).toContain("Plans are not available.");
     expect(marketStations).not.toHaveBeenCalled();
+  });
+
+  it("takes prices_at from the stations' market times, not their cached ages", async () => {
+    const s = await stores();
+    // A cached record: its age was worked out when it was fetched, so it reads younger.
+    const home = {
+      ...start(),
+      market_age_hours: 0.5,
+      market_updated_at: "2026-11-20T08:00:00.000Z",
+    };
+    const away = {
+      ...alpha(),
+      market_age_hours: 0.2,
+      market_updated_at: "2026-11-21T09:30:00.000Z",
+    };
+    await loops({ save_to_plan: true }, { found: [home, away] }, {}, s);
+    expect((await s.plans.get("trade")).prices_at).toBe("2026-11-20T08:00:00.000Z");
   });
 });

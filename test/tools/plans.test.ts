@@ -531,4 +531,41 @@ describe("plan tools", () => {
       expect(r).toMatchObject({ isError: true, text: expect.stringContaining("absolute path") });
     });
   });
+
+  it("says when plan_update_stop finished a lap of a repeating plan", async () => {
+    const { client } = await setup();
+    await callTool(client, "plan_upsert", {
+      plan: {
+        id: "loop",
+        name: "Trade loop",
+        repeat: true,
+        stops: [
+          { system: "Kremainn", purpose: "Buy 720 t Gold" },
+          { system: "Wolf 397", purpose: "Sell 720 t Gold" },
+        ],
+      },
+    });
+    const first = await callTool(client, "plan_update_stop", {
+      plan_id: "loop",
+      index: 0,
+      status: "done",
+    });
+    expect((first.json as any).lap_completed).toBeUndefined();
+    expect((first.json as any).message).toBeUndefined();
+    const last = await callTool(client, "plan_update_stop", {
+      plan_id: "loop",
+      index: 1,
+      status: "done",
+    });
+    expect(last.json).toMatchObject({
+      lap: 2,
+      lap_completed: 1,
+      message: "Lap 1 done: every stop is back to todo for lap 2.",
+      stops: [{ status: "todo" }, { status: "todo" }],
+      next_stop: { index: 0 },
+    });
+    // Only the result says so; the plan itself has no such fields.
+    const got = (await callTool(client, "plan_get", { id: "loop" })).json as any;
+    expect(got.lap_completed).toBeUndefined();
+  });
 });

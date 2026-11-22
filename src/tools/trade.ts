@@ -13,7 +13,7 @@ import { resolveSearchRules } from "../stations/rules.js";
 import { PERMIT_TIME_MS, screenPermits } from "../stations/permits.js";
 import { rankCommodityStations, recommendCommodityStation } from "../trade/prices.js";
 import type { TradeVisit } from "../trade/plan.js";
-import { mapTradeRoute, type TradeHop } from "../trade/route.js";
+import { ageHours, mapTradeRoute, type TradeHop } from "../trade/route.js";
 import { wrap } from "./result.js";
 import { saveTradePlan } from "./tradePlan.js";
 
@@ -261,6 +261,9 @@ export function registerTradeTools(
           max_price_age_days: a.max_price_age_days,
           allow_prohibited: a.allow_prohibited,
           unique: a.unique,
+          // So a call again with these inputs, after a pending result, saves as asked.
+          save_to_plan: a.save_to_plan,
+          plan_id: a.plan_id,
         };
         const applied_preferences = describeRules(rules);
 
@@ -291,10 +294,7 @@ export function registerTradeTools(
           if (!mapped.hops.length) {
             notes.push(`No route to save; plan "${a.plan_id}" was not changed.`);
           } else {
-            const ages = mapped.hops.flatMap((h) => [
-              h.from.market_age_hours,
-              h.to.market_age_hours,
-            ]);
+            const oldest = oldestPrice(job.hops);
             saved = await saveTradePlan(
               deps,
               a.plan_id,
@@ -302,10 +302,11 @@ export function registerTradeTools(
                 name: routeName(mapped.hops),
                 visits: routeVisits(mapped.hops),
                 repeat: false,
-                pricesAt: oldestPrice(job.hops),
+                pricesAt: oldest === null ? null : new Date(oldest * 1000).toISOString(),
                 notes:
                   `Saved by trade_route at ${new Date(now()).toISOString()}: ${mapped.total_profit} cr ` +
-                  `over ${mapped.total_travel_min} min. Oldest price ${Math.max(...ages)} h.`,
+                  `over ${mapped.total_travel_min} min.` +
+                  (oldest === null ? "" : ` Oldest price ${ageHours(oldest, now())} h.`),
               },
               notes,
             );
@@ -466,34 +467,24 @@ export function registerTradeTools(
 
 /** One visit per station of the route: the start, then where each hop ends. */
 export function routeVisits(hops: TradeHop[]): TradeVisit[] {
-  const buys = (h: TradeHop | undefined) =>
-    (h?.commodities ?? []).map((c) => ({
-      commodity: c.name,
-      amount: c.amount,
-      price: c.buy_price,
-    }));
-  const sells = (h: TradeHop | undefined) =>
-    (h?.commodities ?? []).map((c) => ({
-      commodity: c.name,
-      amount: c.amount,
-      price: c.sell_price,
-    }));
+  const loads = (h: TradeHop | undefined, price: "buy_price" | "sell_price") =>
+    (h?.commodities ?? []).map((c) => ({ commodity: c.name, amount: c.amount, price: c[price] }));
   const places = [hops[0]!.from, ...hops.map((h) => h.to)];
   return places.map((p, k) => ({
     system: p.system,
     station: p.station,
-    sell: sells(hops[k - 1]),
-    buy: buys(hops[k]),
+    sell: loads(hops[k - 1], "sell_price"),
+    buy: loads(hops[k], "buy_price"),
   }));
 }
 
 const routeName = (hops: TradeHop[]) =>
   `Trade route: ${hops[0]!.from.system} → ${hops.at(-1)!.to.system}, ${hops.length + 1} stops`;
 
-/** The ISO time of the oldest market data in Spansh's hops, which carry Unix seconds. */
-function oldestPrice(hops: RawTradeHop[]): string | null {
+/** The oldest market time in Spansh's hops, in Unix seconds, or null when none is given. */
+function oldestPrice(hops: RawTradeHop[]): number | null {
   const times = hops
     .flatMap((h) => [h.source.market_updated_at, h.destination.market_updated_at])
     .filter((t) => Number.isFinite(t) && t > 0);
-  return times.length ? new Date(Math.min(...times) * 1000).toISOString() : null;
+  return times.length ? Math.min(...times) : null;
 }

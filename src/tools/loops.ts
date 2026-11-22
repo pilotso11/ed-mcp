@@ -329,7 +329,12 @@ export function registerLoopTools(
           notes.push(
             `Start station prices come from your journal (as of ${journalMarket!.updated_at}).`,
           );
-          return { ...m, market: rows, market_age_hours: localHours };
+          return {
+            ...m,
+            market: rows,
+            market_age_hours: localHours,
+            market_updated_at: journalMarket!.updated_at,
+          };
         };
         const withLocal = (m: MarketStation): MarketStation => {
           if (journalMarket?.market_id !== m.market_id || localHours === null) return m;
@@ -547,11 +552,10 @@ export function registerLoopTools(
               name: loopName(visits),
               visits,
               repeat: true,
-              // The ages are to 0.1 h, so this is the oldest price's time to about 6 minutes.
-              pricesAt:
-                out.oldest_price_hours !== null
-                  ? new Date(now() - out.oldest_price_hours * 3_600_000).toISOString()
-                  : null,
+              pricesAt: oldestMarket(
+                best.stations.map((i) => candidates[i]!),
+                now(),
+              ),
               notes:
                 `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
                 `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +
@@ -636,3 +640,16 @@ function loopVisits(loop: Loop, stations: MarketStation[]): TradeVisit[] {
 
 const loopName = (visits: TradeVisit[]) =>
   `Trade loop: ${visits.map((v) => v.system).join(visits.length === 2 ? " ⇄ " : " → ")}`;
+
+/**
+ * The ISO time of the oldest market data of the stations. A station without its update time
+ * (none should lack it) counts from its age, which a cached record may understate.
+ */
+function oldestMarket(stations: MarketStation[], now: number): string | null {
+  const times = stations.flatMap((st) => {
+    const at = st.market_updated_at ? Date.parse(st.market_updated_at) : NaN;
+    if (!Number.isNaN(at)) return [at];
+    return st.market_age_hours === null ? [] : [now - st.market_age_hours * 3_600_000];
+  });
+  return times.length ? new Date(Math.min(...times)).toISOString() : null;
+}
