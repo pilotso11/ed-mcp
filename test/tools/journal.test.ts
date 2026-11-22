@@ -22,7 +22,12 @@ async function setup(
   if (configured) {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jtools-"));
     await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
-      ev("2026-10-12T10:00:00Z", "LoadGame", { Commander: "pin72", Ship: "Corsair", Credits: 5 }),
+      ev("2026-10-12T10:00:00Z", "LoadGame", {
+        Commander: "pin72",
+        Ship: "Corsair",
+        ShipID: 87,
+        Credits: 5,
+      }),
       ev("2026-10-12T10:01:00Z", "Docked", { StarSystem: "Sol", StationName: "Abraham Lincoln" }),
       ev("2026-10-12T10:02:00Z", "Materials", {
         Raw: [{ Name: "iron", Count: 5 }],
@@ -56,6 +61,8 @@ describe("journal tools", () => {
     expect(r.commander).toBe("pin72");
     expect(r.location.station).toBe("Abraham Lincoln");
     expect(r.ship.type).toBe("Corsair");
+    // ED Chat writes it into a build plan's build.ship_id.
+    expect(r.ship.id).toBe(87);
     expect(r.as_of).toBe("2026-10-12T10:04:00Z");
     expect(r.warnings).toEqual([]);
   });

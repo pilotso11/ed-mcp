@@ -44,6 +44,8 @@ interface Fitted {
   blueprint: string | null;
   level: number | null;
   quality: number | null;
+  /** The experimental effect, e.g. special_fsd_heavy. StoredModules does not list it. */
+  experimental: string | null;
 }
 
 /** A module in storage, as the newest StoredModules lists it, with later changes applied. */
@@ -240,6 +242,7 @@ export function buildState(events: JournalEvent[]): JournalState {
       blueprint: str(m.EngineerModifications),
       level: num(m.Level),
       quality: num(m.Quality),
+      experimental: str(m.ExperimentalEffect),
     });
   };
 
@@ -434,6 +437,7 @@ export function buildState(events: JournalEvent[]): JournalState {
             EngineerModifications: eng.BlueprintName,
             Level: eng.Level,
             Quality: eng.Quality,
+            ExperimentalEffect: eng.ExperimentalEffect,
           });
         }
         // The first Loadout of a redeemed ship lists the modules it came with.
@@ -615,10 +619,15 @@ export function buildState(events: JournalEvent[]): JournalState {
         // For the ship flown: the event names none.
         const slot = typeof e.Slot === "string" ? e.Slot.toLowerCase() : null;
         if (slot !== null && fitted.shipId !== null) {
-          fit(slot, fitted.slots.get(slot)?.item ?? e.Module, {
-            EngineerModifications: e.BlueprintName,
-            Level: e.Level,
-            Quality: e.Quality,
+          // What the event leaves out (an experimental applied may name no blueprint) stays as
+          // it was.
+          const was = fitted.slots.get(slot);
+          fit(slot, was?.item ?? e.Module, {
+            EngineerModifications: str(e.BlueprintName) ?? was?.blueprint,
+            Level: num(e.Level) ?? was?.level,
+            Quality: num(e.Quality) ?? was?.quality,
+            ExperimentalEffect:
+              str(e.ApplyExperimentalEffect) ?? str(e.ExperimentalEffect) ?? was?.experimental,
           });
         }
         for (const m of objs(e.Ingredients)) {

@@ -506,6 +506,47 @@ describe("buildState", () => {
       expect(sold.at(-1)).toMatchObject({ blueprint: null });
     });
 
+    it("keeps a slot's engineering through an experimental applied", () => {
+      const craft = (fields: object) =>
+        ev(T(3), "EngineerCraft", {
+          Slot: "Slot03_Size6",
+          Module: "int_shieldgenerator_size6_class5",
+          ApplyExperimentalEffect: "special_shield_thermic",
+          Ingredients: [{ Name: "conductivecomponents", Count: 5 }],
+          Engineer: "Lei Cheung",
+          EngineerID: 300120,
+          ExperimentalEffect: "special_shield_thermic",
+          ExperimentalEffect_Localised: "Thermo Block",
+          ...fields,
+        });
+      const swapOut = ev(T(4), "ModuleBuy", {
+        Slot: "Slot03_Size6",
+        StoredItem: "$int_shieldgenerator_size6_class5_name;",
+        BuyItem: "$int_cargorack_size6_class1_name;",
+        MarketID: MARKET,
+        Ship: "python_nx",
+        ShipID: 27,
+      });
+      // As the game writes it: the blueprint, grade and quality come with the experimental.
+      const full = craft({
+        BlueprintID: 128673839,
+        BlueprintName: "ShieldGenerator_Reinforced",
+        Level: 4,
+        Quality: 0.2,
+      });
+      expect(stored(full, swapOut).at(-1)).toMatchObject({
+        blueprint: "ShieldGenerator_Reinforced",
+        level: 4,
+        quality: 0.2,
+      });
+      // Without them, the slot keeps what the Loadout gave it.
+      expect(stored(craft({}), swapOut).at(-1)).toMatchObject({
+        blueprint: "ShieldGenerator_Reinforced",
+        level: 3,
+        quality: 0.5,
+      });
+    });
+
     it("finds a module stored since the newest StoredModules by its symbol", () => {
       const store = ev(T(3), "ModuleStore", {
         MarketID: MARKET,
