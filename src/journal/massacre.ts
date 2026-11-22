@@ -81,10 +81,11 @@ export function massacre(
     // One kill advances the oldest open mission of each giving faction against the victim. A
     // mission that expired before the kill is failed in the game, so the kill goes to the next.
     const credited = new Set<string>();
+    const at = Date.parse(e.timestamp);
     for (const { mission, out } of tracked) {
       const giver = mission.faction ?? "";
       if (credited.has(giver) || out.done || out.accepted > e.timestamp) continue;
-      if (expiredBy(out.expires, Date.parse(e.timestamp))) continue;
+      if (expiredBy(out.expires, at)) continue;
       if (!same(mission.target_faction!, victim)) continue;
       out.kills_counted++;
       credited.add(giver);
