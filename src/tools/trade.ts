@@ -7,7 +7,7 @@ import { PlanId } from "../plans/schema.js";
 import type { PlanStore } from "../plans/store.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
+import type { CommodityHit, RawTradeHop, SpanshClient, TradeForm } from "../spansh/client.js";
 import { brokenRules, describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { PERMIT_TIME_MS, screenPermits } from "../stations/permits.js";
@@ -302,6 +302,7 @@ export function registerTradeTools(
                 name: routeName(mapped.hops),
                 visits: routeVisits(mapped.hops),
                 repeat: false,
+                pricesAt: oldestPrice(job.hops),
                 notes:
                   `Saved by trade_route at ${new Date(now()).toISOString()}: ${mapped.total_profit} cr ` +
                   `over ${mapped.total_travel_min} min. Oldest price ${Math.max(...ages)} h.`,
@@ -488,3 +489,11 @@ export function routeVisits(hops: TradeHop[]): TradeVisit[] {
 
 const routeName = (hops: TradeHop[]) =>
   `Trade route: ${hops[0]!.from.system} → ${hops.at(-1)!.to.system}, ${hops.length + 1} stops`;
+
+/** The ISO time of the oldest market data in Spansh's hops, which carry Unix seconds. */
+function oldestPrice(hops: RawTradeHop[]): string | null {
+  const times = hops
+    .flatMap((h) => [h.source.market_updated_at, h.destination.market_updated_at])
+    .filter((t) => Number.isFinite(t) && t > 0);
+  return times.length ? new Date(Math.min(...times) * 1000).toISOString() : null;
+}

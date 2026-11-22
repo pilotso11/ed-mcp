@@ -833,6 +833,8 @@ describe("trade_loops save_to_plan", () => {
     const plan = await s.plans.get("trade");
     expect(plan).toMatchObject({ name: "Trade loop: Home ⇄ Alpha", repeat: true, lap: 1 });
     expect(plan.notes).toContain("50000 cr per lap");
+    // The markets are 1 h old.
+    expect(Math.abs(Date.parse(plan.prices_at!) - (Date.now() - 3_600_000))).toBeLessThan(60_000);
     expect(plan.stops).toEqual([
       {
         system: "Home",

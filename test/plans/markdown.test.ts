@@ -176,6 +176,7 @@ describe("planToMarkdown positions", () => {
       items: [],
       repeat: true,
       lap: 3,
+      prices_at: "2026-11-21T06:00:00.000Z",
       stops: [
         {
           system: "Wolf 397",
@@ -193,6 +194,7 @@ describe("planToMarkdown positions", () => {
       updated_at: "2026-11-22T00:00:00Z",
     });
     expect(md).toContain("Repeating loop · lap 3\n");
+    expect(md).toContain("Prices from market data as old as 2026-11-21T06:00:00.000Z\n");
     expect(md).toContain(
       [
         "1. [ ] **trade** Wolf 397 — Brooks Estate: Sell 720 t Gold, buy 64 t Silver ← next",

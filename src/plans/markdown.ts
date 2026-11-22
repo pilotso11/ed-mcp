@@ -21,6 +21,7 @@ export function planToMarkdown(plan: Plan): string {
     "",
   ];
   if (plan.repeat) out.push(`Repeating loop · lap ${plan.lap ?? 1}`, "");
+  if (plan.prices_at) out.push(`Prices from market data as old as ${plan.prices_at}`, "");
   if (plan.notes) out.push(plan.notes, "");
   if (plan.items.length) {
     out.push("## Items", "");

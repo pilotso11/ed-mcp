@@ -20,7 +20,14 @@ const isAutoSummary = (s: string) => /^Trade (route|loop): /.test(s);
 export async function saveTradePlan(
   deps: TradePlanDeps,
   planId: string,
-  run: { name: string; visits: TradeVisit[]; repeat: boolean; notes: string },
+  run: {
+    name: string;
+    visits: TradeVisit[];
+    repeat: boolean;
+    notes: string;
+    /** The ISO time of the oldest market data behind the prices, when known. */
+    pricesAt: string | null;
+  },
   notes: string[],
 ): Promise<boolean> {
   try {
@@ -30,6 +37,7 @@ export async function saveTradePlan(
         name: run.name,
         stops: tradeStops(run.visits),
         ...(run.repeat ? { repeat: true, lap: 1 } : {}),
+        ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
         notes: run.notes,
       },
       { overwrite: true },

@@ -547,6 +547,11 @@ export function registerLoopTools(
               name: loopName(visits),
               visits,
               repeat: true,
+              // The ages are to 0.1 h, so this is the oldest price's time to about 6 minutes.
+              pricesAt:
+                out.oldest_price_hours !== null
+                  ? new Date(now() - out.oldest_price_hours * 3_600_000).toISOString()
+                  : null,
               notes:
                 `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
                 `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +

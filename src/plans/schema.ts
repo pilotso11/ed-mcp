@@ -108,6 +108,8 @@ export const PlanInputSchema = z.object({
   // to todo and lap goes up by one.
   repeat: z.boolean().optional(),
   lap: z.number().int().min(1).optional().describe("The lap under way; missing means 1"),
+  // For a saved trade plan: the ISO time of the oldest market data its planned prices come from.
+  prices_at: z.string().optional().describe("ISO time of the oldest market data behind the prices"),
   notes: z.string().optional(),
 });
 

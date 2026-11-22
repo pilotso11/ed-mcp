@@ -83,6 +83,7 @@ describe("PlanInputSchema trade fields", () => {
       ...base,
       repeat: true,
       lap: 3,
+      prices_at: "2026-11-21T06:00:00.000Z",
       stops: [
         {
           system: "Wolf 397",
@@ -95,7 +96,7 @@ describe("PlanInputSchema trade fields", () => {
         },
       ],
     });
-    expect(p).toMatchObject({ repeat: true, lap: 3 });
+    expect(p).toMatchObject({ repeat: true, lap: 3, prices_at: "2026-11-21T06:00:00.000Z" });
     expect(p.stops[0]!.cargo).toEqual([
       { commodity: "Gold", action: "sell", amount: 720, price: 9380 },
       { commodity: "Silver", action: "buy", amount: 720, mission_id: 42 },
@@ -121,6 +122,7 @@ describe("PlanInputSchema trade fields", () => {
     const p = PlanInputSchema.parse({ ...base, stops: [{ system: "Lave", purpose: "trade" }] });
     expect(p.repeat).toBeUndefined();
     expect(p.lap).toBeUndefined();
+    expect(p.prices_at).toBeUndefined();
     expect(p.stops[0]!.cargo).toBeUndefined();
   });
 });
