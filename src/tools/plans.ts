@@ -104,7 +104,8 @@ export function registerPlanTools(
       description:
         "Create or replace a plan. A plan is a ship build, a route, or both: for example system X, planet Y for bios, then planet Z, then station A to hand in. " +
         "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
-        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a label, a kind, a status (todo, done, skipped), notes and after rules. " +
+        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes and after rules. " +
+        "The plan `bookmarks` holds the surface bookmarks the ED Chat panel saves with its bookmark key; make it the activity note's plan to go back to them. " +
         "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
       inputSchema: { plan: PlanInputSchema },
     },

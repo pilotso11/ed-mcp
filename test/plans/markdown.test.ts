@@ -128,3 +128,25 @@ describe("planToMarkdown", () => {
     expect(planToMarkdown(plan)).not.toContain("## Route");
   });
 });
+
+describe("planToMarkdown positions", () => {
+  it("shows a stop's surface position", () => {
+    const md = planToMarkdown({
+      id: "bookmarks",
+      name: "Bookmarks",
+      items: [],
+      stops: [
+        {
+          system: "Col 285",
+          body: "Col 285 6 k",
+          purpose: "Concha",
+          status: "todo",
+          position: { latitude: 54.142864, longitude: -51.743507 },
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain("Col 285 — Col 285 6 k — 54.1429, -51.7435: Concha");
+  });
+});

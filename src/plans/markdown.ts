@@ -39,7 +39,10 @@ export function planToMarkdown(plan: Plan): string {
     out.push("## Stops", "");
     const next = nextStop(plan)?.index;
     plan.stops.forEach((s, n) => {
-      const place = [s.system, s.body, s.station].filter(Boolean).join(" — ");
+      const at = s.position
+        ? `${s.position.latitude.toFixed(4)}, ${s.position.longitude.toFixed(4)}`
+        : null;
+      const place = [s.system, s.body, s.station, at].filter(Boolean).join(" — ");
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";
       out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);

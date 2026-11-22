@@ -49,6 +49,13 @@ export const StopSchema = z.object({
     .transform((v) => (v === "" ? undefined : v))
     .optional(),
   body: z.string().min(1).optional(),
+  // A place on the body's surface, in degrees, such as a bookmark ED Chat saved from Status.json.
+  position: z
+    .object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+    })
+    .optional(),
   purpose: z.string().min(1),
   label: z.string().min(1).optional(),
   kind: StopKind.optional(),
