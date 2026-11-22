@@ -995,7 +995,7 @@ describe("trade_route save_to_plan", () => {
   it("keeps the route when the save fails, and says when only the note failed", async () => {
     const s = await stores();
     const failing = Object.assign(Object.create(PlanStore.prototype), {
-      upsert: async () => {
+      replace: async () => {
         throw new UserError("Plan file is locked");
       },
     }) as PlanStore;
@@ -1051,10 +1051,7 @@ describe("trade_route save_to_plan", () => {
   it("fails on a store error that is not the user's, as for any bug", async () => {
     const s = await stores();
     const broken = Object.assign(Object.create(PlanStore.prototype), {
-      get: async () => {
-        throw new UserError('Plan "trade" not found');
-      },
-      upsert: async () => {
+      replace: async () => {
         throw new Error("disk full");
       },
     }) as PlanStore;
@@ -1082,5 +1079,19 @@ describe("trade_route save_to_plan", () => {
     });
     await trade({ save_to_plan: true }, s);
     expect((await s.activity.get())?.summary).toBe("Trade loop: farming gold");
+  });
+
+  it("saves on a bare resume call when the first, pending call asked to", async () => {
+    const s = await stores();
+    const opts: Opts = { ...s, job: { status: "pending", job: "J" } };
+    const { client } = setup(opts);
+    const c = await client;
+    const first = await callTool(c, "trade_route", { save_to_plan: true, plan_id: "run" });
+    expect((first.json as any).status).toBe("pending");
+    opts.job = undefined;
+    const again = await callTool(c, "trade_route", {});
+    expect(again.json).toMatchObject({ status: "ok", saved: true, plan_id: "run" });
+    expect((again.json as any).inputs).toMatchObject({ save_to_plan: true, plan_id: "run" });
+    expect((await s.plans.get("run")).stops).toHaveLength(4);
   });
 });

@@ -92,6 +92,18 @@ export class PlanStore {
     });
   }
 
+  /**
+   * Creates or replaces a plan in one locked write, and returns the plan it replaced, if any, as
+   * it was before.
+   */
+  replace(input: PlanInput): Promise<{ plan: Plan; previous: Plan | null }> {
+    return this.mutate((data) => {
+      const previous = data.plans.find((p) => p.id === input.id) ?? null;
+      // put() stores a new object, so previous stays as it was.
+      return { plan: this.put(data, input), previous };
+    });
+  }
+
   /** Validates and stores a plan in data, stamped, in place of one with the same ID. */
   private put(data: PlanFile, input: PlanInput, opts: { newRoute?: boolean } = {}): Plan {
     const parsed = PlanInputSchema.safeParse(input);
@@ -182,12 +194,22 @@ export class PlanStore {
     ref: { label?: string; index?: number },
     patch: { status?: Stop["status"]; notes?: string },
   ): Promise<Plan> {
+    return this.updateStopLap(planId, ref, patch).then((r) => r.plan);
+  }
+
+  /** As updateStop; lapCompleted is the lap a repeating plan just finished, else null. */
+  updateStopLap(
+    planId: string,
+    ref: { label?: string; index?: number },
+    patch: { status?: Stop["status"]; notes?: string },
+  ): Promise<{ plan: Plan; lapCompleted: number | null }> {
     return this.mutate((data) => {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
       const stop = plan.stops[findStop(plan, ref)]!;
       if (patch.status !== undefined) stop.status = patch.status;
       if (patch.notes !== undefined) stop.notes = patch.notes;
+      let lapCompleted: number | null = null;
       // A loop starts its next lap when its last open stop is finished, in this same write, so
       // a concurrent edit cannot see the plan all done.
       if (
@@ -197,10 +219,11 @@ export class PlanStore {
         plan.stops.every((s) => s.status === "done" || s.status === "skipped")
       ) {
         for (const s of plan.stops) s.status = "todo";
-        plan.lap = (plan.lap ?? 1) + 1;
+        lapCompleted = plan.lap ?? 1;
+        plan.lap = lapCompleted + 1;
       }
       plan.updated_at = this.now().toISOString();
-      return plan;
+      return { plan, lapCompleted };
     });
   }
 
@@ -257,11 +280,17 @@ export class PlanStore {
       // The route's stop_indexes point at the new stops, which come first.
       const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
       // A newly worked-out route: its stop_indexes are for these stops, whatever its time.
-      return this.put(
-        data,
-        { ...(old ?? { id: planId, name }), stops: [...fresh, ...byHand], route },
-        { newRoute: true },
-      );
+      // A mission run is not a loop: a trade loop saved before at this ID leaves no lap behind.
+      const {
+        repeat: _repeat,
+        lap: _lap,
+        prices_at: _pricesAt,
+        ...kept
+      } = old ?? {
+        id: planId,
+        name,
+      };
+      return this.put(data, { ...kept, stops: [...fresh, ...byHand], route }, { newRoute: true });
     });
   }
 

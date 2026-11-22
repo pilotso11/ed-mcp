@@ -205,23 +205,17 @@ export function registerPlanTools(
         }
         const which = a.label !== undefined ? `"${a.label}"` : String(a.index);
         try {
-          const plan = await plans.updateStop(
+          const { plan, lapCompleted } = await plans.updateStopLap(
             a.plan_id,
             { label: a.label, index: a.index },
             { status: a.status, notes: a.notes },
           );
-          // A stop just marked done or skipped reads todo only when the loop started a new lap.
-          const rolled =
-            plan.repeat === true &&
-            (a.status === "done" || a.status === "skipped") &&
-            plan.stops.every((s) => s.status === "todo");
-          const lap = plan.lap ?? 1;
           return {
             ...plan,
             next_stop: nextStop(plan),
-            ...(rolled && {
-              lap_completed: lap - 1,
-              message: `Lap ${lap - 1} done: every stop is back to todo for lap ${lap}.`,
+            ...(lapCompleted !== null && {
+              lap_completed: lapCompleted,
+              message: `Lap ${lapCompleted} done: every stop is back to todo for lap ${lapCompleted + 1}.`,
             }),
           };
         } catch (err) {

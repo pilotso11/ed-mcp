@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { tradeStops, visitPurpose, type TradeVisit } from "../../src/trade/plan.js";
+import {
+  oldestMarketTime,
+  tradeStops,
+  tradeVisits,
+  visitPurpose,
+  type TradeVisit,
+} from "../../src/trade/plan.js";
 
 const visit = (station: string, over: Partial<TradeVisit> = {}): TradeVisit => ({
   system: "Lave",
@@ -43,5 +49,57 @@ describe("tradeStops", () => {
       kind: "trade",
     });
     expect(stop!.cargo).toBeUndefined();
+  });
+});
+
+describe("tradeVisits", () => {
+  const places = [
+    { system: "A", station: "A1" },
+    { system: "B", station: "B1" },
+  ];
+  const g = { commodity: "Gold", amount: 10, buy_price: 100, sell_price: 300 };
+  const t = { commodity: "Tea", amount: 5, buy_price: 20, sell_price: 50 };
+
+  it("for a route, buys at the start and sells at the end", () => {
+    expect(tradeVisits(places, [[g]], false)).toEqual([
+      {
+        system: "A",
+        station: "A1",
+        sell: [],
+        buy: [{ commodity: "Gold", amount: 10, price: 100 }],
+      },
+      {
+        system: "B",
+        station: "B1",
+        sell: [{ commodity: "Gold", amount: 10, price: 300 }],
+        buy: [],
+      },
+    ]);
+  });
+
+  it("for a loop, the first stop sells what the last leg brings back", () => {
+    const [first, second] = tradeVisits(places, [[g], [t]], true);
+    expect(first!.sell).toEqual([{ commodity: "Tea", amount: 5, price: 50 }]);
+    expect(first!.buy).toEqual([{ commodity: "Gold", amount: 10, price: 100 }]);
+    expect(second!.sell).toEqual([{ commodity: "Gold", amount: 10, price: 300 }]);
+    expect(second!.buy).toEqual([{ commodity: "Tea", amount: 5, price: 20 }]);
+  });
+});
+
+describe("oldestMarketTime", () => {
+  it("takes update times first, else ages, and skips markets with neither", () => {
+    const now = Date.parse("2026-11-22T12:00:00Z");
+    expect(
+      oldestMarketTime(
+        [
+          { updatedAtMs: Date.parse("2026-11-22T10:00:00Z"), ageHours: 0.1 },
+          { updatedAtMs: null, ageHours: 3 },
+          { updatedAtMs: NaN, ageHours: null },
+          { updatedAtMs: 0 },
+        ],
+        now,
+      ),
+    ).toBe(Date.parse("2026-11-22T09:00:00Z"));
+    expect(oldestMarketTime([{ updatedAtMs: null }], now)).toBeNull();
   });
 });

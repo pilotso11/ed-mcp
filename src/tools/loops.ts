@@ -18,8 +18,8 @@ import type {
 import { applyRules, describeRules, type Rules } from "../stations/filter.js";
 import { screenPermits } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
-import { bestCargo, findLoops, spreadStations, type Loop, type ScoredLeg } from "../trade/loops.js";
-import type { TradeVisit } from "../trade/plan.js";
+import { bestCargo, findLoops, spreadStations, type ScoredLeg } from "../trade/loops.js";
+import { oldestMarketTime, tradeVisits, type TradeVisit } from "../trade/plan.js";
 import { wrap } from "./result.js";
 import { saveTradePlan } from "./tradePlan.js";
 
@@ -538,12 +538,31 @@ export function registerLoopTools(
         if (a.save_to_plan && !best) {
           notes.push(`No loop to save; plan "${a.plan_id}" was not changed.`);
         } else if (a.save_to_plan && best) {
-          const visits = loopVisits(best, candidates);
-          if (visits[0]!.sell.length) {
+          const visits = tradeVisits(
+            best.stations.map((i) => ({
+              system: candidates[i]!.system,
+              station: candidates[i]!.name,
+            })),
+            best.legs.map((l) => (l.cargo ? [l.cargo] : [])),
+            true,
+          );
+          const first = visits[0]!;
+          if (first.sell.length) {
             notes.push(
-              `On the first lap there is nothing to sell at ${visits[0]!.station}; buy there and go on.`,
+              `On the first lap there is nothing to sell at ${first.station}; ` +
+                (first.buy.length ? "buy there and go on." : "go on to the next stop."),
             );
           }
+          const oldest = oldestMarketTime(
+            best.stations.map((i) => {
+              const st = candidates[i]!;
+              const at = st.market_updated_at ? Date.parse(st.market_updated_at) : null;
+              // A station without its update time counts from its age, which a cached record
+              // may understate; Spansh records and Market.json give the time.
+              return { updatedAtMs: at, ageHours: st.market_age_hours };
+            }),
+            now(),
+          );
           const out = loops[0]!;
           saved = await saveTradePlan(
             deps,
@@ -552,10 +571,7 @@ export function registerLoopTools(
               name: loopName(visits),
               visits,
               repeat: true,
-              pricesAt: oldestMarket(
-                best.stations.map((i) => candidates[i]!),
-                now(),
-              ),
+              pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
               notes:
                 `Saved by trade_loops at ${new Date(now()).toISOString()}: ${out.lap_profit} cr per lap ` +
                 `of ${out.lap_min} min (${out.profit_per_hour} cr/h), about ${out.laps_supported} laps ` +
@@ -621,35 +637,5 @@ export function registerLoopTools(
   }
 }
 
-/** One visit per station of the loop, in order: sell what the last leg brought, buy for the next. */
-function loopVisits(loop: Loop, stations: MarketStation[]): TradeVisit[] {
-  const n = loop.stations.length;
-  return loop.stations.map((i, k) => {
-    const into = loop.legs[(k - 1 + n) % n]!.cargo;
-    const out = loop.legs[k]!.cargo;
-    return {
-      system: stations[i]!.system,
-      station: stations[i]!.name,
-      sell: into
-        ? [{ commodity: into.commodity, amount: into.amount, price: into.sell_price }]
-        : [],
-      buy: out ? [{ commodity: out.commodity, amount: out.amount, price: out.buy_price }] : [],
-    };
-  });
-}
-
 const loopName = (visits: TradeVisit[]) =>
   `Trade loop: ${visits.map((v) => v.system).join(visits.length === 2 ? " ⇄ " : " → ")}`;
-
-/**
- * The ISO time of the oldest market data of the stations. A station without its update time
- * (none should lack it) counts from its age, which a cached record may understate.
- */
-function oldestMarket(stations: MarketStation[], now: number): string | null {
-  const times = stations.flatMap((st) => {
-    const at = st.market_updated_at ? Date.parse(st.market_updated_at) : NaN;
-    if (!Number.isNaN(at)) return [at];
-    return st.market_age_hours === null ? [] : [now - st.market_age_hours * 3_600_000];
-  });
-  return times.length ? new Date(Math.min(...times)).toISOString() : null;
-}

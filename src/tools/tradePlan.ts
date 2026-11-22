@@ -32,28 +32,19 @@ export async function saveTradePlan(
   },
   notes: string[],
 ): Promise<boolean> {
-  const plans = deps.plans!;
   let oldName: string | null = null;
   try {
-    // The name it had, so a note these tools wrote for it is told from one someone wrote.
-    oldName = await plans.get(planId).then(
-      (p) => p.name,
-      (err: unknown) => {
-        if (err instanceof UserError) return null;
-        throw err;
-      },
-    );
-    await plans.upsert(
-      {
-        id: planId,
-        name: run.name,
-        stops: tradeStops(run.visits),
-        ...(run.repeat ? { repeat: true, lap: 1 } : {}),
-        ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
-        notes: run.notes,
-      },
-      { overwrite: true },
-    );
+    // The name it had, read in the same write, so a note these tools wrote for it is told from
+    // one someone wrote.
+    const { previous } = await deps.plans!.replace({
+      id: planId,
+      name: run.name,
+      stops: tradeStops(run.visits),
+      ...(run.repeat ? { repeat: true, lap: 1 } : {}),
+      ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
+      notes: run.notes,
+    });
+    oldName = previous?.name ?? null;
   } catch (err) {
     if (!(err instanceof UserError)) throw err;
     notes.push(`The result was not saved to plan "${planId}": ${err.message}`);

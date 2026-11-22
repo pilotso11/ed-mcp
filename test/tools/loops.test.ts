@@ -902,7 +902,7 @@ describe("trade_loops save_to_plan", () => {
     expect(await s.plans.list()).toEqual([]);
 
     const failing = Object.assign(Object.create(PlanStore.prototype), {
-      upsert: async () => {
+      replace: async () => {
         throw new UserError("Plan file is locked");
       },
     }) as PlanStore;
@@ -949,5 +949,16 @@ describe("trade_loops save_to_plan", () => {
     };
     await loops({ save_to_plan: true }, { found: [home, away] }, {}, s);
     expect((await s.plans.get("trade")).prices_at).toBe("2026-11-20T08:00:00.000Z");
+  });
+
+  it("says only to go on when the first stop of a loop buys nothing", async () => {
+    const s = await stores();
+    // Start Port has no Gold to sell, so the loop runs out empty and back with Tea.
+    const { j } = await loops({ save_to_plan: true }, { found: [start(0), alpha()] }, {}, s);
+    expect(j.saved).toBe(true);
+    expect((await s.plans.get("trade")).stops[0]!.purpose).toBe("Sell 100 t Tea");
+    expect(j.notes).toContain(
+      "On the first lap there is nothing to sell at Start Port; go on to the next stop.",
+    );
   });
 });

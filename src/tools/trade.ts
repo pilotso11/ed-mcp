@@ -7,12 +7,12 @@ import { PlanId } from "../plans/schema.js";
 import type { PlanStore } from "../plans/store.js";
 import { PrefsPatchSchema, type PrefsPatch } from "../prefs/schema.js";
 import type { PreferencesStore } from "../prefs/store.js";
-import type { CommodityHit, RawTradeHop, SpanshClient, TradeForm } from "../spansh/client.js";
+import type { CommodityHit, SpanshClient, TradeForm } from "../spansh/client.js";
 import { brokenRules, describeRules } from "../stations/filter.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { PERMIT_TIME_MS, screenPermits } from "../stations/permits.js";
 import { rankCommodityStations, recommendCommodityStation } from "../trade/prices.js";
-import type { TradeVisit } from "../trade/plan.js";
+import { oldestMarketTime, tradeVisits } from "../trade/plan.js";
 import { ageHours, mapTradeRoute, type TradeHop } from "../trade/route.js";
 import { wrap } from "./result.js";
 import { saveTradePlan } from "./tradePlan.js";
@@ -94,7 +94,11 @@ export function registerTradeTools(
 
   const pending = new Map<
     string,
-    { at: number; start: { system: string; station: string; cargo: number; capital: number } }
+    {
+      at: number;
+      start: { system: string; station: string; cargo: number; capital: number };
+      save: { save_to_plan: boolean; plan_id: string };
+    }
   >();
 
   server.registerTool(
@@ -192,7 +196,13 @@ export function registerTradeTools(
         // form and submit a second Spansh job, so it reuses the pending job's start inputs.
         const bare = !a.from_system && a.cargo === undefined && a.capital === undefined;
         for (const [k, p] of pending) if (now() - p.at > PENDING_TTL_MS) pending.delete(k);
-        const resume = bare ? pending.get(optionsKey)?.start : undefined;
+        const resumed = bare ? pending.get(optionsKey) : undefined;
+        const resume = resumed?.start;
+        // A resume call with no save_to_plan saves as the first call asked.
+        const save =
+          resumed && !a.save_to_plan
+            ? resumed.save
+            : { save_to_plan: a.save_to_plan, plan_id: a.plan_id };
         let system: string | undefined;
         let station: string | undefined;
         let cargo: number;
@@ -262,8 +272,7 @@ export function registerTradeTools(
           allow_prohibited: a.allow_prohibited,
           unique: a.unique,
           // So a call again with these inputs, after a pending result, saves as asked.
-          save_to_plan: a.save_to_plan,
-          plan_id: a.plan_id,
+          ...save,
         };
         const applied_preferences = describeRules(rules);
 
@@ -271,7 +280,7 @@ export function registerTradeTools(
         if (job.status === "pending") {
           // Delete first so the refreshed entry moves to the end and the oldest is evicted.
           pending.delete(optionsKey);
-          pending.set(optionsKey, { at: now(), start: { system, station, cargo, capital } });
+          pending.set(optionsKey, { at: now(), start: { system, station, cargo, capital }, save });
           if (pending.size > MAX_PENDING) pending.delete(pending.keys().next().value!);
           return {
             status: "pending",
@@ -290,23 +299,34 @@ export function registerTradeTools(
           "Hop time uses the destination's arrival distance; Spansh gives no station type, so planetary landing time is not counted.",
         );
         let saved = false;
-        if (a.save_to_plan) {
+        if (save.save_to_plan) {
           if (!mapped.hops.length) {
-            notes.push(`No route to save; plan "${a.plan_id}" was not changed.`);
+            notes.push(`No route to save; plan "${save.plan_id}" was not changed.`);
           } else {
-            const oldest = oldestPrice(job.hops);
+            // Spansh's trade results carry Unix seconds.
+            const oldest = oldestMarketTime(
+              job.hops.flatMap((h) => [
+                { updatedAtMs: h.source.market_updated_at * 1000 },
+                { updatedAtMs: h.destination.market_updated_at * 1000 },
+              ]),
+              now(),
+            );
             saved = await saveTradePlan(
               deps,
-              a.plan_id,
+              save.plan_id,
               {
                 name: routeName(mapped.hops),
-                visits: routeVisits(mapped.hops),
+                visits: tradeVisits(
+                  [mapped.hops[0]!.from, ...mapped.hops.map((h) => h.to)],
+                  mapped.hops.map((h) => h.commodities.map((c) => ({ ...c, commodity: c.name }))),
+                  false,
+                ),
                 repeat: false,
-                pricesAt: oldest === null ? null : new Date(oldest * 1000).toISOString(),
+                pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
                 notes:
                   `Saved by trade_route at ${new Date(now()).toISOString()}: ${mapped.total_profit} cr ` +
                   `over ${mapped.total_travel_min} min.` +
-                  (oldest === null ? "" : ` Oldest price ${ageHours(oldest, now())} h.`),
+                  (oldest === null ? "" : ` Oldest price ${ageHours(oldest / 1000, now())} h.`),
               },
               notes,
             );
@@ -316,7 +336,7 @@ export function registerTradeTools(
           status: "ok",
           ...(mapped.hops.length ? {} : { message: "No profitable route found" }),
           ...mapped,
-          ...(saved && { saved, plan_id: a.plan_id }),
+          ...(saved && { saved, plan_id: save.plan_id }),
           inputs,
           applied_preferences,
           notes,
@@ -465,26 +485,5 @@ export function registerTradeTools(
   );
 }
 
-/** One visit per station of the route: the start, then where each hop ends. */
-export function routeVisits(hops: TradeHop[]): TradeVisit[] {
-  const loads = (h: TradeHop | undefined, price: "buy_price" | "sell_price") =>
-    (h?.commodities ?? []).map((c) => ({ commodity: c.name, amount: c.amount, price: c[price] }));
-  const places = [hops[0]!.from, ...hops.map((h) => h.to)];
-  return places.map((p, k) => ({
-    system: p.system,
-    station: p.station,
-    sell: loads(hops[k - 1], "sell_price"),
-    buy: loads(hops[k], "buy_price"),
-  }));
-}
-
 const routeName = (hops: TradeHop[]) =>
   `Trade route: ${hops[0]!.from.system} → ${hops.at(-1)!.to.system}, ${hops.length + 1} stops`;
-
-/** The oldest market time in Spansh's hops, in Unix seconds, or null when none is given. */
-function oldestPrice(hops: RawTradeHop[]): number | null {
-  const times = hops
-    .flatMap((h) => [h.source.market_updated_at, h.destination.market_updated_at])
-    .filter((t) => Number.isFinite(t) && t > 0);
-  return times.length ? Math.min(...times) : null;
-}

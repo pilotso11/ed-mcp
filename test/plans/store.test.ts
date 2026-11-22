@@ -849,3 +849,73 @@ describe("PlanStore repeating plans", () => {
     expect(q.lap).toBe(4);
   });
 });
+
+describe("PlanStore loop fields", () => {
+  it("reports the lap that updateStopLap finished, and updateStop still returns the plan", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(
+      input({
+        repeat: true,
+        lap: 4,
+        stops: [
+          { system: "A", purpose: "buy" },
+          { system: "B", purpose: "sell" },
+        ],
+      }),
+    );
+    const plan = await s.updateStop("python-mk2", { index: 0 }, { status: "done" });
+    expect(plan.stops[0]!.status).toBe("done");
+    expect(await s.updateStopLap("python-mk2", { index: 0 }, { notes: "x" })).toMatchObject({
+      lapCompleted: null,
+    });
+    const r = await s.updateStopLap("python-mk2", { index: 1 }, { status: "skipped" });
+    expect(r.lapCompleted).toBe(4);
+    expect(r.plan.lap).toBe(5);
+    expect(r.plan.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
+  });
+
+  it("replace returns the plan it replaced, as it was", async () => {
+    const s = new PlanStore(file, now);
+    expect((await s.replace(input({ name: "First" }))).previous).toBeNull();
+    const r = await s.replace(input({ name: "Second" }));
+    expect(r.previous?.name).toBe("First");
+    expect(r.plan.name).toBe("Second");
+    expect((await s.get("python-mk2")).name).toBe("Second");
+  });
+
+  it("drops a trade loop's repeat, lap and prices_at when mission stops replace it", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert({
+      id: "missions",
+      name: "Trade loop: A ⇄ B",
+      repeat: true,
+      lap: 3,
+      prices_at: "2026-11-21T06:00:00.000Z",
+      notes: "kept",
+      stops: [{ system: "A", purpose: "Buy 1 t Gold" }],
+    });
+    const plan = await s.saveMissionStops(
+      "missions",
+      "Mission run",
+      [{ system: "Sol", purpose: "Drop 1 passenger", missions: [1], status: "todo" }],
+      {
+        computed_at: "2026-11-22T00:00:00.000Z",
+        from: "Sol",
+        stops: ["Sol"],
+        total_min: 1,
+        plotted: false,
+        stop_indexes: [[0]],
+      },
+    );
+    expect(plan.repeat).toBeUndefined();
+    expect(plan.lap).toBeUndefined();
+    expect(plan.prices_at).toBeUndefined();
+    expect(plan.notes).toBe("kept");
+    const saved = await s.get("missions");
+    expect(saved.repeat).toBeUndefined();
+    // Finishing every stop no longer starts a lap.
+    await s.updateStop("missions", { index: 0 }, { status: "done" });
+    const done = await s.updateStop("missions", { index: 1 }, { status: "done" });
+    expect(done.stops.map((x) => x.status)).toEqual(["done", "done"]);
+  });
+});
