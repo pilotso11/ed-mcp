@@ -312,7 +312,8 @@ function cleanRoute(plan: Plan): Plan {
   return plan;
 }
 
-const stopKey = (s: Stop) => JSON.stringify([s.system, s.station, s.body, s.label, s.purpose]);
+const stopKey = (s: Stop) =>
+  JSON.stringify([s.system, s.station, s.body, s.position, s.label, s.purpose]);
 function sameStops(a: Stop[], b: Stop[]): boolean {
   return a.length === b.length && a.every((s, i) => stopKey(s) === stopKey(b[i]!));
 }

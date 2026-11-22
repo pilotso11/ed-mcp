@@ -41,28 +41,33 @@ export const StopKind = z.enum([
 export const StopStatus = z.enum(["todo", "done", "skipped"]);
 
 // Every field added after the first release is optional or has a default, so old files load.
-export const StopSchema = z.object({
-  system: z.string().min(1),
-  // Older files can hold station "", which named nothing; it reads as no station.
-  station: z
-    .string()
-    .transform((v) => (v === "" ? undefined : v))
-    .optional(),
-  body: z.string().min(1).optional(),
-  // A place on the body's surface, in degrees, such as a bookmark ED Chat saved from Status.json.
-  position: z
-    .object({
-      latitude: z.number().min(-90).max(90),
-      longitude: z.number().min(-180).max(180),
-    })
-    .optional(),
-  purpose: z.string().min(1),
-  label: z.string().min(1).optional(),
-  kind: StopKind.optional(),
-  after: z.array(z.string().min(1)).optional(),
-  status: StopStatus.default("todo"),
-  notes: z.string().optional(),
-});
+export const StopSchema = z
+  .object({
+    system: z.string().min(1),
+    // Older files can hold station "", which named nothing; it reads as no station.
+    station: z
+      .string()
+      .transform((v) => (v === "" ? undefined : v))
+      .optional(),
+    body: z.string().min(1).optional(),
+    // A place on the body's surface, in degrees, such as a bookmark ED Chat saved from Status.json.
+    position: z
+      .object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+      })
+      .optional(),
+    purpose: z.string().min(1),
+    label: z.string().min(1).optional(),
+    kind: StopKind.optional(),
+    after: z.array(z.string().min(1)).optional(),
+    status: StopStatus.default("todo"),
+    notes: z.string().optional(),
+  })
+  .refine((s) => !s.position || s.body, {
+    message: "A stop with a position needs the body it is on",
+    path: ["position"],
+  });
 
 export const PlanRouteSchema = z.object({
   computed_at: z.string(),

@@ -39,10 +39,13 @@ export function planToMarkdown(plan: Plan): string {
     out.push("## Stops", "");
     const next = nextStop(plan)?.index;
     plan.stops.forEach((s, n) => {
-      const at = s.position
-        ? `${s.position.latitude.toFixed(4)}, ${s.position.longitude.toFixed(4)}`
-        : null;
-      const place = [s.system, s.body, s.station, at].filter(Boolean).join(" — ");
+      // Four decimals, about 10 m on an Earth-sized body; no "-0.0000".
+      const deg = (v: number) => (Math.abs(v) < 0.00005 ? 0 : v).toFixed(4);
+      const body =
+        s.body && s.position
+          ? `${s.body} (${deg(s.position.latitude)}, ${deg(s.position.longitude)})`
+          : s.body;
+      const place = [s.system, body, s.station].filter(Boolean).join(" — ");
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";
       out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);
