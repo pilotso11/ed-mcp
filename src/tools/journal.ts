@@ -150,17 +150,19 @@ export function registerJournalTools(
         "Accepted missions (active and complete) from the local game journal: destination, expiry, reward and passenger or " +
         "cargo details, soonest expiry first. status is active or complete (objectives met, not handed in). " +
         "origin_system and origin_station are where the mission was accepted (station is null when not docked). " +
-        "expired is true once the expiry has passed. " +
+        "expired is true once the expiry has passed, for an active mission: a complete one has no " +
+        "deadline. " +
         "details_missing marks missions accepted before the 14-day journal window (name and expiry only). " +
         FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
       const now = deps.journal.now();
-      // Expired missions stay listed: the game keeps them until the commander clears them.
+      // Expired missions stay listed: the game keeps them until the commander clears them. A
+      // complete mission only needs handing in, so it has no deadline, as in missions_plan.
       const missions = s.missions.map((m) => ({
         ...m,
-        expired: m.expires !== null && Date.parse(m.expires) < now,
+        expired: m.status !== "complete" && m.expires !== null && Date.parse(m.expires) < now,
       }));
       return { missions, ...freshness(s) };
     }),
@@ -265,14 +267,16 @@ export function registerJournalTools(
         "faction and then by giving faction. Each mission has kills_required, kills_counted (from " +
         "bounties and combat bonds against the target since it was accepted) and kills_left. A " +
         "kill counts toward the oldest open mission of each giving faction, as the game stacks " +
-        "them; a mission redirected back to its giver is done. A target's kills_left is the most any one giver still " +
+        "them; a mission redirected back to its giver is done. A mission past its expiry is " +
+        "expired, unless done: the game fails it, so it takes no more kills and needs none. A " +
+        "target's kills_left is the most any one giver still " +
         "needs. The counts are an estimate. uncounted lists massacre missions accepted before the " +
         "14-day journal window. " +
         FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
-      const r = massacre(s.missions, s.events);
+      const r = massacre(s.missions, s.events, deps.journal.now());
       return {
         targets: r.groups,
         uncounted: r.uncounted.map((m) => ({ id: m.id, name: m.name, expires: m.expires })),
