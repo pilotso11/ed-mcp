@@ -720,7 +720,11 @@ describe("trade_loops with the local market", () => {
     // The Spansh start record is older, so the file's prices and time replace it. Alpha Hub's
     // market, at 06:30, is newer than the file's 06:00, so the file's time is the oldest.
     const s = { ...start(), market_age_hours: 30, market_updated_at: "2026-10-12T01:00:00.000Z" };
-    const hub = { ...alpha(), market_updated_at: "2026-10-13T06:30:00.000Z" };
+    const hub = {
+      ...alpha(),
+      market_age_hours: 0.5,
+      market_updated_at: "2026-10-13T06:30:00.000Z",
+    };
     const { j } = await loops(
       { stops: [2], save_to_plan: true },
       { found: [s, hub], clock: clock() },
