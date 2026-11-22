@@ -39,6 +39,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The release runs these for the coverage badge, so a break shows here first.
+      - run: npm run coverage
+      - run: node scripts/coverage-badge.mjs
       - run: npm run pack:mcpb
       - uses: actions/upload-artifact@v7
         with:

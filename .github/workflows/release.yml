@@ -24,9 +24,9 @@ jobs:
       - run: npm ci
       - name: Check tag matches package version
         run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
-      - run: npm run check
-      # The README's coverage badge reads coverage.json from the latest release.
-      - run: npm run coverage
+      # `npm run check`, with the tests run once, with coverage: the README's coverage badge
+      # reads coverage.json from the latest release.
+      - run: npm run typecheck && npm run format:check && npm run coverage
       - run: node scripts/coverage-badge.mjs
       - run: npm run pack:mcpb
       # Records that this workflow built the .mcpb from this commit. Players can check it with
