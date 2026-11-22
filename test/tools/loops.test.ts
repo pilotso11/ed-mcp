@@ -712,6 +712,36 @@ describe("trade_loops with the local market", () => {
     expect(j.notes.some((n: string) => n.startsWith("Start station prices come from"))).toBe(true);
   });
 
+  it("saves a plan with the local start prices and Market.json's time as prices_at", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "loops-local-"));
+    const at = () => new Date("2026-10-13T07:00:00Z");
+    const plans = new PlanStore(path.join(dir, "plans.json"), at);
+    const activity = new ActivityStore(path.join(dir, "activity.json"), at);
+    // The Spansh start record is older, so the file's prices and time replace it. Alpha Hub's
+    // market, at 06:30, is newer than the file's 06:00, so the file's time is the oldest.
+    const s = { ...start(), market_age_hours: 30, market_updated_at: "2026-10-12T01:00:00.000Z" };
+    const hub = { ...alpha(), market_updated_at: "2026-10-13T06:30:00.000Z" };
+    const { j } = await loops(
+      { stops: [2], save_to_plan: true },
+      { found: [s, hub], clock: clock() },
+      { local: { market_id: s.market_id, updated_at: "2026-10-13T06:00:00Z", rows: localRows } },
+      { plans, activity },
+    );
+    expect(j).toMatchObject({ saved: true, plan_id: "trade" });
+    expect(j.notes).toContain(NOTE);
+    const plan = await plans.get("trade");
+    expect(plan.prices_at).toBe("2026-10-13T06:00:00.000Z");
+    expect(plan.notes).toContain("Oldest price 1 h.");
+    expect(plan.stops[0]).toMatchObject({
+      system: "Home",
+      station: "Start Port",
+      cargo: [
+        { commodity: "Tea", action: "sell", amount: 100, price: 500 },
+        { commodity: "Gold", action: "buy", amount: 100, price: 50 },
+      ],
+    });
+  });
+
   it("uses Spansh when the local file is older than the start record", async () => {
     const s = start();
     const { j } = await loops(
