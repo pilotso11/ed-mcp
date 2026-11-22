@@ -27,7 +27,7 @@ jobs:
       # `npm run check` with the tests under coverage: the README's coverage badge reads
       # coverage.json from the latest release. (`npm stage publish` below runs it all again
       # through prepublishOnly.)
-      - run: npm run typecheck && npm run format:check && npm run coverage
+      - run: npm run check:coverage
       - run: node scripts/coverage-badge.mjs
       - run: npm run pack:mcpb
       # Records that this workflow built the .mcpb from this commit. Players can check it with

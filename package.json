@@ -48,6 +48,7 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "check": "npm run typecheck && npm run format:check && npm test",
+    "check:coverage": "npm run typecheck && npm run format:check && npm run coverage",
     "pack:mcpb": "node scripts/pack-mcpb.mjs",
     "prepublishOnly": "npm run check && npm run build"
   },
