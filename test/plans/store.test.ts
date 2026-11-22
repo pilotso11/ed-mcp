@@ -1069,6 +1069,16 @@ describe("PlanStore build actions", () => {
     ).rejects.toThrow("Invalid action update");
   });
 
+  it("counts a build plan's actions in the summary", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build({ items: [] }));
+    await s.updateAction("python-mk2", { stop: { index: 0 }, action: "sb-1" }, { status: "done" });
+    expect((await s.list())[0]).toMatchObject({ items: 0, done: 0, actions: 3, actions_done: 1 });
+    // A plan without actions has no action counts.
+    await s.upsert(input({ id: "route" }));
+    expect((await s.list())[1]).not.toHaveProperty("actions");
+  });
+
   it("refuses two actions with one id in a stop", async () => {
     const s = new PlanStore(file, now);
     const dup = build();

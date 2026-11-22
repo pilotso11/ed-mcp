@@ -64,7 +64,7 @@ export function registerPlanTools(
         openWorldHint: false,
       },
       description:
-        "List saved plans with item counts, progress and next_stop (the first stop still to do). " +
+        "List saved plans with item counts, progress, action counts for a build plan (actions, actions_done) and next_stop (the first stop still to do). " +
         "A plan is a ship build or a route, or both.",
     },
     wrapWarn(async () => plans.list(), warnings),

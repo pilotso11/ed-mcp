@@ -29,6 +29,9 @@ export interface PlanSummary {
   name: string;
   items: number;
   done: number;
+  /** For a plan with stop actions: how many, and how many are done or skipped. */
+  actions?: number;
+  actions_done?: number;
   next_stop: NextStop | null;
   updated_at: string;
 }
@@ -68,14 +71,22 @@ export class PlanStore {
 
   async list(): Promise<PlanSummary[]> {
     const { plans } = await this.read();
-    return plans.map((p) => ({
-      id: p.id,
-      name: p.name,
-      items: p.items.length,
-      done: p.items.filter((i) => i.status === "done" || i.status === "skipped").length,
-      next_stop: nextStop(p),
-      updated_at: p.updated_at,
-    }));
+    const finished = (s: { status: string }) => s.status === "done" || s.status === "skipped";
+    return plans.map((p) => {
+      const actions = p.stops.flatMap((s) => s.actions ?? []);
+      return {
+        id: p.id,
+        name: p.name,
+        items: p.items.length,
+        done: p.items.filter(finished).length,
+        ...(actions.length && {
+          actions: actions.length,
+          actions_done: actions.filter(finished).length,
+        }),
+        next_stop: nextStop(p),
+        updated_at: p.updated_at,
+      };
+    });
   }
 
   async get(id: string): Promise<Plan> {
