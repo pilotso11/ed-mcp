@@ -133,12 +133,9 @@ describe("massacre", () => {
     expect(run(events, "2026-11-01T10:30:01Z").groups[0]!.kills_left).toBe(0);
   });
 
-  it("marks a complete mission past its expiry done and expired, as it can't be handed in", () => {
+  it("keeps a done mission done, not expired, after its expiry", () => {
     const r = run([accept(1, 1, "Alpha", 1, "Pirates", T(5)), bounty(2)]);
-    expect(counts(r)).toEqual({ 1: "1/1DX" });
-    expect(counts(run([accept(1, 1, "Alpha", 1, "Pirates", T(5)), bounty(2)], T(5)))).toEqual({
-      1: "1/1D",
-    });
+    expect(counts(r)).toEqual({ 1: "1/1D" });
   });
 
   it("groups by target and lists massacre missions accepted before the window as uncounted", () => {
