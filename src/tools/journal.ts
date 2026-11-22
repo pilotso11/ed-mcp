@@ -150,17 +150,19 @@ export function registerJournalTools(
         "Accepted missions (active and complete) from the local game journal: destination, expiry, reward and passenger or " +
         "cargo details, soonest expiry first. status is active or complete (objectives met, not handed in). " +
         "origin_system and origin_station are where the mission was accepted (station is null when not docked). " +
-        "expired is true once the expiry has passed. " +
+        "expired is true once the expiry has passed, for an active mission: a complete one has no " +
+        "deadline. " +
         "details_missing marks missions accepted before the 14-day journal window (name and expiry only). " +
         FRESHNESS_TEXT,
     },
     wrap(async () => {
       const s = await deps.journal.state();
       const now = deps.journal.now();
-      // Expired missions stay listed: the game keeps them until the commander clears them.
+      // Expired missions stay listed: the game keeps them until the commander clears them. A
+      // complete mission only needs handing in, so it has no deadline, as in missions_plan.
       const missions = s.missions.map((m) => ({
         ...m,
-        expired: m.expires !== null && Date.parse(m.expires) < now,
+        expired: m.status !== "complete" && m.expires !== null && Date.parse(m.expires) < now,
       }));
       return { missions, ...freshness(s) };
     }),

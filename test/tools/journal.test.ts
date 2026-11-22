@@ -115,6 +115,26 @@ describe("journal tools", () => {
     expect(e.engineers.map((x: any) => x.name)).toEqual(["Tod"]);
   });
 
+  it("journal_missions never marks a complete mission expired", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jdone-"));
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "MissionAccepted", {
+        MissionID: 1,
+        Name: "Done",
+        Expiry: "2026-10-12T10:05:00Z",
+      }),
+      ev("2026-10-12T10:01:00Z", "Missions", { Active: [], Complete: [{ MissionID: 1 }] }),
+    ]);
+    const server = new McpServer({ name: "t", version: "0" });
+    registerJournalTools(server, {
+      journal: new JournalService(dir, { now: at("2026-10-12T10:10:00Z") }),
+    });
+    const m = (await callTool(await connectTestClient(server), "journal_missions")).json as any;
+    expect(m.missions.map((x: any) => [x.id, x.status, x.expired])).toEqual([
+      [1, "complete", false],
+    ]);
+  });
+
   it("every state tool reports as_of, age_minutes and the stale warning", async () => {
     const c = await setup(true, undefined, at("2026-10-12T11:04:00Z"));
     for (const tool of [

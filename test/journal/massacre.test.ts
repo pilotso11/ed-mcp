@@ -138,6 +138,19 @@ describe("massacre", () => {
     expect(counts(r)).toEqual({ 1: "1/1D" });
   });
 
+  it("keeps a mission redirected back to its giver done, not expired, after its expiry", () => {
+    const r = run([
+      ev(T(0), "Docked", { StarSystem: "Home", StationName: "Port" }),
+      accept(1, 1, "Alpha", 5, "Pirates", T(3)),
+      ev(T(2), "MissionRedirected", {
+        MissionID: 1,
+        NewDestinationSystem: "Home",
+        NewDestinationStation: "Port",
+      }),
+    ]);
+    expect(counts(r)).toEqual({ 1: "0/5D" });
+  });
+
   it("groups by target and lists massacre missions accepted before the window as uncounted", () => {
     const r = run([
       accept(1, 1, "Alpha", 2, "Raiders"),
