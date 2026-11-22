@@ -216,6 +216,26 @@ describe("JournalService events", () => {
     for (const name of ["Scan", "ScanOrganic", "SAASignalsFound", "Bounty", "FactionKillBond"]) {
       expect(KEPT_EVENTS.has(name), name).toBe(true);
     }
+    // For build plans: the stored modules and the shipyard.
+    for (const name of [
+      "StoredModules",
+      "ShipyardBuy",
+      "ShipyardNew",
+      "ShipyardRedeem",
+      "ShipyardTransfer",
+      "ShipRedeemed",
+      "ModuleBuy",
+      "ModuleSell",
+      "ModuleSwap",
+      "ModuleStore",
+      "MassModuleStore",
+      "ModuleBuyAndStore",
+      "ModuleRetrieve",
+      "FetchRemoteModule",
+      "ModuleSellRemote",
+    ]) {
+      expect(KEPT_EVENTS.has(name), name).toBe(true);
+    }
     const dir = await folder();
     await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
       ev("2026-10-12T11:00:00Z", "Scan", { BodyName: "Sol 3", BodyID: 3 }),

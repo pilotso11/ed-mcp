@@ -1,3 +1,4 @@
+import { normaliseModule } from "./modules.js";
 import type { JournalEvent } from "./reader.js";
 
 export type MaterialKind = "raw" | "manufactured" | "encoded";
@@ -38,6 +39,37 @@ export interface EngineerState {
   rank: number | null;
   rank_progress: number | null;
 }
+interface Fitted {
+  item: string;
+  blueprint: string | null;
+  level: number | null;
+  quality: number | null;
+  /** The experimental effect, e.g. special_fsd_heavy. StoredModules does not list it. */
+  experimental: string | null;
+}
+
+/** A module in storage, as the newest StoredModules lists it, with later changes applied. */
+export interface StoredModule {
+  /** The symbol, normalised (see normaliseModule), e.g. int_hyperdrive_size5_class5. */
+  symbol: string;
+  name: string;
+  /** Null for a module stored since the newest StoredModules: only that event gives the slot. */
+  storage_slot: number | null;
+  /** Where it is stored; both null while it is in transit. */
+  system: string | null;
+  market_id: number | null;
+  in_transit: boolean;
+  /** To send it to the station of the newest StoredModules; null when not known. */
+  transfer_cost: number | null;
+  /** Seconds. */
+  transfer_time: number | null;
+  buy_price: number | null;
+  hot: boolean;
+  /** The blueprint, e.g. FSD_LongRange, with its grade and quality, when engineered. */
+  blueprint: string | null;
+  level: number | null;
+  quality: number | null;
+}
 export interface JournalState {
   commander: string | null;
   credits: number | null;
@@ -50,6 +82,8 @@ export interface JournalState {
   };
   ship: {
     type: string | null;
+    /** The journal ShipID. */
+    id: number | null;
     name: string | null;
     ident: string | null;
     max_jump_range: number | null;
@@ -60,6 +94,8 @@ export interface JournalState {
   materials: Record<MaterialKind, MaterialEntry[]>;
   missions: Mission[];
   engineers: EngineerState[];
+  /** The modules in storage, or null before the first StoredModules in the journal window. */
+  stored_modules: StoredModule[] | null;
   as_of: string | null;
 }
 
@@ -103,6 +139,18 @@ export const STATE_EVENTS: ReadonlySet<string> = new Set([
   "Undocked",
   "Loadout",
   "ShipyardSwap",
+  "ShipyardNew",
+  "ShipRedeemed",
+  "StoredModules",
+  "ModuleBuy",
+  "ModuleSell",
+  "ModuleSwap",
+  "ModuleBuyAndStore",
+  "ModuleStore",
+  "MassModuleStore",
+  "ModuleRetrieve",
+  "ModuleSellRemote",
+  "FetchRemoteModule",
   "Cargo",
   "Materials",
   "MaterialCollected",
@@ -122,6 +170,15 @@ export const STATE_EVENTS: ReadonlySet<string> = new Set([
   "EngineerProgress",
 ]);
 
+function swapSlots<V>(map: Map<string, V>, from: string, to: string): void {
+  const a = map.get(from);
+  const b = map.get(to);
+  if (b !== undefined) map.set(from, b);
+  else map.delete(from);
+  if (a !== undefined) map.set(to, a);
+  else map.delete(to);
+}
+
 export function buildState(events: JournalEvent[]): JournalState {
   let commander: string | null = null;
   let credits: number | null = null;
@@ -134,6 +191,7 @@ export function buildState(events: JournalEvent[]): JournalState {
   };
   const ship: JournalState["ship"] = {
     type: null,
+    id: null,
     name: null,
     ident: null,
     max_jump_range: null,
@@ -146,6 +204,129 @@ export function buildState(events: JournalEvent[]): JournalState {
   );
   const missions = new Map<number, Mission>();
   let engineers = new Map<string, EngineerState>();
+  let stored: StoredModule[] | null = null;
+  // The modules fitted to the current ship by slot (lower case), for the engineering of a module
+  // that a ModuleBuy or ModuleRetrieve puts in storage: those events do not give it. The game
+  // writes a Loadout only on leaving outfitting, so the module events and EngineerCraft keep it
+  // up to date in between.
+  let fitted: { shipId: number | null; slots: Map<string, Fitted> } = {
+    shipId: null,
+    slots: new Map(),
+  };
+  // Redeemed ships whose first Loadout has not been seen yet. A redeemed ship goes into storage:
+  // the player flies it only after a ShipyardSwap.
+  const redeemed = new Set<number>();
+  // For each redeemed ship, by slot, the modules it came with that are still fitted. They sell
+  // for 0, and the game drops them rather than store them when ModuleRetrieve replaces them.
+  const bundled = new Map<number, Map<string, string>>();
+  const bundledHere = () => (fitted.shipId === null ? undefined : bundled.get(fitted.shipId));
+  const fittedSlot = (shipId: unknown, slot: unknown): string | null =>
+    typeof slot === "string" && fitted.shipId !== null && fitted.shipId === num(shipId)
+      ? slot.toLowerCase()
+      : null;
+  const fit = (slot: string | null, item: unknown, m: Obj = {}, put = false) => {
+    if (slot === null) return;
+    const marks = bundledHere();
+    // ModuleSwap names an empty slot "Null".
+    if (typeof item !== "string" || !item || item.toLowerCase() === "null") {
+      fitted.slots.delete(slot);
+      marks?.delete(slot);
+      return;
+    }
+    const symbol = normaliseModule(item);
+    // A module put in the slot (bought or retrieved) is not one the ship came with; the same one
+    // listed again by a Loadout, or engineered, is.
+    if (put || marks?.get(slot) !== symbol) marks?.delete(slot);
+    fitted.slots.set(slot, {
+      item: symbol,
+      blueprint: str(m.EngineerModifications),
+      level: num(m.Level),
+      quality: num(m.Quality),
+      experimental: str(m.ExperimentalEffect),
+    });
+  };
+
+  const newShip = (type: string | null, id: number | null) => {
+    ship.type = type;
+    ship.id = id;
+    ship.name = null;
+    ship.ident = null;
+    ship.max_jump_range = null;
+    ship.cargo_capacity = null;
+    ship.fuel_capacity = null;
+  };
+
+  // A module put into storage at the station the event names, in the system the player is in.
+  const store = (marketId: unknown, item: unknown, localised: unknown, m: Obj) => {
+    if (!stored || typeof item !== "string" || !item) return;
+    const symbol = normaliseModule(item);
+    stored.push({
+      symbol,
+      name: str(localised) ?? symbol,
+      storage_slot: null,
+      system: location.system,
+      market_id: num(marketId),
+      in_transit: false,
+      transfer_cost: null,
+      transfer_time: null,
+      buy_price: num(m.BuyPrice),
+      hot: m.Hot === true,
+      blueprint: str(m.EngineerModifications),
+      level: num(m.Level),
+      quality: num(m.Quality),
+    });
+  };
+
+  // The engineering of a module leaving a slot, when the slot is known to hold that module.
+  const fittedEngineering = (slot: string | null, item: unknown): Obj => {
+    const f = slot === null ? undefined : fitted.slots.get(slot);
+    if (!f || typeof item !== "string" || f.item !== normaliseModule(item)) return {};
+    return { EngineerModifications: f.blueprint, Level: f.level, Quality: f.quality };
+  };
+
+  // A module in storage by its slot, else (one stored since the newest StoredModules, which has
+  // no slot yet) by its symbol.
+  const findStored = (e: Obj, item: unknown): number => {
+    if (!stored) return -1;
+    const slot = num(e.StorageSlot);
+    const bySlot = slot === null ? -1 : stored.findIndex((m) => m.storage_slot === slot);
+    if (bySlot >= 0 || typeof item !== "string") return bySlot;
+    const symbol = normaliseModule(item);
+    return stored.findIndex((m) => m.storage_slot === null && m.symbol === symbol);
+  };
+
+  const retrieve = (e: Obj) => {
+    if (!stored || typeof e.RetrievedItem !== "string") return;
+    const symbol = normaliseModule(e.RetrievedItem);
+    const here = num(e.MarketID);
+    const blueprint = str(e.EngineerModifications);
+    const level = num(e.Level);
+    const same = (m: StoredModule) =>
+      m.symbol === symbol && m.blueprint === blueprint && m.level === level;
+    const quality = num(e.Quality);
+    const atHere = (m: StoredModule) => !m.in_transit && m.market_id === here;
+    // The game's ModuleRetrieve gives no StorageSlot (none of 251 real ones did); one that does
+    // names the module exactly.
+    const slot = num(e.StorageSlot);
+    // The module in that slot; else the one stored here with that engineering, the same quality
+    // first, so of two alike the right one goes; else one with it elsewhere (one fetched here is
+    // in transit until the next StoredModules); else one stored here; else any of them.
+    for (const pick of [
+      (m: StoredModule) => slot !== null && m.storage_slot === slot && m.symbol === symbol,
+      (m: StoredModule) => same(m) && m.quality === quality && atHere(m),
+      (m: StoredModule) => same(m) && atHere(m),
+      (m: StoredModule) => same(m) && m.quality === quality,
+      same,
+      (m: StoredModule) => m.symbol === symbol && atHere(m),
+      (m: StoredModule) => m.symbol === symbol,
+    ]) {
+      const i = stored.findIndex(pick);
+      if (i >= 0) {
+        stored.splice(i, 1);
+        return;
+      }
+    }
+  };
 
   const adjust = (kind: MaterialKind | null, name: unknown, delta: number, localised?: unknown) => {
     if (typeof name !== "string" || !name) return;
@@ -162,7 +343,29 @@ export function buildState(events: JournalEvent[]): JournalState {
     else target.set(symbol, entry);
   };
 
+  // The station docked at, where a module fetched from storage is sent.
+  let marketId: number | null = null;
+  // Fetched modules by storage slot, with when and where they arrive. StoredModules lists a
+  // module in transit with neither, so the fetch is remembered until the module arrives.
+  const arriving = new Map<number, { at: number; system: string | null; market: number }>();
+  const land = (time: string) => {
+    const t = Date.parse(time);
+    for (const [slot, a] of arriving) {
+      // The game still lists it in transit at the second it is due.
+      if (!(a.at < t)) continue;
+      arriving.delete(slot);
+      const m = stored?.find((x) => x.storage_slot === slot && x.in_transit);
+      if (!m) continue;
+      m.in_transit = false;
+      m.system = a.system;
+      m.market_id = a.market;
+      m.transfer_cost = 0;
+      m.transfer_time = 0;
+    }
+  };
+
   const setLocation = (e: Obj, docked: boolean) => {
+    marketId = docked ? num(e.MarketID) : null;
     location.system = str(e.StarSystem) ?? location.system;
     location.docked = docked;
     location.station = docked ? str(e.StationName) : null;
@@ -185,6 +388,7 @@ export function buildState(events: JournalEvent[]): JournalState {
   };
 
   for (const e of events) {
+    if (arriving.size) land(e.timestamp);
     switch (e.event) {
       case "Commander":
         commander = str(e.Name) ?? commander;
@@ -201,6 +405,7 @@ export function buildState(events: JournalEvent[]): JournalState {
           ship.fuel_capacity = null;
         }
         ship.type = type;
+        ship.id = num(e.ShipID);
         ship.name = str(e.ShipName);
         ship.ident = str(e.ShipIdent);
         break;
@@ -218,6 +423,7 @@ export function buildState(events: JournalEvent[]): JournalState {
         setLocation(e, true);
         break;
       case "Undocked":
+        marketId = null;
         location.docked = false;
         location.station = null;
         location.station_type = null;
@@ -226,21 +432,158 @@ export function buildState(events: JournalEvent[]): JournalState {
       case "Loadout": {
         const fuel = e.FuelCapacity as Obj | undefined;
         ship.type = str(e.Ship) ?? ship.type;
+        ship.id = num(e.ShipID) ?? ship.id;
         ship.name = str(e.ShipName) ?? ship.name;
         ship.ident = str(e.ShipIdent) ?? ship.ident;
         ship.max_jump_range = num(e.MaxJumpRange);
         ship.cargo_capacity = num(e.CargoCapacity);
         ship.fuel_capacity = num(fuel?.Main);
+        fitted = { shipId: num(e.ShipID), slots: new Map() };
+        for (const m of objs(e.Modules)) {
+          const eng = (m.Engineering ?? {}) as Obj;
+          fit(typeof m.Slot === "string" ? m.Slot.toLowerCase() : null, m.Item, {
+            EngineerModifications: eng.BlueprintName,
+            Level: eng.Level,
+            Quality: eng.Quality,
+            ExperimentalEffect: eng.ExperimentalEffect,
+          });
+        }
+        // The first Loadout of a redeemed ship lists the modules it came with.
+        if (fitted.shipId !== null && redeemed.delete(fitted.shipId)) {
+          bundled.set(
+            fitted.shipId,
+            new Map([...fitted.slots].map(([slot, f]) => [slot, f.item] as const)),
+          );
+        }
         break;
       }
       case "ShipyardSwap":
-        ship.type = str(e.ShipType);
-        ship.name = null;
-        ship.ident = null;
-        ship.max_jump_range = null;
-        ship.cargo_capacity = null;
-        ship.fuel_capacity = null;
+        newShip(str(e.ShipType), num(e.ShipID));
+        // Another ship: its modules are known from its next Loadout.
+        fitted = { shipId: ship.id, slots: new Map() };
         break;
+      case "ShipyardNew":
+        newShip(str(e.ShipType), num(e.NewShipID));
+        fitted = { shipId: ship.id, slots: new Map() };
+        break;
+      case "ShipRedeemed": {
+        // A ship redeemed (ShipyardRedeem) goes into storage; the player stays in their ship.
+        const id = num(e.NewShipID);
+        if (id !== null) redeemed.add(id);
+        break;
+      }
+      case "StoredModules":
+        // The whole store, wherever it was written: each item says where it is.
+        stored = [];
+        for (const m of objs(e.Items)) {
+          const name = str(m.Name);
+          if (!name) continue;
+          const moving = m.InTransit === true;
+          stored.push({
+            symbol: normaliseModule(name),
+            name: str(m.Name_Localised) ?? normaliseModule(name),
+            storage_slot: num(m.StorageSlot),
+            system: moving ? null : str(m.StarSystem),
+            market_id: moving ? null : num(m.MarketID),
+            in_transit: moving,
+            transfer_cost: num(m.TransferCost),
+            transfer_time: num(m.TransferTime),
+            buy_price: num(m.BuyPrice),
+            hot: m.Hot === true,
+            blueprint: str(m.EngineerModifications),
+            level: num(m.Level),
+            quality: num(m.Quality),
+          });
+        }
+        // A fetch is still under way only for a module the game lists in transit.
+        for (const slot of arriving.keys()) {
+          if (!stored.some((m) => m.storage_slot === slot && m.in_transit)) arriving.delete(slot);
+        }
+        break;
+      case "ModuleStore":
+        store(e.MarketID, e.StoredItem, e.StoredItem_Localised, e);
+        fit(fittedSlot(e.ShipID, e.Slot), null);
+        break;
+      case "MassModuleStore":
+        for (const m of objs(e.Items)) {
+          store(e.MarketID, m.Name, m.Name_Localised, m);
+          fit(fittedSlot(e.ShipID, m.Slot), null);
+        }
+        break;
+      case "ModuleSell":
+        fit(fittedSlot(e.ShipID, e.Slot), null);
+        break;
+      case "ModuleSwap": {
+        const from = fittedSlot(e.ShipID, e.FromSlot);
+        const to = fittedSlot(e.ShipID, e.ToSlot);
+        if (from === null || to === null) break;
+        swapSlots(fitted.slots, from, to);
+        const marks = bundledHere();
+        if (marks) swapSlots(marks, from, to);
+        break;
+      }
+      case "ModuleBuyAndStore":
+        store(e.MarketID, e.BuyItem, e.BuyItem_Localised, { BuyPrice: e.BuyPrice });
+        break;
+      case "ModuleBuy":
+        // The old module, when it was stored rather than sold.
+        store(
+          e.MarketID,
+          e.StoredItem,
+          e.StoredItem_Localised,
+          fittedEngineering(fittedSlot(e.ShipID, e.Slot), e.StoredItem),
+        );
+        // A module bought new has no engineering.
+        fit(fittedSlot(e.ShipID, e.Slot), e.BuyItem, {}, true);
+        break;
+      case "ModuleRetrieve": {
+        retrieve(e);
+        // The module that was in the slot goes into storage in its place, unless it came with a
+        // redeemed ship: the game drops those.
+        const slot = fittedSlot(e.ShipID, e.Slot);
+        const dropped =
+          slot !== null &&
+          typeof e.SwapOutItem === "string" &&
+          bundledHere()?.get(slot) === normaliseModule(e.SwapOutItem);
+        if (!dropped) {
+          store(
+            e.MarketID,
+            e.SwapOutItem,
+            e.SwapOutItem_Localised,
+            fittedEngineering(slot, e.SwapOutItem),
+          );
+        }
+        fit(slot, e.RetrievedItem, e, true);
+        break;
+      }
+      case "ModuleSellRemote": {
+        const i = findStored(e, e.SellItem);
+        if (i >= 0) stored!.splice(i, 1);
+        break;
+      }
+      case "FetchRemoteModule": {
+        const i = findStored(e, e.StoredItem);
+        const m = i >= 0 ? stored![i] : undefined;
+        if (m) {
+          // One found by its symbol takes the slot the game gave it.
+          m.storage_slot ??= num(e.StorageSlot);
+          m.in_transit = true;
+          m.system = null;
+          m.market_id = null;
+          m.transfer_cost = num(e.TransferCost) ?? m.transfer_cost;
+          m.transfer_time = num(e.TransferTime) ?? m.transfer_time;
+          // It is sent to the station docked at, and is there after its transfer time.
+          const seconds = num(e.TransferTime);
+          if (marketId !== null && seconds !== null && m.storage_slot !== null) {
+            arriving.set(m.storage_slot, {
+              at: Date.parse(e.timestamp) + seconds * 1000,
+              system: location.system,
+              market: marketId,
+            });
+          }
+        }
+        break;
+      }
       case "Cargo":
         // Newer builds write the list to Cargo.json and omit it here.
         if (Array.isArray(e.Inventory) && (e.Vessel === undefined || e.Vessel === "Ship")) {
@@ -280,11 +623,31 @@ export function buildState(events: JournalEvent[]): JournalState {
         );
         break;
       }
-      case "EngineerCraft":
+      case "EngineerCraft": {
+        // For the ship flown: the event names none.
+        const slot = typeof e.Slot === "string" ? e.Slot.toLowerCase() : null;
+        if (slot !== null && fitted.shipId !== null) {
+          // What the event leaves out (an experimental applied may name no blueprint) stays as
+          // it was.
+          const was = fitted.slots.get(slot);
+          const blueprint = str(e.BlueprintName);
+          // A new blueprint removes the experimental; the event then names none.
+          const sameBlueprint = blueprint === null || blueprint === was?.blueprint;
+          fit(slot, was?.item ?? e.Module, {
+            EngineerModifications: blueprint ?? was?.blueprint,
+            Level: num(e.Level) ?? was?.level,
+            Quality: num(e.Quality) ?? was?.quality,
+            ExperimentalEffect:
+              str(e.ApplyExperimentalEffect) ??
+              str(e.ExperimentalEffect) ??
+              (sameBlueprint ? was?.experimental : null),
+          });
+        }
         for (const m of objs(e.Ingredients)) {
           adjust(kindOf(m.Category), m.Name, -(num(m.Count) ?? 0), m.Name_Localised);
         }
         break;
+      }
       case "Synthesis":
       case "TechnologyBroker":
         for (const m of objs(e.Materials)) {
@@ -404,6 +767,9 @@ export function buildState(events: JournalEvent[]): JournalState {
     }
   }
 
+  const asOf = events.length ? events[events.length - 1]!.timestamp : null;
+  if (asOf && arriving.size) land(asOf);
+
   const sortedMaterials = (kind: MaterialKind) =>
     [...materials.get(kind)!.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
 
@@ -425,6 +791,7 @@ export function buildState(events: JournalEvent[]): JournalState {
       return a.expires < b.expires ? -1 : 1;
     }),
     engineers: [...engineers.values()].sort((a, b) => a.name.localeCompare(b.name)),
-    as_of: events.length ? events[events.length - 1]!.timestamp : null,
+    stored_modules: stored,
+    as_of: asOf,
   };
 }

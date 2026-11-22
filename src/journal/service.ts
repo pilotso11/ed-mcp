@@ -36,8 +36,17 @@ const MEMO_MS = 1_000;
 // journal_events reads every event, so its cache holds only the files most likely read again.
 const RAW_CACHE_FILES = 2;
 
+// Kept for build plans although journal state does not use them: a hull bought, redeemed or sent
+// for. The module and other shipyard events a build needs are state events.
+export const BUILD_EVENTS: ReadonlySet<string> = new Set([
+  "ShipyardBuy",
+  "ShipyardRedeem",
+  "ShipyardTransfer",
+]);
+
 export const KEPT_EVENTS: ReadonlySet<string> = new Set([
   ...STATE_EVENTS,
+  ...BUILD_EVENTS,
   ...BODY_EVENTS,
   ...MASSACRE_EVENTS,
 ]);

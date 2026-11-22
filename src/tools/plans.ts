@@ -64,7 +64,7 @@ export function registerPlanTools(
         openWorldHint: false,
       },
       description:
-        "List saved plans with item counts, progress and next_stop (the first stop still to do). " +
+        "List saved plans with item counts, progress, action counts for a build plan (actions, actions_done) and next_stop (the first stop still to do). " +
         "A plan is a ship build or a route, or both.",
     },
     wrapWarn(async () => plans.list(), warnings),
@@ -105,6 +105,7 @@ export function registerPlanTools(
         "Create or replace a plan. A plan is a ship build, a route, or both: for example system X, planet Y for bios, then planet Z, then station A to hand in. " +
         "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
         "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes, after rules and cargo (what to buy or sell there: commodity, action buy or sell, amount in tonnes, planned unit price). " +
+        "A build plan has build (target ship or suit_loadout, scope full or upgrade, ship type, ship_id from journal_commander's ship.id for a ship the player owns, summary, rolls_per_grade) and, at each stop, actions in the order to do them: each with an id unique in its stop, a kind (buy_module, engineer, trade_material, collect_material and the rest), a label, a status, needs (materials and credits) and the fields its kind is judged by; ED Chat ticks them off from the journal. " +
         "A plan with repeat: true is a loop: when every stop is done or skipped, all go back to todo and lap counts up. " +
         "A plan saved by trade_route or trade_loops also has prices_at (ISO time of the oldest market data behind the prices) and profit_per_hour (planned credits an hour); when you replace such a plan, keep repeat and lap; keep prices_at and profit_per_hour for a rename or a notes edit, but drop them when you change the stops or cargo they were worked out from. " +
         "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
@@ -180,12 +181,15 @@ export function registerPlanTools(
         "Set the status (todo, done, skipped) and/or notes of one stop in a plan. Name the stop by " +
         "label (its label, else its station, body or system) or by index in the plan's stops, from 0; give exactly one. " +
         "Mark a stop done when the player has finished there; returns the plan with the new next_stop. " +
+        "With action (an action id at that stop), the status and/or notes are set on that action instead of the stop, and the stop is left as it is; " +
+        "an action set back to todo loses its done_by, the journal events ED Chat counted for it. " +
         "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all back to todo and adds 1 to lap; " +
         "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),
         label: z.string().min(1).optional(),
         index: z.number().int().min(0).optional(),
+        action: z.string().min(1).optional().describe("An action id at the stop"),
         status: StopStatus.optional(),
         notes: z.string().optional(),
       },
@@ -195,6 +199,7 @@ export function registerPlanTools(
         plan_id: string;
         label?: string;
         index?: number;
+        action?: string;
         status?: z.infer<typeof StopStatus>;
         notes?: string;
       }) => {
@@ -205,6 +210,24 @@ export function registerPlanTools(
           throw new UserError("Give status or notes to update");
         }
         const which = a.label !== undefined ? `"${a.label}"` : String(a.index);
+        const changes = [
+          ...(a.status !== undefined ? [`status: ${a.status}`] : []),
+          ...(a.notes !== undefined ? ["notes changed"] : []),
+        ].join(", ");
+        if (a.action !== undefined) {
+          try {
+            const plan = await plans.updateAction(
+              a.plan_id,
+              { stop: { label: a.label, index: a.index }, action: a.action },
+              { status: a.status, notes: a.notes },
+            );
+            return { ...plan, next_stop: nextStop(plan) };
+          } catch (err) {
+            throw new UserError(
+              `Action "${a.action}" at stop ${which} in plan "${a.plan_id}" was not updated (${changes}). ${reason(err)}`,
+            );
+          }
+        }
         try {
           const { plan, lapCompleted } = await plans.updateStopLap(
             a.plan_id,
@@ -220,10 +243,6 @@ export function registerPlanTools(
             }),
           };
         } catch (err) {
-          const changes = [
-            ...(a.status !== undefined ? [`status: ${a.status}`] : []),
-            ...(a.notes !== undefined ? ["notes changed"] : []),
-          ].join(", ");
           throw new UserError(
             `Stop ${which} in plan "${a.plan_id}" was not updated (${changes}). ${reason(err)}`,
           );

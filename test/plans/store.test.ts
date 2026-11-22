@@ -953,3 +953,163 @@ describe("PlanStore loop fields", () => {
     expect(r.plan.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
   });
 });
+
+describe("PlanStore build actions", () => {
+  const build = (over: Partial<PlanInput> = {}): PlanInput =>
+    input({
+      build: { target: "ship", scope: "full", ship: "python_nx" },
+      stops: [
+        {
+          system: "Shinrarta Dezhra",
+          station: "Jameson Memorial",
+          purpose: "outfit",
+          kind: "shop",
+          actions: [
+            {
+              id: "sb-1",
+              kind: "buy_module",
+              label: "Buy Shield Booster 0A",
+              module: "hpt_shieldbooster_size0_class5",
+            },
+            {
+              id: "sb-2",
+              kind: "buy_module",
+              label: "Buy Shield Booster 0A",
+              module: "hpt_shieldbooster_size0_class5",
+            },
+          ],
+        },
+        {
+          system: "Kuwemaki",
+          station: "Pioneer Supplies",
+          label: "pioneer",
+          purpose: "suit",
+          kind: "pioneer",
+          actions: [
+            {
+              id: "buy",
+              kind: "buy_suit",
+              label: "Buy Dominator G3",
+              suit: "TacticalSuit_Class3",
+              grade: 3,
+              gear: "dominator-1",
+            },
+          ],
+        },
+      ],
+      ...over,
+    });
+  const claim = { at: "2026-10-11T00:00:05Z", event: "ModuleBuy", n: 0, role: "bought module" };
+
+  it("marks one action done with the events it used, in one write, leaving the stop", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build());
+    t += 1000;
+    const p = await s.updateAction(
+      "python-mk2",
+      { stop: { index: 0 }, action: "sb-2" },
+      { status: "done", done_by: [claim] },
+    );
+    expect(p.stops[0]!.actions!.map((a) => a.status)).toEqual(["todo", "done"]);
+    expect(p.stops[0]!.actions![1]!.done_by).toEqual([claim]);
+    expect(p.stops[0]!.status).toBe("todo");
+    expect(p.updated_at).toBe("2026-10-11T00:00:01.000Z");
+    expect((await s.get("python-mk2")).stops[0]!.actions![1]!.status).toBe("done");
+  });
+
+  it("drops done_by when an action goes back to todo, and keeps edits made in between", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build());
+    const ref = { stop: { index: 0 }, action: "sb-1" };
+    await Promise.all([
+      s.updateAction("python-mk2", ref, { status: "done", done_by: [claim] }),
+      s.updateStop("python-mk2", { index: 1 }, { notes: "bring credits" }),
+    ]);
+    let p = await s.get("python-mk2");
+    expect(p.stops[0]!.actions![0]!.done_by).toEqual([claim]);
+    expect(p.stops[1]!.notes).toBe("bring credits");
+    p = await s.updateAction("python-mk2", ref, { status: "todo" });
+    expect(p.stops[0]!.actions![0]).not.toHaveProperty("done_by");
+    // Marked done by hand: no events until the panel gives it some.
+    p = await s.updateAction("python-mk2", ref, { status: "done", notes: "bought by hand" });
+    expect(p.stops[0]!.actions![0]).toMatchObject({ status: "done", notes: "bought by hand" });
+    expect(p.stops[0]!.actions![0]).not.toHaveProperty("done_by");
+  });
+
+  it("writes a bought suit's ID into an action, found by the stop's label", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build());
+    const p = await s.updateAction(
+      "python-mk2",
+      { stop: { label: "pioneer" }, action: "buy" },
+      { suit_id: 1700000001, weapon_id: 1700000002 },
+    );
+    expect(p.stops[1]!.actions![0]).toMatchObject({ suit_id: 1700000001, weapon_id: 1700000002 });
+  });
+
+  it("explains an action it cannot find, and refuses an empty or invalid patch", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build());
+    await expect(
+      s.updateAction("python-mk2", { stop: { index: 0 }, action: "nope" }, { status: "done" }),
+    ).rejects.toThrow('No action "nope" at stop 0 of plan "python-mk2". Actions: sb-1, sb-2');
+    await s.upsert(build({ stops: [{ system: "Sol", purpose: "look" }] }));
+    await expect(
+      s.updateAction("python-mk2", { stop: { index: 0 }, action: "sb-1" }, { status: "done" }),
+    ).rejects.toThrow("the stop has no actions");
+    await expect(
+      s.updateAction("python-mk2", { stop: { index: 0 }, action: "sb-1" }, {}),
+    ).rejects.toThrow("Give status, done_by, suit_id, weapon_id or notes");
+    await expect(
+      s.updateAction(
+        "python-mk2",
+        { stop: { index: 0 }, action: "sb-1" },
+        { done_by: [{ ...claim, n: -1 }] },
+      ),
+    ).rejects.toThrow("Invalid action update");
+  });
+
+  it("counts a build plan's actions in the summary", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build({ items: [] }));
+    await s.updateAction("python-mk2", { stop: { index: 0 }, action: "sb-1" }, { status: "done" });
+    expect((await s.list())[0]).toMatchObject({ items: 0, done: 0, actions: 3, actions_done: 1 });
+    // A plan without actions has no action counts.
+    await s.upsert(input({ id: "route" }));
+    expect((await s.list())[1]).not.toHaveProperty("actions");
+  });
+
+  it("refuses two actions with one id in a stop", async () => {
+    const s = new PlanStore(file, now);
+    const dup = build();
+    dup.stops![0]!.actions![1]!.id = "sb-1";
+    await expect(s.upsert(dup)).rejects.toThrow('stop 0 has two actions with the id "sb-1"');
+    await expect(
+      s.addStop("python-mk2", "P", {
+        system: "Sol",
+        purpose: "x",
+        actions: [
+          { id: "a", kind: "synthesis", label: "x" },
+          { id: "a", kind: "synthesis", label: "y" },
+        ],
+      }),
+    ).rejects.toThrow('two actions have the id "a"');
+  });
+
+  it("sets the build's ship once, unless told to change it", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(build());
+    let p = await s.setBuildShip("python-mk2", 71);
+    expect(p.build).toEqual({ target: "ship", scope: "full", ship: "python_nx", ship_id: 71 });
+    p = await s.setBuildShip("python-mk2", 71);
+    expect(p.build!.ship_id).toBe(71);
+    await expect(s.setBuildShip("python-mk2", 72)).rejects.toThrow(
+      'Plan "python-mk2" is for ship 71 already; pass overwrite: true',
+    );
+    p = await s.setBuildShip("python-mk2", 72, { overwrite: true });
+    expect(p.build!.ship_id).toBe(72);
+    await s.upsert(input({ id: "route" }));
+    await expect(s.setBuildShip("route", 1)).rejects.toThrow("is not a build plan");
+    await expect(s.setBuildShip("python-mk2", 1.5)).rejects.toThrow("Invalid ship ID");
+  });
+});

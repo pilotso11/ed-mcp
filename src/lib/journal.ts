@@ -9,7 +9,16 @@ import { fileOptions } from "../files.js";
 
 export { JournalService, KEPT_EVENTS, type JournalStatus } from "../journal/service.js";
 export type { JournalEvent } from "../journal/reader.js";
-export type { JournalState, Mission } from "../journal/state.js";
+export type { JournalState, Mission, StoredModule } from "../journal/state.js";
+export { normaliseModule } from "../journal/modules.js";
+export {
+  planTrades,
+  tradeRate,
+  type MatInfo,
+  type NeedLine,
+  type Rate,
+  type Trade,
+} from "../materials/trade.js";
 export {
   exobiology,
   exploration,
@@ -47,7 +56,18 @@ export { ActivityStore } from "../activity/store.js";
 export type { Activity } from "../activity/schema.js";
 export { PlanStore } from "../plans/store.js";
 export { nextStop, visitOrder, type NextStop } from "../plans/stops.js";
-export type { Plan, PlanRoute, Stop, PlanStopInput } from "../plans/schema.js";
+export type {
+  Action,
+  ActionInput,
+  Build,
+  DoneBy,
+  Needs,
+  Plan,
+  PlanRoute,
+  Stop,
+  PlanStopInput,
+} from "../plans/schema.js";
+export type { ActionPatch } from "../plans/store.js";
 
 export interface Stores {
   journal: JournalService;

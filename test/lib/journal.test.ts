@@ -26,6 +26,9 @@ describe("ed-mcp/journal", () => {
       "PlanStore",
       "ActivityStore",
       "openStores",
+      "normaliseModule",
+      "planTrades",
+      "tradeRate",
     ]) {
       expect(lib, name).toHaveProperty(name);
     }

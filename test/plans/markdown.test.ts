@@ -214,3 +214,92 @@ describe("planToMarkdown positions", () => {
     expect(planToMarkdown({ ...p, profit_per_hour: 0 })).toContain("Planned 0 cr/h\n");
   });
 });
+
+describe("planToMarkdown build plans", () => {
+  it("shows the build and each stop's actions, with what an open one needs", () => {
+    const md = planToMarkdown({
+      ...plan,
+      items: [],
+      notes: undefined,
+      build: {
+        target: "ship",
+        scope: "upgrade",
+        ship: "python_nx",
+        ship_id: 27,
+        started_at: "2026-10-11T00:00:00Z",
+        summary: "FSD G5 · thrusters Dirty G5",
+      },
+      stops: [
+        {
+          system: "Deciat",
+          station: "Farseer Inc",
+          purpose: "engineer",
+          kind: "engineer",
+          status: "todo",
+          actions: [
+            {
+              id: "unlock",
+              kind: "unlock_engineer",
+              label: "Unlock Felicity Farseer",
+              status: "done",
+              needs: { materials: [{ name: "Meta-Alloys", count: 1 }] },
+            },
+            {
+              id: "fsd",
+              kind: "engineer",
+              label: "Roll FSD Increased Range to G5",
+              status: "todo",
+              needs: {
+                materials: [
+                  { name: "Arsenic", count: 12 },
+                  { name: "Chemical Manipulators", count: 4 },
+                ],
+              },
+              notes: "pin it",
+            },
+            { id: "skip", kind: "synthesis", label: "Synthesise FSD Injection", status: "skipped" },
+          ],
+        },
+        {
+          system: "Shinrarta Dezhra",
+          station: "Jameson Memorial",
+          purpose: "outfit",
+          status: "todo",
+          actions: [
+            {
+              id: "sg",
+              kind: "buy_module",
+              label: "Buy Shield Generator 6A",
+              status: "todo",
+              needs: { credits: 18900000 },
+            },
+          ],
+        },
+      ],
+    });
+    expect(md).toBe(
+      [
+        "# Python Mk II",
+        "",
+        "Plan `python-mk2` · updated 2026-10-11T01:00:00.000Z · 2/4 actions done",
+        "",
+        "Build: ship upgrade · python_nx · ShipID 27 · from 2026-10-11T00:00:00Z",
+        "",
+        "Target: FSD G5 · thrusters Dirty G5",
+        "",
+        "## Stops",
+        "",
+        "1. [ ] **engineer** Deciat — Farseer Inc: engineer ← next",
+        "   - [x] Unlock Felicity Farseer",
+        "   - [ ] Roll FSD Increased Range to G5",
+        "     - Needs: 12× Arsenic, 4× Chemical Manipulators",
+        "     - Notes: pin it",
+        "   - [-] Synthesise FSD Injection",
+        "2. [ ] Shinrarta Dezhra — Jameson Memorial: outfit",
+        "   - [ ] Buy Shield Generator 6A",
+        "     - Needs: 18,900,000 cr",
+        "",
+      ].join("\n"),
+    );
+  });
+});
