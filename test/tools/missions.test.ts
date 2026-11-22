@@ -412,20 +412,23 @@ describe("missions_route", () => {
   });
 });
 
+const planStores = async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
+  const now = () => new Date(NOW);
+  return {
+    plans: new PlanStore(path.join(dir, "plans.json"), now),
+    activity: new ActivityStore(path.join(dir, "activity.json"), now),
+  };
+};
+const savePlan = async (args: Record<string, unknown>, opts: Parameters<typeof setup>[0]) => {
+  const { client } = setup(opts);
+  const r = await callTool(await client, "missions_plan", { ...range, ...args });
+  return { r, j: r.json as Record<string, any> };
+};
+
 describe("missions_plan", () => {
-  const stores = async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
-    const now = () => new Date(NOW);
-    return {
-      plans: new PlanStore(path.join(dir, "plans.json"), now),
-      activity: new ActivityStore(path.join(dir, "activity.json"), now),
-    };
-  };
-  const save = async (args: Record<string, unknown>, opts: Parameters<typeof setup>[0]) => {
-    const { client } = setup(opts);
-    const r = await callTool(await client, "missions_plan", { ...range, ...args });
-    return { r, j: r.json as Record<string, any> };
-  };
+  const stores = planStores;
+  const save = savePlan;
 
   it("saves the order as the activity note's plan, labelled per stop", async () => {
     const s = await stores();
@@ -722,37 +725,31 @@ describe("missions_plan stop carry-over", () => {
 });
 
 describe("missions_plan, more", () => {
-  const stores = async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
-    const now = () => new Date(NOW);
-    return {
-      plans: new PlanStore(path.join(dir, "plans.json"), now),
-      activity: new ActivityStore(path.join(dir, "activity.json"), now),
-    };
-  };
-  const save = async (args: Record<string, unknown>, opts: Parameters<typeof setup>[0]) => {
-    const { client } = setup(opts);
-    const r = await callTool(await client, "missions_plan", { ...range, ...args });
-    return { r, j: r.json as Record<string, any> };
-  };
+  const stores = planStores;
+  const save = savePlan;
 
-  it("refuses include rather than saving every mission", async () => {
+  it("refuses include rather than saving every mission; an empty one is fine", async () => {
     const { r } = await save({ include: [1] }, await stores());
     expect(r.isError).toBe(true);
     expect(r.text).toContain("takes no include");
+    expect((await save({ include: [] }, await stores())).j.saved).toBe(true);
   });
 
-  it("flags the missions it saved without a route", async () => {
+  it("marks missions it kept in the plan without a route, and only those", async () => {
     const expired = mission(9, { destination_system: "Alpha", expires: at(-60) });
     const { j } = await save({}, { ...(await stores()), down: ["beta"], extra: [expired] });
-    // Spansh failed for Beta: saved after the route. Expired: dropped.
-    expect(j.unroutable.find((u: any) => u.id === 4)).toMatchObject({ saved: true });
-    expect(j.unroutable.find((u: any) => u.id === 9)).not.toHaveProperty("saved");
+    // Spansh failed for Beta, and does not know Nowhere: both kept. Expired: dropped.
+    expect(j.unroutable.find((u: any) => u.id === 4)).toMatchObject({ in_plan: true });
+    expect(j.unroutable.find((u: any) => u.id === 5)).toMatchObject({ in_plan: true });
+    expect(j.unroutable.find((u: any) => u.id === 9)).not.toHaveProperty("in_plan");
+    // missions_route saves nothing, so marks nothing.
+    const { j: r } = await route({}, { down: ["beta"] });
+    expect(r.unroutable.some((u: any) => "in_plan" in u)).toBe(false);
   });
 
-  it("keeps a done mark on a stop with two deliveries when nothing changed", async () => {
+  it("keeps a done mark on a stop with only two deliveries when nothing changed", async () => {
     const s = await stores();
-    const extra = [
+    const missions = [
       mission(7, {
         destination_system: "Alpha",
         destination_station: "Alpha Dock",
@@ -766,13 +763,11 @@ describe("missions_plan, more", () => {
         count: 2,
       }),
     ];
-    await save({}, { ...s, extra });
-    const i = (await s.plans.get("missions")).stops.findIndex((x) => x.station === "Alpha Dock");
-    await s.plans.updateStop("missions", { index: i }, { status: "done" });
-    await save({}, { ...s, extra });
-    const stop = (await s.plans.get("missions")).stops.find((x) => x.station === "Alpha Dock")!;
-    expect(stop.purpose).toContain("Gold");
-    expect(stop.purpose).toContain("Tea");
+    await save({}, { ...s, missions });
+    await s.plans.updateStop("missions", { index: 0 }, { status: "done" });
+    await save({}, { ...s, missions });
+    const stop = (await s.plans.get("missions")).stops[0]!;
+    expect(stop.purpose).toBe("Deliver 4 t Gold · deliver 2 t Tea");
     expect(stop.status).toBe("done");
   });
 });

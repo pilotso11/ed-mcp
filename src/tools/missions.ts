@@ -104,7 +104,7 @@ export function registerMissionTools(
     }
 
     const grouped = missionsToStops(state.missions, a.include, nowMs);
-    const unroutable: Unroutable[] = [...grouped.unroutable];
+    const unroutable: (Unroutable & { in_plan?: boolean })[] = [...grouped.unroutable];
     const stops: Stop[] = [];
     const places: Place[] = [];
     // Stops Spansh could not place: their system and station are known, only not where they are.
@@ -125,7 +125,7 @@ export function registerMissionTools(
             id: m.id,
             name: m.name,
             reason: why,
-            ...(planId ? { saved: true } : {}),
+            ...(planId ? { in_plan: true } : {}),
           });
         }
       }
@@ -291,7 +291,8 @@ export function registerMissionTools(
         "made by hand stay as they are. " +
         "It covers every mission it can place; with none left it clears the mission stops, and a " +
         "note this tool wrote. " +
-        "A stop Spansh cannot place is saved after the route's stops. The return_to stop is in " +
+        "A stop Spansh cannot place is saved after the route's stops; its missions are listed in " +
+        "unroutable with in_plan: true. The return_to stop is in " +
         "the route, not the stops. " +
         "Call it again after taking or finishing missions. " +
         describeRoute,
@@ -310,7 +311,7 @@ export function registerMissionTools(
     },
     wrap((a: Args & { plan_id: string }) => {
       // Refused rather than ignored: a plan of some missions would drop the others' stops.
-      if (a.include) {
+      if (a.include?.length) {
         throw new UserError(
           "missions_plan covers every mission, so it takes no include; use missions_route to look at some of them.",
         );

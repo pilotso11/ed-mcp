@@ -23,8 +23,6 @@ export interface Unroutable {
   id: number;
   name: string;
   reason: string;
-  /** missions_plan: kept in the plan as a stop after the route's stops, though not routed. */
-  saved?: boolean;
 }
 
 /**
