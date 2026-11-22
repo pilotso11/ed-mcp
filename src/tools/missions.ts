@@ -119,7 +119,15 @@ export function registerMissionTools(
           e instanceof UserError
             ? e.message
             : `Spansh lookup failed: ${e instanceof Error ? e.message : String(e)}`;
-        for (const m of stop.missions) unroutable.push({ id: m.id, name: m.name, reason: why });
+        for (const m of stop.missions) {
+          // Saved after the route's stops by missions_plan, unlike a mission with no stop.
+          unroutable.push({
+            id: m.id,
+            name: m.name,
+            reason: why,
+            ...(planId ? { saved: true } : {}),
+          });
+        }
       }
     }
     const returnPlace = a.return_to
@@ -294,9 +302,21 @@ export function registerMissionTools(
         preferences: inputSchema.preferences,
         use_preferences: inputSchema.use_preferences,
         plan_id: PlanId.default("missions").describe("The plan to save to"),
+        include: z
+          .array(z.number().int())
+          .optional()
+          .describe("Not supported: missions_plan always covers every mission"),
       },
     },
-    wrap((a: Omit<Args, "include"> & { plan_id: string }) => run(a, a.plan_id)),
+    wrap((a: Args & { plan_id: string }) => {
+      // Refused rather than ignored: a plan of some missions would drop the others' stops.
+      if (a.include) {
+        throw new UserError(
+          "missions_plan covers every mission, so it takes no include; use missions_route to look at some of them.",
+        );
+      }
+      return run(a, a.plan_id);
+    }),
   );
 }
 

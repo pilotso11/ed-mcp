@@ -720,3 +720,59 @@ describe("missions_plan stop carry-over", () => {
     expect(stops.some((x) => x.system === "Fuel")).toBe(true);
   });
 });
+
+describe("missions_plan, more", () => {
+  const stores = async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "missions-"));
+    const now = () => new Date(NOW);
+    return {
+      plans: new PlanStore(path.join(dir, "plans.json"), now),
+      activity: new ActivityStore(path.join(dir, "activity.json"), now),
+    };
+  };
+  const save = async (args: Record<string, unknown>, opts: Parameters<typeof setup>[0]) => {
+    const { client } = setup(opts);
+    const r = await callTool(await client, "missions_plan", { ...range, ...args });
+    return { r, j: r.json as Record<string, any> };
+  };
+
+  it("refuses include rather than saving every mission", async () => {
+    const { r } = await save({ include: [1] }, await stores());
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("takes no include");
+  });
+
+  it("flags the missions it saved without a route", async () => {
+    const expired = mission(9, { destination_system: "Alpha", expires: at(-60) });
+    const { j } = await save({}, { ...(await stores()), down: ["beta"], extra: [expired] });
+    // Spansh failed for Beta: saved after the route. Expired: dropped.
+    expect(j.unroutable.find((u: any) => u.id === 4)).toMatchObject({ saved: true });
+    expect(j.unroutable.find((u: any) => u.id === 9)).not.toHaveProperty("saved");
+  });
+
+  it("keeps a done mark on a stop with two deliveries when nothing changed", async () => {
+    const s = await stores();
+    const extra = [
+      mission(7, {
+        destination_system: "Alpha",
+        destination_station: "Alpha Dock",
+        commodity: "Gold",
+        count: 4,
+      }),
+      mission(8, {
+        destination_system: "Alpha",
+        destination_station: "Alpha Dock",
+        commodity: "Tea",
+        count: 2,
+      }),
+    ];
+    await save({}, { ...s, extra });
+    const i = (await s.plans.get("missions")).stops.findIndex((x) => x.station === "Alpha Dock");
+    await s.plans.updateStop("missions", { index: i }, { status: "done" });
+    await save({}, { ...s, extra });
+    const stop = (await s.plans.get("missions")).stops.find((x) => x.station === "Alpha Dock")!;
+    expect(stop.purpose).toContain("Gold");
+    expect(stop.purpose).toContain("Tea");
+    expect(stop.status).toBe("done");
+  });
+});

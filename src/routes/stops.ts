@@ -23,6 +23,8 @@ export interface Unroutable {
   id: number;
   name: string;
   reason: string;
+  /** missions_plan: kept in the plan as a stop after the route's stops, though not routed. */
+  saved?: boolean;
 }
 
 /**
@@ -49,8 +51,10 @@ export function stopLabel(stop: Stop, byId: Map<number, Mission>): string {
       const into = s.kind === "source" ? sourced : goods;
       // NaN marks a total with an unknown count, so the label names no tonnage.
       into.set(what, (into.get(what) ?? 0) + (m?.count ?? NaN));
+    } else {
       // Any other mission, and a passenger mission with no count, is named as a mission.
-    } else other++;
+      other++;
+    }
   }
   const flags = [vips ? `${vips} VIP` : null, wanted ? `${wanted} wanted` : null].filter(Boolean);
   const tons = (n: number, what: string) => (n > 0 ? `${n} t ${what}` : what);
