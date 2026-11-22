@@ -10,7 +10,7 @@ npm run check
 npm run pack:mcpb
 ```
 
-`npm run check` runs the type check, the format check and the tests. The tests use no network. `npm run pack:mcpb` builds `dist/` and creates `ed-mcp-<version>.mcpb`.
+`npm run check` runs the type check, the format check and the tests. The tests use no network. `npm run coverage` runs the tests with coverage; the HTML report is in `coverage/`. Each release attaches `coverage.json` (from `scripts/coverage-badge.mjs`), and the README's coverage badge reads it from the latest release. `npm run pack:mcpb` builds `dist/` and creates `ed-mcp-<version>.mcpb`.
 
 To run your build in Claude Code, run `npm run build`. Then register `node <repo>/dist/index.js` with `claude mcp add`, as the README shows for `npx`.
 
