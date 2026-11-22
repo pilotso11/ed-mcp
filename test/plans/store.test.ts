@@ -685,3 +685,51 @@ describe("PlanStore.setRoute with appended stops", () => {
     }
   });
 });
+
+describe("PlanStore stop writes at the same time", () => {
+  it("keeps every stop added at once, and an update made alongside", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-many-"));
+    try {
+      const f = path.join(d, "plans.json");
+      const now = () => new Date("2026-11-22T00:00:00Z");
+      const a = new PlanStore(f, now);
+      const b = new PlanStore(f, now);
+      await a.addStop("bookmarks", "Bookmarks", { system: "S", purpose: "first" });
+      const stop = (n: number) => ({ system: "S", purpose: `spot ${n}` });
+      await Promise.all([
+        a.addStop("bookmarks", "Bookmarks", stop(1)),
+        b.addStop("bookmarks", "Bookmarks", stop(2)),
+        a.addStop("bookmarks", "Bookmarks", stop(3)),
+        b.updateStop("bookmarks", { index: 0 }, { notes: "kept" }),
+      ]);
+      const plan = await a.get("bookmarks");
+      expect(plan.stops.map((s) => s.purpose).sort()).toEqual([
+        "first",
+        "spot 1",
+        "spot 2",
+        "spot 3",
+      ]);
+      expect(plan.stops[0]!.notes).toBe("kept");
+      // An existing plan takes a stop whatever name is given.
+      await expect(a.addStop("bookmarks", "", stop(4))).resolves.toBeTruthy();
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a route worked out over no stops once the plan has some", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-empty-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      await store.upsert({ id: "p", name: "P", stops: [] });
+      await store.upsert({ id: "p", name: "P", stops: [{ system: "X", purpose: "x" }] });
+      const route = { computed_at: "t", from: "A", stops: [], total_min: 0, plotted: false };
+      await expect(store.setRoute("p", route, { stops: [] })).rejects.toThrow("changed");
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});

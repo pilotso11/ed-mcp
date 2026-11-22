@@ -8,6 +8,7 @@ import { MAX_DATA_FILE, readRegularText } from "../fs/regular.js";
 import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
+  PlanId,
   PlanInputSchema,
   StopSchema,
   type Plan,
@@ -102,7 +103,10 @@ export class PlanStore {
       if (
         route?.stop_indexes &&
         old?.route?.computed_at === route.computed_at &&
-        !sameStops(old.stops, plan.stops)
+        // A route's indexes point at the stops before any added at the end, so they still fit
+        // the shorter list.
+        !routeStillFits(plan.stops, old.stops) &&
+        !routeStillFits(old.stops, plan.stops)
       ) {
         delete route.stop_indexes;
       }
@@ -139,14 +143,17 @@ export class PlanStore {
     if (!parsed.success) {
       return Promise.reject(new UserError(`Invalid stop: ${z.prettifyError(parsed.error)}`));
     }
-    const input = PlanInputSchema.safeParse({ id: planId, name });
-    if (!input.success) {
-      return Promise.reject(new UserError(`Invalid plan: ${z.prettifyError(input.error)}`));
+    const id = PlanId.safeParse(planId);
+    if (!id.success) {
+      return Promise.reject(new UserError(`Invalid plan: ${z.prettifyError(id.error)}`));
     }
     return this.mutate((data) => {
       const stamp = this.now().toISOString();
       let plan = data.plans.find((p) => p.id === planId);
       if (!plan) {
+        // The name is used, and so checked, only when the plan is made.
+        const input = PlanInputSchema.safeParse({ id: planId, name });
+        if (!input.success) throw new UserError(`Invalid plan: ${z.prettifyError(input.error)}`);
         plan = { ...input.data, created_at: stamp, updated_at: stamp };
         data.plans.push(plan);
       }
@@ -181,7 +188,7 @@ export class PlanStore {
       const plan = data.plans.find((p) => p.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
       // Stops added at the end meanwhile (a bookmark, say) leave the route's indexes valid.
-      if (opts.stops && !sameStops(opts.stops, plan.stops.slice(0, opts.stops.length))) {
+      if (opts.stops && !routeStillFits(opts.stops, plan.stops)) {
         throw new UserError(
           `The stops of plan "${planId}" changed while the route was computed; run route_stops again to save it`,
         );
@@ -347,6 +354,16 @@ function cleanRoute(plan: Plan): Plan {
 const stopKey = (s: Stop) => JSON.stringify([s.system, s.station, s.body, s.label, s.purpose]);
 function sameStops(a: Stop[], b: Stop[]): boolean {
   return a.length === b.length && a.every((s, i) => stopKey(s) === stopKey(b[i]!));
+}
+
+/**
+ * Whether a route worked out over `before` still fits `after`: the same stops, or the same stops
+ * with more added at the end, which a route's indexes do not point at. An empty `before` fits
+ * only an empty `after`.
+ */
+function routeStillFits(before: Stop[], after: Stop[]): boolean {
+  if (!before.length) return !after.length;
+  return before.length <= after.length && sameStops(before, after.slice(0, before.length));
 }
 
 const PRUNABLE = /^[a-z0-9][a-z0-9-]{0,63}\.md$/;
