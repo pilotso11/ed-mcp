@@ -32,11 +32,6 @@ describe("PlanInputSchema stops", () => {
       stops: [{ ...stop, position: { latitude: 91, longitude: 0 } }],
     });
     expect(bad.success).toBe(false);
-    const noBody = PlanInputSchema.safeParse({
-      ...base,
-      stops: [{ system: "Sol", purpose: "x", position: { latitude: 1, longitude: 2 } }],
-    });
-    expect(noBody.success).toBe(false);
   });
 
   it("rejects an unknown kind", () => {

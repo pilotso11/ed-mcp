@@ -605,3 +605,32 @@ describe("PlanStore in a sync folder", () => {
     },
   );
 });
+
+describe("PlanStore stop positions", () => {
+  it("refuses to save a position without a body, but loads a file that has one", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-pos-"));
+    const f = path.join(d, "plans.json");
+    const store = new PlanStore(f, () => new Date("2026-11-22T00:00:00Z"));
+    const stop = { system: "Sol", purpose: "x", position: { latitude: 1, longitude: 2 } };
+    await expect(store.upsert({ id: "b", name: "B", stops: [stop] })).rejects.toThrow(
+      "stop 0 has a position but no body",
+    );
+    writeFileSync(
+      f,
+      JSON.stringify({
+        version: 1,
+        plans: [
+          {
+            id: "b",
+            name: "B",
+            items: [],
+            stops: [{ ...stop, status: "todo" }],
+            created_at: "2026-11-22T00:00:00Z",
+            updated_at: "2026-11-22T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    expect((await store.get("b")).stops[0]!.position).toEqual({ latitude: 1, longitude: 2 });
+  });
+});
