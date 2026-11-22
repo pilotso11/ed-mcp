@@ -952,7 +952,54 @@ describe("trade_loops save_to_plan", () => {
     expect(locked.j.notes).toContain(
       'The result was not saved to plan "trade": Plan file is locked',
     );
+    // Nothing was saved, so there is no first lap to talk about.
+    expect(locked.j.notes.some((n: string) => n.startsWith("On the first lap"))).toBe(false);
     expect(await s.activity.get()).toBeNull();
+  });
+
+  it("starts a plan already at plan_id afresh, keeping only its created_at", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "loops-"));
+    let t = Date.parse("2026-11-01T00:00:00Z");
+    const plans = new PlanStore(path.join(dir, "plans.json"), () => new Date(t));
+    await plans.upsert({
+      id: "trade",
+      name: "Trade loop: Old ⇄ Older",
+      repeat: true,
+      lap: 7,
+      prices_at: "2026-10-30T00:00:00.000Z",
+      notes: "old notes",
+      items: [{ id: "fsd", kind: "buy", description: "5A FSD" }],
+      stops: [
+        { system: "Old", station: "Old Port", purpose: "Buy 1 t Tea", status: "done" },
+        { system: "Older", station: "Older Port", purpose: "Sell 1 t Tea", status: "skipped" },
+        { system: "Oldest", purpose: "Extra", status: "done", notes: "busy" },
+      ],
+      route: {
+        computed_at: "2026-11-01T00:00:00.000Z",
+        from: "Old",
+        stops: ["Old Port", "Older Port"],
+        total_min: 10,
+        plotted: false,
+      },
+    });
+    t = Date.parse("2026-11-22T12:00:00Z");
+    const { j } = await loops({ save_to_plan: true }, { found: [start(), alpha()] }, {}, { plans });
+    expect(j).toMatchObject({ saved: true, plan_id: "trade" });
+    const plan = await plans.get("trade");
+    expect(plan.created_at).toBe("2026-11-01T00:00:00.000Z");
+    expect(plan.updated_at).toBe("2026-11-22T12:00:00.000Z");
+    expect(plan.name).toBe("Trade loop: Home ⇄ Alpha");
+    expect(plan.lap).toBe(1);
+    expect(plan.repeat).toBe(true);
+    // The new markets carry no update time, so prices_at comes from their 1 h age, not the old plan.
+    expect(Math.abs(Date.parse(plan.prices_at!) - (Date.now() - 3_600_000))).toBeLessThan(60_000);
+    expect(plan.notes).toMatch(/^Saved by trade_loops at /);
+    expect(plan.items).toEqual([]);
+    expect(plan.route).toBeUndefined();
+    expect(plan.stops.map((x) => [x.station, x.status, x.notes])).toEqual([
+      ["Start Port", "todo", undefined],
+      ["Alpha Hub", "todo", undefined],
+    ]);
   });
 
   it("does not save by default, and refuses save_to_plan without plans before searching", async () => {
