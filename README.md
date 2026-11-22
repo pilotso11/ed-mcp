@@ -1,5 +1,7 @@
 # ed-mcp
 
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2Fpilotso11%2Fed-mcp%2Freleases%2Flatest%2Fdownload%2Fcoverage.json&query=%24.message&label=coverage&color=blue)](CONTRIBUTING.md)
+
 ed-mcp connects Claude to Elite Dangerous. Claude can then read your commander data and plan with you.
 
 With ed-mcp, Claude can:
