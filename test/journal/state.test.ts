@@ -535,6 +535,7 @@ describe("buildState", () => {
       );
       expect(fetched.at(-1)).toMatchObject({
         symbol: "int_sensors_size2_class1",
+        storage_slot: 82,
         in_transit: true,
       });
     });
@@ -564,50 +565,87 @@ describe("buildState", () => {
     });
 
     it("drops a module that came with a redeemed ship when another replaces it", () => {
-      const redeemed = [
-        ev(T(3), "ShipyardRedeem", { ShipType: "corsair", BundleID: 1, MarketID: MARKET }),
-        ev(T(3), "ShipRedeemed", { ShipType: "corsair", NewShipID: 87 }),
-        ev(T(4), "Loadout", {
-          Ship: "corsair",
-          ShipID: 87,
-          Modules: [
-            { Slot: "MediumHardpoint1", Item: "hpt_pulselaser_gimbal_medium" },
-            { Slot: "MediumHardpoint2", Item: "hpt_pulselaser_gimbal_medium" },
-          ],
-        }),
-      ];
-      const retrieve = (t: number, slot: string, out: string) =>
+      const corsair = (t: number, modules: object[]) =>
+        ev(T(t), "Loadout", { Ship: "corsair", ShipID: 87, Modules: modules });
+      const python = ev(T(9), "Loadout", { Ship: "python_nx", ShipID: 27, Modules: [] });
+      const retrieve = (
+        t: number,
+        slot: string,
+        out: string,
+        item = "$hpt_chafflauncher_tiny_name;",
+      ) =>
         ev(T(t), "ModuleRetrieve", {
           MarketID: MARKET,
           Slot: slot,
-          RetrievedItem: "$hpt_shieldbooster_size0_class5_name;",
+          RetrievedItem: item,
           Ship: "corsair",
           ShipID: 87,
           SwapOutItem: out,
         });
+      const laser = "$hpt_pulselaser_gimbal_medium_name;";
       const s = buildState([
         docked,
         snapshot,
-        ...redeemed,
-        retrieve(5, "MediumHardpoint1", "$hpt_pulselaser_gimbal_medium_name;"),
-        // A later Loadout keeps the mark on the modules still fitted.
-        ev(T(6), "Loadout", {
+        loadout,
+        // The redeemed ship goes into storage: the player stays in the Python.
+        ev(T(3), "ShipyardRedeem", { ShipType: "corsair", BundleID: 1, MarketID: MARKET }),
+        ev(T(3), "ShipRedeemed", { ShipType: "corsair", NewShipID: 87 }),
+        ev(T(4), "Loadout", { Ship: "python_nx", ShipID: 27, Modules: [] }),
+        ev(T(5), "ShipyardSwap", { ShipType: "corsair", ShipID: 87, MarketID: MARKET }),
+        corsair(6, [
+          { Slot: "MediumHardpoint1", Item: "hpt_pulselaser_gimbal_medium" },
+          { Slot: "MediumHardpoint2", Item: "hpt_pulselaser_gimbal_medium" },
+          { Slot: "MediumHardpoint3", Item: "hpt_pulselaser_gimbal_medium" },
+        ]),
+        retrieve(7, "MediumHardpoint1", laser),
+        // Away to the Python and back: the corsair's marks stay.
+        ev(T(8), "ShipyardSwap", { ShipType: "python_nx", ShipID: 27, MarketID: MARKET }),
+        python,
+        ev(T(10), "ShipyardSwap", { ShipType: "corsair", ShipID: 87, MarketID: MARKET }),
+        corsair(11, [
+          { Slot: "MediumHardpoint1", Item: "hpt_chafflauncher_tiny" },
+          { Slot: "MediumHardpoint2", Item: "hpt_pulselaser_gimbal_medium" },
+          { Slot: "MediumHardpoint3", Item: "hpt_pulselaser_gimbal_medium" },
+        ]),
+        // Engineering a module it came with keeps the mark.
+        ev(T(12), "EngineerCraft", {
+          Slot: "MediumHardpoint2",
+          Module: "hpt_pulselaser_gimbal_medium",
+          BlueprintName: "Weapon_Efficient",
+          Level: 1,
+          Quality: 0.5,
+        }),
+        retrieve(13, "MediumHardpoint2", laser),
+        // A module bought since is stored as usual, and so is one bought into a bundled slot.
+        retrieve(14, "MediumHardpoint1", "$hpt_chafflauncher_tiny_name;"),
+        ev(T(15), "ModuleBuy", {
+          Slot: "MediumHardpoint3",
+          SellItem: laser,
+          SellPrice: 0,
+          BuyItem: laser,
+          MarketID: MARKET,
           Ship: "corsair",
           ShipID: 87,
-          Modules: [
-            { Slot: "MediumHardpoint1", Item: "hpt_shieldbooster_size0_class5" },
-            { Slot: "MediumHardpoint2", Item: "hpt_pulselaser_gimbal_medium" },
-          ],
         }),
-        retrieve(7, "MediumHardpoint2", "$hpt_pulselaser_gimbal_medium_name;"),
-        // A module fitted since is stored as usual.
-        retrieve(8, "MediumHardpoint1", "$hpt_shieldbooster_size0_class5_name;"),
+        retrieve(16, "MediumHardpoint3", laser, "$hpt_heatsinklauncher_turret_tiny_name;"),
       ]);
       expect(s.ship).toMatchObject({ type: "corsair", id: 87 });
-      // Only the booster fitted since the redeem goes into storage.
       const added = s.stored_modules!.filter((m) => m.storage_slot === null);
-      expect(added.map((m) => m.symbol)).toEqual(["hpt_shieldbooster_size0_class5"]);
+      expect(added.map((m) => m.symbol)).toEqual([
+        "hpt_chafflauncher_tiny",
+        "hpt_pulselaser_gimbal_medium",
+      ]);
     });
+
+    it("keeps the ship flown when a redeemed ship goes into storage", () => {
+      const s = buildState([
+        ev(T(0), "LoadGame", { Ship: "python_nx", ShipID: 27 }),
+        ev(T(1), "ShipRedeemed", { ShipType: "mediumtransport01", NewShipID: 81 }),
+        ev(T(2), "Loadout", { Ship: "python_nx", ShipID: 27 }),
+      ]);
+      expect(s.ship).toMatchObject({ type: "python_nx", id: 27 });
+    });
+
     it("takes a module sold from storage out, and marks a fetched one in transit", () => {
       const s = stored(
         ev(T(3), "ModuleSellRemote", {
