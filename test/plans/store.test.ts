@@ -627,3 +627,34 @@ describe("PlanStore stop positions", () => {
     }
   });
 });
+
+describe("PlanStore.addStop", () => {
+  it("adds a stop, making the plan when it is missing, and keeps edits made in between", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-add-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      const stop = (n: number) => ({
+        system: "Col 285",
+        body: "Col 285 6 k",
+        purpose: `Spot ${n}`,
+        position: { latitude: n, longitude: n },
+      });
+      await store.addStop("bookmarks", "Bookmarks", stop(1));
+      await store.updateStop("bookmarks", { index: 0 }, { notes: "kept" });
+      const plan = await store.addStop("bookmarks", "Bookmarks", stop(2));
+      expect(plan.name).toBe("Bookmarks");
+      expect(plan.stops.map((s) => [s.purpose, s.notes, s.status])).toEqual([
+        ["Spot 1", "kept", "todo"],
+        ["Spot 2", undefined, "todo"],
+      ]);
+      await expect(store.addStop("bookmarks", "B", { system: "", purpose: "x" })).rejects.toThrow(
+        "Invalid stop",
+      );
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});

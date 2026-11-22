@@ -9,12 +9,14 @@ import { planToMarkdown } from "./markdown.js";
 import {
   PlanFileSchema,
   PlanInputSchema,
+  StopSchema,
   type Plan,
   type PlanFile,
   type PlanInput,
   type PlanItem,
   type PlanRoute,
   type Stop,
+  type StopInput,
 } from "./schema.js";
 import { findStop, nextStop, type NextStop } from "./stops.js";
 
@@ -123,6 +125,28 @@ export class PlanStore {
       if (patch.status !== undefined) item.status = patch.status;
       if (patch.notes !== undefined) item.notes = patch.notes;
       plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  /**
+   * Adds one stop to the end of a plan in one locked write, making the plan (with `name`) when it
+   * is missing; for callers such as ED Chat's bookmark key, so a concurrent edit is not lost.
+   */
+  addStop(planId: string, name: string, stop: StopInput): Promise<Plan> {
+    return this.mutate((data) => {
+      const parsed = StopSchema.safeParse(stop);
+      if (!parsed.success) throw new UserError(`Invalid stop: ${z.prettifyError(parsed.error)}`);
+      const stamp = this.now().toISOString();
+      let plan = data.plans.find((p) => p.id === planId);
+      if (!plan) {
+        const input = PlanInputSchema.safeParse({ id: planId, name });
+        if (!input.success) throw new UserError(`Invalid plan: ${z.prettifyError(input.error)}`);
+        plan = { ...input.data, created_at: stamp, updated_at: stamp };
+        data.plans.push(plan);
+      }
+      plan.stops.push(parsed.data);
+      plan.updated_at = stamp;
       return plan;
     });
   }

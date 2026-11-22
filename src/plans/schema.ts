@@ -106,6 +106,7 @@ export const PlanFileSchema = z.object({
 export type PlanItem = z.infer<typeof PlanItemSchema>;
 export type PlanRoute = z.infer<typeof PlanRouteSchema>;
 export type Stop = z.infer<typeof StopSchema>;
+export type StopInput = z.input<typeof StopSchema>;
 export type PlanInput = z.input<typeof PlanInputSchema>;
 export type Plan = z.infer<typeof PlanSchema>;
 export type PlanFile = z.infer<typeof PlanFileSchema>;
