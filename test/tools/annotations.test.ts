@@ -43,6 +43,7 @@ describe("tool annotations", () => {
     expect(destructive).toEqual([
       "activity_set",
       "capi_logout",
+      "missions_plan",
       "plan_delete",
       "plan_export",
       "plan_import",
@@ -60,6 +61,7 @@ describe("tool annotations", () => {
       "cache_refresh",
       "capi_login",
       "capi_logout",
+      "missions_plan",
       "plan_delete",
       "plan_export",
       "plan_import",

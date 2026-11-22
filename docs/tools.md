@@ -38,6 +38,7 @@ For installation and setup, see the [README](../README.md).
 | `spansh_system`            | System coordinates and stations                              |
 | `spansh_route`             | Neutron route between systems                                |
 | `missions_route`           | Best stop order for accepted missions, with deadlines        |
+| `missions_plan`            | Save the mission route as the active plan                    |
 | `route_stops`              | Best order for a plan's stops: shops, engineers, bodies      |
 | `trade_route`              | Multi-hop trade run, ranked by profit per hour               |
 | `commodity_prices`         | Best stations near a system to sell or buy one commodity     |
@@ -106,6 +107,27 @@ With up to 12 stops and up to 24 missions with an expiry, the search is exact. I
 The result lists the `stops` in order, each with `arrive_min`, `leg_min`, `jumps` and its missions (with `reward`, `expires` for active missions, a `note` where one applies, and `slack_min` or `late_min`), plus `total_min`, `late` mission ids, `unroutable`, `notes`, `applied_preferences`, `as_of`, `age_minutes` and `warnings`.
 
 Limits: the tool cannot see the mission board. Source, mining and depot missions do not include the pickup or sourcing leg. It does not check cabin or cargo capacity. Massacre missions route by status (to the target system while active, to the origin when complete), because the journal does not track kills reliably. The tool infers planetary stations from the Spansh station type (planetary, surface or settlement) and adds the planetary extra time for them. `from` and `return_to` must be systems Spansh knows.
+
+
+### missions_plan
+
+`missions_plan` works out the `missions_route` order and saves it as a plan, `missions` unless you
+give `plan_id`. It also makes it the activity note's plan, so the ED Chat activity panel shows the
+next stop and copies its system when you arrive. Each stop is one station, with a label for what to
+do there ("Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1 mission") and `missions`, the
+journal mission IDs it serves. A `return_to` stop is in the route, not the stops.
+
+Saving replaces the plan's mission stops (those listing their missions) and its route, and keeps
+everything else: stops you made by hand stay as they are, after the mission stops, outside the
+route. It covers every mission it can place; with none left it clears the mission stops, and an
+activity note it wrote itself. A new stop keeps the done or skipped mark and the notes of an old stop at the same place with
+the same task (kind) for exactly the same missions. Editing a mission stop by hand must keep its
+`missions` list, or the stop counts as made by hand. A stop Spansh cannot place (a failed lookup) is still saved at its
+place, after the route's stops. Missions the journal no longer says where to take are left out, as
+`missions_route` lists them in `unroutable`. The stop labels change as the missions do, so address
+these stops by index. A note you or Claude wrote for this plan keeps its summary and kind; calling
+`missions_plan` otherwise points the note at the mission run. Call it again after taking or
+finishing missions.
 
 ## Build statistics
 
@@ -178,7 +200,7 @@ A plan is a ship build, a route, or both. For example: system X, planet Y for bi
 - `stops`: places to visit. A stop has a `system`, a `purpose`, and optionally a `station`, a `body` (planet or moon), a `position` on the body (`latitude` and `longitude` in degrees, normally with the `body` it is on; a stop without one still loads), a `label`, a `kind`, `after` rules and `notes`. The ED Chat activity panel saves surface bookmarks as stops with a position in the plan `bookmarks`. The kinds are `shop`, `trader`, `engineer`, `exobiology`, `exploration`, `combat`, `mission`, `hand_in`, `trade`, `mining`, `fuel` and `other`. Each stop has a `status`: `todo` (the default), `done` or `skipped`.
 - `route`: the order that `route_stops` saved. Without a route, the order of `stops` is the visit order.
 
-`plan_get` and `plan_list` add `next_stop`: the first stop with status `todo`, in route order when the plan has a route. It has the stop's `index` in `stops`, from 0. A route saved by `route_stops` keeps `stop_indexes`, the plan stops of each route entry, so the order is exact. When the indexes no longer fit, ed-mcp matches the route's names to the stops instead. That happens for a route saved before `stop_indexes`, and when `plan_upsert` keeps the saved route but inserts, removes or moves stops. Stops that the route does not visit come after the route's stops.
+`plan_get` and `plan_list` add `next_stop`: the first stop with status `todo`, in route order when the plan has a route. It has the stop's `index` in `stops`, from 0. A route saved by `route_stops` keeps `stop_indexes`, the plan stops of each route entry, so the order is exact. When the indexes no longer fit, ed-mcp matches the route's names to the stops instead. That happens for a route saved before `stop_indexes`, and when `plan_upsert` keeps the saved route but inserts or moves stops (stops added or dropped at the end keep the indexes). Stops that the route does not visit come after the route's stops.
 
 `plan_update_stop` sets the `status` and/or `notes` of one stop. Name the stop by `label` or by `index`, not both. A label matches the stop's label, or, for a stop without one, its station, body or system. If more than one stop matches, give the index.
 

@@ -100,6 +100,10 @@
     { "name": "spansh_route", "description": "Neutron route between systems" },
     { "name": "missions_route", "description": "Best stop order for accepted missions" },
     {
+      "name": "missions_plan",
+      "description": "Save the mission route as the active plan, for the ED Chat panel"
+    },
+    {
       "name": "route_stops",
       "description": "Best order for a plan's stops: shops, engineers, bodies"
     },

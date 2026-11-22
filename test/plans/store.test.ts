@@ -764,3 +764,38 @@ describe("PlanStore stop writes at the same time", () => {
     }
   });
 });
+
+describe("route indexes when the last stops are dropped", () => {
+  it("trims the index of a dropped stop, and addStop keeps no missions list", async () => {
+    const d = await mkdtemp(path.join(os.tmpdir(), "plans-drop-"));
+    try {
+      const store = new PlanStore(
+        path.join(d, "plans.json"),
+        () => new Date("2026-11-22T00:00:00Z"),
+      );
+      const stop = (n: string) => ({ system: n, purpose: n });
+      const route = {
+        computed_at: "t",
+        from: "A",
+        stops: ["A", "B", "C"],
+        total_min: 1,
+        plotted: false,
+        stop_indexes: [[0], [1], [2]],
+      };
+      const p = await store.upsert({
+        id: "p",
+        name: "P",
+        stops: [stop("A"), stop("B"), stop("C")],
+        route,
+      });
+      const dropped = await store.upsert({ ...p, stops: p.stops.slice(0, 2) });
+      // The dropped stop's index is trimmed, so a stop added later does not take its place.
+      expect(dropped.route!.stop_indexes).toEqual([[0], [1], []]);
+      const added = await store.addStop("p", "P", { ...stop("D"), missions: [5] });
+      expect(added.route!.stop_indexes).toEqual([[0], [1], []]);
+      expect(added.stops.at(-1)).not.toHaveProperty("missions");
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+});

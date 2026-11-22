@@ -19,7 +19,7 @@ import {
   type Stop,
   type PlanStopInput,
 } from "./schema.js";
-import { findStop, nextStop, type NextStop } from "./stops.js";
+import { findStop, nextStop, placeKey, type NextStop } from "./stops.js";
 
 export interface PlanSummary {
   id: string;
@@ -83,37 +83,45 @@ export class PlanStore {
 
   upsert(input: PlanInput, opts: { overwrite?: boolean } = {}): Promise<Plan> {
     return this.mutate((data) => {
+      // Validated first, so an invalid plan says why rather than that the plan exists.
       const parsed = PlanInputSchema.safeParse(input);
       if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
-      const stamp = this.now().toISOString();
       const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
-      if (idx >= 0 && opts.overwrite === false) {
-        throw new PlanExistsError(parsed.data.id);
-      }
-      const old = idx >= 0 ? data.plans[idx]! : undefined;
-      const plan: Plan = cleanRoute({
-        ...parsed.data,
-        created_at: old ? old.created_at : stamp,
-        updated_at: stamp,
-      });
-      // The same saved route with other stops (a stop inserted, removed or moved) has indexes
-      // that point at the wrong stops; without them, the route is matched by name. A new route,
-      // for example from plan_import, carries indexes for its own stops and keeps them.
-      const route = plan.route;
-      if (
-        route?.stop_indexes &&
-        old?.route?.computed_at === route.computed_at &&
-        // A route's indexes point at the stops before any added at the end, so they still fit
-        // the shorter list.
-        !routeStillFits(plan.stops, old.stops) &&
-        !routeStillFits(old.stops, plan.stops)
-      ) {
-        delete route.stop_indexes;
-      }
-      if (idx >= 0) data.plans[idx] = plan;
-      else data.plans.push(plan);
-      return plan;
+      if (idx >= 0 && opts.overwrite === false) throw new PlanExistsError(parsed.data.id);
+      return this.put(data, input);
     });
+  }
+
+  /** Validates and stores a plan in data, stamped, in place of one with the same ID. */
+  private put(data: PlanFile, input: PlanInput, opts: { newRoute?: boolean } = {}): Plan {
+    const parsed = PlanInputSchema.safeParse(input);
+    if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
+    const stamp = this.now().toISOString();
+    const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
+    const old = idx >= 0 ? data.plans[idx]! : undefined;
+    const plan: Plan = cleanRoute({
+      ...parsed.data,
+      created_at: old ? old.created_at : stamp,
+      updated_at: stamp,
+    });
+    // The same saved route with stops inserted or moved has indexes that point at the wrong
+    // stops; without them, the route is matched by name. Stops added or dropped at the end leave
+    // the indexes fitting the stops before them, so they stay. A new route, for example from
+    // plan_import or missions_plan, carries indexes for its own stops and keeps them.
+    const route = plan.route;
+    if (
+      !opts.newRoute &&
+      route?.stop_indexes &&
+      old?.route?.computed_at === route.computed_at &&
+      // cleanRoute has already trimmed indexes past the end, so dropped stops leave none behind.
+      !routeStillFits(plan.stops, old.stops) &&
+      !routeStillFits(old.stops, plan.stops)
+    ) {
+      delete route.stop_indexes;
+    }
+    if (idx >= 0) data.plans[idx] = plan;
+    else data.plans.push(plan);
+    return plan;
   }
 
   updateItem(
@@ -157,7 +165,9 @@ export class PlanStore {
         plan = { ...input.data, created_at: stamp, updated_at: stamp };
         data.plans.push(plan);
       }
-      plan.stops.push(parsed.data);
+      // A stop added by hand: a missions list would make missions_plan treat it as its own.
+      const { missions: _missions, ...stopByHand } = parsed.data;
+      plan.stops.push(stopByHand);
       plan.updated_at = stamp;
       return plan;
     });
@@ -196,6 +206,47 @@ export class PlanStore {
       plan.route = route;
       plan.updated_at = this.now().toISOString();
       return plan;
+    });
+  }
+
+  /**
+   * Replaces a plan's mission stops and its route in one locked write, creating the plan when it
+   * is missing. Mission stops are those with a missions list; stops made by hand are kept as they
+   * are, after the new ones, and so is everything else in the plan. A new stop keeps the done or
+   * skipped mark of an old one at the same place that served exactly the same missions.
+   */
+  saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
+    return this.mutate((data) => {
+      const old = data.plans.find((p) => p.id === planId);
+      // A mission stop lists its missions: an edit must keep the list, or the stop counts as made
+      // by hand.
+      const isMission = (s: Stop) => (s.missions?.length ?? 0) > 0;
+      const sameSet = (a: number[], b: number[]) =>
+        a.length === b.length && a.every((id) => b.includes(id));
+      const olds = (old?.stops ?? []).filter(isMission);
+      const fresh = stops.map((s) => {
+        const k = placeKey(s.system, s.station);
+        // The same task (kind and what to do, which changes with the missions' status) at the
+        // same place, for exactly the same missions.
+        const same = olds.find(
+          (o) =>
+            placeKey(o.system, o.station) === k &&
+            o.kind === s.kind &&
+            o.purpose === s.purpose &&
+            sameSet(o.missions ?? [], s.missions ?? []),
+        );
+        return same
+          ? { ...s, status: same.status, ...(same.notes ? { notes: same.notes } : {}) }
+          : s;
+      });
+      // The route's stop_indexes point at the new stops, which come first.
+      const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
+      // A newly worked-out route: its stop_indexes are for these stops, whatever its time.
+      return this.put(
+        data,
+        { ...(old ?? { id: planId, name }), stops: [...fresh, ...byHand], route },
+        { newRoute: true },
+      );
     });
   }
 

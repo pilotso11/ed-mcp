@@ -1,4 +1,6 @@
 import type { Mission } from "../journal/state.js";
+import { placeKey } from "../plans/stops.js";
+import { plural } from "../text.js";
 
 export interface StopMission {
   id: number;
@@ -21,6 +23,51 @@ export interface Unroutable {
   id: number;
   name: string;
   reason: string;
+}
+
+/**
+ * What to do at a stop, for a plan: "Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1
+ * mission". `byId` gives the journal's mission for the VIP and wanted flags and the commodity.
+ */
+export function stopLabel(stop: Stop, byId: Map<number, Mission>): string {
+  let passengers = 0;
+  let vips = 0;
+  let wanted = 0;
+  const goods = new Map<string, number>();
+  const sourced = new Map<string, number>();
+  let handIn = 0;
+  let other = 0;
+  for (const s of stop.missions) {
+    const m = byId.get(s.id);
+    if (s.status === "complete") handIn++;
+    else if (s.kind === "passenger" && s.passengers) {
+      passengers += s.passengers;
+      if (m?.vips) vips += s.passengers;
+      if (m?.wanted) wanted += s.passengers;
+    } else if (s.kind === "delivery" || s.kind === "source") {
+      const what = m?.commodity ?? "cargo";
+      const into = s.kind === "source" ? sourced : goods;
+      // NaN marks a total with an unknown count, so the label names no tonnage.
+      into.set(what, (into.get(what) ?? 0) + (m?.count ?? NaN));
+    } else {
+      // Any other mission, and a passenger mission with no count, is named as a mission.
+      other++;
+    }
+  }
+  const flags = [vips ? `${vips} VIP` : null, wanted ? `${wanted} wanted` : null].filter(Boolean);
+  const tons = (n: number, what: string) => (n > 0 ? `${n} t ${what}` : what);
+  return [
+    passengers
+      ? `Drop ${plural(passengers, "passenger")}${flags.length ? ` (${flags.join(", ")})` : ""}`
+      : null,
+    ...[...goods].map(([what, n]) => `deliver ${tons(n, what)}`),
+    ...[...sourced].map(([what, n]) => `source ${tons(n, what)}`),
+    other ? plural(other, "mission") : null,
+    handIn ? `hand in ${plural(handIn, "mission")}` : null,
+  ]
+    .filter((x): x is string => x !== null)
+    .join(" · ")
+    .replace(/^./, (c) => c.toUpperCase());
 }
 
 const kindOf = (m: Mission): StopMission["kind"] =>
@@ -69,7 +116,7 @@ export function missionsToStops(
       });
       continue;
     }
-    const key = `${system.toLowerCase()}|${station?.toLowerCase() ?? ""}`;
+    const key = placeKey(system, station);
     let stop = byKey.get(key);
     if (!stop) {
       stop = { system, station, missions: [] };

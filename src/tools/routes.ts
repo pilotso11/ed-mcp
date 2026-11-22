@@ -17,6 +17,7 @@ import { describeRules } from "../stations/filter.js";
 import { permitLookup, unknownPermitNote } from "../stations/permits.js";
 import { resolveSearchRules } from "../stations/rules.js";
 import { reason, wrap } from "./result.js";
+import { returnName } from "../plans/stops.js";
 
 const min = (s: number) => Math.round(s / 6) / 10;
 const lc = (s: string) => s.toLowerCase();
@@ -465,11 +466,7 @@ export function registerRouteTools(
                 from: startPlace.system,
                 stops: [
                   ...solved.order.map(optionLabel),
-                  ...(returnPlace
-                    ? [
-                        `return to ${returnPlace.system}${returnPlace.station ? ` — ${returnPlace.station}` : ""}`,
-                      ]
-                    : []),
+                  ...(returnPlace ? [returnName(returnPlace.system, returnPlace.station)] : []),
                 ],
                 total_min: total,
                 plotted: a.plot && allPlotted,
