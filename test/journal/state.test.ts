@@ -429,6 +429,185 @@ describe("buildState", () => {
       });
     });
 
+    it("keeps the fitted modules current between Loadouts", () => {
+      const buy = (t: number, slot: string, stored: string, bought: string) =>
+        ev(T(t), "ModuleBuy", {
+          Slot: slot,
+          StoredItem: stored,
+          BuyItem: bought,
+          MarketID: MARKET,
+          Ship: "python_nx",
+          ShipID: 27,
+        });
+      const s = stored(
+        // The Loadout's Slot03 shield generator is swapped for a cargo rack, which is then
+        // swapped out in turn: the rack has no engineering.
+        buy(
+          3,
+          "Slot03_Size6",
+          "$int_shieldgenerator_size6_class5_name;",
+          "$int_cargorack_size6_class1_name;",
+        ),
+        buy(
+          4,
+          "Slot03_Size6",
+          "$int_cargorack_size6_class1_name;",
+          "$int_fuelscoop_size6_class5_name;",
+        ),
+        // Engineered after the Loadout: the next swap-out takes the new grade.
+        ev(T(5), "EngineerCraft", {
+          Slot: "TinyHardpoint1",
+          Module: "hpt_heatsinklauncher_turret_tiny",
+          BlueprintName: "HeatSinkLauncher_HeatSinkCapacity",
+          Level: 3,
+          Quality: 0.8,
+        }),
+        // Moved to another slot, and retrieved over from there.
+        ev(T(6), "ModuleSwap", {
+          MarketID: MARKET,
+          FromSlot: "TinyHardpoint1",
+          ToSlot: "TinyHardpoint2",
+          FromItem: "$hpt_heatsinklauncher_turret_tiny_name;",
+          ToItem: "Null",
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+        ev(T(7), "ModuleRetrieve", {
+          MarketID: MARKET,
+          Slot: "TinyHardpoint2",
+          RetrievedItem: "$hpt_shieldbooster_size0_class5_name;",
+          Ship: "python_nx",
+          ShipID: 27,
+          SwapOutItem: "$hpt_heatsinklauncher_turret_tiny_name;",
+        }),
+      );
+      const added = s.filter((m) => m.storage_slot === null);
+      expect(added.map((m) => [m.symbol, m.blueprint, m.level])).toEqual([
+        ["int_shieldgenerator_size6_class5", "ShieldGenerator_Reinforced", 3],
+        ["int_cargorack_size6_class1", null, null],
+        ["hpt_heatsinklauncher_turret_tiny", "HeatSinkLauncher_HeatSinkCapacity", 3],
+      ]);
+      // A slot emptied by a sale holds nothing to store.
+      const sold = stored(
+        ev(T(3), "ModuleSell", {
+          Slot: "Slot03_Size6",
+          SellItem: "$int_shieldgenerator_size6_class5_name;",
+          MarketID: MARKET,
+          Ship: "python_nx",
+          ShipID: 27,
+        }),
+        buy(
+          4,
+          "Slot03_Size6",
+          "$int_shieldgenerator_size6_class5_name;",
+          "$int_cargorack_size6_class1_name;",
+        ),
+      );
+      expect(sold.at(-1)).toMatchObject({ blueprint: null });
+    });
+
+    it("finds a module stored since the newest StoredModules by its symbol", () => {
+      const store = ev(T(3), "ModuleStore", {
+        MarketID: MARKET,
+        Slot: "Slot04_Size2",
+        StoredItem: "$int_sensors_size2_class1_name;",
+        Ship: "python_nx",
+        ShipID: 27,
+      });
+      // The game has given it slot 82 by now; this state does not know it.
+      const sold = stored(
+        store,
+        ev(T(4), "ModuleSellRemote", {
+          StorageSlot: 82,
+          SellItem: "$int_sensors_size2_class1_name;",
+          SellPrice: 1000,
+        }),
+      );
+      expect(sold.map((m) => m.symbol)).not.toContain("int_sensors_size2_class1");
+      expect(sold).toHaveLength(4);
+      const fetched = stored(
+        store,
+        ev(T(4), "FetchRemoteModule", {
+          StorageSlot: 82,
+          StoredItem: "$int_sensors_size2_class1_name;",
+          TransferTime: 300,
+        }),
+      );
+      expect(fetched.at(-1)).toMatchObject({
+        symbol: "int_sensors_size2_class1",
+        in_transit: true,
+      });
+    });
+
+    it("has a fetched module arrive at the station after its transfer time", () => {
+      const fetch = ev("2026-10-12T10:00:10Z", "FetchRemoteModule", {
+        StorageSlot: 6,
+        StoredItem: "$int_powerplant_size6_class5_name;",
+        TransferCost: 2950,
+        TransferTime: 300,
+        Ship: "python_nx",
+        ShipID: 27,
+      });
+      // The game lists it in transit, with no time or place, until it arrives.
+      const listed = ev("2026-10-12T10:00:11Z", "StoredModules", {
+        MarketID: MARKET,
+        Items: [{ ...items[3], InTransit: true, StarSystem: undefined, MarketID: undefined }],
+      });
+      const at = (time: string) => stored(fetch, listed, ev(time, "Music", {}))[0]!;
+      expect(at("2026-10-12T10:05:10Z")).toMatchObject({ in_transit: true, market_id: null });
+      expect(at("2026-10-12T10:05:11Z")).toMatchObject({
+        in_transit: false,
+        system: "Shinrarta Dezhra",
+        market_id: MARKET,
+        transfer_time: 0,
+      });
+    });
+
+    it("drops a module that came with a redeemed ship when another replaces it", () => {
+      const redeemed = [
+        ev(T(3), "ShipyardRedeem", { ShipType: "corsair", BundleID: 1, MarketID: MARKET }),
+        ev(T(3), "ShipRedeemed", { ShipType: "corsair", NewShipID: 87 }),
+        ev(T(4), "Loadout", {
+          Ship: "corsair",
+          ShipID: 87,
+          Modules: [
+            { Slot: "MediumHardpoint1", Item: "hpt_pulselaser_gimbal_medium" },
+            { Slot: "MediumHardpoint2", Item: "hpt_pulselaser_gimbal_medium" },
+          ],
+        }),
+      ];
+      const retrieve = (t: number, slot: string, out: string) =>
+        ev(T(t), "ModuleRetrieve", {
+          MarketID: MARKET,
+          Slot: slot,
+          RetrievedItem: "$hpt_shieldbooster_size0_class5_name;",
+          Ship: "corsair",
+          ShipID: 87,
+          SwapOutItem: out,
+        });
+      const s = buildState([
+        docked,
+        snapshot,
+        ...redeemed,
+        retrieve(5, "MediumHardpoint1", "$hpt_pulselaser_gimbal_medium_name;"),
+        // A later Loadout keeps the mark on the modules still fitted.
+        ev(T(6), "Loadout", {
+          Ship: "corsair",
+          ShipID: 87,
+          Modules: [
+            { Slot: "MediumHardpoint1", Item: "hpt_shieldbooster_size0_class5" },
+            { Slot: "MediumHardpoint2", Item: "hpt_pulselaser_gimbal_medium" },
+          ],
+        }),
+        retrieve(7, "MediumHardpoint2", "$hpt_pulselaser_gimbal_medium_name;"),
+        // A module fitted since is stored as usual.
+        retrieve(8, "MediumHardpoint1", "$hpt_shieldbooster_size0_class5_name;"),
+      ]);
+      expect(s.ship).toMatchObject({ type: "corsair", id: 87 });
+      // Only the booster fitted since the redeem goes into storage.
+      const added = s.stored_modules!.filter((m) => m.storage_slot === null);
+      expect(added.map((m) => m.symbol)).toEqual(["hpt_shieldbooster_size0_class5"]);
+    });
     it("takes a module sold from storage out, and marks a fetched one in transit", () => {
       const s = stored(
         ev(T(3), "ModuleSellRemote", {
