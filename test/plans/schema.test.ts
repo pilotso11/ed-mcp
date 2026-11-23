@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ActionKind, ActionSchema, PlanInputSchema } from "../../src/plans/schema.js";
+import {
+  ACTION_EVENTS,
+  ActionKind,
+  ActionSchema,
+  PlanFileSchema,
+  PlanInputSchema,
+} from "../../src/plans/schema.js";
 
 const base = { id: "p", name: "P" };
 
@@ -313,7 +319,7 @@ describe("PlanInputSchema build plans", () => {
     });
     expect(p.stops.map((s) => s.kind)).toEqual(["trader", "gather", "pioneer", "bartender"]);
     const kinds = ActionKind.options;
-    expect(kinds).toHaveLength(25);
+    expect(kinds).toHaveLength(36);
     for (const kind of kinds) {
       expect(ActionSchema.safeParse({ id: "a", kind, label: "x" }).success, kind).toBe(true);
     }
@@ -342,5 +348,109 @@ describe("PlanInputSchema build plans", () => {
         build: { target: "ship", scope: "full", rolls_per_grade: [1, 2, 3] },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("PlanInputSchema trade, mission and station actions", () => {
+  const actions = [
+    {
+      id: "s",
+      kind: "sell_commodity",
+      label: "Sell 720 t Gold",
+      commodity: "Gold",
+      count: 720,
+      price: 9400,
+    },
+    {
+      id: "b",
+      kind: "buy_commodity",
+      label: "Buy 720 t Silver",
+      commodity: "Silver",
+      count: 720,
+      price: 4100,
+    },
+    { id: "acc", kind: "accept_mission", label: "Take the Gold run", mission: "Deliver Gold" },
+    {
+      id: "col",
+      kind: "collect_cargo",
+      label: "Collect 72 t",
+      mission_id: 800000001,
+      count: 72,
+      commodity: "Survival Equipment",
+    },
+    { id: "del", kind: "deliver_cargo", label: "Deliver 72 t", mission_id: 800000001, count: 72 },
+    { id: "done", kind: "complete_mission", label: "Hand in", mission_id: 800000001 },
+    { id: "uc", kind: "sell_data", label: "Sell cartographic data", data: "exploration" },
+    { id: "vb", kind: "sell_data", label: "Sell organic data", data: "organic" },
+    { id: "bv", kind: "redeem_vouchers", label: "Redeem bounties", voucher: "bounty" },
+    { id: "cb", kind: "redeem_vouchers", label: "Redeem combat bonds", voucher: "combat_bond" },
+    { id: "f", kind: "refuel", label: "Refuel", started_at: "2026-11-23T10:05:00Z" },
+    { id: "r", kind: "repair", label: "Repair" },
+    { id: "a", kind: "restock", label: "Restock ammunition" },
+  ];
+
+  it("round-trips every new kind with its fields through a plan file", () => {
+    const plan = PlanInputSchema.parse({
+      ...base,
+      started_at: "2026-11-23T10:00:00.000Z",
+      stops: [{ system: "Diso", station: "Shifnalport", purpose: "all of it", actions }],
+    });
+    expect(plan.started_at).toBe("2026-11-23T10:00:00.000Z");
+    expect(plan.stops[0]!.actions).toEqual(actions.map((a) => ({ ...a, status: "todo" })));
+    const file = { version: 1, plans: [{ ...plan, created_at: "t", updated_at: "t" }] };
+    expect(PlanFileSchema.parse(JSON.parse(JSON.stringify(file)))).toEqual(file);
+  });
+
+  it("loads an old file whose stops have cargo and missions but no actions", () => {
+    const old = {
+      version: 1,
+      plans: [
+        {
+          id: "trade",
+          name: "Trade route",
+          items: [],
+          stops: [
+            {
+              system: "Lave",
+              station: "Lave Station",
+              purpose: "Buy 720 t Gold",
+              kind: "trade",
+              cargo: [{ commodity: "Gold", action: "buy", amount: 720, price: 9000 }],
+              status: "todo",
+            },
+            {
+              system: "Diso",
+              purpose: "Drop 6 passengers",
+              kind: "mission",
+              missions: [1],
+              status: "done",
+            },
+          ],
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+    const p = PlanFileSchema.parse(old).plans[0]!;
+    expect(p.started_at).toBeUndefined();
+    expect(p.stops.map((s) => s.actions)).toEqual([undefined, undefined]);
+    expect(p.stops[0]!.cargo).toHaveLength(1);
+  });
+
+  it("refuses an unknown data or voucher type", () => {
+    const one = (a: object) =>
+      ActionSchema.safeParse({ id: "a", label: "x", kind: "sell_data", ...a }).success;
+    expect(one({ data: "cartographic" })).toBe(false);
+    expect(one({ kind: "redeem_vouchers", voucher: "CombatBond" })).toBe(false);
+    expect(one({ kind: "buy_commodity", count: 0 })).toBe(false);
+  });
+
+  it("names the events that finish each new kind, and says so in the kind's description", () => {
+    const help = ActionSchema.shape.kind.description!;
+    for (const [kind, events] of Object.entries(ACTION_EVENTS)) {
+      expect(ActionKind.options, kind).toContain(kind);
+      expect(help, kind).toContain(kind);
+      for (const e of events) expect(help, `${kind}: ${e}`).toContain(e);
+    }
   });
 });

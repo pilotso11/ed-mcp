@@ -5,6 +5,7 @@ import path from "node:path";
 import { listJournals } from "../../src/journal/files.js";
 import { JournalReader } from "../../src/journal/reader.js";
 import { JournalService, KEPT_EVENTS } from "../../src/journal/service.js";
+import { ACTION_EVENTS } from "../../src/actionEvents.js";
 import { STATE_EVENTS } from "../../src/journal/state.js";
 import { ev, writeJournal } from "../helpers/journal.js";
 
@@ -210,6 +211,16 @@ describe("JournalService.freshShip", () => {
   });
 });
 
+describe("JournalService.newestEventAt", () => {
+  it("gives the newest kept event's timestamp, and null when the journal cannot be read", async () => {
+    const dir = await folder();
+    const svc = new JournalService(dir, { now: at("2026-10-12T11:05:00Z") });
+    expect(await svc.newestEventAt()).toBe((await svc.state()).as_of);
+    expect(await svc.newestEventAt()).toMatch(/^2026-10-12T/);
+    expect(await new JournalService(undefined).newestEventAt()).toBeNull();
+  });
+});
+
 describe("JournalService events", () => {
   it("keeps the state events and the events the body and massacre tools read", async () => {
     for (const name of STATE_EVENTS) expect(KEPT_EVENTS.has(name), name).toBe(true);
@@ -236,11 +247,36 @@ describe("JournalService events", () => {
     ]) {
       expect(KEPT_EVENTS.has(name), name).toBe(true);
     }
+    // For the trade, mission and station actions at a plan's stops: every event that finishes one.
+    for (const [kind, events] of Object.entries(ACTION_EVENTS)) {
+      for (const name of events) expect(KEPT_EVENTS.has(name), `${kind}: ${name}`).toBe(true);
+    }
+    for (const name of [
+      "MarketBuy",
+      "MarketSell",
+      "MissionAccepted",
+      "MissionCompleted",
+      "CargoDepot",
+      "MultiSellExplorationData",
+      "SellExplorationData",
+      "SellOrganicData",
+      "RedeemVoucher",
+      "RefuelAll",
+      "RefuelPartial",
+      "RepairAll",
+      "Repair",
+      "BuyAmmo",
+    ]) {
+      expect(KEPT_EVENTS.has(name), name).toBe(true);
+    }
     const dir = await folder();
     await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
       ev("2026-10-12T11:00:00Z", "Scan", { BodyName: "Sol 3", BodyID: 3 }),
       ev("2026-10-12T11:00:01Z", "Music", { MusicTrack: "Exploration" }),
       ev("2026-10-12T11:00:02Z", "Bounty", { VictimFaction: "Pirates" }),
+      ev("2026-10-12T11:00:03Z", "MarketSell", { Type: "gold", Count: 4, SellPrice: 9400 }),
+      ev("2026-10-12T11:00:04Z", "CargoDepot", { MissionID: 1, UpdateType: "Deliver", Count: 4 }),
+      ev("2026-10-12T11:00:05Z", "RedeemVoucher", { Type: "bounty", Amount: 1000 }),
     ]);
     const s = await new JournalService(dir).state();
     expect(s.events.map((e) => e.event)).toEqual([
@@ -251,6 +287,9 @@ describe("JournalService events", () => {
       "Docked",
       "Scan",
       "Bounty",
+      "MarketSell",
+      "CargoDepot",
+      "RedeemVoucher",
     ]);
   });
 

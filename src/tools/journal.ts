@@ -153,6 +153,7 @@ export function registerJournalTools(
         "expired is true once the expiry has passed, for an active mission: a complete one has no " +
         "deadline. " +
         "details_missing marks missions accepted before the 14-day journal window (name and expiry only). " +
+        "A cargo depot mission has delivered and to_deliver (tonnes) from its newest CargoDepot event. " +
         FRESHNESS_TEXT,
     },
     wrap(async () => {

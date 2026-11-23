@@ -56,15 +56,20 @@ export async function saveTradePlan(
   try {
     // The name it had, read in the same write, so a note these tools wrote for it is told from
     // one someone wrote.
-    const { previous } = await deps.plans!.replace({
-      id: planId,
-      name: run.name,
-      stops: tradeStops(run.visits),
-      ...(run.repeat ? { repeat: true, lap: 1 } : {}),
-      ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
-      ...rateField(run.profitPerHour),
-      notes: run.notes,
-    });
+    // restart: its actions count only the journal events after the save, not those of an earlier
+    // run; the store sets started_at by its clock.
+    const { previous } = await deps.plans!.replace(
+      {
+        id: planId,
+        name: run.name,
+        stops: tradeStops(run.visits, { loop: run.repeat }),
+        ...(run.repeat ? { repeat: true, lap: 1 } : {}),
+        ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
+        ...rateField(run.profitPerHour),
+        notes: run.notes,
+      },
+      { restart: true },
+    );
     oldName = previous?.name ?? null;
   } catch (err) {
     if (err instanceof UserError) {

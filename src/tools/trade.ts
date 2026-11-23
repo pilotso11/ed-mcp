@@ -122,8 +122,9 @@ export function registerTradeTools(
         "result is status pending, call again with the inputs it shows to resume. Finished routes are cached 5 min." +
         (deps.plans
           ? " With save_to_plan: true, the route is saved as plan plan_id (default trade), replacing it: one " +
-            "stop per station in visit order, kind trade, with a cargo list (sell, then buy, with tonnes and the " +
-            'planned unit price) and a purpose such as "Sell 720 t Gold, then buy 720 t Silver"; it also becomes ' +
+            "stop per station in visit order, kind trade, with actions (sell_commodity, then buy_commodity, with " +
+            "count in tonnes and the planned unit price; the same as a cargo list too) and a purpose such as " +
+            '"Sell 720 t Gold, then buy 720 t Silver"; it also becomes ' +
             "the activity note's plan (kind trading), so the ED Chat panel follows it. The result then has saved " +
             "and plan_id; a failed save is reported in notes. A pending result saves nothing."
           : ""),

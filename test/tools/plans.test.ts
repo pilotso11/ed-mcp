@@ -8,11 +8,14 @@ import { PlanStore } from "../../src/plans/store.js";
 import { registerPlanTools } from "../../src/tools/plans.js";
 import { callTool, connectTestClient } from "../helpers/client.js";
 
-async function setupStore(warnings?: () => Promise<string[]>) {
+async function setupStore(
+  warnings?: () => Promise<string[]>,
+  newestEventAt?: () => Promise<string | null>,
+) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "plantools-"));
   const server = new McpServer({ name: "t", version: "0" });
   const store = new PlanStore(path.join(dir, "plans.json"));
-  registerPlanTools(server, { plans: store, warnings });
+  registerPlanTools(server, { plans: store, warnings, newestEventAt });
   return { dir, store, client: await connectTestClient(server) };
 }
 const setup = setupStore;
@@ -636,5 +639,48 @@ describe("plan tools", () => {
     // Only the result says so; the plan itself has no such fields.
     const got = (await callTool(client, "plan_get", { id: "loop" })).json as any;
     expect(got.lap_completed).toBeUndefined();
+  });
+
+  it("starts a loop's next lap at the newest journal event when plan_update_stop finishes it", async () => {
+    const reads: string[] = [];
+    const { client } = await setup(undefined, async () => {
+      reads.push("read");
+      return "2026-10-11T00:40:00Z";
+    });
+    const loop = {
+      id: "loop",
+      name: "Trade loop",
+      repeat: true,
+      stops: [
+        { system: "Kremainn", purpose: "Buy 720 t Gold" },
+        { system: "Wolf 397", purpose: "Sell 720 t Gold" },
+      ],
+    };
+    await callTool(client, "plan_upsert", { plan: loop });
+    await callTool(client, "plan_update_stop", { plan_id: "loop", index: 0, status: "done" });
+    const last = await callTool(client, "plan_update_stop", {
+      plan_id: "loop",
+      index: 1,
+      status: "done",
+    });
+    expect(last.json).toMatchObject({ lap: 2, started_at: "2026-10-11T00:40:00Z" });
+    // Only for an update that can finish a stop.
+    await callTool(client, "plan_update_stop", { plan_id: "loop", index: 0, notes: "n" });
+    expect(reads).toHaveLength(2);
+  });
+
+  it("finishes the lap when the journal cannot be read", async () => {
+    const { client } = await setup(undefined, async () => {
+      throw new Error("no journal");
+    });
+    await callTool(client, "plan_upsert", {
+      plan: { id: "loop", name: "L", repeat: true, stops: [{ system: "Sol", purpose: "x" }] },
+    });
+    const r = await callTool(client, "plan_update_stop", {
+      plan_id: "loop",
+      index: 0,
+      status: "done",
+    });
+    expect(r.json).toMatchObject({ lap: 2 });
   });
 });

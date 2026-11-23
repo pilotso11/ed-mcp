@@ -6,7 +6,7 @@ import type { ActivityStore } from "../activity/store.js";
 import type { JournalService } from "../journal/service.js";
 import type { Mission } from "../journal/state.js";
 import type { PlanStore } from "../plans/store.js";
-import { PlanId, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
+import { PlanId, type Action, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
 import { returnName } from "../plans/stops.js";
 import { plural } from "../text.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
@@ -213,6 +213,7 @@ export function registerMissionTools(
           PLAN_NAME,
           ...planOf({
             byId: new Map(state.missions.map((m) => [m.id, m])),
+            asOf: state.as_of,
             ordered,
             unplaced,
             returnTo: returnPlace,
@@ -285,7 +286,9 @@ export function registerMissionTools(
       },
       description:
         "Work out the missions_route order and save it as a plan (plan_id, default missions): one " +
-        "stop per station, labelled with what to do there and the missions it serves, and make it " +
+        "stop per station, labelled with what to do there and the missions it serves, with actions " +
+        "(deliver_cargo for each delivery, then complete_mission for each mission, which ED Chat ticks off " +
+        "from the journal; none at a stop with a mission the journal cannot show done there), and make it " +
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
         "already in the plan keeps its done or skipped mark when it serves the same missions. Stops " +
@@ -327,6 +330,8 @@ export function registerMissionTools(
 /** The plan's stops and route for the ordered mission stops; return_to is in the route only. */
 function planOf(r: {
   byId: Map<number, Mission>;
+  /** The journal's newest event time, from which new actions count events. */
+  asOf: string | null;
   ordered: Stop[];
   /** Stops Spansh could not place: in the plan after the route's stops, not in the route. */
   unplaced: Stop[];
@@ -340,6 +345,8 @@ function planOf(r: {
     // The place tells stops with the same task apart. The label changes as missions do, so tools
     // address these stops by index.
     const label = `${what} at ${s.station ?? s.system}`;
+    const actions = missionActions(s, r.byId, r.asOf);
+    // missions stays beside actions, for ED Chat versions that read only it.
     return {
       system: s.system,
       ...(s.station ? { station: s.station } : {}),
@@ -347,6 +354,7 @@ function planOf(r: {
       label,
       kind: s.missions.every((m) => m.status === "complete") ? "hand_in" : "mission",
       missions: s.missions.map((m) => m.id),
+      ...(actions ? { actions } : {}),
       status: "todo",
     };
   });
@@ -366,6 +374,78 @@ function planOf(r: {
       stop_indexes: [...routed.map((_, i) => [i]), ...back.map(() => [])],
     },
   ];
+}
+
+/**
+ * The mission types whose cargo the journal shows delivered with CargoDepot Deliver events, from
+ * real journals: Mission_Delivery*, Mission_Collect*, Mission_Mining* and the Chain_ ones for an
+ * order. Salvage, altruism and on-foot missions log no CargoDepot, and one federal rank delivery
+ * logged none either, so rank missions are left out.
+ */
+const DEPOT_TYPE =
+  /^(mission_delivery|mission_collect|mission_mining|chain_helpfinishtheorder|chain_miningtoorder)/i;
+const depotType = (type: string | undefined) =>
+  !!type && DEPOT_TYPE.test(type) && !/rank/i.test(type);
+
+/**
+ * What to do at a mission stop, in order: the cargo deliveries (CargoDepot Deliver), then each
+ * mission to complete (MissionCompleted). A solo delivery of a depot type to a station goes
+ * through its cargo depot before it completes there. Passengers, a commodity to source (handed in
+ * where it was taken), a wing delivery (its depot counts the whole wing's cargo, which the
+ * player's own CargoDepot events do not show) and a mission with its objectives met only
+ * complete. Null when the stop has a mission the journal cannot show done there, so that ED Chat
+ * does not mark the stop done without it: an active massacre or assassination, say, or a
+ * commodity mission with no station to deliver to, such as on-foot salvage, which completes back
+ * where it was taken.
+ */
+export function missionActions(
+  stop: Stop,
+  byId: Map<number, Mission>,
+  /** The time of the newest journal event read: a new action counts the events after it. */
+  asOf: string | null = null,
+): Action[] | null {
+  const deliver: Action[] = [];
+  const complete: Action[] = [];
+  for (const s of stop.missions) {
+    const m = byId.get(s.id);
+    const active = s.status === "active";
+    // Deliveries to a station complete there; a commodity mission without one does not.
+    const toStation = active && s.kind === "delivery" && !!m?.destination_station;
+    const depot = toStation && depotType(m?.type) && !m?.wing;
+    const judged =
+      !active || toStation || s.kind === "source" || (s.kind === "passenger" && !!s.passengers);
+    if (!judged) return null;
+    // What is still to deliver: CargoDepot progress, as of the journal read, comes off the
+    // total, and the action counts only the deliveries after that read.
+    const total = m?.to_deliver ?? m?.count ?? null;
+    const count = total !== null ? total - (m?.delivered ?? 0) : null;
+    if (depot && (count === null || count > 0)) {
+      const commodity = m?.commodity ?? null;
+      deliver.push({
+        id: `deliver-${s.id}`,
+        kind: "deliver_cargo",
+        status: "todo",
+        label: `Deliver ${count ? `${count} t ` : ""}${commodity ?? "cargo"} for ${s.name}`,
+        mission_id: s.id,
+        ...(commodity ? { commodity } : {}),
+        ...(count ? { count } : {}),
+        ...(asOf ? { started_at: asOf } : {}),
+      });
+    }
+    const passengers = s.status === "active" && s.kind === "passenger" ? s.passengers : null;
+    complete.push({
+      id: `complete-${s.id}`,
+      kind: "complete_mission",
+      status: "todo",
+      label: passengers
+        ? `Drop ${plural(passengers, "passenger")}: ${s.name}`
+        : `Hand in ${s.name}`,
+      mission_id: s.id,
+      ...(asOf ? { started_at: asOf } : {}),
+      ...(active && s.kind === "source" ? { notes: "Source the commodity first" } : {}),
+    });
+  }
+  return deliver.length + complete.length ? [...deliver, ...complete] : null;
 }
 
 const PLAN_NAME = "Mission run";

@@ -206,6 +206,126 @@ describe("planToMarkdown positions", () => {
     );
   });
 
+  it("lists a trade stop's actions, with the planned price, and not its cargo as well", () => {
+    const md = planToMarkdown({
+      id: "trade",
+      name: "Trade route",
+      items: [],
+      stops: [
+        {
+          system: "Wolf 397",
+          station: "Brooks Estate",
+          purpose: "Sell 720 t Gold",
+          kind: "trade",
+          status: "todo",
+          cargo: [{ commodity: "Gold", action: "sell", amount: 720, price: 9380 }],
+          actions: [
+            {
+              id: "sell-gold",
+              kind: "sell_commodity",
+              label: "Sell 720 t Gold",
+              status: "done",
+              commodity: "Gold",
+              count: 720,
+              price: 9380,
+            },
+          ],
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain(
+      ["Brooks Estate: Sell 720 t Gold ← next", "   - [x] Sell 720 t Gold at 9,380 cr", ""].join(
+        "\n",
+      ),
+    );
+    expect(md.match(/Sell 720 t Gold at/g)).toHaveLength(1);
+  });
+
+  it("keeps a covered row's mission on its action, and does not repeat a price in the label", () => {
+    const md = planToMarkdown({
+      id: "trade",
+      name: "Trade",
+      items: [],
+      stops: [
+        {
+          system: "Wolf 397",
+          purpose: "Buy for a mission",
+          kind: "trade",
+          status: "todo",
+          cargo: [
+            { commodity: "Silver", action: "buy", amount: 64, price: 4100, mission_id: 7 },
+            { commodity: "Gold", action: "sell", amount: 10, price: 9380 },
+          ],
+          actions: [
+            {
+              id: "buy-silver",
+              kind: "buy_commodity",
+              label: "Buy 64 t Silver",
+              status: "todo",
+              commodity: "Silver",
+              count: 64,
+              price: 4100,
+            },
+            {
+              id: "sell-gold",
+              kind: "sell_commodity",
+              label: "Sell 10 t Gold at 9,380 cr",
+              status: "todo",
+              commodity: "Gold",
+              count: 10,
+              price: 9380,
+            },
+          ],
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain("   - [ ] Buy 64 t Silver at 4,100 cr (mission 7)\n");
+    expect(md).toContain("   - [ ] Sell 10 t Gold at 9,380 cr\n");
+  });
+
+  it("lists the cargo rows that no action covers", () => {
+    const md = planToMarkdown({
+      id: "trade",
+      name: "Trade loop",
+      items: [],
+      stops: [
+        {
+          system: "Wolf 397",
+          station: "Brooks Estate",
+          purpose: "Sell 720 t Gold, then buy 64 t Silver",
+          kind: "trade",
+          status: "todo",
+          cargo: [
+            { commodity: "Gold", action: "sell", amount: 720, price: 9380 },
+            { commodity: "Silver", action: "buy", amount: 64, price: 4100 },
+          ],
+          // A loop's first lap: the sale has no action.
+          actions: [
+            {
+              id: "buy-silver",
+              kind: "buy_commodity",
+              label: "Buy 64 t Silver",
+              status: "todo",
+              commodity: "Silver",
+              count: 64,
+              price: 4100,
+            },
+          ],
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain(
+      ["   - Sell 720 t Gold at 9,380 cr", "   - [ ] Buy 64 t Silver at 4,100 cr"].join("\n"),
+    );
+    expect(md.match(/Buy 64 t Silver/g)).toHaveLength(1);
+  });
+
   it("shows lap 1 for a loop without a lap, and nothing for a plan that does not repeat", () => {
     const p = { id: "t", name: "T", items: [], stops: [], created_at: "x", updated_at: "x" };
     expect(planToMarkdown({ ...p, repeat: true })).toContain("Repeating loop · lap 1");

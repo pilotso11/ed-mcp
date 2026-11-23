@@ -842,6 +842,72 @@ describe("buildState", () => {
     });
   });
 
+  it("keeps a depot mission's delivery progress from its newest CargoDepot", () => {
+    const depot = (t: number, delivered: number, extra: object = {}) =>
+      ev(T(t), "CargoDepot", {
+        MissionID: 5,
+        UpdateType: "Deliver",
+        CargoType: "Gold",
+        Count: 10,
+        ItemsCollected: 0,
+        ItemsDelivered: delivered,
+        TotalItemsToDeliver: 72,
+        ...extra,
+      });
+    const s = buildState([
+      ev(T(0), "MissionAccepted", {
+        MissionID: 5,
+        Name: "Mission_Delivery",
+        Commodity: "$Gold_Name;",
+        Commodity_Localised: "Gold",
+        Count: 72,
+        DestinationSystem: "Sol",
+        DestinationStation: "Abraham Lincoln",
+      }),
+      depot(1, 30),
+      depot(2, 40),
+      // Another mission's depot changes nothing here.
+      depot(3, 70, { MissionID: 6 }),
+    ]);
+    expect(s.missions[0]).toMatchObject({
+      id: 5,
+      count: 72,
+      delivered: 40,
+      to_deliver: 72,
+      type: "Mission_Delivery",
+    });
+    expect(s.missions[0]!.wing).toBeUndefined();
+  });
+
+  it("marks a wing mission from MissionAccepted's Wing or a CargoDepot WingUpdate", () => {
+    const accept = (id: number, wing: boolean) =>
+      ev(T(0), "MissionAccepted", {
+        MissionID: id,
+        Name: "Mission_Mining",
+        Commodity_Localised: "Gold",
+        Count: 400,
+        DestinationSystem: "Sol",
+        DestinationStation: "Abraham Lincoln",
+        Wing: wing,
+      });
+    const s = buildState([
+      accept(1, true),
+      accept(2, false),
+      ev(T(1), "CargoDepot", {
+        MissionID: 2,
+        UpdateType: "WingUpdate",
+        ItemsDelivered: 100,
+        TotalItemsToDeliver: 400,
+      }),
+      accept(3, false),
+    ]);
+    expect(s.missions.map((m) => [m.id, m.wing])).toEqual([
+      [1, true],
+      [2, true],
+      [3, undefined],
+    ]);
+  });
+
   it("tracks missions across journals", () => {
     const accept = (t: number, id: number, fields: object = {}) =>
       ev(T(t), "MissionAccepted", {

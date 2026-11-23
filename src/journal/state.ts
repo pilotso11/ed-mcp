@@ -31,6 +31,14 @@ export interface Mission {
   origin_station: string | null;
   // Set on missions listed by a Missions event but accepted before the journal window.
   details_missing?: boolean;
+  // For a cargo depot mission, from its newest CargoDepot event: the tonnes delivered so far (by
+  // the whole wing, for a wing mission) and the tonnes the mission needs in all.
+  delivered?: number;
+  to_deliver?: number;
+  // The journal's own name for the mission type, such as Mission_Delivery_Boom, when known.
+  type?: string;
+  // True for a wing mission: MissionAccepted's Wing, or a CargoDepot WingUpdate for it.
+  wing?: boolean;
 }
 export interface EngineerState {
   name: string;
@@ -166,6 +174,7 @@ export const STATE_EVENTS: ReadonlySet<string> = new Set([
   "MissionRedirected",
   "MissionFailed",
   "MissionAbandoned",
+  "CargoDepot",
   "Missions",
   "EngineerProgress",
 ]);
@@ -691,7 +700,18 @@ export function buildState(events: JournalEvent[]): JournalState {
           status: "active",
           origin_system: location.system,
           origin_station: location.docked ? location.station : null,
+          ...(str(e.Name) ? { type: str(e.Name)! } : {}),
+          ...(e.Wing === true ? { wing: true } : {}),
         });
+        break;
+      }
+      case "CargoDepot": {
+        const m = missions.get(num(e.MissionID) ?? -1);
+        const delivered = num(e.ItemsDelivered);
+        const total = num(e.TotalItemsToDeliver);
+        if (m && delivered !== null) m.delivered = delivered;
+        if (m && total !== null && total > 0) m.to_deliver = total;
+        if (m && e.UpdateType === "WingUpdate") m.wing = true;
         break;
       }
       case "MissionRedirected": {
