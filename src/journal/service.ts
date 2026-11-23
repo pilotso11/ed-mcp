@@ -56,9 +56,8 @@ const LOCKER_EVENTS: ReadonlySet<string> = new Set([
   "TransferMicroResources",
   "UpgradeSuit",
   "UpgradeWeapon",
-  // An Odyssey tech broker's unlock, or a contribution to an engineer, can spend locker items.
-  "TechnologyBroker",
-  "EngineerContribution",
+  // Not TechnologyBroker or EngineerContribution: in the journals read they spend only ship
+  // materials, commodities and credits, so they would warn when the locker had not changed.
 ]);
 const BACKPACK_EVENTS: ReadonlySet<string> = new Set([
   "BackpackChange",

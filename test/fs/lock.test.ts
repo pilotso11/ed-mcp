@@ -31,6 +31,8 @@ describe("lockedWrite", () => {
     expect(await readFile(file, "utf8")).toBe("before");
     expect((await stat(file)).mtimeMs).toBe(was);
     expect(after).toBe(false);
+    // No temporary file left behind.
+    expect(await readdir(dir)).toEqual(["data.json"]);
     await expect(readFile(`${file}.lock`)).rejects.toThrow(/ENOENT/);
   });
 
