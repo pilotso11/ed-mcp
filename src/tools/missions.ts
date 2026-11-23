@@ -6,7 +6,7 @@ import type { ActivityStore } from "../activity/store.js";
 import type { JournalService } from "../journal/service.js";
 import type { Mission } from "../journal/state.js";
 import type { PlanStore } from "../plans/store.js";
-import { PlanId, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
+import { PlanId, type Action, type PlanRoute, type Stop as PlanStop } from "../plans/schema.js";
 import { returnName } from "../plans/stops.js";
 import { plural } from "../text.js";
 import { createPlacer, legBetween, type Place } from "../routes/legs.js";
@@ -285,7 +285,9 @@ export function registerMissionTools(
       },
       description:
         "Work out the missions_route order and save it as a plan (plan_id, default missions): one " +
-        "stop per station, labelled with what to do there and the missions it serves, and make it " +
+        "stop per station, labelled with what to do there and the missions it serves, with actions " +
+        "(deliver_cargo for each delivery, then complete_mission for each mission, which ED Chat ticks off " +
+        "from the journal; none at a stop with a mission the journal cannot show done there), and make it " +
         "the activity note's plan, so the ED Chat panel shows the next stop and copies its system. " +
         "It replaces the plan's stops and route and keeps the rest of the plan; a stop at a place " +
         "already in the plan keeps its done or skipped mark when it serves the same missions. Stops " +
@@ -340,6 +342,8 @@ function planOf(r: {
     // The place tells stops with the same task apart. The label changes as missions do, so tools
     // address these stops by index.
     const label = `${what} at ${s.station ?? s.system}`;
+    const actions = missionActions(s, r.byId);
+    // missions stays beside actions, for ED Chat versions that read only it.
     return {
       system: s.system,
       ...(s.station ? { station: s.station } : {}),
@@ -347,6 +351,7 @@ function planOf(r: {
       label,
       kind: s.missions.every((m) => m.status === "complete") ? "hand_in" : "mission",
       missions: s.missions.map((m) => m.id),
+      ...(actions ? { actions } : {}),
       status: "todo",
     };
   });
@@ -366,6 +371,54 @@ function planOf(r: {
       stop_indexes: [...routed.map((_, i) => [i]), ...back.map(() => [])],
     },
   ];
+}
+
+/**
+ * What to do at a mission stop, in order: the cargo deliveries (CargoDepot Deliver), then each
+ * mission to complete (MissionCompleted). A delivery to a station goes through its cargo depot
+ * before it completes there. Passengers, a commodity to source (handed in where it was taken) and
+ * a mission with its objectives met only complete. Null when the stop has a mission the journal
+ * cannot show done there, so that ED Chat does not mark the stop done without it: an active
+ * massacre or assassination, say, or a commodity mission with no station to deliver to, such as
+ * on-foot salvage, which completes back where it was taken.
+ */
+export function missionActions(stop: Stop, byId: Map<number, Mission>): Action[] | null {
+  const deliver: Action[] = [];
+  const complete: Action[] = [];
+  for (const s of stop.missions) {
+    const m = byId.get(s.id);
+    const active = s.status === "active";
+    // Depot deliveries name their station; a commodity mission without one does not use a depot.
+    const depot = active && s.kind === "delivery" && !!m?.destination_station;
+    const judged =
+      !active || depot || s.kind === "source" || (s.kind === "passenger" && !!s.passengers);
+    if (!judged) return null;
+    if (depot) {
+      const commodity = m?.commodity ?? null;
+      const count = m?.count ?? null;
+      deliver.push({
+        id: `deliver-${s.id}`,
+        kind: "deliver_cargo",
+        status: "todo",
+        label: `Deliver ${count ? `${count} t ` : ""}${commodity ?? "cargo"} for ${s.name}`,
+        mission_id: s.id,
+        ...(commodity ? { commodity } : {}),
+        ...(count ? { count } : {}),
+      });
+    }
+    const passengers = s.status === "active" && s.kind === "passenger" ? s.passengers : null;
+    complete.push({
+      id: `complete-${s.id}`,
+      kind: "complete_mission",
+      status: "todo",
+      label: passengers
+        ? `Drop ${plural(passengers, "passenger")}: ${s.name}`
+        : `Hand in ${s.name}`,
+      mission_id: s.id,
+      ...(active && s.kind === "source" ? { notes: "Source the commodity first" } : {}),
+    });
+  }
+  return deliver.length + complete.length ? [...deliver, ...complete] : null;
 }
 
 const PLAN_NAME = "Mission run";

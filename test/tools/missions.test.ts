@@ -777,6 +777,123 @@ describe("missions_plan, more", () => {
     expect(stop.status).toBe("done");
   });
 
+  it("writes each stop's actions to match its missions, and keeps their progress", async () => {
+    const s = await stores();
+    const missions = [
+      mission(7, {
+        name: "Deliver Gold",
+        destination_system: "Alpha",
+        destination_station: "Alpha Dock",
+        commodity: "Gold",
+        count: 4,
+      }),
+      mission(8, {
+        name: "Ferry tourists",
+        destination_system: "Alpha",
+        destination_station: "Alpha Dock",
+        passengers: 6,
+      }),
+      // Objectives met: handed in where it was taken.
+      mission(9, {
+        name: "Bounty hunt",
+        status: "complete",
+        origin_system: "Beta",
+        origin_station: "Beta Hub",
+      }),
+      // A commodity to source and bring back.
+      mission(10, {
+        name: "Source Tea",
+        commodity: "Tea",
+        count: 12,
+        origin_system: "Sol",
+        origin_station: "Abraham Lincoln",
+      }),
+    ];
+    await save({}, { ...s, missions });
+    let plan = await s.plans.get("missions");
+    const byStation = (st: string) => plan.stops.find((x) => x.station === st)!;
+    expect(byStation("Alpha Dock").missions).toEqual([7, 8]);
+    expect(byStation("Alpha Dock").actions).toEqual([
+      {
+        id: "deliver-7",
+        kind: "deliver_cargo",
+        label: "Deliver 4 t Gold for Deliver Gold",
+        status: "todo",
+        mission_id: 7,
+        commodity: "Gold",
+        count: 4,
+      },
+      {
+        id: "complete-7",
+        kind: "complete_mission",
+        label: "Hand in Deliver Gold",
+        status: "todo",
+        mission_id: 7,
+      },
+      {
+        id: "complete-8",
+        kind: "complete_mission",
+        label: "Drop 6 passengers: Ferry tourists",
+        status: "todo",
+        mission_id: 8,
+      },
+    ]);
+    expect(byStation("Beta Hub").actions!.map((a) => [a.kind, a.mission_id])).toEqual([
+      ["complete_mission", 9],
+    ]);
+    // Handed in where it was taken, with no cargo depot.
+    expect(byStation("Abraham Lincoln").actions).toEqual([
+      {
+        id: "complete-10",
+        kind: "complete_mission",
+        label: "Hand in Source Tea",
+        status: "todo",
+        mission_id: 10,
+        notes: "Source the commodity first",
+      },
+    ]);
+    // Every mission a stop serves has an action at it.
+    for (const stop of plan.stops) {
+      expect(new Set(stop.actions!.map((a) => a.mission_id))).toEqual(new Set(stop.missions));
+    }
+    expect(plan.started_at).toBe(new Date(NOW).toISOString());
+
+    // Saved again with nothing changed, a stop keeps the actions it has done.
+    const doneBy = [{ at: at(1), event: "CargoDepot", n: 0, role: "delivered", amount: 4 }];
+    await s.plans.updateAction(
+      "missions",
+      { stop: { index: plan.stops.indexOf(byStation("Alpha Dock")) }, action: "deliver-7" },
+      { status: "done", done_by: doneBy },
+    );
+    await save({}, { ...s, missions });
+    plan = await s.plans.get("missions");
+    expect(byStation("Alpha Dock").actions![0]).toMatchObject({ status: "done", done_by: doneBy });
+    expect(byStation("Alpha Dock").actions![1]!.status).toBe("todo");
+  });
+
+  it("writes no actions at a stop with a mission the journal cannot show done there", async () => {
+    const s = await stores();
+    await save({}, s);
+    const plan = await s.plans.get("missions");
+    // Beta Hub and Void have a mission with no cargo or passengers to show it done.
+    expect(plan.stops.map((x) => [x.station, x.actions?.map((a) => a.id)])).toEqual([
+      ["Beta Hub", undefined],
+      ["Alpha Port", ["deliver-2", "complete-1", "complete-2"]],
+      ["Alpha Dock", ["complete-3"]],
+      ["Void", undefined],
+    ]);
+  });
+
+  it("writes no actions for a commodity mission with no station to deliver to", async () => {
+    const s = await stores();
+    // On-foot salvage: the item is found at a settlement and handed in where it was taken.
+    const salvage = mission(11, { destination_system: "Beta", commodity: "Personal Documents" });
+    await save({}, { ...s, missions: [salvage] });
+    const [stop] = (await s.plans.get("missions")).stops;
+    expect(stop).toMatchObject({ system: "Beta", missions: [11] });
+    expect(stop!.actions).toBeUndefined();
+  });
+
   it("points a note about another plan at the mission run", async () => {
     const s = await stores();
     await s.activity.set({ kind: "engineering", summary: "Grinding G5 FSD", plan_id: "fsd" });

@@ -382,7 +382,12 @@ export class PlanStore {
             sameSet(o.missions ?? [], s.missions ?? []),
         );
         return same
-          ? { ...s, status: same.status, ...(same.notes ? { notes: same.notes } : {}) }
+          ? {
+              ...s,
+              status: same.status,
+              ...(same.notes ? { notes: same.notes } : {}),
+              ...(s.actions ? { actions: keepProgress(s.actions, same.actions) } : {}),
+            }
           : s;
       });
       // The route's stop_indexes point at the new stops, which come first.
@@ -399,7 +404,13 @@ export class PlanStore {
         id: planId,
         name,
       };
-      return this.put(data, { ...kept, stops: [...fresh, ...byHand], route }, { newRoute: true });
+      // The new stops' actions count only the journal events after this save; a stop kept from
+      // before keeps the actions it has done.
+      return this.put(
+        data,
+        { ...kept, stops: [...fresh, ...byHand], route, started_at: this.now().toISOString() },
+        { newRoute: true },
+      );
     });
   }
 
@@ -547,6 +558,20 @@ export const ActionPatchSchema = z.object({
   notes: z.string().optional(),
 });
 export type ActionPatch = z.input<typeof ActionPatchSchema>;
+
+/** The new actions, each with the status, done_by and notes of the old action with its id. */
+function keepProgress(fresh: Action[], old: Action[] | undefined): Action[] {
+  return fresh.map((a) => {
+    const was = old?.find((o) => o.id === a.id && o.kind === a.kind);
+    if (!was) return a;
+    return {
+      ...a,
+      status: was.status,
+      ...(was.done_by ? { done_by: was.done_by } : {}),
+      ...(was.notes ? { notes: was.notes } : {}),
+    };
+  });
+}
 
 /** An action id used twice in a stop, or null: an action is named by its id within its stop. */
 function repeatedActionId(stop: { actions?: Action[] }): string | null {
