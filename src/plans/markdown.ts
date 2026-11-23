@@ -2,6 +2,10 @@ import type { Needs, Plan, PlanItem, Stop } from "./schema.js";
 import { nextStop } from "./stops.js";
 import { cargoCover } from "./actions.js";
 
+/** Whether the text has the number, as written or with thousands separators. */
+const hasNumber = (text: string, n: number) =>
+  text.includes(n.toLocaleString("en-US")) || new RegExp(`(^|[^0-9.,])${n}([^0-9]|$)`).test(text);
+
 const box: Record<PlanItem["status"], string> = {
   todo: "[ ]",
   in_progress: "[~]",
@@ -97,9 +101,17 @@ export function planToMarkdown(plan: Plan): string {
           `   - ${c.action === "buy" ? "Buy" : "Sell"} ${c.amount} t ${c.commodity}${price}${mission}`,
         );
       }
-      for (const a of s.actions ?? []) {
-        const price = a.price !== undefined ? ` at ${a.price.toLocaleString("en-US")} cr` : "";
-        out.push(`   - ${stopBox[a.status]} ${a.label}${price}`);
+      // The cargo row each action covers, for its mission.
+      const rowOf = new Map(cover.flatMap((i, k) => (i >= 0 ? [[i, s.cargo![k]!]] : [])));
+      for (const [i, a] of (s.actions ?? []).entries()) {
+        const shown = a.price !== undefined && hasNumber(a.label, a.price);
+        const price =
+          a.price !== undefined && !shown ? ` at ${a.price.toLocaleString("en-US")} cr` : "";
+        const missionId = a.mission_id ?? rowOf.get(i)?.mission_id;
+        // A mission action's label names its mission already.
+        const commodity = a.kind === "buy_commodity" || a.kind === "sell_commodity";
+        const mission = commodity && missionId !== undefined ? ` (mission ${missionId})` : "";
+        out.push(`   - ${stopBox[a.status]} ${a.label}${price}${mission}`);
         const needs = needsText(a.needs);
         if (needs && a.status === "todo") out.push(`     - Needs: ${needs}`);
         if (a.notes) out.push(`     - Notes: ${a.notes}`);
