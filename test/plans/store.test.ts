@@ -1113,3 +1113,95 @@ describe("PlanStore build actions", () => {
     await expect(s.setBuildShip("python-mk2", 1.5)).rejects.toThrow("Invalid ship ID");
   });
 });
+
+describe("PlanStore started_at", () => {
+  const loop = (): PlanInput => ({
+    id: "loop",
+    name: "Gold loop",
+    repeat: true,
+    started_at: "2026-10-11T00:00:00.000Z",
+    stops: [
+      {
+        system: "Lave",
+        station: "Lave Station",
+        purpose: "Buy 100 t Gold",
+        kind: "trade",
+        cargo: [{ commodity: "Gold", action: "buy", amount: 100 }],
+        actions: [
+          { id: "buy-gold", kind: "buy_commodity", label: "Buy", commodity: "Gold", count: 100 },
+        ],
+      },
+      {
+        system: "Diso",
+        station: "Shifnalport",
+        purpose: "Sell 100 t Gold",
+        kind: "trade",
+        cargo: [{ commodity: "Gold", action: "sell", amount: 100 }],
+        actions: [
+          { id: "sell-gold", kind: "sell_commodity", label: "Sell", commodity: "Gold", count: 100 },
+        ],
+      },
+    ],
+  });
+  const doneBy = (at: string) => [{ at, event: "MarketSell", n: 0, role: "sold", amount: 100 }];
+
+  it("starts the next lap after the newest journal event the caller passes", async () => {
+    // The last stop is marked done before ED Chat writes its sale's done_by, and the player
+    // bought at the first stop again before that: the lap starts at the newest event read.
+    const s = new PlanStore(file, now);
+    await s.upsert(loop());
+    await s.updateStop("loop", { index: 0 }, { status: "done" });
+    t = Date.parse("2026-10-11T01:00:00Z");
+    const p = await s.updateStop(
+      "loop",
+      { index: 1 },
+      { status: "done" },
+      { lapStart: "2026-10-11T00:40:00Z" },
+    );
+    expect(p.lap).toBe(2);
+    expect(p.started_at).toBe("2026-10-11T00:40:00Z");
+  });
+
+  it("takes the later of the caller's time and the newest claimed event", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(loop());
+    await s.updateAction(
+      "loop",
+      { stop: { index: 1 }, action: "sell-gold" },
+      { status: "done", done_by: doneBy("2026-10-11T00:50:00Z") },
+    );
+    await s.updateStop("loop", { index: 0 }, { status: "done" });
+    const p = await s.updateStop(
+      "loop",
+      { index: 1 },
+      { status: "done" },
+      { lapStart: "2026-10-11T00:40:00Z" },
+    );
+    expect(p.started_at).toBe("2026-10-11T00:50:00Z");
+  });
+
+  it("falls back to now with no done_by and no time from the caller", async () => {
+    // A stop with no done_by: without the caller's time, the lap starts when it is marked.
+    const s = new PlanStore(file, now);
+    await s.upsert(loop());
+    await s.updateStop("loop", { index: 0 }, { status: "done" });
+    t = Date.parse("2026-10-11T02:00:00Z");
+    const p = await s.updateStop("loop", { index: 1 }, { status: "done" });
+    expect(p.started_at).toBe("2026-10-11T02:00:00.000Z");
+  });
+
+  it("keeps started_at for the same plan replaced, and starts another plan now", async () => {
+    const s = new PlanStore(file, now);
+    await s.upsert(loop());
+    t = Date.parse("2026-10-12T00:00:00Z");
+    const { started_at: _s, ...renamed } = { ...loop(), name: "Renamed" };
+    expect((await s.upsert(renamed)).started_at).toBe("2026-10-11T00:00:00.000Z");
+    // Other systems, or the same in another order, are another plan.
+    const other = { ...renamed, stops: [...renamed.stops!].reverse() };
+    expect((await s.upsert(other)).started_at).toBe("2026-10-12T00:00:00.000Z");
+    // A plan that gives started_at keeps it.
+    expect((await s.upsert({ ...other, started_at: "2026-10-01T00:00:00Z" })).started_at).toBe(
+      "2026-10-01T00:00:00Z",
+    );
+  });
+});

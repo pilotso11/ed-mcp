@@ -125,7 +125,11 @@ export class PlanStore {
   }
 
   /** Validates and stores a plan in data, stamped, in place of one with the same ID. */
-  private put(data: PlanFile, input: PlanInput, opts: { newRoute?: boolean } = {}): Plan {
+  private put(
+    data: PlanFile,
+    input: PlanInput,
+    opts: { newRoute?: boolean; keepStart?: boolean } = {},
+  ): Plan {
     const parsed = PlanInputSchema.safeParse(input);
     if (!parsed.success) throw new UserError(`Invalid plan: ${z.prettifyError(parsed.error)}`);
     for (const [i, s] of parsed.data.stops.entries()) {
@@ -135,9 +139,17 @@ export class PlanStore {
     const stamp = this.now().toISOString();
     const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
     const old = idx >= 0 ? data.plans[idx]! : undefined;
-    // A replacement without started_at keeps the old plan's, as it keeps created_at: a rename
-    // must not let a loop's earlier laps count for the lap under way.
-    const startedAt = parsed.data.started_at ?? old?.started_at;
+    // A replacement without started_at keeps the old plan's when it is the same plan (its stops
+    // at the same systems in the same order, as for a rename), so a loop's earlier laps do not
+    // count for the lap under way. Another plan at that ID starts now, so the old plan's events
+    // finish none of its actions.
+    const startedAt =
+      parsed.data.started_at ??
+      (!old
+        ? undefined
+        : opts.keepStart || sameSystems(old.stops, parsed.data.stops)
+          ? old.started_at
+          : stamp);
     const plan: Plan = cleanRoute({
       ...parsed.data,
       ...(startedAt ? { started_at: startedAt } : {}),
@@ -219,14 +231,17 @@ export class PlanStore {
 
   /**
    * Sets a stop's status or notes. In a plan with repeat, the update that leaves every stop done
-   * or skipped sets them all back to todo and counts up lap.
+   * or skipped sets them all back to todo and counts up lap. Give opts.lapStart, the timestamp of
+   * the newest journal event when the stop is marked (JournalService.newestEventAt()), so the
+   * next lap's actions count only the events after it.
    */
   updateStop(
     planId: string,
     ref: { label?: string; index?: number },
     patch: { status?: Stop["status"]; notes?: string },
+    opts: StopUpdateOptions = {},
   ): Promise<Plan> {
-    return this.updateStopLap(planId, ref, patch).then((r) => r.plan);
+    return this.updateStopLap(planId, ref, patch, opts).then((r) => r.plan);
   }
 
   /** As updateStop; lapCompleted is the lap a repeating plan just finished, else null. */
@@ -234,6 +249,7 @@ export class PlanStore {
     planId: string,
     ref: { label?: string; index?: number },
     patch: { status?: Stop["status"]; notes?: string },
+    opts: StopUpdateOptions = {},
   ): Promise<{ plan: Plan; lapCompleted: number | null }> {
     return this.mutate((data) => {
       const plan = data.plans.find((p) => p.id === planId);
@@ -254,16 +270,17 @@ export class PlanStore {
         plan.stops.every(finished) &&
         plan.stops.some((s) => s.status === "done")
       ) {
-        // The next lap starts after the newest event the lap just run claimed, or now when it
-        // claimed none: a sale at the first stop made before the last stop was marked done
-        // still counts for the new lap, and the events of the old lap do not.
-        const claimed = plan.stops
-          .flatMap((s) => s.actions ?? [])
-          .flatMap((a) => a.done_by ?? [])
-          .map((d) => d.at)
-          .filter((at) => !Number.isNaN(Date.parse(at)))
-          .sort((a, b) => Date.parse(a) - Date.parse(b));
-        plan.started_at = claimed.at(-1) ?? this.now().toISOString();
+        // The next lap starts after the later of the newest journal event when the last stop
+        // was marked (lapStart, from the caller) and the newest event the lap's actions claimed,
+        // so no event of the lap just run counts for the next one. With neither known, it starts
+        // now.
+        plan.started_at =
+          latest([
+            opts.lapStart,
+            ...plan.stops
+              .flatMap((s) => s.actions ?? [])
+              .flatMap((a) => (a.done_by ?? []).map((d) => d.at)),
+          ]) ?? this.now().toISOString();
         for (const s of plan.stops) {
           s.status = "todo";
           // A trade stop gets an action for each cargo row, such as the first stop's sales,
@@ -432,7 +449,12 @@ export class PlanStore {
         id: planId,
         name,
       };
-      return this.put(data, { ...kept, stops: [...fresh, ...byHand], route }, { newRoute: true });
+      // The plan's start stays: each mission action has its own.
+      return this.put(
+        data,
+        { ...kept, stops: [...fresh, ...byHand], route },
+        { newRoute: true, keepStart: true },
+      );
     });
   }
 
@@ -594,6 +616,29 @@ function keepProgress(fresh: Action[], old: Action[], stamp: string): Action[] {
     const kept = was?.notes && !a.notes ? { ...a, notes: was.notes } : a;
     return kept.started_at ? kept : { ...kept, started_at: stamp };
   });
+}
+
+/** Options for updateStop: lapStart is the newest journal event's timestamp when it is called. */
+export interface StopUpdateOptions {
+  lapStart?: string;
+}
+
+/** The latest of the ISO times given, or undefined when none is a time. */
+function latest(times: (string | undefined)[]): string | undefined {
+  let best: string | undefined;
+  for (const t of times) {
+    if (t === undefined || Number.isNaN(Date.parse(t))) continue;
+    if (best === undefined || Date.parse(t) > Date.parse(best)) best = t;
+  }
+  return best;
+}
+
+/** Whether two plans' stops are at the same systems in the same order. */
+function sameSystems(a: Stop[], b: { system: string }[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((s, i) => s.system.toLowerCase() === b[i]!.system.toLowerCase())
+  );
 }
 
 /** An action id used twice in a stop, or null: an action is named by its id within its stop. */

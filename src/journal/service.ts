@@ -79,6 +79,19 @@ type JournalSnapshot = JournalState & {
 };
 
 export class JournalService {
+  /**
+   * The timestamp of the newest kept journal event, or null when the journal cannot be read.
+   * Pass it as updateStop's lapStart when marking a stop done, so a loop's next lap starts after
+   * the events seen so far.
+   */
+  async newestEventAt(): Promise<string | null> {
+    try {
+      return (await this.state()).as_of ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   protected readonly reader: JournalReader;
   private readonly rawReader = new JournalReader();
   readonly now: () => number;

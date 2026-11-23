@@ -16,7 +16,12 @@ const MAX_ECHOED_PLAN = 100 * 1024;
 
 export function registerPlanTools(
   server: McpServer,
-  deps: { plans: PlanStore; warnings?: () => Promise<string[]> },
+  deps: {
+    plans: PlanStore;
+    warnings?: () => Promise<string[]>;
+    /** The newest journal event's timestamp, for the start of a loop's next lap. */
+    newestEventAt?: () => Promise<string | null>;
+  },
 ): void {
   const { plans, warnings } = deps;
   // The plan is only in this conversation until it is saved, so a failed save hands it back.
@@ -114,7 +119,7 @@ export function registerPlanTools(
         "A build plan has build (target ship or suit_loadout, scope full or upgrade, ship type, ship_id from journal_commander's ship.id for a ship the player owns, summary, rolls_per_grade), and its actions can have needs (materials and credits). " +
         "A plan with repeat: true is a loop: when every stop is done or skipped, all go back to todo and lap counts up. " +
         "A plan saved by trade_route or trade_loops also has prices_at (ISO time of the oldest market data behind the prices) and profit_per_hour (planned credits an hour); when you replace such a plan, keep repeat and lap; keep prices_at and profit_per_hour for a rename or a notes edit, but drop them when you change the stops or cargo they were worked out from. " +
-        "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at, and keeps started_at unless the plan gives one: leave it out for a rename or a notes edit, so a loop's earlier laps do not count again.",
+        "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at, and keeps started_at when the plan gives none and its stops are at the same systems in the same order (a rename or a notes edit), so a loop's earlier laps do not count again; another plan at that id starts now.",
       inputSchema: { plan: PlanInputSchema },
     },
     wrapWarn(
@@ -190,7 +195,7 @@ export function registerPlanTools(
         "With action (an action id at that stop), the status and/or notes are set on that action instead of the stop, and the stop is left as it is; " +
         "an action set back to todo loses its done_by, the journal events ED Chat counted for it. " +
         "Use it to tick off one step of any plan (a trade such as sell-gold, a mission such as complete-123, a build step) that ED Chat could not see done. " +
-        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all and their actions back to todo, moves started_at to the newest journal event the lap claimed (now when none) and adds 1 to lap; " +
+        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all and their actions back to todo, moves started_at to the newest journal event (read when the call is made, or the newest the lap's actions claimed, whichever is later) and adds 1 to lap; " +
         "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),
@@ -236,10 +241,17 @@ export function registerPlanTools(
           }
         }
         try {
+          // Read before the write: the next lap, if this update starts one, counts only the
+          // journal events after it.
+          const lapStart =
+            a.status === "done" || a.status === "skipped"
+              ? await deps.newestEventAt?.().catch(() => null)
+              : null;
           const { plan, lapCompleted } = await plans.updateStopLap(
             a.plan_id,
             { label: a.label, index: a.index },
             { status: a.status, notes: a.notes },
+            lapStart ? { lapStart } : {},
           );
           return {
             ...plan,

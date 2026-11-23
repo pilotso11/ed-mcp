@@ -211,6 +211,16 @@ describe("JournalService.freshShip", () => {
   });
 });
 
+describe("JournalService.newestEventAt", () => {
+  it("gives the newest kept event's timestamp, and null when the journal cannot be read", async () => {
+    const dir = await folder();
+    const svc = new JournalService(dir, { now: at("2026-10-12T11:05:00Z") });
+    expect(await svc.newestEventAt()).toBe((await svc.state()).as_of);
+    expect(await svc.newestEventAt()).toMatch(/^2026-10-12T/);
+    expect(await new JournalService(undefined).newestEventAt()).toBeNull();
+  });
+});
+
 describe("JournalService events", () => {
   it("keeps the state events and the events the body and massacre tools read", async () => {
     for (const name of STATE_EVENTS) expect(KEPT_EVENTS.has(name), name).toBe(true);

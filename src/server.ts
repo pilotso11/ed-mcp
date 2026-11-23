@@ -70,11 +70,14 @@ export function createServer(deps: ServerDeps): McpServer {
   if (deps.caches) {
     registerCacheTools(server, { caches: deps.caches, refreshables: deps.refreshables });
   }
-  if (deps.plans)
+  if (deps.plans) {
+    const journal = deps.journal;
     registerPlanTools(server, {
       plans: deps.plans,
       warnings: deps.planWarnings ?? deps.syncWarnings,
+      ...(journal ? { newestEventAt: () => journal.newestEventAt() } : {}),
     });
+  }
   if (deps.prefs) registerPrefsTools(server, { prefs: deps.prefs, warnings: deps.syncWarnings });
   if (deps.activity) {
     registerActivityTools(server, {
