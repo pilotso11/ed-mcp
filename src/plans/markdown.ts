@@ -1,5 +1,6 @@
 import type { Needs, Plan, PlanItem, Stop } from "./schema.js";
 import { nextStop } from "./stops.js";
+import { cargoCover } from "./actions.js";
 
 const box: Record<PlanItem["status"], string> = {
   todo: "[ ]",
@@ -87,8 +88,9 @@ export function planToMarkdown(plan: Plan): string {
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";
       out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);
-      // A stop with actions lists the same trades there, so its cargo is not listed again.
-      for (const c of s.actions?.length ? [] : (s.cargo ?? [])) {
+      // A cargo row that an action covers is listed with the actions, not twice.
+      const cover = cargoCover(s.cargo ?? [], s.actions ?? []);
+      for (const c of (s.cargo ?? []).filter((_, k) => cover[k]! < 0)) {
         const price = c.price !== undefined ? ` at ${c.price.toLocaleString("en-US")} cr` : "";
         const mission = c.mission_id !== undefined ? ` (mission ${c.mission_id})` : "";
         out.push(
