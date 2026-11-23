@@ -64,7 +64,7 @@ export function registerPlanTools(
         openWorldHint: false,
       },
       description:
-        "List saved plans with item counts, progress, action counts for a build plan (actions, actions_done) and next_stop (the first stop still to do). " +
+        "List saved plans with item counts, progress, action counts for a plan with stop actions (actions, actions_done) and next_stop (the first stop still to do). " +
         "A plan is a ship build or a route, or both.",
     },
     wrapWarn(async () => plans.list(), warnings),
@@ -104,8 +104,14 @@ export function registerPlanTools(
       description:
         "Create or replace a plan. A plan is a ship build, a route, or both: for example system X, planet Y for bios, then planet Z, then station A to hand in. " +
         "Items are things to buy, engineer, unlock, gather or trade, plus refits (moving modules between slots, storing modules, or a fitting decision). " +
-        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes, after rules and cargo (what to buy or sell there: commodity, action buy or sell, amount in tonnes, planned unit price). " +
-        "A build plan has build (target ship or suit_loadout, scope full or upgrade, ship type, ship_id from journal_commander's ship.id for a ship the player owns, summary, rolls_per_grade) and, at each stop, actions in the order to do them: each with an id unique in its stop, a kind (buy_module, engineer, trade_material, collect_material and the rest), a label, a status, needs (materials and credits) and the fields its kind is judged by; ED Chat ticks them off from the journal. " +
+        "Stops are the places to visit, each with a system and optionally a station or body (planet or moon), a position on the body (latitude and longitude), a label, a kind, a status (todo, done, skipped), notes, after rules and actions. cargo (commodity, action buy or sell, amount, price) and missions (journal mission IDs) are older ways to say what to trade or which missions a stop serves; the route tools still write them beside actions for older ED Chat versions. " +
+        "Each stop should carry actions, what to do there in the order to do it: each with an id unique in its stop, a kind, a label, a status and the fields its kind is judged by (see kind); ED Chat ticks them off from the journal. " +
+        'For example, a trade stop: [{kind: "sell_commodity", commodity: "Gold", count: 720, price: 9400}, {kind: "buy_commodity", commodity: "Silver", count: 720}]; ' +
+        'a mission stop: [{kind: "deliver_cargo", mission_id, count: 72}, {kind: "complete_mission", mission_id}]; ' +
+        'a build stop: [{kind: "buy_module", module}, {kind: "engineer", slot, blueprint, grade}]; ' +
+        'any stop: [{kind: "sell_data", data: "organic"}, {kind: "redeem_vouchers", voucher: "bounty"}, {kind: "refuel"}]. ' +
+        "started_at is the time from which actions count journal events (created_at when missing). " +
+        "A build plan has build (target ship or suit_loadout, scope full or upgrade, ship type, ship_id from journal_commander's ship.id for a ship the player owns, summary, rolls_per_grade), and its actions can have needs (materials and credits). " +
         "A plan with repeat: true is a loop: when every stop is done or skipped, all go back to todo and lap counts up. " +
         "A plan saved by trade_route or trade_loops also has prices_at (ISO time of the oldest market data behind the prices) and profit_per_hour (planned credits an hour); when you replace such a plan, keep repeat and lap; keep prices_at and profit_per_hour for a rename or a notes edit, but drop them when you change the stops or cargo they were worked out from. " +
         "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
@@ -183,7 +189,8 @@ export function registerPlanTools(
         "Mark a stop done when the player has finished there; returns the plan with the new next_stop. " +
         "With action (an action id at that stop), the status and/or notes are set on that action instead of the stop, and the stop is left as it is; " +
         "an action set back to todo loses its done_by, the journal events ED Chat counted for it. " +
-        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all back to todo and adds 1 to lap; " +
+        "Use it to tick off one step of any plan (a trade such as sell-gold, a mission such as complete-123, a build step) that ED Chat could not see done. " +
+        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all and their actions back to todo, moves started_at to now and adds 1 to lap; " +
         "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),

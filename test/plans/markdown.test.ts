@@ -206,6 +206,43 @@ describe("planToMarkdown positions", () => {
     );
   });
 
+  it("lists a trade stop's actions, with the planned price, and not its cargo as well", () => {
+    const md = planToMarkdown({
+      id: "trade",
+      name: "Trade route",
+      items: [],
+      stops: [
+        {
+          system: "Wolf 397",
+          station: "Brooks Estate",
+          purpose: "Sell 720 t Gold",
+          kind: "trade",
+          status: "todo",
+          cargo: [{ commodity: "Gold", action: "sell", amount: 720, price: 9380 }],
+          actions: [
+            {
+              id: "sell-gold",
+              kind: "sell_commodity",
+              label: "Sell 720 t Gold",
+              status: "done",
+              commodity: "Gold",
+              count: 720,
+              price: 9380,
+            },
+          ],
+        },
+      ],
+      created_at: "2026-11-22T00:00:00Z",
+      updated_at: "2026-11-22T00:00:00Z",
+    });
+    expect(md).toContain(
+      ["Brooks Estate: Sell 720 t Gold ← next", "   - [x] Sell 720 t Gold at 9,380 cr", ""].join(
+        "\n",
+      ),
+    );
+    expect(md.match(/Sell 720 t Gold at/g)).toHaveLength(1);
+  });
+
   it("shows lap 1 for a loop without a lap, and nothing for a plan that does not repeat", () => {
     const p = { id: "t", name: "T", items: [], stops: [], created_at: "x", updated_at: "x" };
     expect(planToMarkdown({ ...p, repeat: true })).toContain("Repeating loop · lap 1");

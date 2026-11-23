@@ -87,7 +87,8 @@ export function planToMarkdown(plan: Plan): string {
       const kind = s.kind ? `**${s.kind}** ` : "";
       const mark = n === next ? " ← next" : "";
       out.push(`${n + 1}. ${stopBox[s.status]} ${kind}${place}: ${s.purpose}${mark}`);
-      for (const c of s.cargo ?? []) {
+      // A stop with actions lists the same trades there, so its cargo is not listed again.
+      for (const c of s.actions?.length ? [] : (s.cargo ?? [])) {
         const price = c.price !== undefined ? ` at ${c.price.toLocaleString("en-US")} cr` : "";
         const mission = c.mission_id !== undefined ? ` (mission ${c.mission_id})` : "";
         out.push(
@@ -95,7 +96,8 @@ export function planToMarkdown(plan: Plan): string {
         );
       }
       for (const a of s.actions ?? []) {
-        out.push(`   - ${stopBox[a.status]} ${a.label}`);
+        const price = a.price !== undefined ? ` at ${a.price.toLocaleString("en-US")} cr` : "";
+        out.push(`   - ${stopBox[a.status]} ${a.label}${price}`);
         const needs = needsText(a.needs);
         if (needs && a.status === "todo") out.push(`     - Needs: ${needs}`);
         if (a.notes) out.push(`     - Notes: ${a.notes}`);
