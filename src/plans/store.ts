@@ -45,6 +45,11 @@ export class PlanExistsError extends UserError {
   }
 }
 
+/** What a mutate() callback returns when it changed nothing: the file is not written. */
+class Unchanged<T> {
+  constructor(readonly value: T) {}
+}
+
 /** The action kinds of a suit, and of a weapon: setGearId() writes each its own ID. */
 const SUIT_KINDS = new Set<string>(["buy_suit", "upgrade_suit", "modify_suit"]);
 const WEAPON_KINDS = new Set<string>(["buy_weapon", "upgrade_weapon", "modify_weapon"]);
@@ -411,21 +416,17 @@ export class PlanStore {
     const toWrite = (plan: Plan) =>
       gearActions(plan).filter((a) => kinds.has(a.kind) && a[field] === undefined);
     const ofKind = (plan: Plan) => gearActions(plan).filter((a) => kinds.has(a.kind));
-    const check = (plan: Plan) => {
+    // Checked and written under the lock, so a plan changed meanwhile is the one judged.
+    return this.mutate((data) => {
+      const plan = data.plans.find((x) => x.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
       if (!ofKind(plan).length) {
         const what = field === "suit_id" ? "suit" : "weapon";
         throw new UserError(`Plan "${planId}" has no ${what} action with gear "${gear}"`);
       }
-    };
-    const now = await this.get(planId);
-    check(now);
-    if (!toWrite(now).length) return now;
-    return this.mutate((data) => {
-      const plan = data.plans.find((x) => x.id === planId);
-      if (!plan) throw new UserError(`Plan "${planId}" not found`);
-      // Checked again under the lock: the plan can change between the read and the write.
-      check(plan);
-      for (const a of toWrite(plan)) a[field] = id;
+      const write = toWrite(plan);
+      if (!write.length) return new Unchanged(structuredClone(plan));
+      for (const a of write) a[field] = id;
       plan.updated_at = this.now().toISOString();
       return plan;
     });
@@ -544,7 +545,7 @@ export class PlanStore {
 
   // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
   // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
-  private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
+  private mutate<T>(fn: (data: PlanFile) => T | Unchanged<T>): Promise<T> {
     const run = this.queue.then(async () => {
       // lockedWrite creates the parent folder, so check before it, not only inside it.
       await this.guard?.();
@@ -564,7 +565,10 @@ export class PlanStore {
         async () => {
           const data = await this.read();
           before = data.plans.map((p) => p.id);
-          const result = fn(data);
+          const out = fn(data);
+          // Nothing changed: the file and its copies stay as they are.
+          if (out instanceof Unchanged) return { content: null, result: out.value as T };
+          const result = out;
           latest = data;
           const content = JSON.stringify(data, null, 2);
           if (Buffer.byteLength(content) > MAX_DATA_FILE) {

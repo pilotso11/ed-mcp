@@ -39,14 +39,12 @@ const MEMO_MS = 1_000;
 const RAW_CACHE_FILES = 2;
 
 // Kept for build plans although journal state does not use them: a hull bought, redeemed or sent
-// for, and on foot a bartender trade or buy. The module, suit and weapon events a build needs are
-// state events.
+// for. The module, suit and weapon events a build needs are state events, and the bartender's
+// trades and buys are kept as locker changes (LOCKER_EVENTS).
 export const BUILD_EVENTS: ReadonlySet<string> = new Set([
   "ShipyardBuy",
   "ShipyardRedeem",
   "ShipyardTransfer",
-  "TradeMicroResources",
-  "BuyMicroResources",
 ]);
 
 // The events that change the ship locker, and the backpack: kept (they are small) to tell when

@@ -202,8 +202,9 @@ export class FootState {
       case "SwitchSuitLoadout":
       case "CreateSuitLoadout": {
         this.suit(e, e.SuitMods);
-        const modules = objs(e.Modules);
-        for (const m of modules) this.weapon(m);
+        // No Modules list says nothing about the weapons: keep those known.
+        const modules = Array.isArray(e.Modules) ? objs(e.Modules) : undefined;
+        for (const m of modules ?? []) this.weapon(m);
         this.loadout(e, modules);
         break;
       }

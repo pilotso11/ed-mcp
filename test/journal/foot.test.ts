@@ -198,6 +198,24 @@ describe("FootState", () => {
     ]);
   });
 
+  it("keeps a loadout's weapons when its event has no Modules list", () => {
+    const create = {
+      event: "CreateSuitLoadout",
+      SuitID: 11,
+      SuitName: "tacticalsuit_class3",
+      LoadoutID: 4001,
+      Modules: [{ SlotName: "PrimaryWeapon1", SuitModuleID: 21, ModuleName: "wpn_x" }],
+    };
+    const r = run([
+      create,
+      { event: "SuitLoadout", SuitID: 11, SuitName: "tacticalsuit_class3", LoadoutID: 4001 },
+    ]);
+    expect(r.suit_loadouts[0]).toMatchObject({
+      weapons: [{ slot: "PrimaryWeapon1", id: 21 }],
+      complete: true,
+    });
+  });
+
   it("never lowers a grade", () => {
     const r = run([
       buySuit,
