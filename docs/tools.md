@@ -307,7 +307,7 @@ With `action` (an action's `id` at the stop named by `label` or `index`), `plan_
 Programs that use the library (`ed-mcp/journal`) change a plan with these methods of `PlanStore`, each one locked write:
 
 - `updateStop(planId, { label } or { index }, patch, { lapStart })`: `lapStart` is the newest journal event's timestamp when the stop is marked, from `JournalService.newestEventAt()`; give it when marking a stop done, so a loop's next lap starts after it.
-- `setGearId(planId, gear, { suit_id } or { weapon_id })`: writes a bought suit's `SuitID` or weapon's `SuitModuleID` into every action with that `gear` key that has no ID yet, in one locked write.
+- `setGearId(planId, gear, { suit_id } or { weapon_id })`: writes a bought suit's `SuitID` into the suit actions (`buy_suit`, `upgrade_suit`, `modify_suit`), or a weapon's `SuitModuleID` into the weapon actions, with that `gear` key that have no ID yet, in one locked write. It refuses a key with no action of that kind, and does not write the file when there is nothing to write.
 - `updateAction(planId, { stop: { label } or { index }, action: id }, patch)`: `patch` sets the action's `status`, `done_by` (replaced as a whole), `suit_id`, `weapon_id` and/or `notes`. As with the tool, `status: "todo"` without `done_by` drops `done_by`.
 - `setBuildShip(planId, shipId)`: sets `build.ship_id`. It refuses a plan with no `build`, and a plan with another `ship_id` already, unless `{ overwrite: true }` is passed.
 

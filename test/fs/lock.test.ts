@@ -16,6 +16,24 @@ describe("lockedWrite", () => {
     expect(await readdir(path.dirname(file))).toEqual(["data.json"]);
   });
 
+  it("leaves the file as it is, and runs no afterWrite, when the update has nothing to write", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
+    const file = path.join(dir, "data.json");
+    await writeFile(file, "before");
+    const was = (await stat(file)).mtimeMs;
+    let after = false;
+    const result = await lockedWrite(
+      file,
+      { ...opts, afterWrite: async () => void (after = true) },
+      async () => ({ content: null, result: 3 }),
+    );
+    expect(result).toBe(3);
+    expect(await readFile(file, "utf8")).toBe("before");
+    expect((await stat(file)).mtimeMs).toBe(was);
+    expect(after).toBe(false);
+    await expect(readFile(`${file}.lock`)).rejects.toThrow(/ENOENT/);
+  });
+
   it("holds the lock while the update runs and releases it after", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "lock-"));
     const file = path.join(dir, "data.json");
