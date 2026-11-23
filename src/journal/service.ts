@@ -49,7 +49,27 @@ export const BUILD_EVENTS: ReadonlySet<string> = new Set([
   "BuyMicroResources",
 ]);
 
+// The events that change the ship locker, and the backpack: kept (they are small) to tell when
+// ShipLocker.json or Backpack.json is older than the journal.
+const LOCKER_EVENTS: ReadonlySet<string> = new Set([
+  "TradeMicroResources",
+  "BuyMicroResources",
+  "SellMicroResources",
+  "TransferMicroResources",
+  "UpgradeSuit",
+  "UpgradeWeapon",
+]);
+const BACKPACK_EVENTS: ReadonlySet<string> = new Set([
+  "BackpackChange",
+  "CollectItems",
+  "DropItems",
+  "UseConsumable",
+  "TransferMicroResources",
+]);
+
 export const KEPT_EVENTS: ReadonlySet<string> = new Set([
+  ...LOCKER_EVENTS,
+  ...BACKPACK_EVENTS,
   ...STATE_EVENTS,
   ...BUILD_EVENTS,
   // The events that finish a trade, mission or station action at a plan's stop.
@@ -250,18 +270,13 @@ export class JournalService {
     const cargoEvent = events.findLast((e) => e.event === "Cargo")?.timestamp;
     const cargo = await this.readCargoFile(dir, cargoEvent);
     if (cargo) state.cargo = cargo;
-    state.locker = await this.readLockerFile(dir, "ShipLocker.json");
-    state.backpack = await this.readLockerFile(dir, "Backpack.json");
-    // Syncthing can deliver the logs before ShipLocker.json: a bartender trade or buy after it
-    // is not in its counts yet.
-    const lockerChange = events.findLast(
-      (e) => e.event === "TradeMicroResources" || e.event === "BuyMicroResources",
-    )?.timestamp;
-    if (state.locker?.as_of && lockerChange && state.locker.as_of < lockerChange) {
-      warnings.push(
-        "ShipLocker.json is older than the newest bartender trade or buy in the journal: its counts may not include it yet",
-      );
-    }
+    const [locker, backpack] = await Promise.all([
+      this.readLockerFile(dir, "ShipLocker.json", events, LOCKER_EVENTS),
+      this.readLockerFile(dir, "Backpack.json", events, BACKPACK_EVENTS),
+    ]);
+    state.locker = locker.value;
+    state.backpack = backpack.value;
+    for (const w of [locker.warning, backpack.warning]) if (w) warnings.push(w);
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
@@ -334,16 +349,35 @@ export class JournalService {
   }
 
   // The game rewrites these on every change to the ship locker or the backpack, with the whole
-  // list; their journal events repeat it (about 20 KB each), too often to keep.
-  private async readLockerFile(dir: string, name: string): Promise<Locker | null> {
+  // list; their journal events repeat it (about 20 KB each), too often to keep. Syncthing can
+  // deliver the logs before the file: a change in the journal after the file's time is not in
+  // its counts yet, which the warning says.
+  private async readLockerFile(
+    dir: string,
+    name: string,
+    events: JournalEvent[],
+    changes: ReadonlySet<string>,
+  ): Promise<{ value: Locker | null; warning: string | null }> {
+    let text: string;
     try {
-      return mapLocker(
-        JSON.parse(await readFile(path.join(dir, name), "utf8")) as Record<string, unknown>,
-      );
+      text = await readFile(path.join(dir, name), "utf8");
     } catch {
-      // Missing (no Odyssey) is normal; a half-written file is retried on the next call.
-      return null;
+      // Missing: no Odyssey, or never on foot.
+      return { value: null, warning: null };
     }
+    let value: Locker | null;
+    try {
+      value = mapLocker(JSON.parse(text) as Record<string, unknown>);
+    } catch {
+      // Half-written while the game saves it: read again on the next call.
+      return { value: null, warning: `${name} could not be read (the game may be writing it)` };
+    }
+    const change = events.findLast((e) => changes.has(e.event))?.timestamp;
+    const warning =
+      value?.as_of && change && value.as_of < change
+        ? `${name} is older than the newest change to it in the journal (${change}): its counts may not include it yet`
+        : null;
+    return { value, warning };
   }
 
   // The game rewrites these files each time a screen opens, so read them on every call.

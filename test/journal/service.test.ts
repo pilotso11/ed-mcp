@@ -107,6 +107,26 @@ describe("JournalService.state", () => {
     expect(s.warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
   });
 
+  it("warns about a stale Backpack.json, and one it cannot read", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "BackpackChange", { Added: [{ Name: "healthpack", Count: 1 }] }),
+    ]);
+    const empty = { Items: [], Components: [], Consumables: [], Data: [] };
+    await writeFile(
+      path.join(dir, "Backpack.json"),
+      JSON.stringify({ timestamp: "2026-10-12T10:05:00Z", ...empty }),
+    );
+    await writeFile(path.join(dir, "ShipLocker.json"), '{ "timestamp": "2026-10-12T11:00:0');
+    const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
+    expect(s.locker).toBeNull();
+    expect(s.backpack).not.toBeNull();
+    expect(s.warnings).toEqual([
+      expect.stringMatching(/ShipLocker.json could not be read/),
+      expect.stringMatching(/Backpack.json is older/),
+    ]);
+  });
+
   it("works without Cargo.json", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jnocargo-"));
     await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [

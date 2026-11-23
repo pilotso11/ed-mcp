@@ -191,6 +191,8 @@ export class FootState {
         break;
       }
       case "LoadoutEquipModule": {
+        // It names the loadout's suit too.
+        this.suit(e);
         this.weapon(e);
         const l = this.loadout(e);
         const slot = str(e.SlotName);
@@ -211,6 +213,7 @@ export class FootState {
         break;
       }
       case "RenameSuitLoadout":
+        this.suit(e);
         this.loadout(e);
         break;
     }

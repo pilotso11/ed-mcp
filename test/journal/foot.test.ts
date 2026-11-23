@@ -175,6 +175,19 @@ describe("FootState", () => {
       },
     ]);
     expect(r.suit_loadouts[0]).toMatchObject({ suit_id: null, complete: false });
+    // An equip names the loadout's suit, which then shows among the suits.
+    const named = run([
+      {
+        event: "LoadoutEquipModule",
+        LoadoutID: 4003,
+        SuitID: 12,
+        SuitName: "utilitysuit_class2",
+        SlotName: "SecondaryWeapon",
+        SuitModuleID: 32,
+        ModuleName: "wpn_z",
+      },
+    ]);
+    expect(named.suits).toEqual([{ id: 12, type: "utilitysuit", grade: 2, mods: [] }]);
   });
 
   it("never lowers a grade", () => {

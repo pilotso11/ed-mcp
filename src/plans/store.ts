@@ -410,14 +410,21 @@ export class PlanStore {
       plan.stops.flatMap((st) => st.actions ?? []).filter((a) => a.gear === gear);
     const toWrite = (plan: Plan) =>
       gearActions(plan).filter((a) => kinds.has(a.kind) && a[field] === undefined);
+    const ofKind = (plan: Plan) => gearActions(plan).filter((a) => kinds.has(a.kind));
+    const check = (plan: Plan) => {
+      if (!ofKind(plan).length) {
+        const what = field === "suit_id" ? "suit" : "weapon";
+        throw new UserError(`Plan "${planId}" has no ${what} action with gear "${gear}"`);
+      }
+    };
     const now = await this.get(planId);
-    if (!gearActions(now).length) {
-      throw new UserError(`Plan "${planId}" has no action with gear "${gear}"`);
-    }
+    check(now);
     if (!toWrite(now).length) return now;
     return this.mutate((data) => {
       const plan = data.plans.find((x) => x.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      // Checked again under the lock: the plan can change between the read and the write.
+      check(plan);
       for (const a of toWrite(plan)) a[field] = id;
       plan.updated_at = this.now().toISOString();
       return plan;

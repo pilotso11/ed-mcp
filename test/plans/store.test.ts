@@ -1139,11 +1139,15 @@ describe("PlanStore build actions", () => {
     // Nothing left to write: the plan comes back unwritten.
     const same = await s.setGearId("python-mk2", "dom", { suit_id: 80 });
     expect(same.updated_at).toBe(out.updated_at);
+    // A weapon's ID for a key with no weapon action is refused, not dropped.
+    await expect(s.setGearId("python-mk2", "mav", { weapon_id: 42 })).rejects.toThrow(
+      'no weapon action with gear "mav"',
+    );
     // An action with an ID already keeps it.
     const again = await s.setGearId("python-mk2", "mav", { suit_id: 78 });
     expect(again.stops[0]!.actions![2]!.suit_id).toBe(9);
     await expect(s.setGearId("python-mk2", "none", { suit_id: 1 })).rejects.toThrow(
-      'no action with gear "none"',
+      'no suit action with gear "none"',
     );
     await expect(s.setGearId("python-mk2", "dom", {})).rejects.toThrow("exactly one of suit_id");
     await expect(s.setGearId("python-mk2", "dom", { suit_id: 1.5 })).rejects.toThrow(
