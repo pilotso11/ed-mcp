@@ -244,7 +244,16 @@ export class PlanStore {
         plan.stops.every(finished) &&
         plan.stops.some((s) => s.status === "done")
       ) {
-        for (const s of plan.stops) s.status = "todo";
+        for (const s of plan.stops) {
+          s.status = "todo";
+          // The actions too, with no events claimed: the next lap does them again.
+          for (const a of s.actions ?? []) {
+            a.status = "todo";
+            delete a.done_by;
+          }
+        }
+        // So the events of the lap just run finish no action of the next one.
+        plan.started_at = this.now().toISOString();
         lapCompleted = plan.lap ?? 1;
         plan.lap = lapCompleted + 1;
       }

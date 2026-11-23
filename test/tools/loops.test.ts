@@ -901,6 +901,28 @@ describe("trade_loops save_to_plan", () => {
           { commodity: "Tea", action: "sell", amount: 100, price: 500 },
           { commodity: "Gold", action: "buy", amount: 100, price: 100 },
         ],
+        // The same in actions; the first lap has nothing to sell, so the sale starts skipped.
+        actions: [
+          {
+            id: "sell-tea",
+            kind: "sell_commodity",
+            label: "Sell 100 t Tea",
+            status: "skipped",
+            commodity: "Tea",
+            count: 100,
+            price: 500,
+            notes: "Nothing to sell on the first lap",
+          },
+          {
+            id: "buy-gold",
+            kind: "buy_commodity",
+            label: "Buy 100 t Gold",
+            status: "todo",
+            commodity: "Gold",
+            count: 100,
+            price: 100,
+          },
+        ],
         status: "todo",
       },
       {
@@ -913,9 +935,31 @@ describe("trade_loops save_to_plan", () => {
           { commodity: "Gold", action: "sell", amount: 100, price: 300 },
           { commodity: "Tea", action: "buy", amount: 100, price: 200 },
         ],
+        actions: [
+          {
+            id: "sell-gold",
+            kind: "sell_commodity",
+            label: "Sell 100 t Gold",
+            status: "todo",
+            commodity: "Gold",
+            count: 100,
+            price: 300,
+          },
+          {
+            id: "buy-tea",
+            kind: "buy_commodity",
+            label: "Buy 100 t Tea",
+            status: "todo",
+            commodity: "Tea",
+            count: 100,
+            price: 200,
+          },
+        ],
         status: "todo",
       },
     ]);
+    // Its actions count journal events from the save on.
+    expect(Math.abs(Date.parse(plan.started_at!) - Date.now())).toBeLessThan(60_000);
     expect(j.notes).toContain(
       "On the first lap there is nothing to sell at Start Port; buy there and go on.",
     );
@@ -941,11 +985,30 @@ describe("trade_loops save_to_plan", () => {
       ["Sell 100 t Gold", [{ commodity: "Gold", action: "sell", amount: 100, price: 150 }]],
     ]);
     expect(j.notes.some((n: string) => n.startsWith("On the first lap"))).toBe(false);
+    // No sale at the first stop, so no action starts skipped.
+    expect(plan.stops.flatMap((x) => x.actions ?? []).map((a) => [a.kind, a.status])).toEqual([
+      ["buy_commodity", "todo"],
+      ["sell_commodity", "todo"],
+    ]);
     // Finishing the loop starts lap 2.
+    await s.plans.updateAction(
+      "gold",
+      { stop: { index: 0 }, action: "buy-gold" },
+      {
+        status: "done",
+        done_by: [
+          { at: "2026-11-23T10:00:00Z", event: "MarketBuy", n: 0, role: "bought", amount: 100 },
+        ],
+      },
+    );
     await s.plans.updateStop("gold", { index: 0 }, { status: "done" });
     const next = await s.plans.updateStop("gold", { index: 1 }, { status: "done" });
     expect(next.lap).toBe(2);
     expect(next.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
+    // The actions start again too, with no events claimed, from the new lap's start.
+    expect(next.stops[0]!.actions![0]).toMatchObject({ status: "todo" });
+    expect(next.stops[0]!.actions![0]!.done_by).toBeUndefined();
+    expect(next.started_at).toBe("2026-11-22T12:00:00.000Z");
   });
 
   it("saves nothing without a loop, and keeps the loops when the save fails", async () => {

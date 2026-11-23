@@ -957,6 +957,35 @@ describe("trade_route save_to_plan", () => {
       { commodity: "Bauxite", action: "buy", amount: 100, price: 2842 },
     ]);
     expect(plan.stops[1]!.label).toBe("Sell 100 t Tea, then buy 100 t Bauxite at Martin Gateway");
+    // The same work as actions, in the cargo's order, for ED Chat to tick off from the journal.
+    expect(plan.stops[1]!.actions).toEqual([
+      {
+        id: "sell-tea",
+        kind: "sell_commodity",
+        label: "Sell 100 t Tea",
+        status: "todo",
+        commodity: "Tea",
+        count: 100,
+        price: 2177,
+      },
+      {
+        id: "buy-bauxite",
+        kind: "buy_commodity",
+        label: "Buy 100 t Bauxite",
+        status: "todo",
+        commodity: "Bauxite",
+        count: 100,
+        price: 2842,
+      },
+    ]);
+    for (const stop of plan.stops) {
+      expect(
+        stop.actions!.map((a) => [a.kind, a.commodity, a.count, a.price]),
+        stop.label,
+      ).toEqual(stop.cargo!.map((c) => [`${c.action}_commodity`, c.commodity, c.amount, c.price]));
+    }
+    // The tool's clock: actions count journal events from the save on.
+    expect(plan.started_at).toBe(new Date(NOW).toISOString());
     expect(plan.stops.every((x) => x.status === "todo")).toBe(true);
     expect(await s.activity.get()).toMatchObject({
       kind: "trading",

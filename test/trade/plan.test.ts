@@ -49,6 +49,45 @@ describe("tradeStops", () => {
       kind: "trade",
     });
     expect(stop!.cargo).toBeUndefined();
+    expect(stop!.actions).toBeUndefined();
+  });
+
+  it("writes a buy or sell action for each cargo row, in order, with ids unique in the stop", () => {
+    const [stop] = tradeStops([
+      visit("A", {
+        sell: [gold, { ...gold, amount: 5 }],
+        buy: [{ ...tea, commodity: "Agri-Medicines" }],
+      }),
+    ]);
+    expect(stop!.actions).toEqual([
+      expect.objectContaining({
+        id: "sell-gold",
+        kind: "sell_commodity",
+        commodity: "Gold",
+        count: 100,
+        price: 9000,
+      }),
+      expect.objectContaining({ id: "sell-gold-2", kind: "sell_commodity", count: 5 }),
+      expect.objectContaining({
+        id: "buy-agri-medicines",
+        kind: "buy_commodity",
+        label: "Buy 20 t Agri-Medicines",
+      }),
+    ]);
+    expect(stop!.cargo!.map((c) => c.action)).toEqual(["sell", "sell", "buy"]);
+  });
+
+  it("starts a loop's first sales skipped, since the first lap has bought nothing", () => {
+    const stops = tradeStops(
+      [visit("A", { sell: [tea], buy: [gold] }), visit("B", { sell: [gold], buy: [tea] })],
+      { loop: true },
+    );
+    expect(stops.map((s) => s.actions!.map((a) => `${a.id}:${a.status}`))).toEqual([
+      ["sell-tea:skipped", "buy-gold:todo"],
+      ["sell-gold:todo", "buy-tea:todo"],
+    ]);
+    // A route, not a loop: nothing starts skipped.
+    expect(tradeStops([visit("A", { sell: [tea] })])[0]!.actions![0]!.status).toBe("todo");
   });
 });
 

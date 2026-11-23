@@ -49,6 +49,8 @@ export async function saveTradePlan(
     pricesAt: string | null;
     /** The planned profit in credits an hour, when known. Saved rounded, if finite and not below 0. */
     profitPerHour: number | null;
+    /** The ISO time of the save: the plan's started_at, after which its actions count events. */
+    savedAt: string;
   },
   notes: string[],
 ): Promise<boolean> {
@@ -59,7 +61,9 @@ export async function saveTradePlan(
     const { previous } = await deps.plans!.replace({
       id: planId,
       name: run.name,
-      stops: tradeStops(run.visits),
+      stops: tradeStops(run.visits, { loop: run.repeat }),
+      // Its actions count only the journal events after the save, not those of an earlier run.
+      started_at: run.savedAt,
       ...(run.repeat ? { repeat: true, lap: 1 } : {}),
       ...(run.pricesAt ? { prices_at: run.pricesAt } : {}),
       ...rateField(run.profitPerHour),

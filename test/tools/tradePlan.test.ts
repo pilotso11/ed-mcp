@@ -15,6 +15,7 @@ const run = (profitPerHour: number | null) => ({
   notes: "Saved",
   pricesAt: null,
   profitPerHour,
+  savedAt: "2026-11-23T10:00:00.000Z",
 });
 
 describe("saveTradePlan profit_per_hour", () => {
