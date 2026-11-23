@@ -151,6 +151,8 @@ describe("journal tools", () => {
         Price: 1,
         SuitMods: ["suit_nightvision"],
       }),
+      // A bartender trade after ShipLocker.json's time: the file is behind the journal.
+      ev("2026-10-12T10:00:30Z", "TradeMicroResources", { Received: "graphene", Count: 1 }),
     ]);
     await writeFile(
       path.join(dir, "ShipLocker.json"),
@@ -171,6 +173,8 @@ describe("journal tools", () => {
     ]);
     expect(r.locker.items).toEqual([{ name: "healthmonitor", name_localised: null, count: 2 }]);
     expect(r.backpack).toBeNull();
+    // The locker's warning shows here, in this tool's warnings.
+    expect(r.warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
   });
 
   it("journal_on_foot returns the suits, loadouts, locker and backpack", async () => {
