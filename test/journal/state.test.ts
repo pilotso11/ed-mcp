@@ -869,7 +869,43 @@ describe("buildState", () => {
       // Another mission's depot changes nothing here.
       depot(3, 70, { MissionID: 6 }),
     ]);
-    expect(s.missions[0]).toMatchObject({ id: 5, count: 72, delivered: 40, to_deliver: 72 });
+    expect(s.missions[0]).toMatchObject({
+      id: 5,
+      count: 72,
+      delivered: 40,
+      to_deliver: 72,
+      type: "Mission_Delivery",
+    });
+    expect(s.missions[0]!.wing).toBeUndefined();
+  });
+
+  it("marks a wing mission from MissionAccepted's Wing or a CargoDepot WingUpdate", () => {
+    const accept = (id: number, wing: boolean) =>
+      ev(T(0), "MissionAccepted", {
+        MissionID: id,
+        Name: "Mission_Mining",
+        Commodity_Localised: "Gold",
+        Count: 400,
+        DestinationSystem: "Sol",
+        DestinationStation: "Abraham Lincoln",
+        Wing: wing,
+      });
+    const s = buildState([
+      accept(1, true),
+      accept(2, false),
+      ev(T(1), "CargoDepot", {
+        MissionID: 2,
+        UpdateType: "WingUpdate",
+        ItemsDelivered: 100,
+        TotalItemsToDeliver: 400,
+      }),
+      accept(3, false),
+    ]);
+    expect(s.missions.map((m) => [m.id, m.wing])).toEqual([
+      [1, true],
+      [2, true],
+      [3, undefined],
+    ]);
   });
 
   it("tracks missions across journals", () => {

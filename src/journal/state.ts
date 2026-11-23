@@ -35,6 +35,10 @@ export interface Mission {
   // the whole wing, for a wing mission) and the tonnes the mission needs in all.
   delivered?: number;
   to_deliver?: number;
+  // The journal's own name for the mission type, such as Mission_Delivery_Boom, when known.
+  type?: string;
+  // True for a wing mission: MissionAccepted's Wing, or a CargoDepot WingUpdate for it.
+  wing?: boolean;
 }
 export interface EngineerState {
   name: string;
@@ -696,6 +700,8 @@ export function buildState(events: JournalEvent[]): JournalState {
           status: "active",
           origin_system: location.system,
           origin_station: location.docked ? location.station : null,
+          ...(str(e.Name) ? { type: str(e.Name)! } : {}),
+          ...(e.Wing === true ? { wing: true } : {}),
         });
         break;
       }
@@ -705,6 +711,7 @@ export function buildState(events: JournalEvent[]): JournalState {
         const total = num(e.TotalItemsToDeliver);
         if (m && delivered !== null) m.delivered = delivered;
         if (m && total !== null && total > 0) m.to_deliver = total;
+        if (m && e.UpdateType === "WingUpdate") m.wing = true;
         break;
       }
       case "MissionRedirected": {

@@ -71,6 +71,8 @@ interface Opts {
   location?: { system: string | null; station: string | null; docked: boolean };
   plans?: PlanStore;
   activity?: ActivityStore;
+  /** The journal's newest event time. */
+  asOf?: string;
 }
 
 function setup(opts: Opts = {}) {
@@ -101,6 +103,7 @@ function setup(opts: Opts = {}) {
       destination_system: "Alpha",
       destination_station: "Alpha Port",
       commodity: "Gold",
+      type: "Mission_Delivery",
     }),
     mission(3, { destination_system: "Alpha", destination_station: "Alpha Dock", passengers: 2 }),
     mission(4, {
@@ -118,7 +121,7 @@ function setup(opts: Opts = {}) {
     state: async () => {
       if (opts.noJournal) throw new NotConfiguredError("Journal", ["ED_JOURNAL_DIR"]);
       return {
-        as_of: "2026-10-13T07:55:00Z",
+        as_of: opts.asOf ?? "2026-10-13T07:55:00Z",
         age_minutes: opts.age ?? 5,
         warnings: opts.warnings ?? [],
         missions,
@@ -782,6 +785,7 @@ describe("missions_plan, more", () => {
     const missions = [
       mission(7, {
         name: "Deliver Gold",
+        type: "Mission_Delivery_Boom",
         destination_system: "Alpha",
         destination_station: "Alpha Dock",
         commodity: "Gold",
@@ -878,11 +882,12 @@ describe("missions_plan, more", () => {
     expect(byStation("Alpha Dock").actions![1]!.status).toBe("todo");
   });
 
-  it("asks a depot delivery for what is still to deliver, and keeps it on a re-save", async () => {
+  it("asks a solo depot delivery for what is still to deliver, and follows it on a re-save", async () => {
     const s = await stores();
-    const wing = (delivered: number) =>
+    const solo = (delivered: number) =>
       mission(7, {
-        name: "Wing delivery",
+        name: "Bulk delivery",
+        type: "Mission_Delivery",
         destination_system: "Alpha",
         destination_station: "Alpha Dock",
         commodity: "Gold",
@@ -890,22 +895,65 @@ describe("missions_plan, more", () => {
         delivered,
         to_deliver: 72,
       });
-    await save({}, { ...s, missions: [wing(40)] });
-    const first = (await s.plans.get("missions")).stops[0]!.actions![0]!;
-    expect(first).toMatchObject({
+    const deliver = async () => (await s.plans.get("missions")).stops[0]!.actions![0]!;
+    await save({}, { ...s, missions: [solo(40)] });
+    expect(await deliver()).toMatchObject({
       id: "deliver-7",
-      label: "Deliver 32 t Gold for Wing delivery",
+      label: "Deliver 32 t Gold for Bulk delivery",
       count: 32,
       started_at: "2026-10-13T07:55:00Z",
     });
-    // Saved again after 20 t more: the action is the same one, so the 20 t count for it.
-    await save({}, { ...s, missions: [wing(60)] });
-    expect((await s.plans.get("missions")).stops[0]!.actions![0]).toEqual(first);
+    // Saved again after 20 t more: the count and its start come from the same journal read, so
+    // the 20 t are neither lost nor counted twice.
+    await save({}, { ...s, missions: [solo(60)], asOf: "2026-10-13T07:58:00Z" });
+    expect(await deliver()).toMatchObject({
+      count: 12,
+      label: "Deliver 12 t Gold for Bulk delivery",
+      started_at: "2026-10-13T07:58:00Z",
+      status: "todo",
+    });
+    // A done action keeps its status and done_by on a re-save.
+    const doneBy = [{ at: at(1), event: "CargoDepot", n: 0, role: "delivered", amount: 12 }];
+    await s.plans.updateAction(
+      "missions",
+      { stop: { index: 0 }, action: "deliver-7" },
+      { status: "done", done_by: doneBy },
+    );
+    await save({}, { ...s, missions: [solo(70)], asOf: "2026-10-13T07:59:00Z" });
+    expect(await deliver()).toMatchObject({ status: "done", done_by: doneBy, count: 12 });
     // With everything delivered, only the hand-in is left.
     const s2 = await stores();
-    await save({}, { ...s2, missions: [wing(72)] });
+    await save({}, { ...s2, missions: [solo(72)] });
     expect((await s2.plans.get("missions")).stops[0]!.actions!.map((a) => a.id)).toEqual([
       "complete-7",
+    ]);
+  });
+
+  it("writes only complete_mission for a wing, rank or unknown-type delivery", async () => {
+    const delivery = (id: number, over: Partial<Mission>) =>
+      mission(id, {
+        destination_system: "Alpha",
+        destination_station: "Alpha Dock",
+        commodity: "Gold",
+        count: 72,
+        type: "Mission_Delivery",
+        ...over,
+      });
+    const ids = async (m: Mission) => {
+      const s = await stores();
+      await save({}, { ...s, missions: [m] });
+      return (await s.plans.get("missions")).stops[0]!.actions!.map((a) => a.id);
+    };
+    // The depot counts the whole wing's cargo, which the player's CargoDepot events do not show.
+    expect(await ids(delivery(1, { wing: true, delivered: 400, to_deliver: 420 }))).toEqual([
+      "complete-1",
+    ]);
+    expect(await ids(delivery(2, { type: "Mission_Delivery_RankFed" }))).toEqual(["complete-2"]);
+    expect(await ids(delivery(3, { type: "Mission_Salvage" }))).toEqual(["complete-3"]);
+    expect(await ids(delivery(4, { type: undefined }))).toEqual(["complete-4"]);
+    expect(await ids(delivery(5, { type: "Mission_Collect_Industrial" }))).toEqual([
+      "deliver-5",
+      "complete-5",
     ]);
   });
 

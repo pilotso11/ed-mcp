@@ -377,13 +377,26 @@ function planOf(r: {
 }
 
 /**
+ * The mission types whose cargo the journal shows delivered with CargoDepot Deliver events, from
+ * real journals: Mission_Delivery*, Mission_Collect*, Mission_Mining* and the Chain_ ones for an
+ * order. Salvage, altruism and on-foot missions log no CargoDepot, and one federal rank delivery
+ * logged none either, so rank missions are left out.
+ */
+const DEPOT_TYPE =
+  /^(mission_delivery|mission_collect|mission_mining|chain_helpfinishtheorder|chain_miningtoorder)/i;
+const depotType = (type: string | undefined) =>
+  !!type && DEPOT_TYPE.test(type) && !/rank/i.test(type);
+
+/**
  * What to do at a mission stop, in order: the cargo deliveries (CargoDepot Deliver), then each
- * mission to complete (MissionCompleted). A delivery to a station goes through its cargo depot
- * before it completes there. Passengers, a commodity to source (handed in where it was taken) and
- * a mission with its objectives met only complete. Null when the stop has a mission the journal
- * cannot show done there, so that ED Chat does not mark the stop done without it: an active
- * massacre or assassination, say, or a commodity mission with no station to deliver to, such as
- * on-foot salvage, which completes back where it was taken.
+ * mission to complete (MissionCompleted). A solo delivery of a depot type to a station goes
+ * through its cargo depot before it completes there. Passengers, a commodity to source (handed in
+ * where it was taken), a wing delivery (its depot counts the whole wing's cargo, which the
+ * player's own CargoDepot events do not show) and a mission with its objectives met only
+ * complete. Null when the stop has a mission the journal cannot show done there, so that ED Chat
+ * does not mark the stop done without it: an active massacre or assassination, say, or a
+ * commodity mission with no station to deliver to, such as on-foot salvage, which completes back
+ * where it was taken.
  */
 export function missionActions(
   stop: Stop,
@@ -396,10 +409,11 @@ export function missionActions(
   for (const s of stop.missions) {
     const m = byId.get(s.id);
     const active = s.status === "active";
-    // Depot deliveries name their station; a commodity mission without one does not use a depot.
-    const depot = active && s.kind === "delivery" && !!m?.destination_station;
+    // Deliveries to a station complete there; a commodity mission without one does not.
+    const toStation = active && s.kind === "delivery" && !!m?.destination_station;
+    const depot = toStation && depotType(m?.type) && !m?.wing;
     const judged =
-      !active || depot || s.kind === "source" || (s.kind === "passenger" && !!s.passengers);
+      !active || toStation || s.kind === "source" || (s.kind === "passenger" && !!s.passengers);
     if (!judged) return null;
     // What is still to deliver: CargoDepot progress, as of the journal read, comes off the
     // total, and the action counts only the deliveries after that read.

@@ -385,9 +385,9 @@ export class PlanStore {
    * is missing. Mission stops are those with a missions list; stops made by hand are kept as they
    * are, after the new ones, and so is everything else in the plan, its started_at too. A new
    * stop keeps the done or skipped mark of an old one at the same place that served exactly the
-   * same missions. An action is kept as the old one with its id at the same place, with its
-   * status, done_by, count and started_at, so progress made since the last save still counts; a
-   * new action without a started_at gets now, so it counts from this save on.
+   * same missions. A done or skipped action is kept as the old one with its id at the same
+   * place; an open one is the new one, with the count still to do and the start of the journal
+   * read it was worked out from; a new action without a started_at gets now.
    */
   saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
@@ -582,14 +582,17 @@ export const ActionPatchSchema = z.object({
 export type ActionPatch = z.input<typeof ActionPatchSchema>;
 
 /**
- * The new actions, each replaced by the old action with its id and kind, which keeps its status,
- * done_by, count and started_at; a new one without a started_at starts at stamp.
+ * The new actions, each replaced by the old action with its id and kind when that one is done or
+ * skipped, so it keeps its status and done_by. An open one takes the new action, whose count
+ * (what is still to deliver) and started_at come from the same journal read, so a delivery is
+ * neither lost nor counted twice; one without a started_at starts at stamp.
  */
 function keepProgress(fresh: Action[], old: Action[], stamp: string): Action[] {
   return fresh.map((a) => {
     const was = old.find((o) => o.id === a.id && o.kind === a.kind);
-    if (was) return was;
-    return a.started_at ? a : { ...a, started_at: stamp };
+    if (was && was.status !== "todo") return was;
+    const kept = was?.notes && !a.notes ? { ...a, notes: was.notes } : a;
+    return kept.started_at ? kept : { ...kept, started_at: stamp };
   });
 }
 
