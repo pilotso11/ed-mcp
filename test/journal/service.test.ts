@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { listJournals } from "../../src/journal/files.js";
@@ -64,6 +64,78 @@ describe("JournalService.state", () => {
     ]);
     const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
     expect(s.cargo).toEqual([{ name: "Silver", count: 1, stolen: false, mission_id: null }]);
+  });
+
+  it("reads the ship locker and backpack from ShipLocker.json and Backpack.json", async () => {
+    const dir = await folder();
+    await writeFile(
+      path.join(dir, "ShipLocker.json"),
+      JSON.stringify({
+        timestamp: "2026-10-12T10:05:00Z",
+        event: "ShipLocker",
+        Items: [{ Name: "healthmonitor", Name_Localised: "Health Monitor", OwnerID: 0, Count: 2 }],
+        Components: [],
+        Consumables: [],
+        Data: [],
+      }),
+    );
+    const s = await new JournalService(dir, { now: at("2026-10-12T10:06:00Z") }).state();
+    expect(s.locker?.items).toEqual([
+      { name: "healthmonitor", name_localised: "Health Monitor", count: 2 },
+    ]);
+    // No Backpack.json (no Odyssey, say): null.
+    expect(s.backpack).toBeNull();
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("warns when ShipLocker.json is older than a bartender trade in the journal", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "TradeMicroResources", { Received: "healthmonitor", Count: 1 }),
+    ]);
+    await writeFile(
+      path.join(dir, "ShipLocker.json"),
+      JSON.stringify({
+        timestamp: "2026-10-12T10:05:00Z",
+        Items: [],
+        Components: [],
+        Consumables: [],
+        Data: [],
+      }),
+    );
+    const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
+    expect(s.locker_warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
+    // Only journal_on_foot shows it: the other tools' warnings stay clear.
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("warns about a locker file it cannot open, but not a missing one", async () => {
+    const dir = await folder();
+    // A folder in its place: not missing, but unreadable, as when the game holds the file.
+    await mkdir(path.join(dir, "ShipLocker.json"));
+    const s = await new JournalService(dir, { now: at("2026-10-12T10:06:00Z") }).state();
+    expect(s.locker).toBeNull();
+    expect(s.locker_warnings).toEqual([expect.stringMatching(/ShipLocker.json could not be read/)]);
+  });
+
+  it("warns about a stale Backpack.json, and one it cannot read", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "BackpackChange", { Added: [{ Name: "healthpack", Count: 1 }] }),
+    ]);
+    const empty = { Items: [], Components: [], Consumables: [], Data: [] };
+    await writeFile(
+      path.join(dir, "Backpack.json"),
+      JSON.stringify({ timestamp: "2026-10-12T10:05:00Z", ...empty }),
+    );
+    await writeFile(path.join(dir, "ShipLocker.json"), '{ "timestamp": "2026-10-12T11:00:0');
+    const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
+    expect(s.locker).toBeNull();
+    expect(s.backpack).not.toBeNull();
+    expect(s.locker_warnings).toEqual([
+      expect.stringMatching(/ShipLocker.json could not be read/),
+      expect.stringMatching(/Backpack.json is older/),
+    ]);
   });
 
   it("works without Cargo.json", async () => {

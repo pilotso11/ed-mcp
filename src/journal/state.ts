@@ -1,3 +1,11 @@
+import {
+  FOOT_STATE_EVENTS,
+  FootState,
+  type Locker,
+  type Suit,
+  type SuitLoadout,
+  type Weapon,
+} from "./foot.js";
 import { normaliseModule } from "./modules.js";
 import type { JournalEvent } from "./reader.js";
 
@@ -104,6 +112,13 @@ export interface JournalState {
   engineers: EngineerState[];
   /** The modules in storage, or null before the first StoredModules in the journal window. */
   stored_modules: StoredModule[] | null;
+  /** On foot: the suits and weapons owned, as the journal window shows them. */
+  suits: Suit[];
+  weapons: Weapon[];
+  suit_loadouts: SuitLoadout[];
+  /** The ship locker and the backpack, from ShipLocker.json and Backpack.json; null unread. */
+  locker: Locker | null;
+  backpack: Locker | null;
   as_of: string | null;
 }
 
@@ -177,6 +192,7 @@ export const STATE_EVENTS: ReadonlySet<string> = new Set([
   "CargoDepot",
   "Missions",
   "EngineerProgress",
+  ...FOOT_STATE_EVENTS,
 ]);
 
 function swapSlots<V>(map: Map<string, V>, from: string, to: string): void {
@@ -214,6 +230,7 @@ export function buildState(events: JournalEvent[]): JournalState {
   const missions = new Map<number, Mission>();
   let engineers = new Map<string, EngineerState>();
   let stored: StoredModule[] | null = null;
+  const foot = new FootState();
   // The modules fitted to the current ship by slot (lower case), for the engineering of a module
   // that a ModuleBuy or ModuleRetrieve puts in storage: those events do not give it. The game
   // writes a Loadout only on leaving outfitting, so the module events and EngineerCraft keep it
@@ -398,6 +415,7 @@ export function buildState(events: JournalEvent[]): JournalState {
 
   for (const e of events) {
     if (arriving.size) land(e.timestamp);
+    if (FOOT_STATE_EVENTS.has(e.event)) foot.handle(e);
     switch (e.event) {
       case "Commander":
         commander = str(e.Name) ?? commander;
@@ -812,6 +830,9 @@ export function buildState(events: JournalEvent[]): JournalState {
     }),
     engineers: [...engineers.values()].sort((a, b) => a.name.localeCompare(b.name)),
     stored_modules: stored,
+    ...foot.result(),
+    locker: null,
+    backpack: null,
     as_of: asOf,
   };
 }

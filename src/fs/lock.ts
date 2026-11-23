@@ -110,13 +110,15 @@ export async function lockedWrite<T>(
     // must not go stale when two processes save at once. It must not throw.
     afterWrite?: () => Promise<void>;
   },
-  update: () => Promise<{ content: string; result: T }>,
+  // content null: nothing changed, so the file is left as it is.
+  update: () => Promise<{ content: string | null; result: T }>,
 ): Promise<T> {
   await mkdir(path.dirname(file), { recursive: true });
   if (opts.lockDir) await mkdir(opts.lockDir, { recursive: true });
   const release = await acquireLock(file, opts.timeoutMs, opts.lockedMessage, opts.lockDir);
   try {
     const { content, result } = await update();
+    if (content === null) return result;
     const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
     try {
       await writeFile(tmp, content, opts.mode === undefined ? undefined : { mode: opts.mode });

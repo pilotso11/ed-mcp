@@ -45,6 +45,15 @@ export class PlanExistsError extends UserError {
   }
 }
 
+/** What a mutate() callback returns when it changed nothing: the file is not written. */
+class Unchanged<T> {
+  constructor(readonly value: T) {}
+}
+
+/** The action kinds of a suit, and of a weapon: setGearId() writes each its own ID. */
+const SUIT_KINDS = new Set<string>(["buy_suit", "upgrade_suit", "modify_suit"]);
+const WEAPON_KINDS = new Set<string>(["buy_weapon", "upgrade_weapon", "modify_weapon"]);
+
 export class PlanStore {
   private lastCopyError: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -378,6 +387,52 @@ export class PlanStore {
   }
 
   /**
+   * Writes a bought suit's SuitID (suit_id) or weapon's SuitModuleID (weapon_id) into every action
+   * of that gear key and of a suit's (or a weapon's) kind, in one locked write, as after a buy_suit
+   * or buy_weapon is done. An action that has an ID already is left alone; with nothing to write,
+   * the file is not written.
+   */
+  async setGearId(
+    planId: string,
+    gear: string,
+    ids: { suit_id?: number; weapon_id?: number },
+  ): Promise<Plan> {
+    const { suit_id, weapon_id } = ids;
+    const valid = (v: number | undefined) => v === undefined || Number.isInteger(v);
+    if (
+      (suit_id === undefined) === (weapon_id === undefined) ||
+      !valid(suit_id) ||
+      !valid(weapon_id)
+    ) {
+      throw new UserError(
+        "Give exactly one of suit_id (the journal SuitID) or weapon_id (SuitModuleID), a whole number",
+      );
+    }
+    const field = suit_id !== undefined ? "suit_id" : "weapon_id";
+    const id = (suit_id ?? weapon_id)!;
+    const kinds = field === "suit_id" ? SUIT_KINDS : WEAPON_KINDS;
+    const gearActions = (plan: Plan) =>
+      plan.stops.flatMap((st) => st.actions ?? []).filter((a) => a.gear === gear);
+    const toWrite = (plan: Plan) =>
+      gearActions(plan).filter((a) => kinds.has(a.kind) && a[field] === undefined);
+    const ofKind = (plan: Plan) => gearActions(plan).filter((a) => kinds.has(a.kind));
+    // Checked and written under the lock, so a plan changed meanwhile is the one judged.
+    return this.mutate((data) => {
+      const plan = data.plans.find((x) => x.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      if (!ofKind(plan).length) {
+        const what = field === "suit_id" ? "suit" : "weapon";
+        throw new UserError(`Plan "${planId}" has no ${what} action with gear "${gear}"`);
+      }
+      const write = toWrite(plan);
+      if (!write.length) return new Unchanged(structuredClone(plan));
+      for (const a of write) a[field] = id;
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  /**
    * Saves a computed route. With `stops`, the stops the route was computed from, it refuses when
    * the plan's stops have changed since, because the route's stop_indexes would point at others.
    */
@@ -490,7 +545,7 @@ export class PlanStore {
 
   // Read-modify-write runs one at a time so concurrent tool calls cannot lose updates.
   // The lock file extends that across processes (e.g. Claude Desktop and Claude Code).
-  private mutate<T>(fn: (data: PlanFile) => T): Promise<T> {
+  private mutate<T>(fn: (data: PlanFile) => T | Unchanged<T>): Promise<T> {
     const run = this.queue.then(async () => {
       // lockedWrite creates the parent folder, so check before it, not only inside it.
       await this.guard?.();
@@ -510,7 +565,10 @@ export class PlanStore {
         async () => {
           const data = await this.read();
           before = data.plans.map((p) => p.id);
-          const result = fn(data);
+          const out = fn(data);
+          // Nothing changed: the file and its copies stay as they are.
+          if (out instanceof Unchanged) return { content: null, result: out.value as T };
+          const result = out;
           latest = data;
           const content = JSON.stringify(data, null, 2);
           if (Buffer.byteLength(content) > MAX_DATA_FILE) {

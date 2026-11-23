@@ -4,6 +4,7 @@ import { NotConfiguredError, UserError } from "../errors.js";
 import { listJournals, type JournalFile } from "./files.js";
 import { JournalReader, type JournalEvent } from "./reader.js";
 import type { MarketRow } from "../spansh/client.js";
+import { mapLocker, type Locker } from "./foot.js";
 import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.js";
 import { BODY_EVENTS } from "./bodies.js";
 import { LOCATION_EVENTS, matchFile, systemAt, type EventFilter } from "./events.js";
@@ -38,14 +39,37 @@ const MEMO_MS = 1_000;
 const RAW_CACHE_FILES = 2;
 
 // Kept for build plans although journal state does not use them: a hull bought, redeemed or sent
-// for. The module and other shipyard events a build needs are state events.
+// for. The module, suit and weapon events a build needs are state events, and the bartender's
+// trades and buys are kept as locker changes (LOCKER_EVENTS).
 export const BUILD_EVENTS: ReadonlySet<string> = new Set([
   "ShipyardBuy",
   "ShipyardRedeem",
   "ShipyardTransfer",
 ]);
 
+// The events that change the ship locker, and the backpack: kept (they are small) to tell when
+// ShipLocker.json or Backpack.json is older than the journal.
+const LOCKER_EVENTS: ReadonlySet<string> = new Set([
+  "TradeMicroResources",
+  "BuyMicroResources",
+  "SellMicroResources",
+  "TransferMicroResources",
+  "UpgradeSuit",
+  "UpgradeWeapon",
+  // Not TechnologyBroker or EngineerContribution: in the journals read they spend only ship
+  // materials, commodities and credits, so they would warn when the locker had not changed.
+]);
+const BACKPACK_EVENTS: ReadonlySet<string> = new Set([
+  "BackpackChange",
+  "CollectItems",
+  "DropItems",
+  "UseConsumable",
+  "TransferMicroResources",
+]);
+
 export const KEPT_EVENTS: ReadonlySet<string> = new Set([
+  ...LOCKER_EVENTS,
+  ...BACKPACK_EVENTS,
   ...STATE_EVENTS,
   ...BUILD_EVENTS,
   // The events that finish a trade, mission or station action at a plan's stop.
@@ -73,6 +97,8 @@ const STATION_FILES = {
 type JournalSnapshot = JournalState & {
   age_minutes: number | null;
   warnings: string[];
+  /** About ShipLocker.json and Backpack.json only: for journal_on_foot, not every tool. */
+  locker_warnings: string[];
   loadout: JournalEvent | null;
   /** The kept events in the state window, oldest first. */
   events: JournalEvent[];
@@ -244,13 +270,27 @@ export class JournalService {
     this.reader.retain(found.files.map((f) => f.path));
     const state = buildState(events);
     const cargoEvent = events.findLast((e) => e.event === "Cargo")?.timestamp;
-    const cargo = await this.readCargoFile(dir, cargoEvent);
+    const [cargo, locker, backpack] = await Promise.all([
+      this.readCargoFile(dir, cargoEvent),
+      this.readLockerFile(dir, "ShipLocker.json", events, LOCKER_EVENTS),
+      this.readLockerFile(dir, "Backpack.json", events, BACKPACK_EVENTS),
+    ]);
     if (cargo) state.cargo = cargo;
+    state.locker = locker.value;
+    state.backpack = backpack.value;
+    const lockerWarnings = [locker.warning, backpack.warning].filter((w): w is string => !!w);
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
     const loadout = events.findLast((e) => e.event === "Loadout") ?? null;
-    return { ...state, age_minutes: ageMinutes, warnings, loadout, events };
+    return {
+      ...state,
+      age_minutes: ageMinutes,
+      warnings,
+      locker_warnings: lockerWarnings,
+      loadout,
+      events,
+    };
   }
 
   /**
@@ -315,6 +355,39 @@ export class JournalService {
       // Missing is normal; a half-written file is retried on the next call.
       return null;
     }
+  }
+
+  // The game rewrites these on every change to the ship locker or the backpack, with the whole
+  // list; their journal events repeat it (about 20 KB each), too often to keep. Syncthing can
+  // deliver the logs before the file: a change in the journal after the file's time is not in
+  // its counts yet, which the warning says.
+  private async readLockerFile(
+    dir: string,
+    name: string,
+    events: JournalEvent[],
+    changes: ReadonlySet<string>,
+  ): Promise<{ value: Locker | null; warning: string | null }> {
+    let text: string;
+    try {
+      text = await readFile(path.join(dir, name), "utf8");
+    } catch (err) {
+      // Missing: no Odyssey, or never on foot. Anything else (the game holding it) says so.
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return { value: null, warning: null };
+      return { value: null, warning: `${name} could not be read (${errText(err)})` };
+    }
+    let value: Locker | null;
+    try {
+      value = mapLocker(JSON.parse(text) as Record<string, unknown>);
+    } catch {
+      // Half-written while the game saves it: read again on the next call.
+      return { value: null, warning: `${name} could not be read (the game may be writing it)` };
+    }
+    const change = events.findLast((e) => changes.has(e.event))?.timestamp;
+    const warning =
+      value?.as_of && change && value.as_of < change
+        ? `${name} is older than the newest change to it in the journal (${change}): its counts may not include it yet`
+        : null;
+    return { value, warning };
   }
 
   // The game rewrites these files each time a screen opens, so read them on every call.

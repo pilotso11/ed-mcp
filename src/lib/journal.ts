@@ -10,6 +10,14 @@ import { fileOptions } from "../files.js";
 export { JournalService, KEPT_EVENTS, type JournalStatus } from "../journal/service.js";
 export type { JournalEvent } from "../journal/reader.js";
 export type { JournalState, Mission, StoredModule } from "../journal/state.js";
+export {
+  suitType,
+  type Locker,
+  type MicroResource,
+  type Suit,
+  type SuitLoadout,
+  type Weapon,
+} from "../journal/foot.js";
 export { normaliseModule } from "../journal/modules.js";
 export {
   planTrades,

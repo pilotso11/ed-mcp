@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { CatalogService } from "../../src/catalog/service.js";
@@ -142,11 +142,58 @@ describe("journal tools", () => {
     ]);
   });
 
+  it("journal_on_foot returns what the journal and ShipLocker.json show", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "jfoot-"));
+    await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [
+      ev("2026-10-12T10:00:00Z", "BuySuit", {
+        Name: "TacticalSuit_Class2",
+        SuitID: 11,
+        Price: 1,
+        SuitMods: ["suit_nightvision"],
+      }),
+      // A bartender trade after ShipLocker.json's time: the file is behind the journal.
+      ev("2026-10-12T10:00:30Z", "TradeMicroResources", { Received: "graphene", Count: 1 }),
+    ]);
+    await writeFile(
+      path.join(dir, "ShipLocker.json"),
+      JSON.stringify({
+        timestamp: "2026-10-12T10:00:00Z",
+        Items: [{ Name: "healthmonitor", Count: 2 }],
+        Components: [],
+        Consumables: [],
+        Data: [],
+      }),
+    );
+    const server = new McpServer({ name: "t", version: "0" });
+    const service = new JournalService(dir, { now: at("2026-10-12T10:01:00Z") });
+    registerJournalTools(server, { journal: service });
+    const r = (await callTool(await connectTestClient(server), "journal_on_foot")).json as any;
+    expect(r.suits).toEqual([
+      { id: 11, type: "tacticalsuit", name: "Dominator", grade: 2, mods: ["suit_nightvision"] },
+    ]);
+    expect(r.locker.items).toEqual([{ name: "healthmonitor", name_localised: null, count: 2 }]);
+    expect(r.backpack).toBeNull();
+    // The locker's warning shows here, in this tool's warnings.
+    expect(r.warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
+  });
+
+  it("journal_on_foot returns the suits, loadouts, locker and backpack", async () => {
+    const r = (await callTool(await setup(), "journal_on_foot")).json as any;
+    expect(r).toMatchObject({
+      suits: [],
+      weapons: [],
+      suit_loadouts: [],
+      locker: null,
+      backpack: null,
+    });
+  });
+
   it("every state tool reports as_of, age_minutes and the stale warning", async () => {
     const c = await setup(true, undefined, at("2026-10-12T11:04:00Z"));
     for (const tool of [
       "journal_commander",
       "journal_materials",
+      "journal_on_foot",
       "journal_missions",
       "journal_engineers",
       "journal_exobiology",

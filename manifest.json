@@ -114,6 +114,10 @@
     },
     { "name": "journal_materials", "description": "Engineering materials held, from the journal" },
     {
+      "name": "journal_on_foot",
+      "description": "Suits, weapons, suit loadouts, ship locker and backpack, from the journal"
+    },
+    {
       "name": "journal_missions",
       "description": "Accepted missions (active and complete) from the journal"
     },

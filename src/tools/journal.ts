@@ -100,6 +100,33 @@ export function registerJournalTools(
   );
 
   server.registerTool(
+    "journal_on_foot",
+    {
+      annotations: {
+        title: "Journal On Foot",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      description:
+        "On-foot gear and resources from the local game journal: the suits (journal SuitID, type such as tacticalsuit for Dominator, grade, modifications) and weapons (SuitModuleID, type, name, grade, modifications) seen in the journal window, the suit loadouts (LoadoutID, name, suit, weapons by slot), and the ship locker and backpack (items, components, consumables, data, with counts; mission items left out). Use the IDs as suit_id, weapon_id and build.loadout_id in a suit loadout's build plan. A suit or weapon shows only once a buy, upgrade or loadout event names it, so gear not equipped lately can be missing. " +
+        FRESHNESS_TEXT,
+    },
+    wrap(async () => {
+      const s = await deps.journal.state();
+      return {
+        suits: s.suits,
+        weapons: s.weapons,
+        suit_loadouts: s.suit_loadouts,
+        locker: s.locker,
+        backpack: s.backpack,
+        ...freshness({ ...s, warnings: [...s.warnings, ...s.locker_warnings] }),
+      };
+    }),
+  );
+
+  server.registerTool(
     "journal_materials",
     {
       annotations: {
