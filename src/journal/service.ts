@@ -8,6 +8,7 @@ import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.j
 import { BODY_EVENTS } from "./bodies.js";
 import { LOCATION_EVENTS, matchFile, systemAt, type EventFilter } from "./events.js";
 import { MASSACRE_EVENTS } from "./massacre.js";
+import { ACTION_EVENTS } from "../plans/schema.js";
 
 export interface JournalStatus {
   dir: string;
@@ -47,6 +48,8 @@ export const BUILD_EVENTS: ReadonlySet<string> = new Set([
 export const KEPT_EVENTS: ReadonlySet<string> = new Set([
   ...STATE_EVENTS,
   ...BUILD_EVENTS,
+  // The events that finish a trade, mission or station action at a plan's stop.
+  ...Object.values(ACTION_EVENTS).flat(),
   ...BODY_EVENTS,
   ...MASSACRE_EVENTS,
 ]);

@@ -68,6 +68,8 @@ export type {
   PlanStopInput,
 } from "../plans/schema.js";
 export type { ActionPatch } from "../plans/store.js";
+// The journal events that finish each trade, mission and station action kind.
+export { ACTION_EVENTS } from "../plans/schema.js";
 
 export interface Stores {
   journal: JournalService;

@@ -29,6 +29,8 @@ describe("ed-mcp/journal", () => {
       "normaliseModule",
       "planTrades",
       "tradeRate",
+      "KEPT_EVENTS",
+      "ACTION_EVENTS",
     ]) {
       expect(lib, name).toHaveProperty(name);
     }
