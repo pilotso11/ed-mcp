@@ -97,6 +97,8 @@ const STATION_FILES = {
 type JournalSnapshot = JournalState & {
   age_minutes: number | null;
   warnings: string[];
+  /** About ShipLocker.json and Backpack.json only: for journal_on_foot, not every tool. */
+  locker_warnings: string[];
   loadout: JournalEvent | null;
   /** The kept events in the state window, oldest first. */
   events: JournalEvent[];
@@ -268,20 +270,27 @@ export class JournalService {
     this.reader.retain(found.files.map((f) => f.path));
     const state = buildState(events);
     const cargoEvent = events.findLast((e) => e.event === "Cargo")?.timestamp;
-    const cargo = await this.readCargoFile(dir, cargoEvent);
-    if (cargo) state.cargo = cargo;
-    const [locker, backpack] = await Promise.all([
+    const [cargo, locker, backpack] = await Promise.all([
+      this.readCargoFile(dir, cargoEvent),
       this.readLockerFile(dir, "ShipLocker.json", events, LOCKER_EVENTS),
       this.readLockerFile(dir, "Backpack.json", events, BACKPACK_EVENTS),
     ]);
+    if (cargo) state.cargo = cargo;
     state.locker = locker.value;
     state.backpack = backpack.value;
-    for (const w of [locker.warning, backpack.warning]) if (w) warnings.push(w);
+    const lockerWarnings = [locker.warning, backpack.warning].filter((w): w is string => !!w);
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
     const loadout = events.findLast((e) => e.event === "Loadout") ?? null;
-    return { ...state, age_minutes: ageMinutes, warnings, loadout, events };
+    return {
+      ...state,
+      age_minutes: ageMinutes,
+      warnings,
+      locker_warnings: lockerWarnings,
+      loadout,
+      events,
+    };
   }
 
   /**
@@ -361,9 +370,10 @@ export class JournalService {
     let text: string;
     try {
       text = await readFile(path.join(dir, name), "utf8");
-    } catch {
-      // Missing: no Odyssey, or never on foot.
-      return { value: null, warning: null };
+    } catch (err) {
+      // Missing: no Odyssey, or never on foot. Anything else (the game holding it) says so.
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return { value: null, warning: null };
+      return { value: null, warning: `${name} could not be read (${errText(err)})` };
     }
     let value: Locker | null;
     try {

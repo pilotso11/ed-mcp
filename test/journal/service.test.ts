@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { listJournals } from "../../src/journal/files.js";
@@ -104,7 +104,18 @@ describe("JournalService.state", () => {
       }),
     );
     const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
-    expect(s.warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
+    expect(s.locker_warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
+    // Only journal_on_foot shows it: the other tools' warnings stay clear.
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("warns about a locker file it cannot open, but not a missing one", async () => {
+    const dir = await folder();
+    // A folder in its place: not missing, but unreadable, as when the game holds the file.
+    await mkdir(path.join(dir, "ShipLocker.json"));
+    const s = await new JournalService(dir, { now: at("2026-10-12T10:06:00Z") }).state();
+    expect(s.locker).toBeNull();
+    expect(s.locker_warnings).toEqual([expect.stringMatching(/ShipLocker.json could not be read/)]);
   });
 
   it("warns about a stale Backpack.json, and one it cannot read", async () => {
@@ -121,7 +132,7 @@ describe("JournalService.state", () => {
     const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
     expect(s.locker).toBeNull();
     expect(s.backpack).not.toBeNull();
-    expect(s.warnings).toEqual([
+    expect(s.locker_warnings).toEqual([
       expect.stringMatching(/ShipLocker.json could not be read/),
       expect.stringMatching(/Backpack.json is older/),
     ]);

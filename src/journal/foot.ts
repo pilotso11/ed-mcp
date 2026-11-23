@@ -17,6 +17,8 @@ export interface Suit {
   id: number;
   /** The suit's journal name without its grade, lower case: "tacticalsuit" (Dominator). */
   type: string;
+  /** The game's name for the suit type: Dominator, Maverick, Artemis or Flight Suit. */
+  name: string | null;
   /** Its grade, 1 to 5, from the name's _classN, or an UpgradeSuit's Class. */
   grade: number | null;
   /** Its modifications, as suit_increasedammoreserves. */
@@ -89,6 +91,14 @@ export function suitType(name: string): { type: string; grade: number | null } {
     : { type: name.toLowerCase(), grade: null };
 }
 
+/** The suits' game names by journal type. */
+const SUIT_NAMES: Record<string, string> = {
+  tacticalsuit: "Dominator",
+  utilitysuit: "Maverick",
+  explorationsuit: "Artemis",
+  flightsuit: "Flight Suit",
+};
+
 const higher = (a: number | null, b: number | null) =>
   a === null ? b : b === null ? a : Math.max(a, b);
 
@@ -106,6 +116,8 @@ export class FootState {
     this.suits.set(id, {
       id,
       type,
+      // The journal's Name_Localised is often an unresolved $TacticalSuit_Class1_Name;.
+      name: SUIT_NAMES[type] ?? null,
       // Grades only go up: the higher of the name's and the one known.
       grade: higher(grade, old?.grade ?? null),
       mods: mods === undefined ? (old?.mods ?? []) : strs(mods),
@@ -156,7 +168,12 @@ export class FootState {
         const id = num(e.SuitID);
         if (id === null) break;
         this.suits.delete(id);
-        for (const l of this.loadouts.values()) if (l.suit_id === id) l.suit_id = null;
+        // A loadout with no suit is not whole any more.
+        for (const l of this.loadouts.values()) {
+          if (l.suit_id !== id) continue;
+          l.suit_id = null;
+          l.complete = false;
+        }
         break;
       }
       case "UpgradeSuit": {

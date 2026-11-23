@@ -121,7 +121,7 @@ export function registerJournalTools(
         suit_loadouts: s.suit_loadouts,
         locker: s.locker,
         backpack: s.backpack,
-        ...freshness(s),
+        ...freshness({ ...s, warnings: [...s.warnings, ...s.locker_warnings] }),
       };
     }),
   );

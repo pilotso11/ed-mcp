@@ -41,7 +41,7 @@ describe("FootState", () => {
       { event: "SellWeapon", SuitModuleID: 99, Name: "wpn_s_pistol_laser_sauto" },
     ]);
     expect(r.suits).toEqual([
-      { id: 11, type: "tacticalsuit", grade: 2, mods: ["suit_nightvision"] },
+      { id: 11, type: "tacticalsuit", name: "Dominator", grade: 2, mods: ["suit_nightvision"] },
     ]);
     expect(r.weapons).toEqual([
       { id: 21, type: "wpn_m_assaultrifle_kinetic_fauto", name: "Karma AR-50", grade: 2, mods: [] },
@@ -86,7 +86,13 @@ describe("FootState", () => {
       },
     ]);
     expect(r.suits).toEqual([
-      { id: 11, type: "tacticalsuit", grade: 3, mods: ["suit_increasedammoreserves"] },
+      {
+        id: 11,
+        type: "tacticalsuit",
+        name: "Dominator",
+        grade: 3,
+        mods: ["suit_increasedammoreserves"],
+      },
     ]);
     expect(r.weapons[0]).toMatchObject({ id: 21, grade: 4, mods: ["weapon_handling"] });
     expect(r.suit_loadouts).toEqual([
@@ -160,7 +166,7 @@ describe("FootState", () => {
       { event: "SellSuit", SuitID: 11, Name: "tacticalsuit_class3" },
     ]);
     expect(r.suit_loadouts).toEqual([
-      { id: 4001, name: "A", suit_id: null, weapons: [], complete: true },
+      { id: 4001, name: "A", suit_id: null, weapons: [], complete: false },
     ]);
   });
 
@@ -187,7 +193,9 @@ describe("FootState", () => {
         ModuleName: "wpn_z",
       },
     ]);
-    expect(named.suits).toEqual([{ id: 12, type: "utilitysuit", grade: 2, mods: [] }]);
+    expect(named.suits).toEqual([
+      { id: 12, type: "utilitysuit", name: "Maverick", grade: 2, mods: [] },
+    ]);
   });
 
   it("never lowers a grade", () => {
