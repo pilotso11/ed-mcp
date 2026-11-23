@@ -43,7 +43,8 @@ export const StopKind = z.enum([
 ]);
 export const StopStatus = z.enum(["todo", "done", "skipped"]);
 
-// What a build stop's actions are judged by (ED Chat's build panel reads them from the journal).
+// What a stop's actions are judged by: ED Chat reads them from the journal and ticks them off.
+// Each kind's fields and the journal events that finish it are in ACTION_KINDS_HELP below.
 export const ActionKind = z.enum([
   // At an outfitting station
   "buy_module",
@@ -74,7 +75,54 @@ export const ActionKind = z.enum([
   "trade_resource",
   "buy_resource",
   "collect_resource",
+  // At a market
+  "buy_commodity",
+  "sell_commodity",
+  // Missions, passengers and deliveries
+  "accept_mission",
+  "complete_mission",
+  "collect_cargo",
+  "deliver_cargo",
+  // At a station's contacts
+  "sell_data",
+  "redeem_vouchers",
+  // Station services
+  "refuel",
+  "repair",
+  "restock",
 ]);
+
+/**
+ * The journal events that finish each kind of trade, mission and station action: an action is
+ * done when one of them matches it (for a count, when the matches add up to it). Every one is in
+ * the journal reader's KEPT_EVENTS. The build kinds are in ED Chat's build panel spec.
+ */
+export const ACTION_EVENTS = {
+  buy_commodity: ["MarketBuy"],
+  sell_commodity: ["MarketSell"],
+  accept_mission: ["MissionAccepted"],
+  complete_mission: ["MissionCompleted"],
+  collect_cargo: ["CargoDepot"],
+  deliver_cargo: ["CargoDepot"],
+  sell_data: ["MultiSellExplorationData", "SellExplorationData", "SellOrganicData"],
+  redeem_vouchers: ["RedeemVoucher"],
+  refuel: ["RefuelAll", "RefuelPartial"],
+  repair: ["RepairAll", "Repair"],
+  restock: ["BuyAmmo"],
+} as const satisfies Partial<Record<z.infer<typeof ActionKind>, readonly string[]>>;
+
+const ACTION_KINDS_HELP =
+  "What the action is; each kind is judged by some fields, and done by journal events. " +
+  "Build kinds (buy_module, engineer, trade_material, collect_material and the rest) as in ED Chat's build panel. " +
+  "buy_commodity / sell_commodity: commodity, count (tonnes), price (planned unit price); done by MarketBuy / MarketSell " +
+  "events for that commodity (Type, or Type_Localised) whose Count adds up to count. " +
+  "accept_mission: mission (its name) or mission_id; done by MissionAccepted (Name or LocalisedName, MissionID). " +
+  "complete_mission: mission_id; done by MissionCompleted with that MissionID (passengers dropped, cargo delivered, a mission handed in). " +
+  "collect_cargo / deliver_cargo: mission_id, count (tonnes), commodity; done by CargoDepot events with that MissionID and " +
+  "UpdateType Collect / Deliver whose Count adds up to count. " +
+  "sell_data: data (exploration or organic); done by MultiSellExplorationData or SellExplorationData, or by SellOrganicData. " +
+  "redeem_vouchers: voucher (bounty or combat_bond); done by RedeemVoucher with Type bounty or CombatBond. " +
+  "refuel: done by RefuelAll or RefuelPartial. repair: done by RepairAll or Repair. restock (ammunition): done by BuyAmmo.";
 export const ActionStatus = z.enum(["todo", "done", "skipped"]);
 
 const count = z.number().int().positive();
@@ -114,8 +162,11 @@ const materialCount = z.object({ material: z.string().min(1), count });
 
 export const ActionSchema = z.object({
   id: z.string().min(1),
-  kind: ActionKind,
-  label: z.string().min(1).describe('What to do, e.g. "Roll FSD Increased Range to G5"'),
+  kind: ActionKind.describe(ACTION_KINDS_HELP),
+  label: z
+    .string()
+    .min(1)
+    .describe('What to do, e.g. "Roll FSD Increased Range to G5" or "Sell 720 t Gold"'),
   status: ActionStatus.default("todo"),
   done_by: z.array(DoneBySchema).optional(),
   // On foot: a plan-local key shared by a buy and the later actions for that suit or weapon.
@@ -146,6 +197,13 @@ export const ActionSchema = z.object({
   weapon_id: id.optional(),
   modification: z.string().min(1).optional(),
   resource: z.string().min(1).optional(),
+  // For trade, mission and station actions; added after the build kinds, so optional.
+  commodity: z.string().min(1).optional().describe("English commodity name, e.g. Gold"),
+  price: z.number().optional().describe("Planned unit price, in credits"),
+  mission_id: id.optional().describe("The journal MissionID"),
+  mission: z.string().min(1).optional().describe("The mission's name, before it has an ID"),
+  data: z.enum(["exploration", "organic"]).optional(),
+  voucher: z.enum(["bounty", "combat_bond"]).optional(),
   notes: z.string().optional(),
 });
 
@@ -197,14 +255,19 @@ export const StopSchema = z.object({
   label: z.string().min(1).optional(),
   kind: StopKind.optional(),
   after: z.array(z.string().min(1)).optional(),
-  // The journal mission IDs the stop serves, for a route saved by missions_plan.
+  // The journal mission IDs the stop serves, for a route saved by missions_plan. The same work is
+  // in actions; missions stays for ED Chat versions that read only it.
   missions: z.array(z.number().int()).optional(),
   // What to buy or sell at the stop, for a route saved by trade_route or trade_loops, so a panel
   // can check the hold against the plan. A stop that sells one load and buys the next lists the
-  // sale first.
+  // sale first. The same work is in actions; cargo stays for ED Chat versions that read only it.
   cargo: z.array(CargoSchema).optional(),
-  // What to do at a build stop, in the order it must be done.
-  actions: z.array(ActionSchema).optional(),
+  // What to do at the stop, in the order it must be done: for any plan, a build, a trade route,
+  // a mission run or one written by hand.
+  actions: z
+    .array(ActionSchema)
+    .optional()
+    .describe("What to do at the stop, in order; ED Chat ticks each off from the journal"),
   status: StopStatus.default("todo"),
   notes: z.string().optional(),
 });
@@ -232,6 +295,14 @@ export const PlanInputSchema = z.object({
   target_build: z.unknown().optional(),
   // For a build plan: what it builds and for which ship or suit loadout.
   build: BuildSchema.optional(),
+  // Stop actions count journal events after this time: a build's build.started_at comes first,
+  // and created_at stands in when both are missing. trade_route, trade_loops and missions_plan
+  // write it when they save, and a loop's next lap moves it on, so events of an earlier run or
+  // lap finish no action of this one.
+  started_at: z
+    .string()
+    .optional()
+    .describe("ISO time; stop actions count journal events after it (created_at when missing)"),
   items: z.array(PlanItemSchema).default([]),
   stops: z.array(StopSchema).default([]),
   route: PlanRouteSchema.optional(),
