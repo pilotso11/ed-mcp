@@ -4,6 +4,7 @@ import { NotConfiguredError, UserError } from "../errors.js";
 import { listJournals, type JournalFile } from "./files.js";
 import { JournalReader, type JournalEvent } from "./reader.js";
 import type { MarketRow } from "../spansh/client.js";
+import { mapLocker, type Locker } from "./foot.js";
 import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.js";
 import { BODY_EVENTS } from "./bodies.js";
 import { LOCATION_EVENTS, matchFile, systemAt, type EventFilter } from "./events.js";
@@ -38,11 +39,14 @@ const MEMO_MS = 1_000;
 const RAW_CACHE_FILES = 2;
 
 // Kept for build plans although journal state does not use them: a hull bought, redeemed or sent
-// for. The module and other shipyard events a build needs are state events.
+// for, and on foot a bartender trade or buy. The module, suit and weapon events a build needs are
+// state events.
 export const BUILD_EVENTS: ReadonlySet<string> = new Set([
   "ShipyardBuy",
   "ShipyardRedeem",
   "ShipyardTransfer",
+  "TradeMicroResources",
+  "BuyMicroResources",
 ]);
 
 export const KEPT_EVENTS: ReadonlySet<string> = new Set([
@@ -246,6 +250,8 @@ export class JournalService {
     const cargoEvent = events.findLast((e) => e.event === "Cargo")?.timestamp;
     const cargo = await this.readCargoFile(dir, cargoEvent);
     if (cargo) state.cargo = cargo;
+    state.locker = await this.readLockerFile(dir, "ShipLocker.json");
+    state.backpack = await this.readLockerFile(dir, "Backpack.json");
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));
@@ -313,6 +319,19 @@ export class JournalService {
       return mapCargo(j.Inventory);
     } catch {
       // Missing is normal; a half-written file is retried on the next call.
+      return null;
+    }
+  }
+
+  // The game rewrites these on every change to the ship locker or the backpack, with the whole
+  // list; their journal events repeat it (about 20 KB each), too often to keep.
+  private async readLockerFile(dir: string, name: string): Promise<Locker | null> {
+    try {
+      return mapLocker(
+        JSON.parse(await readFile(path.join(dir, name), "utf8")) as Record<string, unknown>,
+      );
+    } catch {
+      // Missing (no Odyssey) is normal; a half-written file is retried on the next call.
       return null;
     }
   }

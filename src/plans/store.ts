@@ -378,6 +378,39 @@ export class PlanStore {
   }
 
   /**
+   * Writes a bought suit's SuitID (suit_id) or weapon's SuitModuleID (weapon_id) into every action
+   * of the plan with that gear key, in one locked write, as after a buy_suit or buy_weapon is done.
+   * An action that has another ID already is left alone.
+   */
+  setGearId(
+    planId: string,
+    gear: string,
+    ids: { suit_id?: number; weapon_id?: number },
+  ): Promise<Plan> {
+    const bad = Object.entries(ids).find(([, v]) => v !== undefined && !Number.isInteger(v));
+    if (bad || (ids.suit_id === undefined) === (ids.weapon_id === undefined)) {
+      return Promise.reject(
+        new UserError(
+          "Give exactly one of suit_id (the journal SuitID) or weapon_id (SuitModuleID)",
+        ),
+      );
+    }
+    return this.mutate((data) => {
+      const plan = data.plans.find((x) => x.id === planId);
+      if (!plan) throw new UserError(`Plan "${planId}" not found`);
+      const actions = plan.stops.flatMap((st) => st.actions ?? []).filter((a) => a.gear === gear);
+      if (!actions.length)
+        throw new UserError(`Plan "${planId}" has no action with gear "${gear}"`);
+      for (const a of actions) {
+        if (ids.suit_id !== undefined && a.suit_id === undefined) a.suit_id = ids.suit_id;
+        if (ids.weapon_id !== undefined && a.weapon_id === undefined) a.weapon_id = ids.weapon_id;
+      }
+      plan.updated_at = this.now().toISOString();
+      return plan;
+    });
+  }
+
+  /**
    * Saves a computed route. With `stops`, the stops the route was computed from, it refuses when
    * the plan's stops have changed since, because the route's stop_indexes would point at others.
    */

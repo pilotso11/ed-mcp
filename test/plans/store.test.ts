@@ -1096,6 +1096,56 @@ describe("PlanStore build actions", () => {
     ).rejects.toThrow('two actions have the id "a"');
   });
 
+  it("writes a bought suit's or weapon's ID into every action with its gear key", async () => {
+    const s = new PlanStore(file, now);
+    const p = build();
+    p.build = { target: "suit_loadout", scope: "full" };
+    p.stops = [
+      {
+        system: "Sol",
+        purpose: "Gear",
+        actions: [
+          {
+            id: "buy",
+            kind: "buy_suit",
+            label: "Buy Dominator G3",
+            suit: "tacticalsuit",
+            grade: 3,
+            gear: "dom",
+          },
+          {
+            id: "up",
+            kind: "upgrade_suit",
+            label: "Upgrade Dominator to G4",
+            grade: 4,
+            gear: "dom",
+          },
+          {
+            id: "mine",
+            kind: "upgrade_suit",
+            label: "Upgrade Maverick",
+            grade: 4,
+            gear: "mav",
+            suit_id: 9,
+          },
+        ],
+      },
+    ] as never;
+    await s.upsert(p);
+    const out = await s.setGearId("python-mk2", "dom", { suit_id: 77 });
+    expect(out.stops[0]!.actions!.map((a) => a.suit_id)).toEqual([77, 77, 9]);
+    // An action with an ID already keeps it.
+    const again = await s.setGearId("python-mk2", "mav", { suit_id: 78 });
+    expect(again.stops[0]!.actions![2]!.suit_id).toBe(9);
+    await expect(s.setGearId("python-mk2", "none", { suit_id: 1 })).rejects.toThrow(
+      'no action with gear "none"',
+    );
+    await expect(s.setGearId("python-mk2", "dom", {})).rejects.toThrow("exactly one of suit_id");
+    await expect(s.setGearId("python-mk2", "dom", { suit_id: 1.5 })).rejects.toThrow(
+      "exactly one of suit_id",
+    );
+  });
+
   it("sets the build's ship once, unless told to change it", async () => {
     const s = new PlanStore(file, now);
     await s.upsert(build());

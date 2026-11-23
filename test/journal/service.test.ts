@@ -66,6 +66,27 @@ describe("JournalService.state", () => {
     expect(s.cargo).toEqual([{ name: "Silver", count: 1, stolen: false, mission_id: null }]);
   });
 
+  it("reads the ship locker and backpack from ShipLocker.json and Backpack.json", async () => {
+    const dir = await folder();
+    await writeFile(
+      path.join(dir, "ShipLocker.json"),
+      JSON.stringify({
+        timestamp: "2026-10-12T10:05:00Z",
+        event: "ShipLocker",
+        Items: [{ Name: "healthmonitor", Name_Localised: "Health Monitor", OwnerID: 0, Count: 2 }],
+        Components: [],
+        Consumables: [],
+        Data: [],
+      }),
+    );
+    const s = await new JournalService(dir, { now: at("2026-10-12T10:06:00Z") }).state();
+    expect(s.locker?.items).toEqual([
+      { name: "healthmonitor", name_localised: "Health Monitor", count: 2 },
+    ]);
+    // No Backpack.json (no Odyssey, say): null.
+    expect(s.backpack).toBeNull();
+  });
+
   it("works without Cargo.json", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "jnocargo-"));
     await writeJournal(dir, "Journal.2026-10-12T100000.01.log", [

@@ -142,11 +142,23 @@ describe("journal tools", () => {
     ]);
   });
 
+  it("journal_on_foot returns the suits, loadouts, locker and backpack", async () => {
+    const r = (await callTool(await setup(), "journal_on_foot")).json as any;
+    expect(r).toMatchObject({
+      suits: [],
+      weapons: [],
+      suit_loadouts: [],
+      locker: null,
+      backpack: null,
+    });
+  });
+
   it("every state tool reports as_of, age_minutes and the stale warning", async () => {
     const c = await setup(true, undefined, at("2026-10-12T11:04:00Z"));
     for (const tool of [
       "journal_commander",
       "journal_materials",
+      "journal_on_foot",
       "journal_missions",
       "journal_engineers",
       "journal_exobiology",
