@@ -90,7 +90,13 @@ describe("FootState", () => {
     ]);
     expect(r.weapons[0]).toMatchObject({ id: 21, grade: 4, mods: ["weapon_handling"] });
     expect(r.suit_loadouts).toEqual([
-      { id: 4001, name: "Combat", suit_id: 11, weapons: [{ slot: "PrimaryWeapon1", id: 21 }] },
+      {
+        id: 4001,
+        name: "Combat",
+        suit_id: 11,
+        weapons: [{ slot: "PrimaryWeapon1", id: 21 }],
+        complete: true,
+      },
     ]);
   });
 
@@ -119,7 +125,13 @@ describe("FootState", () => {
       { event: "RenameSuitLoadout", LoadoutID: 4001, LoadoutName: "B" },
     ]);
     expect(r.suit_loadouts).toEqual([
-      { id: 4001, name: "B", suit_id: 11, weapons: [{ slot: "SecondaryWeapon", id: 31 }] },
+      {
+        id: 4001,
+        name: "B",
+        suit_id: 11,
+        weapons: [{ slot: "SecondaryWeapon", id: 31 }],
+        complete: true,
+      },
     ]);
     expect(r.weapons[0]).toMatchObject({ id: 31, mods: ["weapon_range"] });
     const removed = run([
@@ -131,6 +143,53 @@ describe("FootState", () => {
     expect(run([loadout, { event: "DeleteSuitLoadout", LoadoutID: 4001 }]).suit_loadouts).toEqual(
       [],
     );
+  });
+
+  it("drops sold gear from the loadouts that had it", () => {
+    const create = {
+      event: "CreateSuitLoadout",
+      SuitID: 11,
+      SuitName: "tacticalsuit_class3",
+      LoadoutID: 4001,
+      LoadoutName: "A",
+      Modules: [{ SlotName: "PrimaryWeapon1", SuitModuleID: 21, ModuleName: "wpn_x", Class: 1 }],
+    };
+    const r = run([
+      create,
+      { event: "SellWeapon", SuitModuleID: 21, Name: "wpn_x" },
+      { event: "SellSuit", SuitID: 11, Name: "tacticalsuit_class3" },
+    ]);
+    expect(r.suit_loadouts).toEqual([
+      { id: 4001, name: "A", suit_id: null, weapons: [], complete: true },
+    ]);
+  });
+
+  it("marks a loadout seen only in part, as when only a weapon was equipped", () => {
+    const r = run([
+      {
+        event: "LoadoutEquipModule",
+        LoadoutID: 4002,
+        SlotName: "SecondaryWeapon",
+        SuitModuleID: 31,
+        ModuleName: "wpn_y",
+      },
+    ]);
+    expect(r.suit_loadouts[0]).toMatchObject({ suit_id: null, complete: false });
+  });
+
+  it("never lowers a grade", () => {
+    const r = run([
+      buySuit,
+      { event: "UpgradeSuit", Name: "tacticalsuit_class2", SuitID: 11, Class: 4 },
+      {
+        event: "SuitLoadout",
+        SuitID: 11,
+        SuitName: "tacticalsuit_class2",
+        LoadoutID: 1,
+        Modules: [],
+      },
+    ]);
+    expect(r.suits[0]!.grade).toBe(4);
   });
 
   it("is part of the journal state", () => {

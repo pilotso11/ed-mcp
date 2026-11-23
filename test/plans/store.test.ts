@@ -1128,12 +1128,17 @@ describe("PlanStore build actions", () => {
             gear: "mav",
             suit_id: 9,
           },
+          { id: "gun", kind: "buy_weapon", label: "Buy Karma AR-50", gear: "dom" },
         ],
       },
     ] as never;
     await s.upsert(p);
     const out = await s.setGearId("python-mk2", "dom", { suit_id: 77 });
-    expect(out.stops[0]!.actions!.map((a) => a.suit_id)).toEqual([77, 77, 9]);
+    // Only a suit's actions get the suit's ID: the weapon sharing the key waits for its own.
+    expect(out.stops[0]!.actions!.map((a) => a.suit_id)).toEqual([77, 77, 9, undefined]);
+    // Nothing left to write: the plan comes back unwritten.
+    const same = await s.setGearId("python-mk2", "dom", { suit_id: 80 });
+    expect(same.updated_at).toBe(out.updated_at);
     // An action with an ID already keeps it.
     const again = await s.setGearId("python-mk2", "mav", { suit_id: 78 });
     expect(again.stops[0]!.actions![2]!.suit_id).toBe(9);

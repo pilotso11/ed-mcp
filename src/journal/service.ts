@@ -252,6 +252,16 @@ export class JournalService {
     if (cargo) state.cargo = cargo;
     state.locker = await this.readLockerFile(dir, "ShipLocker.json");
     state.backpack = await this.readLockerFile(dir, "Backpack.json");
+    // Syncthing can deliver the logs before ShipLocker.json: a bartender trade or buy after it
+    // is not in its counts yet.
+    const lockerChange = events.findLast(
+      (e) => e.event === "TradeMicroResources" || e.event === "BuyMicroResources",
+    )?.timestamp;
+    if (state.locker?.as_of && lockerChange && state.locker.as_of < lockerChange) {
+      warnings.push(
+        "ShipLocker.json is older than the newest bartender trade or buy in the journal: its counts may not include it yet",
+      );
+    }
     const age = this.now() - Date.parse(state.as_of ?? "");
     const ageMinutes = Number.isNaN(age) ? null : Math.max(0, Math.round(age / 60_000));
     if (ageMinutes !== null && age > STALE_MS) warnings.push(staleWarning(ageMinutes));

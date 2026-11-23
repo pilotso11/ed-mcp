@@ -42,6 +42,11 @@ export interface SuitLoadout {
   suit_id: number | null;
   /** The weapons in it, by slot (PrimaryWeapon1, PrimaryWeapon2, SecondaryWeapon). */
   weapons: Array<{ slot: string; id: number }>;
+  /**
+   * False when no event in the journal window listed the whole loadout (only a weapon equipped,
+   * removed or a rename): its suit and weapons may be missing.
+   */
+  complete: boolean;
 }
 
 export interface MicroResource {
@@ -84,6 +89,9 @@ export function suitType(name: string): { type: string; grade: number | null } {
     : { type: name.toLowerCase(), grade: null };
 }
 
+const higher = (a: number | null, b: number | null) =>
+  a === null ? b : b === null ? a : Math.max(a, b);
+
 export class FootState {
   private readonly suits = new Map<number, Suit>();
   private readonly weapons = new Map<number, Weapon>();
@@ -98,7 +106,8 @@ export class FootState {
     this.suits.set(id, {
       id,
       type,
-      grade: grade ?? old?.grade ?? null,
+      // Grades only go up: the higher of the name's and the one known.
+      grade: higher(grade, old?.grade ?? null),
       mods: mods === undefined ? (old?.mods ?? []) : strs(mods),
     });
   }
@@ -112,7 +121,7 @@ export class FootState {
       id,
       type: type.toLowerCase(),
       name: str(m.ModuleName_Localised) ?? str(m.Name_Localised) ?? old?.name ?? null,
-      grade: num(m.Class) ?? old?.grade ?? null,
+      grade: higher(num(m.Class), old?.grade ?? null),
       mods: m.WeaponMods === undefined ? (old?.mods ?? []) : strs(m.WeaponMods),
     });
   }
@@ -132,6 +141,7 @@ export class FootState {
             return slot && w !== null ? [{ slot, id: w }] : [];
           })
         : (old?.weapons ?? []),
+      complete: !!modules || (old?.complete ?? false),
     };
     this.loadouts.set(id, out);
     return out;
@@ -144,7 +154,9 @@ export class FootState {
         break;
       case "SellSuit": {
         const id = num(e.SuitID);
-        if (id !== null) this.suits.delete(id);
+        if (id === null) break;
+        this.suits.delete(id);
+        for (const l of this.loadouts.values()) if (l.suit_id === id) l.suit_id = null;
         break;
       }
       case "UpgradeSuit": {
@@ -161,7 +173,9 @@ export class FootState {
         break;
       case "SellWeapon": {
         const id = num(e.SuitModuleID);
-        if (id !== null) this.weapons.delete(id);
+        if (id === null) break;
+        this.weapons.delete(id);
+        for (const l of this.loadouts.values()) l.weapons = l.weapons.filter((w) => w.id !== id);
         break;
       }
       case "UpgradeWeapon":

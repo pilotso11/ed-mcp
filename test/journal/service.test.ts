@@ -85,6 +85,26 @@ describe("JournalService.state", () => {
     ]);
     // No Backpack.json (no Odyssey, say): null.
     expect(s.backpack).toBeNull();
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("warns when ShipLocker.json is older than a bartender trade in the journal", async () => {
+    const dir = await folder();
+    await writeJournal(dir, "Journal.2026-10-12T110000.01.log", [
+      ev("2026-10-12T11:00:00Z", "TradeMicroResources", { Received: "healthmonitor", Count: 1 }),
+    ]);
+    await writeFile(
+      path.join(dir, "ShipLocker.json"),
+      JSON.stringify({
+        timestamp: "2026-10-12T10:05:00Z",
+        Items: [],
+        Components: [],
+        Consumables: [],
+        Data: [],
+      }),
+    );
+    const s = await new JournalService(dir, { now: at("2026-10-12T11:01:00Z") }).state();
+    expect(s.warnings).toEqual([expect.stringMatching(/ShipLocker.json is older/)]);
   });
 
   it("works without Cargo.json", async () => {

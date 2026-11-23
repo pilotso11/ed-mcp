@@ -45,6 +45,10 @@ export class PlanExistsError extends UserError {
   }
 }
 
+/** The action kinds of a suit, and of a weapon: setGearId() writes each its own ID. */
+const SUIT_KINDS = new Set<string>(["buy_suit", "upgrade_suit", "modify_suit"]);
+const WEAPON_KINDS = new Set<string>(["buy_weapon", "upgrade_weapon", "modify_weapon"]);
+
 export class PlanStore {
   private lastCopyError: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -379,32 +383,42 @@ export class PlanStore {
 
   /**
    * Writes a bought suit's SuitID (suit_id) or weapon's SuitModuleID (weapon_id) into every action
-   * of the plan with that gear key, in one locked write, as after a buy_suit or buy_weapon is done.
-   * An action that has another ID already is left alone.
+   * of that gear key and of a suit's (or a weapon's) kind, in one locked write, as after a buy_suit
+   * or buy_weapon is done. An action that has an ID already is left alone; with nothing to write,
+   * the file is not written.
    */
-  setGearId(
+  async setGearId(
     planId: string,
     gear: string,
     ids: { suit_id?: number; weapon_id?: number },
   ): Promise<Plan> {
-    const bad = Object.entries(ids).find(([, v]) => v !== undefined && !Number.isInteger(v));
-    if (bad || (ids.suit_id === undefined) === (ids.weapon_id === undefined)) {
-      return Promise.reject(
-        new UserError(
-          "Give exactly one of suit_id (the journal SuitID) or weapon_id (SuitModuleID)",
-        ),
+    const { suit_id, weapon_id } = ids;
+    const valid = (v: number | undefined) => v === undefined || Number.isInteger(v);
+    if (
+      (suit_id === undefined) === (weapon_id === undefined) ||
+      !valid(suit_id) ||
+      !valid(weapon_id)
+    ) {
+      throw new UserError(
+        "Give exactly one of suit_id (the journal SuitID) or weapon_id (SuitModuleID), a whole number",
       );
     }
+    const field = suit_id !== undefined ? "suit_id" : "weapon_id";
+    const id = (suit_id ?? weapon_id)!;
+    const kinds = field === "suit_id" ? SUIT_KINDS : WEAPON_KINDS;
+    const gearActions = (plan: Plan) =>
+      plan.stops.flatMap((st) => st.actions ?? []).filter((a) => a.gear === gear);
+    const toWrite = (plan: Plan) =>
+      gearActions(plan).filter((a) => kinds.has(a.kind) && a[field] === undefined);
+    const now = await this.get(planId);
+    if (!gearActions(now).length) {
+      throw new UserError(`Plan "${planId}" has no action with gear "${gear}"`);
+    }
+    if (!toWrite(now).length) return now;
     return this.mutate((data) => {
       const plan = data.plans.find((x) => x.id === planId);
       if (!plan) throw new UserError(`Plan "${planId}" not found`);
-      const actions = plan.stops.flatMap((st) => st.actions ?? []).filter((a) => a.gear === gear);
-      if (!actions.length)
-        throw new UserError(`Plan "${planId}" has no action with gear "${gear}"`);
-      for (const a of actions) {
-        if (ids.suit_id !== undefined && a.suit_id === undefined) a.suit_id = ids.suit_id;
-        if (ids.weapon_id !== undefined && a.weapon_id === undefined) a.weapon_id = ids.weapon_id;
-      }
+      for (const a of toWrite(plan)) a[field] = id;
       plan.updated_at = this.now().toISOString();
       return plan;
     });
