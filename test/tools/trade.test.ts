@@ -984,7 +984,7 @@ describe("trade_route save_to_plan", () => {
         stop.label,
       ).toEqual(stop.cargo!.map((c) => [`${c.action}_commodity`, c.commodity, c.amount, c.price]));
     }
-    // The tool's clock: actions count journal events from the save on.
+    // The store's clock: actions count journal events from the save on.
     expect(plan.started_at).toBe(new Date(NOW).toISOString());
     expect(plan.stops.every((x) => x.status === "todo")).toBe(true);
     expect(await s.activity.get()).toMatchObject({

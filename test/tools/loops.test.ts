@@ -901,18 +901,8 @@ describe("trade_loops save_to_plan", () => {
           { commodity: "Tea", action: "sell", amount: 100, price: 500 },
           { commodity: "Gold", action: "buy", amount: 100, price: 100 },
         ],
-        // The same in actions; the first lap has nothing to sell, so the sale starts skipped.
+        // The same in actions, but the first lap has nothing to sell, so the sale has none.
         actions: [
-          {
-            id: "sell-tea",
-            kind: "sell_commodity",
-            label: "Sell 100 t Tea",
-            status: "skipped",
-            commodity: "Tea",
-            count: 100,
-            price: 500,
-            notes: "Nothing to sell on the first lap",
-          },
           {
             id: "buy-gold",
             kind: "buy_commodity",
@@ -958,8 +948,17 @@ describe("trade_loops save_to_plan", () => {
         status: "todo",
       },
     ]);
-    // Its actions count journal events from the save on.
-    expect(Math.abs(Date.parse(plan.started_at!) - Date.now())).toBeLessThan(60_000);
+    // Its actions count journal events from the save on, by the store's clock.
+    expect(plan.started_at).toBe("2026-11-22T12:00:00.000Z");
+    // The next lap adds the first stop's sale, before its buy.
+    await s.plans.updateStop("trade", { index: 0 }, { status: "done" });
+    const lap2 = await s.plans.updateStop("trade", { index: 1 }, { status: "done" });
+    expect(lap2.lap).toBe(2);
+    expect(lap2.stops[0]!.actions!.map((a) => [a.id, a.kind, a.status, a.count])).toEqual([
+      ["sell-tea", "sell_commodity", "todo", 100],
+      ["buy-gold", "buy_commodity", "todo", 100],
+    ]);
+    expect(lap2.stops[1]!.actions).toHaveLength(2);
     expect(j.notes).toContain(
       "On the first lap there is nothing to sell at Start Port; buy there and go on.",
     );
@@ -985,7 +984,7 @@ describe("trade_loops save_to_plan", () => {
       ["Sell 100 t Gold", [{ commodity: "Gold", action: "sell", amount: 100, price: 150 }]],
     ]);
     expect(j.notes.some((n: string) => n.startsWith("On the first lap"))).toBe(false);
-    // No sale at the first stop, so no action starts skipped.
+    // No sale at the first stop, so every cargo row has its action.
     expect(plan.stops.flatMap((x) => x.actions ?? []).map((a) => [a.kind, a.status])).toEqual([
       ["buy_commodity", "todo"],
       ["sell_commodity", "todo"],
@@ -1005,10 +1004,20 @@ describe("trade_loops save_to_plan", () => {
     const next = await s.plans.updateStop("gold", { index: 1 }, { status: "done" });
     expect(next.lap).toBe(2);
     expect(next.stops.map((x) => x.status)).toEqual(["todo", "todo"]);
-    // The actions start again too, with no events claimed, from the new lap's start.
+    // The actions start again too, with no events claimed. The new lap starts after the
+    // newest event the last lap claimed, not when its last stop was marked done.
     expect(next.stops[0]!.actions![0]).toMatchObject({ status: "todo" });
     expect(next.stops[0]!.actions![0]!.done_by).toBeUndefined();
-    expect(next.started_at).toBe("2026-11-22T12:00:00.000Z");
+    expect(next.started_at).toBe("2026-11-23T10:00:00Z");
+    // A lap with no claimed event starts when it is finished.
+    await s.plans.updateStop("gold", { index: 0 }, { status: "done" });
+    const third = await s.plans.updateStop("gold", { index: 1 }, { status: "done" });
+    expect(third.lap).toBe(3);
+    expect(third.started_at).toBe("2026-11-22T12:00:00.000Z");
+    // A rename through plan_upsert, without started_at, keeps it.
+    const { created_at: _c, updated_at: _u, ...input } = third;
+    const { started_at: _s, ...renamed } = { ...input, name: "Gold loop" };
+    expect((await s.plans.upsert(renamed)).started_at).toBe("2026-11-22T12:00:00.000Z");
   });
 
   it("saves nothing without a loop, and keeps the loops when the save fails", async () => {

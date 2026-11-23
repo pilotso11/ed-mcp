@@ -148,9 +148,9 @@ export function registerLoopTools(
             "trade), replacing it, with repeat: true and lap 1: one stop per station in loop order, kind trade, " +
             "with actions (sell_commodity for what the last leg brought, then buy_commodity for the next leg, " +
             "with count in tonnes and the planned unit price; the same as a cargo list too; the first stop's " +
-            "sales start skipped, as the first lap has bought nothing) and a purpose such as " +
+            "sales have no action on the first lap, which has bought nothing) and a purpose such as " +
             '"Sell 720 t Gold, then buy 720 t Silver". Marking the last open stop done starts the next lap, ' +
-            "with every stop and action back to todo. It also becomes the activity note's plan (kind trading), " +
+            "with every stop and action back to todo and the first stop's sales added. It also becomes the activity note's plan (kind trading), " +
             "so the ED Chat panel follows it. The result then has saved and plan_id; a failed save is reported " +
             "in notes."
           : ""),
@@ -567,7 +567,6 @@ export function registerLoopTools(
               name: loopName(visits),
               visits,
               repeat: true,
-              savedAt: new Date(now()).toISOString(),
               pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
               // The loops are ranked by it, and it counts only the laps the market supports.
               profitPerHour: out.sustained_per_hour,

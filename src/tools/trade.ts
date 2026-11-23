@@ -323,7 +323,6 @@ export function registerTradeTools(
                   false,
                 ),
                 repeat: false,
-                savedAt: new Date(now()).toISOString(),
                 pricesAt: oldest === null ? null : new Date(oldest).toISOString(),
                 profitPerHour: mapped.profit_per_hour,
                 notes:

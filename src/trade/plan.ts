@@ -1,5 +1,5 @@
-import type { ActionInput, Cargo, PlanStopInput } from "../plans/schema.js";
-import { slug, uniqueIds } from "../plans/actions.js";
+import type { Cargo, PlanStopInput } from "../plans/schema.js";
+import { cargoAction, uniqueIds } from "../plans/actions.js";
 
 /** One station visit of a trade run, with what to sell there and then what to buy. */
 export interface TradeVisit {
@@ -76,7 +76,8 @@ export function visitPurpose(v: TradeVisit): string {
  * Each stop says what to do twice: as cargo, which ED Chat versions before stop actions read, and
  * as actions (buy_commodity, sell_commodity), which ED Chat ticks off from MarketBuy and MarketSell.
  * Keep both. In a loop the first stop sells the last leg's load, which the first lap has not
- * bought: those sales start skipped, and the next lap sets them back to todo.
+ * bought: those sales have no action on the first lap (a stop left with none is marked done by
+ * the route key), and the store adds them when the next lap starts.
  */
 export function tradeStops(visits: TradeVisit[], opts: { loop?: boolean } = {}): PlanStopInput[] {
   const seen = new Map<string, number>();
@@ -87,17 +88,8 @@ export function tradeStops(visits: TradeVisit[], opts: { loop?: boolean } = {}):
       ...v.buy.map((r) => ({ commodity: r.commodity, action: "buy" as const, ...amount(r) })),
     ];
     const firstLap = opts.loop && k === 0;
-    const actions: ActionInput[] = uniqueIds(
-      cargo.map((c) => ({
-        id: `${c.action}-${slug(c.commodity)}`,
-        kind: c.action === "buy" ? ("buy_commodity" as const) : ("sell_commodity" as const),
-        label: `${c.action === "buy" ? "Buy" : "Sell"} ${c.amount} t ${c.commodity}`,
-        status: firstLap && c.action === "sell" ? ("skipped" as const) : ("todo" as const),
-        commodity: c.commodity,
-        count: c.amount,
-        ...(c.price !== undefined ? { price: c.price } : {}),
-        ...(firstLap && c.action === "sell" ? { notes: "Nothing to sell on the first lap" } : {}),
-      })),
+    const actions = uniqueIds(
+      cargo.filter((c) => !(firstLap && c.action === "sell")).map(cargoAction),
     );
     // The place tells apart stops with the same task, as missions_plan's labels do.
     const base = cargo.length ? `${purpose} at ${v.station}` : `Pass through ${v.station}`;
@@ -109,7 +101,8 @@ export function tradeStops(visits: TradeVisit[], opts: { loop?: boolean } = {}):
       purpose,
       label: n > 1 ? `${base} (${n})` : base,
       kind: "trade",
-      ...(cargo.length ? { cargo, actions } : {}),
+      ...(cargo.length ? { cargo } : {}),
+      ...(actions.length ? { actions } : {}),
       status: "todo",
     };
   });

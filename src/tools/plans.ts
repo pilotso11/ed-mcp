@@ -110,11 +110,11 @@ export function registerPlanTools(
         'a mission stop: [{kind: "deliver_cargo", mission_id, count: 72}, {kind: "complete_mission", mission_id}]; ' +
         'a build stop: [{kind: "buy_module", module}, {kind: "engineer", slot, blueprint, grade}]; ' +
         'any stop: [{kind: "sell_data", data: "organic"}, {kind: "redeem_vouchers", voucher: "bounty"}, {kind: "refuel"}]. ' +
-        "started_at is the time from which actions count journal events (created_at when missing). " +
+        "started_at is the time from which actions count journal events (created_at when missing; an action's own started_at comes first). " +
         "A build plan has build (target ship or suit_loadout, scope full or upgrade, ship type, ship_id from journal_commander's ship.id for a ship the player owns, summary, rolls_per_grade), and its actions can have needs (materials and credits). " +
         "A plan with repeat: true is a loop: when every stop is done or skipped, all go back to todo and lap counts up. " +
         "A plan saved by trade_route or trade_loops also has prices_at (ISO time of the oldest market data behind the prices) and profit_per_hour (planned credits an hour); when you replace such a plan, keep repeat and lap; keep prices_at and profit_per_hour for a rename or a notes edit, but drop them when you change the stops or cargo they were worked out from. " +
-        "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at.",
+        "Without a saved route, the order of stops is the visiting order; route is the order route_stops saved. Replacing keeps created_at, and keeps started_at unless the plan gives one: leave it out for a rename or a notes edit, so a loop's earlier laps do not count again.",
       inputSchema: { plan: PlanInputSchema },
     },
     wrapWarn(
@@ -190,7 +190,7 @@ export function registerPlanTools(
         "With action (an action id at that stop), the status and/or notes are set on that action instead of the stop, and the stop is left as it is; " +
         "an action set back to todo loses its done_by, the journal events ED Chat counted for it. " +
         "Use it to tick off one step of any plan (a trade such as sell-gold, a mission such as complete-123, a build step) that ED Chat could not see done. " +
-        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all and their actions back to todo, moves started_at to now and adds 1 to lap; " +
+        "In a plan with repeat: true, the update that finishes the last open stop (leaving every stop done or skipped, at least one done) sets them all and their actions back to todo, moves started_at to the newest journal event the lap claimed (now when none) and adds 1 to lap; " +
         "the result then has lap_completed (the lap just finished) and a message saying so. Do not repeat the call: the stop was updated.",
       inputSchema: {
         plan_id: z.string(),

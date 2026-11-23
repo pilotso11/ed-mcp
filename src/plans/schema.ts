@@ -197,6 +197,12 @@ export const ActionSchema = z.object({
   weapon_id: id.optional(),
   modification: z.string().min(1).optional(),
   resource: z.string().min(1).optional(),
+  // ISO time: this action counts journal events after it, in place of the plan's start, for an
+  // action added to a plan already under way (missions_plan's new stops).
+  started_at: z
+    .string()
+    .optional()
+    .describe("ISO time; this action counts journal events after it (the plan's when missing)"),
   // For trade, mission and station actions; added after the build kinds, so optional.
   commodity: z.string().min(1).optional().describe("English commodity name, e.g. Gold"),
   price: z.number().optional().describe("Planned unit price, in credits"),
@@ -295,10 +301,10 @@ export const PlanInputSchema = z.object({
   target_build: z.unknown().optional(),
   // For a build plan: what it builds and for which ship or suit loadout.
   build: BuildSchema.optional(),
-  // Stop actions count journal events after this time: a build's build.started_at comes first,
-  // and created_at stands in when both are missing. trade_route, trade_loops and missions_plan
-  // write it when they save, and a loop's next lap moves it on, so events of an earlier run or
-  // lap finish no action of this one.
+  // Stop actions count journal events after this time: an action's own started_at comes first,
+  // then build.started_at, then this, and created_at stands in when all are missing. trade_route
+  // and trade_loops write it when they save, and a loop's next lap moves it on, so events of an
+  // earlier run or lap finish no action of this one. Replacing a plan keeps it unless given.
   started_at: z
     .string()
     .optional()

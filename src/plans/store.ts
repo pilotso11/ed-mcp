@@ -23,6 +23,7 @@ import {
   type PlanStopInput,
 } from "./schema.js";
 import { findStop, nextStop, placeKey, type NextStop } from "./stops.js";
+import { actionsForCargo } from "./actions.js";
 
 export interface PlanSummary {
   id: string;
@@ -108,13 +109,18 @@ export class PlanStore {
 
   /**
    * Creates or replaces a plan in one locked write, and returns the plan it replaced, if any, as
-   * it was before.
+   * it was before. With restart, the plan's started_at is now, by the store's clock, so its
+   * actions count only the journal events after the write.
    */
-  replace(input: PlanInput): Promise<{ plan: Plan; previous: Plan | null }> {
+  replace(
+    input: PlanInput,
+    opts: { restart?: boolean } = {},
+  ): Promise<{ plan: Plan; previous: Plan | null }> {
     return this.mutate((data) => {
       const previous = data.plans.find((p) => p.id === input.id) ?? null;
+      const start = opts.restart ? { started_at: this.now().toISOString() } : {};
       // put() stores a new object, so previous stays as it was.
-      return { plan: this.put(data, input), previous };
+      return { plan: this.put(data, { ...input, ...start }), previous };
     });
   }
 
@@ -129,8 +135,12 @@ export class PlanStore {
     const stamp = this.now().toISOString();
     const idx = data.plans.findIndex((p) => p.id === parsed.data.id);
     const old = idx >= 0 ? data.plans[idx]! : undefined;
+    // A replacement without started_at keeps the old plan's, as it keeps created_at: a rename
+    // must not let a loop's earlier laps count for the lap under way.
+    const startedAt = parsed.data.started_at ?? old?.started_at;
     const plan: Plan = cleanRoute({
       ...parsed.data,
+      ...(startedAt ? { started_at: startedAt } : {}),
       created_at: old ? old.created_at : stamp,
       updated_at: stamp,
     });
@@ -244,16 +254,31 @@ export class PlanStore {
         plan.stops.every(finished) &&
         plan.stops.some((s) => s.status === "done")
       ) {
+        // The next lap starts after the newest event the lap just run claimed, or now when it
+        // claimed none: a sale at the first stop made before the last stop was marked done
+        // still counts for the new lap, and the events of the old lap do not.
+        const claimed = plan.stops
+          .flatMap((s) => s.actions ?? [])
+          .flatMap((a) => a.done_by ?? [])
+          .map((d) => d.at)
+          .filter((at) => !Number.isNaN(Date.parse(at)))
+          .sort((a, b) => Date.parse(a) - Date.parse(b));
+        plan.started_at = claimed.at(-1) ?? this.now().toISOString();
         for (const s of plan.stops) {
           s.status = "todo";
-          // The actions too, with no events claimed: the next lap does them again.
+          // A trade stop gets an action for each cargo row, such as the first stop's sales,
+          // which the first lap of a loop leaves out.
+          if (s.kind === "trade" && s.cargo?.length) {
+            s.actions = actionsForCargo(s.cargo, s.actions ?? []);
+          }
+          // The actions too, with no events claimed: the next lap does them again. An action's
+          // own start would keep the next lap's events from counting.
           for (const a of s.actions ?? []) {
             a.status = "todo";
             delete a.done_by;
+            delete a.started_at;
           }
         }
-        // So the events of the lap just run finish no action of the next one.
-        plan.started_at = this.now().toISOString();
         lapCompleted = plan.lap ?? 1;
         plan.lap = lapCompleted + 1;
       }

@@ -384,7 +384,7 @@ describe("PlanInputSchema trade, mission and station actions", () => {
     { id: "vb", kind: "sell_data", label: "Sell organic data", data: "organic" },
     { id: "bv", kind: "redeem_vouchers", label: "Redeem bounties", voucher: "bounty" },
     { id: "cb", kind: "redeem_vouchers", label: "Redeem combat bonds", voucher: "combat_bond" },
-    { id: "f", kind: "refuel", label: "Refuel" },
+    { id: "f", kind: "refuel", label: "Refuel", started_at: "2026-11-23T10:05:00Z" },
     { id: "r", kind: "repair", label: "Repair" },
     { id: "a", kind: "restock", label: "Restock ammunition" },
   ];

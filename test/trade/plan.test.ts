@@ -77,17 +77,25 @@ describe("tradeStops", () => {
     expect(stop!.cargo!.map((c) => c.action)).toEqual(["sell", "sell", "buy"]);
   });
 
-  it("starts a loop's first sales skipped, since the first lap has bought nothing", () => {
+  it("leaves a loop's first sales out of its actions, since the first lap has bought nothing", () => {
     const stops = tradeStops(
       [visit("A", { sell: [tea], buy: [gold] }), visit("B", { sell: [gold], buy: [tea] })],
       { loop: true },
     );
     expect(stops.map((s) => s.actions!.map((a) => `${a.id}:${a.status}`))).toEqual([
-      ["sell-tea:skipped", "buy-gold:todo"],
+      ["buy-gold:todo"],
       ["sell-gold:todo", "buy-tea:todo"],
     ]);
-    // A route, not a loop: nothing starts skipped.
-    expect(tradeStops([visit("A", { sell: [tea] })])[0]!.actions![0]!.status).toBe("todo");
+    // The cargo still lists the sale, for the next lap.
+    expect(stops[0]!.cargo!.map((c) => c.action)).toEqual(["sell", "buy"]);
+    // A first stop that only sells has no actions on the first lap.
+    const [only] = tradeStops([visit("A", { sell: [tea] }), visit("B", { buy: [tea] })], {
+      loop: true,
+    });
+    expect(only!.cargo).toHaveLength(1);
+    expect(only!.actions).toBeUndefined();
+    // A route, not a loop: the first stop's sales have actions.
+    expect(tradeStops([visit("A", { sell: [tea] })])[0]!.actions![0]!.kind).toBe("sell_commodity");
   });
 });
 
