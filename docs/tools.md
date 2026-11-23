@@ -117,6 +117,16 @@ next stop and copies its system when you arrive. Each stop is one station, with 
 do there ("Drop 6 passengers (2 VIP) · deliver 32 t Gold · hand in 1 mission") and `missions`, the
 journal mission IDs it serves. A `return_to` stop is in the route, not the stops.
 
+Each stop also has `actions`, which ED Chat ticks off from the journal: a `deliver_cargo` for each
+delivery to the station's cargo depot (with `mission_id`, `commodity` and `count`), then a
+`complete_mission` for each mission (passengers dropped, a delivery or a sourced commodity handed
+in, a finished mission handed in). A stop with a mission that the journal cannot show done there
+gets no actions, so ED Chat does not mark it done without that mission: an active massacre or
+assassination mission, or a commodity mission with no station to deliver to, such as on-foot
+salvage. The plan's `started_at` is the
+time of the save. A stop that keeps its mark (see below) also keeps the status and `done_by` of its
+actions.
+
 Saving replaces the plan's mission stops (those listing their missions) and its route, and keeps
 everything else: stops you made by hand stay as they are, after the mission stops, outside the
 route. A mission run is not a loop, so it drops `repeat`, `lap`, `prices_at` and `profit_per_hour` from a plan saved
@@ -198,14 +208,15 @@ Assumptions and limits:
 A plan is a ship build, a route, or both. For example: system X, planet Y for bios, then planet Z, then station A to hand in.
 
 - `items`: things to buy, engineer, unlock, gather or trade, and refits. Each has a `status`: `todo`, `in_progress`, `done` or `skipped`.
-- `stops`: places to visit. A stop has a `system`, a `purpose`, and optionally a `station`, a `body` (planet or moon), a `position` on the body (`latitude` and `longitude` in degrees, normally with the `body` it is on; a stop without one still loads), a `label`, a `kind`, `after` rules, `notes`, `missions` (journal mission IDs, for stops saved by `missions_plan`), `cargo` and `actions`. The ED Chat activity panel saves surface bookmarks as stops with a position in the plan `bookmarks`. The kinds are `shop`, `trader`, `engineer`, `exobiology`, `exploration`, `combat`, `mission`, `hand_in`, `trade`, `mining`, `fuel`, `gather` (a place to collect materials, with the site in `notes`), `pioneer` (Pioneer Supplies), `bartender` and `other`. Each stop has a `status`: `todo` (the default), `done` or `skipped`.
-- `cargo`: what to buy or sell at a stop, for example from `trade_route` or `trade_loops` with `save_to_plan`. Each entry has a `commodity` (the English name, for example Gold), an `action` (`buy` or `sell`), an `amount` in tonnes, and optionally the planned unit `price` and a `mission_id`. A stop that sells one load and buys the next lists the sale first.
+- `stops`: places to visit. A stop has a `system`, a `purpose`, and optionally a `station`, a `body` (planet or moon), a `position` on the body (`latitude` and `longitude` in degrees, normally with the `body` it is on; a stop without one still loads), a `label`, a `kind`, `after` rules, `notes`, `actions` (what to do there, below), and for older ED Chat versions `missions` (journal mission IDs, for stops saved by `missions_plan`) and `cargo`. The ED Chat activity panel saves surface bookmarks as stops with a position in the plan `bookmarks`. The kinds are `shop`, `trader`, `engineer`, `exobiology`, `exploration`, `combat`, `mission`, `hand_in`, `trade`, `mining`, `fuel`, `gather` (a place to collect materials, with the site in `notes`), `pioneer` (Pioneer Supplies), `bartender` and `other`. Each stop has a `status`: `todo` (the default), `done` or `skipped`.
+- `cargo`: what to buy or sell at a stop, for example from `trade_route` or `trade_loops` with `save_to_plan`. Each entry has a `commodity` (the English name, for example Gold), an `action` (`buy` or `sell`), an `amount` in tonnes, and optionally the planned unit `price` and a `mission_id`. A stop that sells one load and buys the next lists the sale first. The same trades are in the stop's `actions`; the trade tools write both, so that ED Chat versions from before actions keep working.
 - `build`: for a build plan, what it builds. `target` is `ship` or `suit_loadout`, and `scope` is `full` or `upgrade` (some slots of the current ship). Optional: `ship` (the journal ship type, such as `python_nx`), `ship_id` (the journal `ShipID`; `journal_commander` gives the current ship's as `ship.id`, and after a hull purchase ED Chat writes the new ship's), `loadout_id` (on foot, the suit loadout's `LoadoutID`), `started_at` (an ISO time: actions count journal events after it; the plan's `created_at` when missing), `summary` (one line of the target) and `rolls_per_grade` (five whole numbers, the rolls for grades 1 to 5; `[1, 2, 3, 4, 5]` when missing). Keep the target's SLEF in `target_build`.
-- `actions`: what to do at a build stop, in the order to do it. ED Chat's build panel ticks each one off when the journal shows it done. Each action has an `id` (unique in its stop), a `kind`, a `label` (such as "Roll FSD Increased Range to G5") and a `status` (`todo`, the default, `done` or `skipped`). Optional:
+- `started_at`: an ISO time. Stop actions count only the journal events after it: a build plan's `build.started_at` first, then this, then the plan's `created_at`. `trade_route`, `trade_loops` and `missions_plan` set it when they save, and the next lap of a loop moves it on, so the events of an earlier run or lap do not finish an action of this one.
+- `actions`: what to do at a stop, in the order to do it, for any plan: a build, a trade route, a mission run or a plan written by hand. ED Chat ticks each one off when the journal shows it done. Each action has an `id` (unique in its stop), a `kind`, a `label` (such as "Roll FSD Increased Range to G5") and a `status` (`todo`, the default, `done` or `skipped`). Optional:
   - `needs`: `materials` (each with a `name` and a `count`, and optionally a `symbol`, a `kind` such as Raw or Encoded, a `grade` and a `trade_group`) and `credits`. For an `engineer` action, it is the total for the rolls left, and `needs_by_grade` gives one roll's needs for each grade, keyed `"1"` to `"5"`.
   - `done_by`: the journal events that ED Chat counted for the action, so that it counts each event once. Each has `at` (the event's timestamp), `event` (its name), `n` (its place among the events with that name and timestamp, from 0), `role` (what the event was used for, such as `bought module`) and, for a part of a sum, `amount`.
   - `gear`: on foot, a key shared by a suit or weapon's buy and the later actions for it, until the buy gives it an ID.
-  - The fields that the kind is judged by: `module`, `slot`, `storage_slot`, `blueprint`, `grade` (1 to 5), `experimental`, `engineer`, `ship`, `ship_id`, `broker`, `item`, `recipe`, `paid` and `received` (each a `material` and a `count`), `material`, `count`, `suit`, `suit_id`, `weapon`, `weapon_id`, `modification`, `resource`, and `notes`.
+  - The fields that the kind is judged by: `module`, `slot`, `storage_slot`, `blueprint`, `grade` (1 to 5), `experimental`, `engineer`, `ship`, `ship_id`, `broker`, `item`, `recipe`, `paid` and `received` (each a `material` and a `count`), `material`, `count`, `suit`, `suit_id`, `weapon`, `weapon_id`, `modification`, `resource`, `commodity` (the English name), `price` (the planned unit price), `mission_id`, `mission` (a mission's name, before it has an ID), `data` (`exploration` or `organic`), `voucher` (`bounty` or `combat_bond`), and `notes`.
 
   The kinds:
 
@@ -215,9 +226,65 @@ A plan is a ship build, a route, or both. For example: system X, planet Y for bi
   | At an engineer                | `unlock_engineer`, `engineer`, `experimental`                                                                                           |
   | At a material trader, or anywhere | `trade_material`, `collect_material` (at a `gather` stop), `synthesis`                                                              |
   | On foot                       | `buy_suit`, `buy_weapon`, `upgrade_suit`, `upgrade_weapon`, `modify_suit`, `modify_weapon`, `trade_resource`, `buy_resource`, `collect_resource` |
+  | At a market | `buy_commodity`, `sell_commodity` |
+  | Missions | `accept_mission`, `complete_mission`, `collect_cargo`, `deliver_cargo` |
+  | At a station | `sell_data`, `redeem_vouchers`, `refuel`, `repair`, `restock` |
+
+  The trade, mission and station kinds, with the fields each is judged by and the journal events that finish it. The library exports the events as `ACTION_EVENTS`, and the journal reader keeps every one of them.
+
+  | Kind | Fields | Done by |
+  | --- | --- | --- |
+  | `buy_commodity`, `sell_commodity` | `commodity`, `count` (tonnes), `price` | `MarketBuy` / `MarketSell` events for the commodity, whose `Count` adds up to `count` |
+  | `accept_mission` | `mission` or `mission_id` | `MissionAccepted` |
+  | `complete_mission` | `mission_id` | `MissionCompleted` with that `MissionID` |
+  | `collect_cargo`, `deliver_cargo` | `mission_id`, `count` (tonnes), `commodity` | `CargoDepot` events with that `MissionID` and `UpdateType` `Collect` / `Deliver`, whose `Count` adds up to `count` |
+  | `sell_data` | `data`: `exploration` or `organic` | `MultiSellExplorationData` or `SellExplorationData`; `SellOrganicData` |
+  | `redeem_vouchers` | `voucher`: `bounty` or `combat_bond` | `RedeemVoucher` with `Type` `bounty` or `CombatBond` |
+  | `refuel` | | `RefuelAll` or `RefuelPartial` |
+  | `repair` | | `RepairAll` or `Repair` |
+  | `restock` (ammunition) | | `BuyAmmo` |
+
+  Example stops, one each for a trade route, a mission run and a stop written by hand:
+
+  ```json
+  [
+    {
+      "system": "Diso",
+      "station": "Shifnalport",
+      "purpose": "Sell 720 t Gold, then buy 720 t Silver",
+      "kind": "trade",
+      "actions": [
+        { "id": "sell-gold", "kind": "sell_commodity", "label": "Sell 720 t Gold", "commodity": "Gold", "count": 720, "price": 9400 },
+        { "id": "buy-silver", "kind": "buy_commodity", "label": "Buy 720 t Silver", "commodity": "Silver", "count": 720, "price": 4100 }
+      ]
+    },
+    {
+      "system": "Lave",
+      "station": "Lave Station",
+      "purpose": "Drop 6 passengers · deliver 32 t Gold",
+      "kind": "mission",
+      "actions": [
+        { "id": "deliver-1", "kind": "deliver_cargo", "label": "Deliver 32 t Gold", "mission_id": 1, "commodity": "Gold", "count": 32 },
+        { "id": "complete-1", "kind": "complete_mission", "label": "Hand in the Gold delivery", "mission_id": 1 },
+        { "id": "complete-2", "kind": "complete_mission", "label": "Drop 6 passengers", "mission_id": 2 }
+      ]
+    },
+    {
+      "system": "Colonia",
+      "station": "Jaques Station",
+      "purpose": "Cash in",
+      "kind": "other",
+      "actions": [
+        { "id": "bio", "kind": "sell_data", "label": "Sell organic data", "data": "organic" },
+        { "id": "bounties", "kind": "redeem_vouchers", "label": "Redeem bounties", "voucher": "bounty" },
+        { "id": "fuel", "kind": "refuel", "label": "Refuel" }
+      ]
+    }
+  ]
+  ```
 
 - `route`: the order that `route_stops` saved. Without a route, the order of `stops` is the visit order.
-- `repeat` and `lap`: a plan with `repeat: true` is a loop. When a `plan_update_stop` changes a stop to `done` or `skipped` and that leaves every stop `done` or `skipped`, with at least one `done`, the same write sets every stop back to `todo` and adds 1 to `lap` (a plan without `lap` is on lap 1, so it goes to 2). `trade_loops` saves its loop with `repeat: true` and `lap: 1`.
+- `repeat` and `lap`: a plan with `repeat: true` is a loop. When a `plan_update_stop` changes a stop to `done` or `skipped` and that leaves every stop `done` or `skipped`, with at least one `done`, the same write sets every stop back to `todo` and adds 1 to `lap` (a plan without `lap` is on lap 1, so it goes to 2). `trade_loops` saves its loop with `repeat: true` and `lap: 1`. The same write sets every action back to `todo` without its `done_by`, and moves `started_at` to the time of the write.
 - `prices_at`: for a plan saved by `trade_route` or `trade_loops`, the ISO time of the oldest market data that the planned prices come from. Both tools take it from the stations' market update times (for `trade_loops`, the start station's time comes from `Market.json` when the tool used that file). A station without an update time counts from its age; when a station has neither, `prices_at` is left out rather than give a newer time. The "Oldest price" in the plan's notes comes from the same time. Plans without it still load.
 - `profit_per_hour`: for a plan saved by `trade_route` or `trade_loops`, the planned profit in whole credits an hour, 0 or more. For `trade_route` it is the route's `profit_per_hour`. For `trade_loops` it is the saved loop's `sustained_per_hour`, the rate over a session (see [trade_loops](#trade_loops)), not its one-lap `profit_per_hour`. The tools round the rate to whole credits (so -0 is 0). A route without travel time has no rate, and a rate below 0 or not finite is not saved; then the plan has no `profit_per_hour`. Plans without it still load.
 
@@ -337,7 +404,7 @@ Each loop has `stations`, `legs` (`from`, `to`, `distance_ly`, `jumps`, `leg_min
 
 ### Saving a trade plan
 
-With `save_to_plan: true`, `trade_route` and `trade_loops` save their result as the plan `plan_id` (default `trade`), and replace a plan with that ID. The plan has one stop per station visit, in order. Each stop has `kind: "trade"`, the `system` and `station`, a `purpose` such as "Buy 720 t Gold" or "Sell 720 t Gold, then buy 720 t Silver", a `label` (the purpose and the station; a repeat of the same label gets " (2)", " (3)", so each stop has its own; a stop with nothing to trade is "Pass through <station>") and a `cargo` list (see [Plans](#plans)): sales at the planned `sell_price`, then purchases at the planned `buy_price`. `trade_route` saves the first station's purchases, each hop's sales and next purchases, and the last station's sales. `trade_loops` saves the best loop with `repeat: true` and `lap: 1`. Its first stop sells what the last leg brings back, so on the first lap there is nothing to sell there, and a note says so. The plan's `prices_at` is the time of the oldest market data behind the planned prices, its `profit_per_hour` is the planned profit an hour (the route's `profit_per_hour`, or the loop's `sustained_per_hour`, the rate over a session; left out when there is none), and its `notes` give the time, the profit and the age of the oldest price.
+With `save_to_plan: true`, `trade_route` and `trade_loops` save their result as the plan `plan_id` (default `trade`), and replace a plan with that ID. The plan has one stop per station visit, in order. Each stop has `kind: "trade"`, the `system` and `station`, a `purpose` such as "Buy 720 t Gold" or "Sell 720 t Gold, then buy 720 t Silver", a `label` (the purpose and the station; a repeat of the same label gets " (2)", " (3)", so each stop has its own; a stop with nothing to trade is "Pass through <station>"), and `actions` (see [Plans](#plans)): a `sell_commodity` for each sale at the planned `sell_price`, then a `buy_commodity` for each purchase at the planned `buy_price`, with ids such as `sell-gold`. The same trades are in a `cargo` list too, for ED Chat versions from before actions. The plan's `started_at` is the time of the save. `trade_route` saves the first station's purchases, each hop's sales and next purchases, and the last station's sales. `trade_loops` saves the best loop with `repeat: true` and `lap: 1`. Its first stop sells what the last leg brings back, so on the first lap there is nothing to sell there, and a note says so. Those `sell_commodity` actions start `skipped`, with a note, and the next lap sets them back to `todo`. The plan's `prices_at` is the time of the oldest market data behind the planned prices, its `profit_per_hour` is the planned profit an hour (the route's `profit_per_hour`, or the loop's `sustained_per_hour`, the rate over a session; left out when there is none), and its `notes` give the time, the profit and the age of the oldest price.
 
 The plan also becomes the activity note's plan, with kind `trading` and the plan's name as the summary, so the ED Chat panel follows it. A note that someone wrote for the same plan keeps its kind and summary. The result then has `saved: true` and `plan_id`. The route or loops are already worked out, so a failed save does not fail the call. When the plan store refuses the save, the note "The result was not saved to plan "trade": <reason>" says so. When the disk refuses it (a file system error such as `EPERM`, `EBUSY` or `ENOSPC`), the write may have got as far as `plans.json`, so the note is "The result may not have been saved to plan "trade": <error>. Check it with plan_get." If the plan is saved but the activity note is not, the note is "The plan was saved, but the activity note was not updated: <reason>". A `trade_route` result with `status: "pending"` saves nothing; its `inputs` include `save_to_plan` and `plan_id`, so calling again with them saves the finished route, and so does a bare resume call (one without a start, cargo or capital), which saves as the first call asked unless it gives `save_to_plan: true` itself. Each save starts the plan afresh: nothing of an earlier plan at that ID is kept but its `created_at`. Any other error from the store is a bug, and fails the call. With no route or no loop, nothing is saved and a note says so. Without a plan store, `save_to_plan` is an error before the search starts.
 
