@@ -842,6 +842,36 @@ describe("buildState", () => {
     });
   });
 
+  it("keeps a depot mission's delivery progress from its newest CargoDepot", () => {
+    const depot = (t: number, delivered: number, extra: object = {}) =>
+      ev(T(t), "CargoDepot", {
+        MissionID: 5,
+        UpdateType: "Deliver",
+        CargoType: "Gold",
+        Count: 10,
+        ItemsCollected: 0,
+        ItemsDelivered: delivered,
+        TotalItemsToDeliver: 72,
+        ...extra,
+      });
+    const s = buildState([
+      ev(T(0), "MissionAccepted", {
+        MissionID: 5,
+        Name: "Mission_Delivery",
+        Commodity: "$Gold_Name;",
+        Commodity_Localised: "Gold",
+        Count: 72,
+        DestinationSystem: "Sol",
+        DestinationStation: "Abraham Lincoln",
+      }),
+      depot(1, 30),
+      depot(2, 40),
+      // Another mission's depot changes nothing here.
+      depot(3, 70, { MissionID: 6 }),
+    ]);
+    expect(s.missions[0]).toMatchObject({ id: 5, count: 72, delivered: 40, to_deliver: 72 });
+  });
+
   it("tracks missions across journals", () => {
     const accept = (t: number, id: number, fields: object = {}) =>
       ev(T(t), "MissionAccepted", {

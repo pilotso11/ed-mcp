@@ -213,6 +213,7 @@ export function registerMissionTools(
           PLAN_NAME,
           ...planOf({
             byId: new Map(state.missions.map((m) => [m.id, m])),
+            asOf: state.as_of,
             ordered,
             unplaced,
             returnTo: returnPlace,
@@ -329,6 +330,8 @@ export function registerMissionTools(
 /** The plan's stops and route for the ordered mission stops; return_to is in the route only. */
 function planOf(r: {
   byId: Map<number, Mission>;
+  /** The journal's newest event time, from which new actions count events. */
+  asOf: string | null;
   ordered: Stop[];
   /** Stops Spansh could not place: in the plan after the route's stops, not in the route. */
   unplaced: Stop[];
@@ -342,7 +345,7 @@ function planOf(r: {
     // The place tells stops with the same task apart. The label changes as missions do, so tools
     // address these stops by index.
     const label = `${what} at ${s.station ?? s.system}`;
-    const actions = missionActions(s, r.byId);
+    const actions = missionActions(s, r.byId, r.asOf);
     // missions stays beside actions, for ED Chat versions that read only it.
     return {
       system: s.system,
@@ -382,7 +385,12 @@ function planOf(r: {
  * massacre or assassination, say, or a commodity mission with no station to deliver to, such as
  * on-foot salvage, which completes back where it was taken.
  */
-export function missionActions(stop: Stop, byId: Map<number, Mission>): Action[] | null {
+export function missionActions(
+  stop: Stop,
+  byId: Map<number, Mission>,
+  /** The time of the newest journal event read: a new action counts the events after it. */
+  asOf: string | null = null,
+): Action[] | null {
   const deliver: Action[] = [];
   const complete: Action[] = [];
   for (const s of stop.missions) {
@@ -393,9 +401,12 @@ export function missionActions(stop: Stop, byId: Map<number, Mission>): Action[]
     const judged =
       !active || depot || s.kind === "source" || (s.kind === "passenger" && !!s.passengers);
     if (!judged) return null;
-    if (depot) {
+    // What is still to deliver: CargoDepot progress, as of the journal read, comes off the
+    // total, and the action counts only the deliveries after that read.
+    const total = m?.to_deliver ?? m?.count ?? null;
+    const count = total !== null ? total - (m?.delivered ?? 0) : null;
+    if (depot && (count === null || count > 0)) {
       const commodity = m?.commodity ?? null;
-      const count = m?.count ?? null;
       deliver.push({
         id: `deliver-${s.id}`,
         kind: "deliver_cargo",
@@ -404,6 +415,7 @@ export function missionActions(stop: Stop, byId: Map<number, Mission>): Action[]
         mission_id: s.id,
         ...(commodity ? { commodity } : {}),
         ...(count ? { count } : {}),
+        ...(asOf ? { started_at: asOf } : {}),
       });
     }
     const passengers = s.status === "active" && s.kind === "passenger" ? s.passengers : null;
@@ -415,6 +427,7 @@ export function missionActions(stop: Stop, byId: Map<number, Mission>): Action[]
         ? `Drop ${plural(passengers, "passenger")}: ${s.name}`
         : `Hand in ${s.name}`,
       mission_id: s.id,
+      ...(asOf ? { started_at: asOf } : {}),
       ...(active && s.kind === "source" ? { notes: "Source the commodity first" } : {}),
     });
   }

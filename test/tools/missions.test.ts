@@ -813,6 +813,8 @@ describe("missions_plan, more", () => {
     let plan = await s.plans.get("missions");
     const byStation = (st: string) => plan.stops.find((x) => x.station === st)!;
     expect(byStation("Alpha Dock").missions).toEqual([7, 8]);
+    // Each counts the journal events after the newest one read.
+    const from = "2026-10-13T07:55:00Z";
     expect(byStation("Alpha Dock").actions).toEqual([
       {
         id: "deliver-7",
@@ -822,6 +824,7 @@ describe("missions_plan, more", () => {
         mission_id: 7,
         commodity: "Gold",
         count: 4,
+        started_at: from,
       },
       {
         id: "complete-7",
@@ -829,6 +832,7 @@ describe("missions_plan, more", () => {
         label: "Hand in Deliver Gold",
         status: "todo",
         mission_id: 7,
+        started_at: from,
       },
       {
         id: "complete-8",
@@ -836,6 +840,7 @@ describe("missions_plan, more", () => {
         label: "Drop 6 passengers: Ferry tourists",
         status: "todo",
         mission_id: 8,
+        started_at: from,
       },
     ]);
     expect(byStation("Beta Hub").actions!.map((a) => [a.kind, a.mission_id])).toEqual([
@@ -849,6 +854,7 @@ describe("missions_plan, more", () => {
         label: "Hand in Source Tea",
         status: "todo",
         mission_id: 10,
+        started_at: from,
         notes: "Source the commodity first",
       },
     ]);
@@ -856,7 +862,8 @@ describe("missions_plan, more", () => {
     for (const stop of plan.stops) {
       expect(new Set(stop.actions!.map((a) => a.mission_id))).toEqual(new Set(stop.missions));
     }
-    expect(plan.started_at).toBe(new Date(NOW).toISOString());
+    // missions_plan does not set the plan's start: each action has its own.
+    expect(plan.started_at).toBeUndefined();
 
     // Saved again with nothing changed, a stop keeps the actions it has done.
     const doneBy = [{ at: at(1), event: "CargoDepot", n: 0, role: "delivered", amount: 4 }];
@@ -869,6 +876,44 @@ describe("missions_plan, more", () => {
     plan = await s.plans.get("missions");
     expect(byStation("Alpha Dock").actions![0]).toMatchObject({ status: "done", done_by: doneBy });
     expect(byStation("Alpha Dock").actions![1]!.status).toBe("todo");
+  });
+
+  it("asks a depot delivery for what is still to deliver, and keeps it on a re-save", async () => {
+    const s = await stores();
+    const wing = (delivered: number) =>
+      mission(7, {
+        name: "Wing delivery",
+        destination_system: "Alpha",
+        destination_station: "Alpha Dock",
+        commodity: "Gold",
+        count: 72,
+        delivered,
+        to_deliver: 72,
+      });
+    await save({}, { ...s, missions: [wing(40)] });
+    const first = (await s.plans.get("missions")).stops[0]!.actions![0]!;
+    expect(first).toMatchObject({
+      id: "deliver-7",
+      label: "Deliver 32 t Gold for Wing delivery",
+      count: 32,
+      started_at: "2026-10-13T07:55:00Z",
+    });
+    // Saved again after 20 t more: the action is the same one, so the 20 t count for it.
+    await save({}, { ...s, missions: [wing(60)] });
+    expect((await s.plans.get("missions")).stops[0]!.actions![0]).toEqual(first);
+    // With everything delivered, only the hand-in is left.
+    const s2 = await stores();
+    await save({}, { ...s2, missions: [wing(72)] });
+    expect((await s2.plans.get("missions")).stops[0]!.actions!.map((a) => a.id)).toEqual([
+      "complete-7",
+    ]);
+  });
+
+  it("keeps the plan's started_at on a re-save", async () => {
+    const s = await stores();
+    await s.plans.upsert({ id: "missions", name: "Run", started_at: "2026-10-13T06:00:00Z" });
+    await save({}, s);
+    expect((await s.plans.get("missions")).started_at).toBe("2026-10-13T06:00:00Z");
   });
 
   it("writes no actions at a stop with a mission the journal cannot show done there", async () => {

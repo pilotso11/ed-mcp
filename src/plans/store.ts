@@ -383,8 +383,11 @@ export class PlanStore {
   /**
    * Replaces a plan's mission stops and its route in one locked write, creating the plan when it
    * is missing. Mission stops are those with a missions list; stops made by hand are kept as they
-   * are, after the new ones, and so is everything else in the plan. A new stop keeps the done or
-   * skipped mark of an old one at the same place that served exactly the same missions.
+   * are, after the new ones, and so is everything else in the plan, its started_at too. A new
+   * stop keeps the done or skipped mark of an old one at the same place that served exactly the
+   * same missions. An action is kept as the old one with its id at the same place, with its
+   * status, done_by, count and started_at, so progress made since the last save still counts; a
+   * new action without a started_at gets now, so it counts from this save on.
    */
   saveMissionStops(planId: string, name: string, stops: Stop[], route: PlanRoute): Promise<Plan> {
     return this.mutate((data) => {
@@ -395,6 +398,7 @@ export class PlanStore {
       const sameSet = (a: number[], b: number[]) =>
         a.length === b.length && a.every((id) => b.includes(id));
       const olds = (old?.stops ?? []).filter(isMission);
+      const stamp = this.now().toISOString();
       const fresh = stops.map((s) => {
         const k = placeKey(s.system, s.station);
         // The same task (kind and what to do, which changes with the missions' status) at the
@@ -406,14 +410,13 @@ export class PlanStore {
             o.purpose === s.purpose &&
             sameSet(o.missions ?? [], s.missions ?? []),
         );
+        const before = olds
+          .filter((o) => placeKey(o.system, o.station) === k)
+          .flatMap((o) => o.actions ?? []);
+        const actions = s.actions ? { actions: keepProgress(s.actions, before, stamp) } : {};
         return same
-          ? {
-              ...s,
-              status: same.status,
-              ...(same.notes ? { notes: same.notes } : {}),
-              ...(s.actions ? { actions: keepProgress(s.actions, same.actions) } : {}),
-            }
-          : s;
+          ? { ...s, ...actions, status: same.status, ...(same.notes ? { notes: same.notes } : {}) }
+          : { ...s, ...actions };
       });
       // The route's stop_indexes point at the new stops, which come first.
       const byHand = (old?.stops ?? []).filter((s) => !isMission(s));
@@ -429,13 +432,7 @@ export class PlanStore {
         id: planId,
         name,
       };
-      // The new stops' actions count only the journal events after this save; a stop kept from
-      // before keeps the actions it has done.
-      return this.put(
-        data,
-        { ...kept, stops: [...fresh, ...byHand], route, started_at: this.now().toISOString() },
-        { newRoute: true },
-      );
+      return this.put(data, { ...kept, stops: [...fresh, ...byHand], route }, { newRoute: true });
     });
   }
 
@@ -584,17 +581,15 @@ export const ActionPatchSchema = z.object({
 });
 export type ActionPatch = z.input<typeof ActionPatchSchema>;
 
-/** The new actions, each with the status, done_by and notes of the old action with its id. */
-function keepProgress(fresh: Action[], old: Action[] | undefined): Action[] {
+/**
+ * The new actions, each replaced by the old action with its id and kind, which keeps its status,
+ * done_by, count and started_at; a new one without a started_at starts at stamp.
+ */
+function keepProgress(fresh: Action[], old: Action[], stamp: string): Action[] {
   return fresh.map((a) => {
-    const was = old?.find((o) => o.id === a.id && o.kind === a.kind);
-    if (!was) return a;
-    return {
-      ...a,
-      status: was.status,
-      ...(was.done_by ? { done_by: was.done_by } : {}),
-      ...(was.notes ? { notes: was.notes } : {}),
-    };
+    const was = old.find((o) => o.id === a.id && o.kind === a.kind);
+    if (was) return was;
+    return a.started_at ? a : { ...a, started_at: stamp };
   });
 }
 
