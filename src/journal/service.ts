@@ -8,7 +8,7 @@ import { buildState, mapCargo, STATE_EVENTS, type JournalState } from "./state.j
 import { BODY_EVENTS } from "./bodies.js";
 import { LOCATION_EVENTS, matchFile, systemAt, type EventFilter } from "./events.js";
 import { MASSACRE_EVENTS } from "./massacre.js";
-import { ACTION_EVENTS } from "../plans/schema.js";
+import { ACTION_EVENTS } from "../actionEvents.js";
 
 export interface JournalStatus {
   dir: string;

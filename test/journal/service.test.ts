@@ -5,7 +5,7 @@ import path from "node:path";
 import { listJournals } from "../../src/journal/files.js";
 import { JournalReader } from "../../src/journal/reader.js";
 import { JournalService, KEPT_EVENTS } from "../../src/journal/service.js";
-import { ACTION_EVENTS } from "../../src/plans/schema.js";
+import { ACTION_EVENTS } from "../../src/actionEvents.js";
 import { STATE_EVENTS } from "../../src/journal/state.js";
 import { ev, writeJournal } from "../helpers/journal.js";
 

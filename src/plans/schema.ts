@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ACTION_EVENTS } from "../actionEvents.js";
 
 export const ItemKind = z.enum([
   "buy",
@@ -92,24 +93,11 @@ export const ActionKind = z.enum([
   "restock",
 ]);
 
-/**
- * The journal events that finish each kind of trade, mission and station action: an action is
- * done when one of them matches it (for a count, when the matches add up to it). Every one is in
- * the journal reader's KEPT_EVENTS. The build kinds are in ED Chat's build panel spec.
- */
-export const ACTION_EVENTS = {
-  buy_commodity: ["MarketBuy"],
-  sell_commodity: ["MarketSell"],
-  accept_mission: ["MissionAccepted"],
-  complete_mission: ["MissionCompleted"],
-  collect_cargo: ["CargoDepot"],
-  deliver_cargo: ["CargoDepot"],
-  sell_data: ["MultiSellExplorationData", "SellExplorationData", "SellOrganicData"],
-  redeem_vouchers: ["RedeemVoucher"],
-  refuel: ["RefuelAll", "RefuelPartial"],
-  repair: ["RepairAll", "Repair"],
-  restock: ["BuyAmmo"],
-} as const satisfies Partial<Record<z.infer<typeof ActionKind>, readonly string[]>>;
+// The journal events that finish each trade, mission and station kind, kept apart from the
+// plans so the journal code can use them; re-exported here, and checked to name action kinds.
+export { ACTION_EVENTS };
+const _eventKinds: Partial<Record<z.infer<typeof ActionKind>, readonly string[]>> = ACTION_EVENTS;
+void _eventKinds;
 
 const ACTION_KINDS_HELP =
   "What the action is; each kind is judged by some fields, and done by journal events. " +
